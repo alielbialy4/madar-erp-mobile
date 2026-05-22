@@ -1,13 +1,13 @@
 import type { PosCatalog, Sale, SalePayload } from '@/types/api';
-import type { PendingOfflineOrder } from '@/services/offline/posOrders';
+import type { LegacyPendingOfflineOrder } from '@/types/offline';
 import { del, get, post } from './client';
 
 export const posAPI = {
   pullCatalog: (branchId?: string | null, params?: { products_page?: number; products_per_page?: number; customers_limit?: number }) => (
     get<PosCatalog>('/sync/pos-data', { ...(branchId ? { branch_id: branchId } : {}), products_per_page: 300, customers_limit: 500, ...params })
   ),
-  pushOfflineOrders: (orders: PendingOfflineOrder[], branchId?: string | null) => (
-    post<{ client_uuid: string; status: 'created' | 'duplicate' | 'error'; sale_id?: number; message?: string }[]>('/sync/offline-orders', { orders }, branchId ? { 'X-Branch-Id': branchId } : undefined)
+  pushOfflineOrders: (orders: (LegacyPendingOfflineOrder & { sale_date: string })[], branchId?: string | null) => (
+    post<{ client_uuid: string; status: 'created' | 'duplicate' | 'error'; sale_id?: number; invoice_number?: string | null; message?: string }[]>('/sync/offline-orders', { orders }, branchId ? { 'X-Branch-Id': branchId } : undefined)
   ),
   createSale: (data: SalePayload) => post<Sale>('/pos/sales', data),
   getSales: (params?: Record<string, unknown>) => get<Sale[]>('/pos/sales', params),

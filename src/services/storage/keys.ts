@@ -8,4 +8,8 @@ export const storageKeys = {
   posFailedOrders: 'madar.pos.failed_orders',
   offlineQueue: 'madar.offline.queue',
   cachedUser: 'madar.auth.cached_user',
+  printerProfiles: 'madar.print.profiles',
+  printJobsQueue: 'madar.print.jobs',
+  kitchenRoutingRules: 'madar.print.kitchen_routing',
+  printDiagnostics: 'madar.print.diagnostics',
 };

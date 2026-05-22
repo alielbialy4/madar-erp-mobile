@@ -17,14 +17,29 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.madar.erp.mobile"
+      "bundleIdentifier": "com.madar.erp.mobile",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "يحتاج التطبيق للوصول إلى الطابعات الحرارية على الشبكة المحلية (Ethernet/TCP منفذ 9100).",
+        "NSBonjourServices": [
+          "_printer._tcp"
+        ]
+      }
     },
     "android": {
       "package": "com.madar.erp.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
-      }
+      },
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",

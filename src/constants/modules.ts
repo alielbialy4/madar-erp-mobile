@@ -25,7 +25,7 @@ export const moduleDefinitions: ModuleDefinition[] = [
   { key: 'giftcards', label: 'بطاقات الهدايا', route: 'GiftCards', permission: 'manage_coupons', status: 'complete', description: 'إدارة بطاقات الهدايا.' },
   { key: 'users', label: 'المستخدمين', route: 'Users', permission: 'manage_users', status: 'complete', description: 'إدارة مستخدمي النظام والصلاحيات.' },
   { key: 'delivery', label: 'التوصيل', route: 'Delivery', permission: ['process_sales', 'manage_deliveries'], status: 'partial', description: 'طلبات التوصيل معروضة كمسار مستقل، وتفاصيل الربط المالي موثقة.' },
-  { key: 'reports', label: 'التقارير', route: 'Reports', permission: 'view_reports', feature: 'reports', status: 'complete', description: 'بطاقات ملخصة للمبيعات والمخزون والمشتريات.' },
+  { key: 'reports', label: 'التقارير', route: 'Reports', permission: 'view_reports', feature: 'reports', status: 'complete', description: 'مركز تقارير مطابق للويب مع فلاتر وبيانات API حقيقية.' },
   { key: 'notifications', label: 'الإشعارات', route: 'Notifications', status: 'complete', description: 'قائمة وعدد غير مقروء وتعليم كمقروء.' },
   { key: 'settings', label: 'الإعدادات', route: 'Settings', permission: ['manage_users', 'manage_branches', 'manage_settings', 'access_admin_routes'], status: 'partial', description: 'ملف شخصي وفروع وتغيير كلمة المرور.' },
   { key: 'profile', label: 'الملف الشخصي', route: 'Profile', status: 'complete', description: 'بيانات المستخدم والخروج.' },

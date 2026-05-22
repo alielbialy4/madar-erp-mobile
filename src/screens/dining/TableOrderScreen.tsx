@@ -1,13 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { diningAPI } from '@/api/dining';
+import { kitchenAPI } from '@/api/kitchen';
+import { getEnabledProfilesByRole } from '@/services/printing/printerProfiles';
+import { printEngine } from '@/services/printing/printEngine';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { useBranchStore } from '@/store/branchStore';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { money, numberText } from '@/utils/format';
@@ -36,6 +39,7 @@ export function TableOrderScreen({ route, navigation }: { route: any; navigation
 }
 
 function TableOrder({ tableId, tableName, navigation }: { tableId: string; tableName: string; navigation: any }) {
+  const c = useColors();
   const activeBranch = useBranchStore((state) => state.activeBranch);
 
   const [order, setOrder] = useState<Record<string, any> | null>(null);
@@ -51,6 +55,45 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
   const [actionLoading, setActionLoading] = useState(false);
   const [settleConfirm, setSettleConfirm] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
+  const [printConfirm, setPrintConfirm] = useState(false);
+  const [printBlocked, setPrintBlocked] = useState<string | null>(null);
+
+  const styles = useMemo(() => StyleSheet.create({
+    summaryText: {
+      ...textStart,
+      fontSize: typography.body,
+      color: c.text,
+      marginBottom: spacing.xs,
+    },
+    messageText: {
+      ...textStart,
+      fontSize: typography.small,
+      color: c.info,
+      marginBottom: spacing.md,
+    },
+    actionsContainer: {
+      gap: spacing.md,
+    },
+    sheetHeader: {
+      ...flexRow,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    sheetTitle: {
+      fontSize: typography.h3,
+      fontWeight: '900',
+      color: c.text,
+      ...textStart,
+      flex: 1,
+    },
+    tableList: {
+      paddingBottom: spacing.xl,
+    },
+    separator: {
+      height: spacing.sm,
+    },
+  }), [c]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +180,44 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
     }
   };
 
+  const printPreInvoice = async () => {
+    const saleId = Number(order?.id ?? order?.sale_id);
+    if (!saleId) {
+      setPrintBlocked('لا يوجد رقم بيع لطباعة فاتورة مبدئية.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const profiles = await getEnabledProfilesByRole('kitchen');
+      if (!profiles.length) {
+        setPrintBlocked('لا يوجد ملف طابعة مطبخ مفعّل. أضف ملف طابعة من الإعدادات.');
+        return;
+      }
+      const ticketRes = await kitchenAPI.getTicket(saleId);
+      const ticket = (ticketRes.data as Record<string, unknown>) ?? {};
+      const items = Array.isArray(ticket.items) ? ticket.items : order?.items ?? [];
+      await printEngine.printKitchenTicket(
+        {
+          order_label: String(ticket.invoice_number ?? order?.invoice_number ?? saleId),
+          table_name: tableName,
+          items: items.map((it: Record<string, unknown>) => ({
+            name: String((it.product as Record<string, unknown>)?.name ?? it.product_name ?? 'صنف'),
+            quantity: Number(it.quantity ?? 1),
+            notes: it.notes ? String(it.notes) : undefined,
+          })),
+          ticket_type: 'kitchen',
+        },
+        profiles[0],
+      );
+      setMessage('تم إرسال أمر الطباعة');
+    } catch (err) {
+      setMessage(normalizeApiError(err).message);
+    } finally {
+      setActionLoading(false);
+      setPrintConfirm(false);
+    }
+  };
+
   const releaseTable = async () => {
     setActionLoading(true);
     try {
@@ -195,6 +276,9 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
             <AppSectionHeader title="إجراءات الطاولة" />
             {message ? <Text style={styles.messageText}>{message}</Text> : null}
             <View style={styles.actionsContainer}>
+              <AppButton title="وضع النادل — إضافة أصناف" variant="secondary" onPress={() => navigation.navigate('WaiterPos')} />
+              <AppButton title="طباعة مبدئية" variant="secondary" onPress={() => setPrintConfirm(true)} />
+              {printBlocked ? <Text style={styles.messageText}>{printBlocked}</Text> : null}
               <AppButton title="تسوية نقدية" onPress={() => setSettleConfirm(true)} loading={actionLoading && settleConfirm} />
               <AppButton
                 title="نقل الطلب"
@@ -281,6 +365,16 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
       />
 
       <ConfirmDialog
+        visible={printConfirm}
+        title="طباعة فاتورة مبدئية"
+        message="إرسال تذكرة/فاتورة مبدئية للطابعة؟"
+        confirmLabel="طباعة"
+        onConfirm={printPreInvoice}
+        onCancel={() => setPrintConfirm(false)}
+        loading={actionLoading}
+      />
+
+      <ConfirmDialog
         visible={releaseConfirm}
         title="تأكيد إخلاء الطاولة"
         message="سيتم إخلاء الطاولة. هل أنت متأكد؟"
@@ -292,40 +386,3 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  summaryText: {
-    ...textStart,
-    fontSize: typography.body,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  messageText: {
-    ...textStart,
-    fontSize: typography.small,
-    color: colors.info,
-    marginBottom: spacing.md,
-  },
-  actionsContainer: {
-    gap: spacing.md,
-  },
-  sheetHeader: {
-    ...flexRow,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  sheetTitle: {
-    fontSize: typography.h3,
-    fontWeight: '900',
-    color: colors.text,
-    ...textStart,
-    flex: 1,
-  },
-  tableList: {
-    paddingBottom: spacing.xl,
-  },
-  separator: {
-    height: spacing.sm,
-  },
-});

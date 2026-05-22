@@ -1,56 +1,76 @@
 import { Animated, Easing } from 'react-native';
 
-export function pressScale(pressed: boolean, scale = 0.96) {
-  return { transform: [{ scale: pressed ? scale : 1 }] };
-}
-
-export function fadeIn(value: Animated.Value, duration = 220) {
-  Animated.timing(value, {
-    toValue: 1,
+export function slideInX(anim: Animated.Value, fromValue: number, toValue = 0, duration = 280) {
+  anim.setValue(fromValue);
+  Animated.timing(anim, {
+    toValue,
     duration,
-    easing: Easing.out(Easing.cubic),
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
     useNativeDriver: true,
   }).start();
 }
 
-export function slideInX(value: Animated.Value, from: number, duration = 280) {
-  value.setValue(from);
-  Animated.timing(value, {
+export function slideOutX(anim: Animated.Value, toValue: number, duration = 220) {
+  Animated.timing(anim, {
+    toValue,
+    duration,
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
+    useNativeDriver: true,
+  }).start();
+}
+
+export function fadeIn(anim: Animated.Value, duration = 250) {
+  anim.setValue(0);
+  Animated.timing(anim, {
+    toValue: 1,
+    duration,
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
+    useNativeDriver: true,
+  }).start();
+}
+
+export function fadeOut(anim: Animated.Value, duration = 200) {
+  Animated.timing(anim, {
     toValue: 0,
     duration,
-    easing: Easing.out(Easing.cubic),
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
     useNativeDriver: true,
   }).start();
 }
 
-export function tabPulse(value: Animated.Value) {
-  value.setValue(0.85);
-  Animated.spring(value, {
+export function scaleIn(anim: Animated.Value, from = 0.92, duration = 200) {
+  anim.setValue(from);
+  Animated.spring(anim, {
     toValue: 1,
-    friction: 4,
-    tension: 120,
+    friction: 7,
+    tension: 180,
     useNativeDriver: true,
   }).start();
 }
 
-export function animateTabIndicator(
-  translateX: Animated.Value,
-  width: Animated.Value,
-  toX: number,
-  toW: number,
-) {
-  Animated.parallel([
-    Animated.spring(translateX, {
-      toValue: toX,
-      friction: 9,
-      tension: 90,
-      useNativeDriver: false,
-    }),
-    Animated.spring(width, {
-      toValue: toW,
-      friction: 9,
-      tension: 90,
-      useNativeDriver: false,
-    }),
-  ]).start();
+export function pressScale(anim: Animated.Value, pressed: boolean) {
+  Animated.spring(anim, {
+    toValue: pressed ? 0.94 : 1,
+    friction: 5,
+    tension: 200,
+    useNativeDriver: true,
+  }).start();
 }
+
+export function createPulseValue(): Animated.Value {
+  return new Animated.Value(1);
+}
+
+export function pulse(anim: Animated.Value) {
+  Animated.loop(
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 1.04, duration: 800, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+    ]),
+  ).start();
+}
+
+export const SCREEN_TRANSITION = {
+  duration: 220,
+  easing: Easing.bezier(0.22, 1, 0.36, 1),
+};

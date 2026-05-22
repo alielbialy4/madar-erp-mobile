@@ -1,7 +1,7 @@
 import './src/bootstrap/rtl';
-import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -57,15 +57,21 @@ export default function App() {
   }, [theme]);
 
   return (
-    <RtlProvider>
-      <FontProvider>
-        <SafeAreaProvider>
-          <NavigationContainer direction="rtl" theme={navTheme}>
-            <RootNavigator />
-            <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </FontProvider>
-    </RtlProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <RtlProvider>
+        <FontProvider>
+          <SafeAreaProvider>
+            <NavigationContainer direction="rtl" theme={navTheme}>
+              <RootNavigator />
+              <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </FontProvider>
+      </RtlProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

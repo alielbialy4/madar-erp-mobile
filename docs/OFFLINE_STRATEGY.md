@@ -15,7 +15,9 @@ Offline support is intentionally narrow and honest.
 
 ## Not Claimed As Server Success
 
-Offline POS checkout returns: `تم حفظ الطلب في قائمة الانتظار. لم يتم تأكيد البيع من الخادم بعد.`
+Offline POS checkout returns: `تم حفظ الطلب محليًا وسيتم مزامنته عند عودة الاتصال.`
+
+Receipt print jobs are queued locally with `غير مزامنة` on the ticket. See `docs/MOBILE_OFFLINE_POS_PLAN.md` and `docs/MOBILE_PRINT_ENGINE.md`.
 
 The cart is cleared only after the order is stored locally, and the pending count is refreshed. The app never labels that state as a completed sale.
 

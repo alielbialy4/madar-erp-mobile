@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppBadge, AppButton, AppSectionHeader } from '@/components/ui';
 import { AppEmptyState } from '@/components/feedback';
 import { flexRow, textStart } from '@/constants/layout';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
+import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -25,6 +26,8 @@ type Props = {
   onSelectCustomer: () => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  onSaveHoldCart?: () => void;
+  onOpenHoldCarts?: () => void;
   onUpdateQty: (productId: number, delta: number) => void;
   onRemoveLine: (productId: number) => void;
 };
@@ -42,10 +45,14 @@ export function PosOrderPanel({
   onSelectCustomer,
   onClearCart,
   onCheckout,
+  onSaveHoldCart,
+  onOpenHoldCarts,
   onUpdateQty,
   onRemoveLine,
 }: Props) {
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
 
   return (
     <View style={styles.panel}>
@@ -55,13 +62,13 @@ export function PosOrderPanel({
 
       {shiftError ? (
         <View style={styles.alertDanger}>
-          <MaterialIcons name="error-outline" size={16} color={colors.danger} />
+          <MaterialIcons name="error-outline" size={16} color={c.danger} />
           <Text style={styles.alertDangerText}>{shiftError}</Text>
         </View>
       ) : null}
       {!hasShift ? (
         <View style={styles.alertWarning}>
-          <MaterialIcons name="warning" size={16} color={colors.warning} />
+          <MaterialIcons name="warning" size={16} color={c.warning} />
           <Text style={styles.alertWarningText}>لا توجد وردية نشطة. افتح وردية لإتمام البيع.</Text>
         </View>
       ) : null}
@@ -93,14 +100,14 @@ export function PosOrderPanel({
               </View>
               <View style={styles.qtyRow}>
                 <Pressable onPress={() => onUpdateQty(item.product_id, 1)} style={styles.qtyBtn}>
-                  <MaterialIcons name="add" size={18} color={colors.accent} />
+                  <MaterialIcons name="add" size={18} color={c.accent} />
                 </Pressable>
                 <Text style={styles.qtyValue}>{numberText(item.quantity)}</Text>
                 <Pressable onPress={() => onUpdateQty(item.product_id, -1)} style={styles.qtyBtn}>
-                  <MaterialIcons name="remove" size={18} color={colors.textMuted} />
+                  <MaterialIcons name="remove" size={18} color={c.textMuted} />
                 </Pressable>
                 <Pressable onPress={() => onRemoveLine(item.product_id)} style={styles.removeBtn}>
-                  <MaterialIcons name="delete-outline" size={18} color={colors.danger} />
+                  <MaterialIcons name="delete-outline" size={18} color={c.danger} />
                 </Pressable>
               </View>
             </View>
@@ -121,7 +128,7 @@ export function PosOrderPanel({
         </View>
         {selectedCustomerName ? (
           <View style={styles.customerRow}>
-            <MaterialIcons name="person" size={14} color={colors.textMuted} />
+            <MaterialIcons name="person" size={14} color={c.textMuted} />
             <Text style={styles.customerText}>{selectedCustomerName}</Text>
           </View>
         ) : null}
@@ -129,6 +136,16 @@ export function PosOrderPanel({
           <AppButton title="عميل" variant="outline" onPress={onSelectCustomer} style={styles.half} size="sm" />
           <AppButton title="مسح" variant="ghost" onPress={onClearCart} style={styles.half} size="sm" />
         </View>
+        {onSaveHoldCart || onOpenHoldCarts ? (
+          <View style={styles.actions}>
+            {onSaveHoldCart ? (
+              <AppButton title="حفظ السلة" variant="secondary" onPress={onSaveHoldCart} style={styles.half} size="sm" />
+            ) : null}
+            {onOpenHoldCarts ? (
+              <AppButton title="السلات المحفوظة" variant="outline" onPress={onOpenHoldCarts} style={styles.half} size="sm" />
+            ) : null}
+          </View>
+        ) : null}
         <AppButton
           title={`الدفع — ${money(effectiveTotal)}`}
           disabled={cart.length === 0 || !hasShift}
@@ -141,94 +158,103 @@ export function PosOrderPanel({
   );
 }
 
-const styles = StyleSheet.create({
-  panel: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.xxl,
-    overflow: 'hidden',
-    minWidth: 0,
-  },
-  header: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
-  list: { flex: 1 },
-  listContent: { paddingHorizontal: spacing.md },
-  line: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle, paddingVertical: spacing.sm, gap: spacing.sm },
-  lineInfo: { gap: 2 },
-  lineTitle: { ...textStart, color: colors.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.cardTitle },
-  lineOption: { ...textStart, color: colors.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
-  lineMeta: { ...textStart, color: colors.textMuted, fontSize: typography.small, fontFamily: fonts.medium },
-  qtyRow: { ...flexRow, gap: spacing.sm, alignItems: 'center' },
-  qtyBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyValue: {
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    fontSize: typography.body,
-    color: colors.text,
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  removeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    padding: spacing.md,
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  totalsSection: { gap: spacing.xs },
-  totalRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { color: colors.textMuted, fontSize: typography.body, fontFamily: fonts.medium },
-  totalValue: { color: colors.text, fontSize: typography.posPrice, fontFamily: fonts.extraBold, fontWeight: '800' },
-  subtotalText: { ...textStart, color: colors.textCaption, fontSize: typography.tiny, fontFamily: fonts.regular },
-  couponText: { ...textStart, color: colors.success, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700' },
-  customerRow: { ...flexRow, alignItems: 'center', gap: spacing.xs },
-  customerText: { ...textStart, color: colors.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small },
-  walletText: { ...textStart, color: colors.info, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700', paddingHorizontal: spacing.md },
-  alertDanger: {
-    ...flexRow,
-    gap: spacing.sm,
-    backgroundColor: colors.softDanger,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  alertDangerText: { ...textStart, color: colors.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
-  alertWarning: {
-    ...flexRow,
-    gap: spacing.sm,
-    backgroundColor: colors.softWarning,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  alertWarningText: { ...textStart, color: '#B45309', fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
-  alertInfo: {
-    backgroundColor: colors.softInfo,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginHorizontal: spacing.md,
-  },
-  alertInfoText: { ...textStart, color: colors.info, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-  actions: { ...flexRow, gap: spacing.sm },
-  half: { flex: 1 },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    panel: {
+      flex: 1,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.xxl,
+      overflow: 'hidden',
+      minWidth: 0,
+    },
+    header: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: spacing.md },
+    line: { borderBottomWidth: 1, borderBottomColor: c.borderSubtle, paddingVertical: spacing.sm, gap: spacing.sm },
+    lineInfo: { gap: 2 },
+    lineTitle: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.cardTitle },
+    lineOption: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
+    lineMeta: { ...textStart, color: c.textMuted, fontSize: typography.small, fontFamily: fonts.medium },
+    qtyRow: { ...flexRow, gap: spacing.sm, alignItems: 'center' },
+    qtyBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.lg,
+      backgroundColor: c.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    qtyValue: {
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+      fontSize: typography.body,
+      color: c.text,
+      minWidth: 24,
+      textAlign: 'center',
+    },
+    removeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footer: {
+      borderTopWidth: 1,
+      borderTopColor: c.borderSubtle,
+      padding: spacing.md,
+      gap: spacing.sm,
+      backgroundColor: c.surfaceMuted,
+    },
+    totalsSection: {
+      gap: spacing.xs,
+      padding: spacing.md,
+      borderRadius: radius.xl,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+    },
+    totalRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
+    totalLabel: { color: c.textMuted, fontSize: typography.body, fontFamily: fonts.medium, writingDirection: 'rtl' },
+    totalValue: { color: c.primary, fontSize: typography.posPrice, fontFamily: fonts.extraBold, fontWeight: '800', writingDirection: 'rtl' },
+    subtotalText: { ...textStart, color: c.textCaption, fontSize: typography.tiny, fontFamily: fonts.regular },
+    couponText: { ...textStart, color: c.success, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700' },
+    customerRow: { ...flexRow, alignItems: 'center', gap: spacing.xs },
+    customerText: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small },
+    walletText: { ...textStart, color: c.info, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700', paddingHorizontal: spacing.md },
+    alertDanger: {
+      ...flexRow,
+      gap: spacing.sm,
+      backgroundColor: c.softDanger,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginHorizontal: spacing.md,
+      alignItems: 'center',
+    },
+    alertDangerText: { ...textStart, color: c.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
+    alertWarning: {
+      ...flexRow,
+      gap: spacing.sm,
+      backgroundColor: c.softWarning,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginHorizontal: spacing.md,
+      alignItems: 'center',
+    },
+    alertWarningText: { ...textStart, color: '#B45309', fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
+    alertInfo: {
+      backgroundColor: c.softInfo,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginHorizontal: spacing.md,
+    },
+    alertInfoText: { ...textStart, color: c.info, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
+    actions: { ...flexRow, gap: spacing.sm },
+    half: { flex: 1 },
+  });
+}

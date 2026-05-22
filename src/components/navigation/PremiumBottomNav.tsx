@@ -3,7 +3,6 @@ import {
   Animated,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -22,8 +21,9 @@ import {
 import { spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
 import type { MainTabParamList } from '@/types/navigation';
+import { popTabStackToRoot } from '@/navigation/nestedTabNavigation';
 
-type TabIconName = 'home' | 'point-of-sale' | 'inventory-2' | 'receipt-long' | 'grid-view';
+type TabIconName = 'home' | 'point-of-sale' | 'inventory-2' | 'receipt-long' | 'apps';
 
 type TabMeta = {
   label: string;
@@ -36,10 +36,9 @@ const TAB_META: Record<keyof MainTabParamList, TabMeta> = {
   POSTab: { label: 'نقطة البيع', icon: 'point-of-sale', isPos: true },
   ProductsTab: { label: 'المنتجات', icon: 'inventory-2' },
   SalesTab: { label: 'المبيعات', icon: 'receipt-long' },
-  MoreTab: { label: 'المزيد', icon: 'grid-view' },
+  MoreTab: { label: 'المزيد', icon: 'apps' },
 };
 
-/** Visual order: POS in the physical center of the bar */
 const TAB_DISPLAY_ORDER: (keyof MainTabParamList)[] = [
   'DashboardTab',
   'ProductsTab',
@@ -48,55 +47,53 @@ const TAB_DISPLAY_ORDER: (keyof MainTabParamList)[] = [
   'MoreTab',
 ];
 
-const INACTIVE_COLOR = '#94A3B8';
-const ACTIVE_PILL_BG = '#EEF4FF';
-const ACTIVE_ACCENT = '#2563EB';
-const DOCK_RADIUS = 32;
-const MIN_TOUCH = 44;
-const ACTIVE_SCALE = 1.06;
+const DOCK_RADIUS = 30;
+const MIN_TOUCH = 48;
+const POS_ORB_SIZE = 56;
+const ICON_SLOT = 40;
 
 function StandardTab({
   label,
   icon,
   focused,
   onPress,
-  styles,
+  c,
 }: {
   label: string;
   icon: TabIconName;
   focused: boolean;
   onPress: () => void;
-  styles: ReturnType<typeof createStyles>;
+  c: AppColors;
 }) {
   const pressScale = useRef(new Animated.Value(1)).current;
-  const focusScale = useRef(new Animated.Value(1)).current;
-  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const glowScale = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const labelOpacity = useRef(new Animated.Value(focused ? 1 : 0.72)).current;
+  const inactive = c.textCaption;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(focusScale, {
-        toValue: focused ? ACTIVE_SCALE : 1,
-        friction: 6,
-        tension: focused ? 180 : 140,
+      Animated.spring(glowScale, {
+        toValue: focused ? 1 : 0,
+        friction: 7,
+        tension: 140,
         useNativeDriver: true,
       }),
-      Animated.timing(pillOpacity, {
-        toValue: focused ? 1 : 0,
-        duration: focused ? 180 : 140,
+      Animated.timing(labelOpacity, {
+        toValue: focused ? 1 : 0.72,
+        duration: 200,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [focused, focusScale, pillOpacity]);
+  }, [focused, glowScale, labelOpacity]);
 
   const handlePressIn = () => {
-    Animated.spring(pressScale, { toValue: 0.9, friction: 5, tension: 240, useNativeDriver: true }).start();
+    Animated.spring(pressScale, { toValue: 0.9, friction: 5, tension: 280, useNativeDriver: true }).start();
   };
   const handlePressOut = () => {
-    Animated.spring(pressScale, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true }).start();
+    Animated.spring(pressScale, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }).start();
   };
 
-  const iconColor = focused ? ACTIVE_ACCENT : INACTIVE_COLOR;
-  const labelStyle = focused ? styles.standardLabelActive : styles.standardLabelInactive;
+  const iconColor = focused ? c.accent : inactive;
 
   return (
     <Pressable
@@ -106,19 +103,37 @@ function StandardTab({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={styles.standardSlot}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', minHeight: MIN_TOUCH, paddingBottom: 2 }}
     >
-      <Animated.View style={[styles.standardPressWrap, { transform: [{ scale: pressScale }] }]}>
-        <Animated.View style={[styles.standardInner, { transform: [{ scale: focusScale }] }]}>
+      <Animated.View style={{ transform: [{ scale: pressScale }], alignItems: 'center', gap: 4 }}>
+        <View style={{ width: ICON_SLOT, height: ICON_SLOT, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View
-            pointerEvents="none"
-            style={[styles.activePill, { opacity: pillOpacity }]}
+            style={{
+              position: 'absolute',
+              width: ICON_SLOT,
+              height: ICON_SLOT,
+              borderRadius: ICON_SLOT / 2,
+              backgroundColor: c.softPrimary,
+              transform: [{ scale: glowScale }],
+              opacity: glowScale,
+            }}
           />
-          <MaterialIcons name={icon} size={22} color={iconColor} style={styles.standardIcon} />
-          <Text style={labelStyle} numberOfLines={1}>
-            {label}
-          </Text>
-        </Animated.View>
+          <MaterialIcons name={icon} size={focused ? 24 : 22} color={iconColor} />
+        </View>
+        <Animated.Text
+          style={{
+            fontSize: 10,
+            fontFamily: focused ? fonts.bold : fonts.medium,
+            fontWeight: focused ? '700' : '500',
+            color: focused ? c.accent : inactive,
+            textAlign: 'center',
+            writingDirection: 'rtl',
+            opacity: labelOpacity,
+          }}
+          numberOfLines={1}
+        >
+          {label}
+        </Animated.Text>
       </Animated.View>
     </Pressable>
   );
@@ -128,32 +143,34 @@ function PosCenterTab({
   label,
   focused,
   onPress,
-  styles,
   c,
 }: {
   label: string;
   focused: boolean;
   onPress: () => void;
-  styles: ReturnType<typeof createStyles>;
   c: AppColors;
 }) {
   const pressScale = useRef(new Animated.Value(1)).current;
   const orbScale = useRef(new Animated.Value(1)).current;
+  const ringScale = useRef(new Animated.Value(focused ? 1.08 : 1)).current;
+  const inactive = c.textCaption;
 
   useEffect(() => {
-    Animated.spring(orbScale, {
-      toValue: focused ? ACTIVE_SCALE : 1,
+    Animated.spring(ringScale, {
+      toValue: focused ? 1.08 : 1,
       friction: 6,
-      tension: 160,
+      tension: 120,
       useNativeDriver: true,
     }).start();
-  }, [focused, orbScale]);
+  }, [focused, ringScale]);
 
   const handlePressIn = () => {
-    Animated.spring(pressScale, { toValue: 0.92, friction: 5, tension: 240, useNativeDriver: true }).start();
+    Animated.spring(pressScale, { toValue: 0.92, friction: 4, tension: 260, useNativeDriver: true }).start();
+    Animated.spring(orbScale, { toValue: 0.96, friction: 4, tension: 260, useNativeDriver: true }).start();
   };
   const handlePressOut = () => {
-    Animated.spring(pressScale, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true }).start();
+    Animated.spring(pressScale, { toValue: 1, friction: 4, tension: 180, useNativeDriver: true }).start();
+    Animated.spring(orbScale, { toValue: 1, friction: 4, tension: 180, useNativeDriver: true }).start();
   };
 
   return (
@@ -164,19 +181,59 @@ function PosCenterTab({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={styles.posSlot}
+      style={{ flex: 1.15, alignItems: 'center', justifyContent: 'flex-end', marginTop: -22 }}
     >
-      <Animated.View style={[styles.posColumn, { transform: [{ scale: pressScale }] }]}>
-        <Animated.View
-          style={[
-            styles.posOrb,
-            focused ? styles.posOrbActive : styles.posOrbIdle,
-            { transform: [{ scale: orbScale }] },
-          ]}
+      <Animated.View style={{ alignItems: 'center', gap: 6, transform: [{ scale: pressScale }] }}>
+        <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              width: POS_ORB_SIZE + 14,
+              height: POS_ORB_SIZE + 14,
+              borderRadius: (POS_ORB_SIZE + 14) / 2,
+              borderWidth: 2,
+              borderColor: c.accentBorder,
+              opacity: focused ? 0.9 : 0.35,
+              transform: [{ scale: ringScale }],
+            }}
+          />
+          <Animated.View
+            style={{
+              width: POS_ORB_SIZE,
+              height: POS_ORB_SIZE,
+              borderRadius: POS_ORB_SIZE / 2,
+              backgroundColor: c.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 3,
+              borderColor: c.surface,
+              transform: [{ scale: orbScale }],
+              ...Platform.select({
+                ios: {
+                  shadowColor: c.primary,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                },
+                android: { elevation: 10 },
+                default: { boxShadow: '0 6px 20px rgba(51, 102, 255, 0.35)' } as object,
+              }),
+            }}
+          >
+            <MaterialIcons name="point-of-sale" size={26} color={c.primaryForeground} />
+          </Animated.View>
+        </View>
+        <Text
+          style={{
+            fontSize: 10,
+            fontFamily: focused ? fonts.bold : fonts.medium,
+            fontWeight: focused ? '700' : '500',
+            color: focused ? c.primary : inactive,
+            textAlign: 'center',
+            writingDirection: 'rtl',
+          }}
+          numberOfLines={1}
         >
-          <MaterialIcons name="point-of-sale" size={26} color={c.primaryForeground} />
-        </Animated.View>
-        <Text style={[styles.posLabel, focused && styles.posLabelActive]} numberOfLines={1}>
           {label}
         </Text>
       </Animated.View>
@@ -186,9 +243,14 @@ function PosCenterTab({
 
 export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
   const c = useColors();
-  const styles = useMemo(() => createStyles(c), [c]);
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET) + TAB_BAR_FLOAT_GAP;
+
+  const dockShadow = Platform.select({
+    ios: { shadowColor: '#0A1020', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 24 },
+    android: { elevation: 12 },
+    default: { boxShadow: '0 10px 32px rgba(10, 16, 32, 0.14)' } as object,
+  });
 
   const routeByName = useMemo(() => {
     const map = new Map<string, (typeof state.routes)[number]>();
@@ -210,21 +272,19 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
         target: route.key,
         canPreventDefault: true,
       });
-      if (!focused && !event.defaultPrevented) {
-        navigation.navigate(route.name);
+      if (event.defaultPrevented) return;
+      if (focused) {
+        if (routeName === 'MoreTab') {
+          popTabStackToRoot(navigation, 'MoreTab', 'MoreHome');
+        }
+        return;
       }
+      navigation.navigate(route.name);
     };
 
     if (meta.isPos) {
       return (
-        <PosCenterTab
-          key={route.key}
-          label={meta.label}
-          focused={focused}
-          onPress={onPress}
-          styles={styles}
-          c={c}
-        />
+        <PosCenterTab key={route.key} label={meta.label} focused={focused} onPress={onPress} c={c} />
       );
     }
 
@@ -235,162 +295,54 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
         icon={meta.icon}
         focused={focused}
         onPress={onPress}
-        styles={styles}
+        c={c}
       />
     );
   };
 
   return (
-    <View style={[styles.root, { paddingBottom: bottomOffset }]} pointerEvents="box-none">
-      <View style={styles.dockShadowHost}>
-        <View style={styles.dock}>{TAB_DISPLAY_ORDER.map((name) => renderTab(name))}</View>
+    <View
+      style={{
+        width: '100%',
+        paddingHorizontal: TAB_BAR_HORIZONTAL_MARGIN,
+        paddingTop: spacing.sm,
+        paddingBottom: bottomOffset,
+        backgroundColor: 'transparent',
+      }}
+      pointerEvents="box-none"
+    >
+      <View style={{ overflow: 'visible', borderRadius: DOCK_RADIUS, backgroundColor: 'transparent', ...dockShadow }}>
+        <View
+          style={{
+            ...flexRow,
+            height: TAB_BAR_DOCK_HEIGHT,
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            paddingHorizontal: spacing.xs,
+            paddingBottom: 6,
+            paddingTop: 4,
+            backgroundColor: c.surface,
+            borderRadius: DOCK_RADIUS,
+            borderWidth: 1,
+            borderColor: c.borderSubtle,
+            overflow: 'visible',
+          }}
+        >
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 12,
+              right: 12,
+              height: 1,
+              backgroundColor: c.borderSubtle,
+              opacity: 0.6,
+            }}
+          />
+          {TAB_DISPLAY_ORDER.map((name) => renderTab(name))}
+        </View>
       </View>
     </View>
   );
-}
-
-function createStyles(c: AppColors) {
-  const dockShadow = Platform.select({
-    ios: {
-      shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.1,
-      shadowRadius: 18,
-    },
-    android: { elevation: 10 },
-    default: {
-      boxShadow: '0 10px 28px rgba(15, 23, 42, 0.12)',
-    } as object,
-  });
-
-  const posShadow = Platform.select({
-    ios: {
-      shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-    },
-    android: { elevation: 14 },
-    default: {
-      boxShadow: '0 6px 16px rgba(15, 23, 42, 0.22)',
-    } as object,
-  });
-
-  return StyleSheet.create({
-    root: {
-      width: '100%',
-      paddingHorizontal: TAB_BAR_HORIZONTAL_MARGIN,
-      paddingTop: spacing.sm,
-      backgroundColor: 'transparent',
-      overflow: 'visible',
-    },
-    dockShadowHost: {
-      overflow: 'visible',
-      borderRadius: DOCK_RADIUS,
-      backgroundColor: 'transparent',
-      ...dockShadow,
-    },
-    dock: {
-      ...flexRow,
-      height: TAB_BAR_DOCK_HEIGHT,
-      alignItems: 'flex-end',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingBottom: spacing.sm,
-      backgroundColor: c.surface,
-      borderRadius: DOCK_RADIUS,
-      borderWidth: 1,
-      borderColor: '#E2E8F0',
-      overflow: 'visible',
-    },
-    standardSlot: {
-      flex: 1,
-      minHeight: MIN_TOUCH,
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      paddingBottom: 2,
-    },
-    standardPressWrap: {
-      width: '100%',
-      alignItems: 'center',
-    },
-    standardInner: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      minWidth: MIN_TOUCH,
-      minHeight: MIN_TOUCH,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      gap: 3,
-    },
-    activePill: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: ACTIVE_PILL_BG,
-      borderRadius: 22,
-    },
-    standardIcon: {
-      zIndex: 1,
-    },
-    standardLabelActive: {
-      zIndex: 1,
-      fontSize: 11,
-      fontFamily: fonts.bold,
-      fontWeight: '700',
-      color: ACTIVE_ACCENT,
-      textAlign: 'center',
-      writingDirection: 'rtl',
-    },
-    standardLabelInactive: {
-      zIndex: 1,
-      fontSize: 11,
-      fontFamily: fonts.medium,
-      fontWeight: '500',
-      color: INACTIVE_COLOR,
-      textAlign: 'center',
-      writingDirection: 'rtl',
-    },
-    posSlot: {
-      flex: 1.05,
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      marginTop: -22,
-      minHeight: MIN_TOUCH,
-    },
-    posColumn: {
-      alignItems: 'center',
-      gap: 5,
-    },
-    posOrb: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: '#FFFFFF',
-    },
-    posOrbActive: {
-      backgroundColor: c.primary,
-      ...posShadow,
-    },
-    posOrbIdle: {
-      backgroundColor: c.primary,
-      opacity: 0.92,
-      ...posShadow,
-    },
-    posLabel: {
-      fontSize: 11,
-      fontFamily: fonts.medium,
-      fontWeight: '600',
-      color: INACTIVE_COLOR,
-      textAlign: 'center',
-      writingDirection: 'rtl',
-      maxWidth: 72,
-    },
-    posLabelActive: {
-      fontFamily: fonts.bold,
-      fontWeight: '700',
-      color: ACTIVE_ACCENT,
-    },
-  });
 }

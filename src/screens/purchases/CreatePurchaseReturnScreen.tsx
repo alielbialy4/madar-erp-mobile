@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -6,7 +6,7 @@ import { purchasesAPI, purchaseReturnsAPI } from '@/api/purchases';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppInput, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog, AppErrorState } from '@/components/feedback';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { money, numberText } from '@/utils/format';
@@ -42,6 +42,7 @@ export function CreatePurchaseReturnScreen({ route, navigation }: { route: any; 
 }
 
 function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; navigation: any }) {
+  const c = useColors();
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItemData[]>([]);
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [reason, setReason] = useState('');
@@ -50,6 +51,20 @@ function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  const styles = useMemo(() => StyleSheet.create({
+    listContent: { paddingBottom: spacing.xxl, gap: spacing.md },
+    loadingText: { color: c.textMuted, ...textStart },
+    errorText: { color: c.danger, ...textStart, fontWeight: '800' },
+    itemCard: { gap: spacing.sm },
+    itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    itemName: { color: c.text, fontWeight: '900', fontSize: typography.body, ...textStart, flex: 1 },
+    selectBtn: { minHeight: 36, flex: 0 },
+    itemDetails: { ...flexRow, gap: spacing.md, flexWrap: 'wrap' },
+    itemMeta: { color: c.textMuted, fontSize: typography.small, ...textStart },
+    footer: { gap: spacing.md, paddingTop: spacing.lg },
+    selectedCount: { color: c.info, fontWeight: '800', ...textStart },
+  }), [c]);
 
   const loadPurchase = useCallback(async () => {
     setLoading(true);
@@ -179,17 +194,3 @@ function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; 
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  listContent: { paddingBottom: spacing.xxl, gap: spacing.md },
-  loadingText: { color: colors.textMuted, ...textStart },
-  errorText: { color: colors.danger, ...textStart, fontWeight: '800' },
-  itemCard: { gap: spacing.sm },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemName: { color: colors.text, fontWeight: '900', fontSize: typography.body, ...textStart, flex: 1 },
-  selectBtn: { minHeight: 36, flex: 0 },
-  itemDetails: { ...flexRow, gap: spacing.md, flexWrap: 'wrap' },
-  itemMeta: { color: colors.textMuted, fontSize: typography.small, ...textStart },
-  footer: { gap: spacing.md, paddingTop: spacing.lg },
-  selectedCount: { color: colors.info, fontWeight: '800', ...textStart },
-});

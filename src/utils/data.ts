@@ -6,6 +6,24 @@ export function extractData<T>(response: ApiEnvelope<T> | T | undefined | null):
   return response as T;
 }
 
+/** Merge list rows; later rows win. Uses `id` when present, otherwise index in batch. */
+export function mergeListRowsById<T>(current: T[], incoming: T[]): T[] {
+  const map = new Map<string, T>();
+  const order: string[] = [];
+
+  const add = (row: T, fallbackKey: string) => {
+    const record = row as Record<string, unknown>;
+    const key = record?.id != null && record.id !== '' ? `id:${String(record.id)}` : fallbackKey;
+    if (!map.has(key)) order.push(key);
+    map.set(key, row);
+  };
+
+  current.forEach((row, i) => add(row, `cur-${i}`));
+  incoming.forEach((row, i) => add(row, `new-${i}`));
+
+  return order.map((key) => map.get(key)!);
+}
+
 export function extractArray<T>(response: unknown): T[] {
   if (!response) return [];
   const envelope = response as ApiEnvelope<unknown>;

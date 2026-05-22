@@ -5,7 +5,8 @@ import { AppLoadingState } from '@/components/feedback';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore, registerAutoSyncCallback } from '@/store/networkStore';
-import { syncAll } from '@/services/sync/syncService';
+import { syncAll, startSyncInterval } from '@/services/sync/syncService';
+import { usePrintStore } from '@/store/printStore';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabs } from './MainTabs';
 
@@ -25,7 +26,12 @@ export function RootNavigator() {
 
   useEffect(() => {
     const stop = startNetwork();
-    return stop;
+    const stopSyncInterval = startSyncInterval(60_000);
+    void usePrintStore.getState().refresh();
+    return () => {
+      stop();
+      stopSyncInterval();
+    };
   }, [startNetwork]);
 
   if (bootstrapping) {

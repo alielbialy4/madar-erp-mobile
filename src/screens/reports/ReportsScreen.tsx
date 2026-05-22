@@ -1,84 +1,148 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { flexRow } from '@/constants/layout';
-import { reportsAPI } from '@/api/reports';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
-import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { useBranchStore } from '@/store/branchStore';
-import { extractArray, extractData } from '@/utils/data';
-import { money, numberText } from '@/utils/format';
-import { normalizeApiError } from '@/utils/errors';
+import { AppCard, AppInput, AppText } from '@/components/ui';
+import { usePermissions } from '@/hooks/usePermissions';
+import { REPORT_GROUPS, listReportHubItems } from '@/reports/reportDefinitions';
+import type { ReportGroupId, ReportId } from '@/reports/types';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
+import { flexRow, textStart } from '@/constants/layout';
+import { storageGet, storageSet } from '@/services/storage';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { MoreStackParamList } from '@/types/navigation';
 
-export function ReportsScreen() {
-  const activeBranch = useBranchStore((state) => state.activeBranch);
-  const [data, setData] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const RECENT_KEY = 'reports_recent';
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      const params = { from_date: today, to_date: today, ...(activeBranch?.id ? { branch_id: activeBranch.id } : {}) };
-      const [sales, inventory, purchases, suppliers, shifts, coupons] = await Promise.allSettled([
-        reportsAPI.salesDashboard(params),
-        reportsAPI.inventory({ per_page: 5 }),
-        reportsAPI.comprehensivePurchases(params),
-        reportsAPI.suppliers({ per_page: 5 }),
-        reportsAPI.shiftPerformance(params),
-        reportsAPI.coupons(params),
-      ]);
-      setData({
-        sales: sales.status === 'fulfilled' ? extractData(sales.value) : null,
-        inventory: inventory.status === 'fulfilled' ? extractArray(inventory.value) : [],
-        purchases: purchases.status === 'fulfilled' ? extractData(purchases.value) : null,
-        suppliers: suppliers.status === 'fulfilled' ? extractArray(suppliers.value) : [],
-        shifts: shifts.status === 'fulfilled' ? extractData(shifts.value) : null,
-        coupons: coupons.status === 'fulfilled' ? extractData(coupons.value) : null,
-      });
-    } catch (err) {
-      setError(normalizeApiError(err).message);
-    } finally {
-      setLoading(false);
+type Nav = NativeStackNavigationProp<MoreStackParamList, 'Reports'>;
+
+export function ReportsScreen({ navigation }: { navigation: Nav }) {
+  const c = useColors();
+  const { width } = useWindowDimensions();
+  const columns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
+  const { can, hasFeature } = usePermissions();
+  const [query, setQuery] = useState('');
+  const [recent, setRecent] = useState<ReportId[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      void storageGet<ReportId[]>(RECENT_KEY).then((ids) => setRecent(ids ?? []));
+    }, []),
+  );
+
+  const items = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return listReportHubItems().filter((item) => {
+      if (!can(item.permission)) return false;
+      if (item.feature && !hasFeature(item.feature)) return false;
+      if (!q) return true;
+      return item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
+    });
+  }, [can, hasFeature, query]);
+
+  const openReport = (id: ReportId) => {
+    const next = [id, ...recent.filter((r) => r !== id)].slice(0, 6);
+    setRecent(next);
+    void storageSet(RECENT_KEY, next);
+    navigation.navigate('ReportViewer', { reportId: id });
+  };
+
+  const grouped = useMemo(() => {
+    const map = new Map<ReportGroupId, typeof items>();
+    for (const g of REPORT_GROUPS) map.set(g.id, []);
+    for (const item of items) {
+      const list = map.get(item.group) ?? [];
+      list.push(item);
+      map.set(item.group, list);
     }
-  }, [activeBranch?.id]);
+    return REPORT_GROUPS.map((g) => ({ group: g, items: map.get(g.id) ?? [] })).filter((x) => x.items.length > 0);
+  }, [items]);
 
-  useEffect(() => { void load(); }, [load]);
+  const recentItems = useMemo(
+    () => recent.map((id) => items.find((i) => i.id === id)).filter(Boolean) as typeof items,
+    [items, recent],
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void storageGet<ReportId[]>(RECENT_KEY)
+      .then((ids) => setRecent(ids ?? []))
+      .finally(() => setRefreshing(false));
+  }, []);
 
   return (
-    <AppScreen title="التقارير" subtitle="ملخصات موبايل مختصرة" refreshing={loading} onRefresh={load}>
-      {loading ? <AppLoadingState /> : null}
-      {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      {!loading && !error ? (
-        <>
-          <View style={styles.stats}>
-            <AppStatCard label="مبيعات اليوم" value={money(data.sales?.today_sales ?? data.sales?.total_sales ?? 0)} tone="primary" />
-            <AppStatCard label="فواتير" value={numberText(data.sales?.orders_count ?? data.sales?.invoice_count ?? 0)} tone="info" />
-            <AppStatCard label="مشتريات" value={money(data.purchases?.total ?? data.purchases?.total_purchases ?? 0)} tone="warning" />
-            <AppStatCard label="كوبونات" value={numberText(data.coupons?.usage_count ?? data.coupons?.count ?? 0)} tone="success" />
+    <AppScreen
+      title="مركز التقارير"
+      subtitle="تقارير تشغيلية مطابقة للويب — فلاتر وبيانات حقيقية"
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    >
+      <AppInput value={query} onChangeText={setQuery} placeholder="بحث في التقارير..." />
+      {recentItems.length ? (
+        <View style={{ gap: spacing.sm }}>
+          <AppText style={{ fontWeight: '700', ...textStart }}>فُتح مؤخراً</AppText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...flexRow, gap: spacing.sm }}>
+            {recentItems.map((item) => (
+              <PressableScale key={item.id} onPress={() => openReport(item.id)}>
+                <AppCard style={{ minWidth: 160, padding: spacing.md }}>
+                  <AppText style={textStart}>{item.title}</AppText>
+                </AppCard>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+      <PressableScale onPress={() => navigation.navigate('LegacyReports')}>
+        <AppCard style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
+          <MaterialIcons name="history" size={28} color={c.accent} />
+          <View style={{ flex: 1 }}>
+            <AppText style={{ fontWeight: '700', ...textStart }}>التقارير الكلاسيكية</AppText>
+            <AppText style={{ color: c.textMuted, ...textStart, fontSize: 12 }}>
+              مبيعات شاملة، مشتريات، منتجات، عملاء، موردون، مدفوعات، أرباح، مخزون
+            </AppText>
           </View>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="ملخص المخزون" />
-            {data.inventory?.length ? data.inventory.slice(0, 5).map((row: any, index: number) => (
-              <AppListItem key={String(row.id ?? index)} title={String(row.product_name ?? row.name ?? 'منتج')} subtitle={`الكمية: ${numberText(row.quantity ?? row.stock_quantity ?? 0)}`} meta={money(row.value ?? row.total_value ?? 0)} />
-            )) : <AppEmptyState title="لا توجد بيانات مخزون" />}
-          </AppCard>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="ملخص الموردين" />
-            {data.suppliers?.length ? data.suppliers.slice(0, 5).map((row: any, index: number) => (
-              <AppListItem key={String(row.id ?? index)} title={String(row.name ?? row.supplier_name ?? 'مورد')} meta={money(row.balance ?? row.total ?? 0)} />
-            )) : <AppEmptyState title="لا توجد بيانات موردين" />}
-          </AppCard>
-        </>
+          <MaterialIcons name="chevron-left" size={24} color={c.textMuted} />
+        </AppCard>
+      </PressableScale>
+      {grouped.map(({ group, items: groupItems }) => (
+        <View key={group.id} style={{ gap: spacing.md }}>
+          <AppText style={{ fontWeight: '800', fontSize: 16, ...textStart }}>{group.title}</AppText>
+          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.md }}>
+            {groupItems.map((item) => (
+              <PressableScale
+                key={item.id}
+                onPress={() => openReport(item.id)}
+                style={{ width: columns === 1 ? '100%' : `${100 / columns - 2}%`, minWidth: columns === 1 ? undefined : 200, flexGrow: 1 }}
+              >
+                <AppCard style={{ gap: spacing.sm, minHeight: 120 }}>
+                  <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm }}>
+                    <View style={{
+                      width: 40, height: 40, borderRadius: 12,
+                      backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <MaterialIcons name={item.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={c.accent} />
+                    </View>
+                    <AppText style={{ flex: 1, fontWeight: '700', ...textStart }}>{item.title}</AppText>
+                  </View>
+                  <AppText style={{ color: c.textMuted, fontSize: 12, ...textStart }} numberOfLines={2}>
+                    {item.description}
+                  </AppText>
+                  {item.feature && !hasFeature(item.feature) ? (
+                    <AppText style={{ color: c.warning, fontSize: 11, ...textStart }}>يتطلب تقارير متقدمة</AppText>
+                  ) : null}
+                </AppCard>
+              </PressableScale>
+            ))}
+          </View>
+        </View>
+      ))}
+      {!items.length ? (
+        <AppText style={{ ...textStart, color: c.textMuted }}>لا توجد تقارير مطابقة للبحث أو الصلاحيات.</AppText>
       ) : null}
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-  card: { gap: spacing.md },
-});

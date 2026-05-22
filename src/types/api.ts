@@ -72,6 +72,12 @@ export type AuthSession = {
   tenant_slug?: string;
 };
 
+export type PickedImage = {
+  uri: string;
+  name?: string;
+  mimeType?: string;
+};
+
 export type Product = {
   id: number;
   name: string;
@@ -90,6 +96,14 @@ export type Product = {
   unit?: string | null;
   units?: { id: number; name: string; factor_to_base?: number | string; is_base?: boolean; barcode?: string | null }[];
   track_inventory?: boolean;
+  track_expiry?: boolean;
+  active?: boolean;
+  is_active?: boolean;
+  featured?: boolean;
+  is_promotional?: boolean;
+  promotional_price?: number | string | null;
+  promotional_start_date?: string | null;
+  promotional_end_date?: string | null;
   option_groups?: ProductOptionGroup[];
   variants?: { id: string; name?: string; sku?: string | null; additional_price?: number | string | null }[];
 };
@@ -97,11 +111,75 @@ export type Product = {
 export type ProductOptionGroup = {
   id: number;
   title: string;
+  name?: string;
   selection_type: 'single' | 'multiple';
   pricing_type: 'free' | 'per_option' | 'group_price';
   group_price?: number | string | null;
   is_required?: boolean;
-  options?: { id: number; name: string; price?: number | string }[];
+  min_selections?: number | null;
+  max_selections?: number | null;
+  sort_order?: number;
+  is_active?: boolean;
+  options?: { id: number; name: string; price?: number | string; sort_order?: number; is_active?: boolean }[];
+};
+
+export type ProductOptionInput = {
+  id?: number;
+  name: string;
+  price?: number;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
+export type ProductOptionGroupInput = {
+  id?: number;
+  title: string;
+  selection_type: 'single' | 'multiple';
+  pricing_type: 'free' | 'per_option' | 'group_price';
+  group_price?: number | null;
+  is_required?: boolean;
+  min_selections?: number | null;
+  max_selections?: number | null;
+  sort_order?: number;
+  is_active?: boolean;
+  options: ProductOptionInput[];
+};
+
+export type ProductUnitInput = {
+  id?: number;
+  name: string;
+  factor_to_base: number;
+  is_base: boolean;
+  barcode?: string;
+};
+
+export type OpeningStockInput = {
+  warehouse_id: string;
+  quantity: number;
+  unit_index?: number;
+};
+
+export type ProductPayload = {
+  name: string;
+  barcode?: string;
+  barcodes?: string[];
+  description?: string;
+  category_id?: number;
+  cost_price: number;
+  selling_price: number;
+  min_stock_alert: number;
+  track_inventory?: boolean;
+  track_expiry?: boolean;
+  active?: boolean;
+  featured?: boolean;
+  is_promotional?: boolean;
+  promotional_price?: number;
+  promotional_start_date?: string;
+  promotional_end_date?: string;
+  image?: PickedImage | null;
+  units: ProductUnitInput[];
+  opening_stock?: OpeningStockInput[];
+  option_groups?: ProductOptionGroupInput[];
 };
 
 export type Category = {
@@ -112,7 +190,17 @@ export type Category = {
   image?: string | null;
   parent_id?: number | null;
   sort_order?: number;
+  products_count?: number;
 };
+
+export type ProductInsightsParams = {
+  from?: string;
+  to?: string;
+  movements_page?: number;
+  movements_per_page?: number;
+};
+
+export type ProductInsightsPayload = Record<string, unknown>;
 
 export type Customer = {
   id: number;
@@ -167,8 +255,13 @@ export type SalePayload = {
   delivery_phone?: string;
   coupon_id?: string | null;
   coupon_discount?: number;
+  loyalty_points_redeemed?: number;
+  loyalty_discount?: number;
   payment_lines?: { vault_id: string; amount: number; payment_method?: string }[] | null;
 };
+
+/** POS UI may use gift_card; server sale uses cash/card + post-sale redeem API. */
+export type PosCheckoutPaymentType = SalePayload['payment_type'] | 'gift_card';
 
 export type Sale = {
   id: number;
@@ -216,8 +309,26 @@ export type Warehouse = {
   id: string;
   name: string;
   code?: string | null;
+  location?: string | null;
   status?: string;
   branch?: Branch | null;
+  products_count?: number;
+  balances?: InventoryBalance[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type InventoryBalance = {
+  id: string;
+  warehouse_id?: string;
+  product_id?: number;
+  product?: { id: number; name: string; barcode?: string | null };
+  variant?: { id: string; sku?: string } | null;
+  quantity?: number;
+  warehouse_name?: string | null;
+  branch_name?: string | null;
+  category_name?: string | null;
+  balance_status_label_ar?: string;
 };
 
 export type ActiveShift = {

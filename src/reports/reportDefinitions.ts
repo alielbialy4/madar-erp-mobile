@@ -1,0 +1,741 @@
+import type { ReportDefinition, ReportGroupId, ReportHubItem, ReportId } from './types';
+import { extractArrayFromEnvelope, reportRows, reportSummary } from '@/utils/reportNormalizers';
+
+const productReturnFields = [
+  { key: 'returned_quantity', label: 'الكمية المرتجعة', format: 'number' as const },
+  { key: 'returned_amount', label: 'قيمة المرتجعات', format: 'money' as const, primary: true },
+  { key: 'return_count', label: 'عدد العمليات', format: 'number' as const },
+  { key: 'category_name', label: 'التصنيف', format: 'text' as const },
+  { key: 'latest_return_at', label: 'آخر مرتجع', format: 'date' as const },
+];
+
+export const REPORT_GROUPS: { id: ReportGroupId; title: string }[] = [
+  { id: 'sales', title: 'المبيعات' },
+  { id: 'inventory', title: 'المخزون' },
+  { id: 'purchases', title: 'المشتريات' },
+  { id: 'customers', title: 'العملاء' },
+  { id: 'suppliers', title: 'الموردون' },
+  { id: 'finance', title: 'المالية' },
+  { id: 'marketing', title: 'التسويق' },
+  { id: 'operations', title: 'التشغيل' },
+  { id: 'other', title: 'أخرى' },
+];
+
+export const REPORT_DEFINITIONS: ReportDefinition[] = [
+  {
+    id: 'sales-dashboard',
+    title: 'لوحة المبيعات',
+    description: 'إيرادات يومية، أفضل المنتجات، وملخص المبيعات',
+    group: 'sales',
+    icon: 'dashboard',
+    webRoute: '/reports/sales/dashboard',
+    permission: 'view_reports',
+    apiMethod: 'salesDashboard',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'orders_count', label: 'عدد الطلبات', format: 'number', tone: 'info' },
+      { key: 'total_revenue', label: 'إجمالي الإيراد', format: 'money', tone: 'primary' },
+      { key: 'total_paid', label: 'إجمالي المدفوع', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'daily',
+        title: 'الإيراد اليومي',
+        extractRows: (p) => reportRows(p, ['daily_revenue']),
+        fields: [
+          { key: 'date', label: 'التاريخ', format: 'text', primary: true },
+          { key: 'revenue', label: 'الإيراد', format: 'money' },
+        ],
+      },
+      {
+        id: 'top-products',
+        title: 'أفضل المنتجات',
+        extractRows: (p) => reportRows(p, ['top_products']),
+        fields: [
+          { key: 'product_name', label: 'المنتج', format: 'text', primary: true },
+          { key: 'revenue', label: 'الإيراد', format: 'money' },
+          { key: 'quantity', label: 'الكمية', format: 'number' },
+        ],
+      },
+      {
+        id: 'payments',
+        title: 'توزيع الدفع',
+        extractRows: (p) => {
+          const summary = reportSummary(p);
+          const nested = summary.sales_summary as Record<string, unknown> | undefined;
+          return reportRows(nested ?? summary, ['payment_breakdown']);
+        },
+        fields: [
+          { key: 'payment_type', label: 'طريقة الدفع', format: 'text', primary: true },
+          { key: 'amount', label: 'المبلغ', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sales-refunds',
+    title: 'تقرير المرتجعات',
+    description: 'ملخص المرتجعات وتفاصيلها حسب الفترة',
+    group: 'sales',
+    icon: 'replay',
+    webRoute: '/reports/sales/refunds',
+    permission: 'view_reports',
+    apiMethod: 'refunds',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'total_refunds', label: 'إجمالي المرتجعات', format: 'money', tone: 'danger' },
+      { key: 'count', label: 'عدد المرتجعات', format: 'number', tone: 'info' },
+      { key: 'average', label: 'متوسط المرتجع', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'refunds',
+        title: 'تفاصيل المرتجعات',
+        extractRows: (p) => reportRows(p, ['refunds', 'items']),
+        fields: [
+          { key: 'invoice_number', label: 'الفاتورة', format: 'text', primary: true },
+          { key: 'amount', label: 'المبلغ', format: 'money' },
+          { key: 'reason', label: 'السبب', format: 'text' },
+          { key: 'status', label: 'الحالة', format: 'badge' },
+          { key: 'created_at', label: 'التاريخ', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sales-returns-by-product',
+    title: 'مرتجعات بيع بالمنتج',
+    description: 'كميات وقيم المرتجعات مجمعة حسب المنتج',
+    group: 'sales',
+    icon: 'inventory-2',
+    webRoute: '/reports/sales-returns-by-product',
+    permission: 'view_reports',
+    apiMethod: 'salesReturnsByProduct',
+    filters: ['dateRange', 'branch', 'category', 'product', 'search', 'perPage'],
+    paginated: true,
+    metrics: [
+      { key: 'total_amount', label: 'إجمالي المبلغ', format: 'money', tone: 'danger' },
+      { key: 'total_quantity', label: 'إجمالي الكمية', format: 'number', tone: 'warning' },
+      { key: 'total_return_transactions', label: 'عدد العمليات', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'rows',
+        title: 'المنتجات',
+        extractRows: (p) => reportRows(p, ['data', 'rows', 'products']),
+        fields: productReturnFields,
+        titleKey: 'product_name',
+        metaKey: 'returned_amount',
+      },
+    ],
+  },
+  {
+    id: 'purchase-returns-by-product',
+    title: 'مرتجعات شراء بالمنتج',
+    description: 'مرتجعات المشتريات مجمعة حسب المنتج',
+    group: 'purchases',
+    icon: 'shopping-cart',
+    webRoute: '/reports/purchase-returns-by-product',
+    permission: 'view_reports',
+    apiMethod: 'purchaseReturnsByProduct',
+    filters: ['dateRange', 'branch', 'category', 'product', 'search', 'perPage'],
+    paginated: true,
+    metrics: [
+      { key: 'total_amount', label: 'إجمالي المبلغ', format: 'money', tone: 'danger' },
+      { key: 'total_quantity', label: 'إجمالي الكمية', format: 'number', tone: 'warning' },
+      { key: 'total_return_transactions', label: 'عدد العمليات', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'rows',
+        title: 'المنتجات',
+        extractRows: (p) => reportRows(p, ['data', 'rows', 'products']),
+        fields: productReturnFields,
+        titleKey: 'product_name',
+        metaKey: 'returned_amount',
+      },
+    ],
+  },
+  {
+    id: 'sales-tax',
+    title: 'تقرير الضرائب',
+    description: 'إجمالي الضريبة والإيراد حسب المنتج',
+    group: 'sales',
+    icon: 'receipt-long',
+    webRoute: '/reports/sales/tax',
+    permission: 'view_reports',
+    apiMethod: 'tax',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'total_revenue', label: 'إجمالي الإيراد', format: 'money', tone: 'primary' },
+      { key: 'total_tax', label: 'إجمالي الضريبة', format: 'money', tone: 'warning' },
+      { key: 'effective_rate', label: 'معدل الضريبة', format: 'percent', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'by-product',
+        title: 'حسب المنتج',
+        extractRows: (p) => reportRows(p, ['by_product']),
+        fields: [
+          { key: 'product_name', label: 'المنتج', format: 'text', primary: true },
+          { key: 'revenue', label: 'الإيراد', format: 'money' },
+          { key: 'tax', label: 'الضريبة', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sales-layaway',
+    title: 'البيع الآجل',
+    description: 'خطط التقسيط والأقساط المتبقية',
+    group: 'sales',
+    icon: 'schedule',
+    webRoute: '/reports/sales/layaway',
+    permission: 'view_reports',
+    apiMethod: 'layaway',
+    filters: [],
+    metrics: [
+      { key: 'totalPlans', label: 'إجمالي الخطط', format: 'number', tone: 'info' },
+      { key: 'activePlans', label: 'خطط نشطة', format: 'number', tone: 'primary' },
+      { key: 'totalRemaining', label: 'المتبقي', format: 'money', tone: 'warning' },
+      { key: 'totalAmount', label: 'إجمالي المبلغ', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'plans',
+        title: 'الخطط',
+        extractRows: (p) => reportRows(p, ['plans', 'items']),
+        fields: [
+          { key: 'customer_name', label: 'العميل', format: 'text', primary: true },
+          { key: 'total_amount', label: 'الإجمالي', format: 'money' },
+          { key: 'paid_amount', label: 'المدفوع', format: 'money' },
+          { key: 'remaining_amount', label: 'المتبقي', format: 'money' },
+          { key: 'status', label: 'الحالة', format: 'badge' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sales-hourly',
+    title: 'مبيعات بالساعة',
+    description: 'توزيع المبيعات على ساعات اليوم',
+    group: 'sales',
+    icon: 'access-time',
+    webRoute: '/reports/sales/hourly',
+    permission: 'view_reports',
+    apiMethod: 'hourlySales',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'peak_hour', label: 'ساعة الذروة', format: 'text', tone: 'info' },
+      { key: 'peak_revenue', label: 'إيراد الذروة', format: 'money', tone: 'primary' },
+      { key: 'total_revenue', label: 'إجمالي الإيراد', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'hourly',
+        title: 'حسب الساعة',
+        extractRows: (p) => reportRows(p, ['hourly', 'hours']),
+        fields: [
+          { key: 'hour', label: 'الساعة', format: 'text', primary: true },
+          { key: 'revenue', label: 'الإيراد', format: 'money' },
+          { key: 'orders_count', label: 'الطلبات', format: 'number' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'inventory-valuation',
+    title: 'تقييم المخزون',
+    description: 'قيمة المخزون حسب المستودع',
+    group: 'inventory',
+    icon: 'warehouse',
+    webRoute: '/reports/inventory/valuation',
+    permission: 'view_reports',
+    apiMethod: 'inventoryValuation',
+    filters: ['warehouse'],
+    exportSupported: true,
+    exportType: 'inventory',
+    metrics: [
+      { key: 'grand_total_value', label: 'إجمالي قيمة المخزون', format: 'money', tone: 'primary' },
+    ],
+    sections: [
+      {
+        id: 'warehouses',
+        title: 'حسب المستودع',
+        extractRows: (p) => reportRows(p, ['by_warehouse']),
+        fields: [
+          { key: 'warehouse_name', label: 'المستودع', format: 'text', primary: true },
+          { key: 'total_quantity', label: 'الكمية', format: 'number' },
+          { key: 'total_value', label: 'القيمة', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'inventory-movements',
+    title: 'حركات المخزون',
+    description: 'تحويلات وتسويات المخزون',
+    group: 'inventory',
+    icon: 'swap-horiz',
+    webRoute: '/reports/inventory/movements',
+    permission: 'view_reports',
+    apiMethod: 'stockMovements',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'transfers_count', label: 'عدد التحويلات', format: 'number', tone: 'info' },
+      { key: 'adjustments_count', label: 'عدد التسويات', format: 'number', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'transfers',
+        title: 'التحويلات',
+        extractRows: (p) => reportRows(p, ['transfers']),
+        fields: [
+          { key: 'reference', label: 'المرجع', format: 'text', primary: true },
+          { key: 'from_warehouse', label: 'من', format: 'text' },
+          { key: 'to_warehouse', label: 'إلى', format: 'text' },
+          { key: 'created_at', label: 'التاريخ', format: 'date' },
+        ],
+      },
+      {
+        id: 'adjustments',
+        title: 'التسويات',
+        extractRows: (p) => reportRows(p, ['adjustments']),
+        fields: [
+          { key: 'reference', label: 'المرجع', format: 'text', primary: true },
+          { key: 'warehouse_name', label: 'المستودع', format: 'text' },
+          { key: 'reason', label: 'السبب', format: 'text' },
+          { key: 'created_at', label: 'التاريخ', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'inventory-expiry',
+    title: 'تقرير الصلاحية',
+    description: 'دفعات قريبة الانتهاء أو منتهية',
+    group: 'inventory',
+    icon: 'event-busy',
+    webRoute: '/reports/inventory/expiry',
+    permission: 'view_reports',
+    apiMethod: 'expiryStock',
+    useInventoryExpiry: true,
+    filters: ['branch', 'warehouse', 'product', 'expiryOptions', 'perPage'],
+    paginated: true,
+    metrics: [],
+    sections: [
+      {
+        id: 'batches',
+        title: 'الدفعات',
+        extractRows: (p) => extractArrayFromEnvelope(p),
+        fields: [
+          { key: 'product_name', label: 'المنتج', format: 'text', primary: true },
+          { key: 'batch_number', label: 'الدفعة', format: 'text' },
+          { key: 'expiry_date', label: 'الانتهاء', format: 'date' },
+          { key: 'quantity', label: 'الكمية', format: 'number' },
+          { key: 'warehouse_name', label: 'المستودع', format: 'text' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'customers-aging',
+    title: 'أعمار ديون العملاء',
+    description: 'توزيع الديون حسب فترات التأخير',
+    group: 'customers',
+    icon: 'people',
+    webRoute: '/reports/customers/aging',
+    permission: 'view_reports',
+    apiMethod: 'customerAging',
+    filters: [],
+    metrics: [
+      { key: 'total_debt', label: 'إجمالي الديون', format: 'money', tone: 'danger' },
+      { key: 'total_customers', label: 'عدد العملاء', format: 'number', tone: 'info' },
+      { key: 'days_90_plus', label: 'أكثر من 90 يوم', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'customers',
+        title: 'العملاء',
+        extractRows: (p) => reportRows(p, ['customers']),
+        fields: [
+          { key: 'name', label: 'العميل', format: 'text', primary: true },
+          { key: 'debt', label: 'الدين', format: 'money' },
+          { key: 'days_overdue', label: 'أيام التأخير', format: 'number' },
+          { key: 'bucket', label: 'الفترة', format: 'badge' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'suppliers-aging',
+    title: 'أعمار مستحقات الموردين',
+    description: 'أرصدة الموردين وفترات الاستحقاق',
+    group: 'suppliers',
+    icon: 'local-shipping',
+    webRoute: '/reports/suppliers/aging',
+    permission: 'view_reports',
+    apiMethod: 'supplierAging',
+    filters: [],
+    metrics: [
+      { key: 'total_balance', label: 'إجمالي المستحق', format: 'money', tone: 'danger' },
+      { key: 'total_suppliers', label: 'عدد الموردين', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'suppliers',
+        title: 'الموردون',
+        extractRows: (p) => reportRows(p, ['suppliers']),
+        fields: [
+          { key: 'name', label: 'المورد', format: 'text', primary: true },
+          { key: 'balance', label: 'الرصيد', format: 'money' },
+          { key: 'days', label: 'الأيام', format: 'number' },
+          { key: 'bucket', label: 'الفترة', format: 'badge' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'marketing-coupons',
+    title: 'تقرير الكوبونات',
+    description: 'استخدامات الكوبونات والخصومات',
+    group: 'marketing',
+    icon: 'local-offer',
+    webRoute: '/reports/marketing/coupons',
+    permission: 'view_reports',
+    apiMethod: 'coupons',
+    filters: ['dateRange', 'couponCode', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    metrics: [
+      { key: 'total_usages', label: 'عدد الاستخدامات', format: 'number', tone: 'info' },
+      { key: 'total_coupon_discount', label: 'إجمالي الخصم', format: 'money', tone: 'warning' },
+      { key: 'net_sales_after_coupon', label: 'صافي المبيعات', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'usages',
+        title: 'الاستخدامات',
+        extractRows: (p) => reportRows(p, ['usages']),
+        fields: [
+          { key: 'coupon_code', label: 'الكوبون', format: 'text', primary: true },
+          { key: 'discount_amount', label: 'الخصم', format: 'money' },
+          { key: 'sale_total', label: 'قيمة الفاتورة', format: 'money' },
+          { key: 'used_at', label: 'التاريخ', format: 'date' },
+        ],
+      },
+      {
+        id: 'by-coupon',
+        title: 'حسب الكوبون',
+        extractRows: (p) => reportRows(p, ['by_coupon']),
+        fields: [
+          { key: 'coupon_code', label: 'الكوبون', format: 'text', primary: true },
+          { key: 'usage_count', label: 'الاستخدامات', format: 'number' },
+          { key: 'total_discount', label: 'الخصم', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'marketing-promotions',
+    title: 'تقرير العروض',
+    description: 'العروض الترويجية النشطة والمنتهية',
+    group: 'marketing',
+    icon: 'campaign',
+    webRoute: '/reports/marketing/promotions',
+    permission: 'view_reports',
+    apiMethod: 'promotions',
+    filters: [],
+    metrics: [
+      { key: 'total_promotions', label: 'إجمالي العروض', format: 'number', tone: 'info' },
+      { key: 'active', label: 'عروض نشطة', format: 'number', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'promotions',
+        title: 'العروض',
+        extractRows: (p) => reportRows(p, ['promotions']),
+        fields: [
+          { key: 'name', label: 'العرض', format: 'text', primary: true },
+          { key: 'type', label: 'النوع', format: 'text' },
+          { key: 'is_active', label: 'نشط', format: 'badge' },
+          { key: 'start_date', label: 'البداية', format: 'date' },
+          { key: 'end_date', label: 'النهاية', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'gift-cards',
+    title: 'بطاقات الهدايا',
+    description: 'أرصدة واستخدام بطاقات الهدايا',
+    group: 'marketing',
+    icon: 'card-giftcard',
+    webRoute: '/reports/gift-cards',
+    permission: 'view_reports',
+    apiMethod: 'giftCards',
+    filters: [],
+    metrics: [
+      { key: 'total_cards', label: 'عدد البطاقات', format: 'number', tone: 'info' },
+      { key: 'total_remaining', label: 'الرصيد المتبقي', format: 'money', tone: 'success' },
+      { key: 'total_used', label: 'المستخدم', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'cards',
+        title: 'البطاقات',
+        extractRows: (p) => reportRows(p, ['cards']),
+        fields: [
+          { key: 'code', label: 'الكود', format: 'text', primary: true },
+          { key: 'remaining_balance', label: 'المتبقي', format: 'money' },
+          { key: 'initial_balance', label: 'الرصيد الابتدائي', format: 'money' },
+          { key: 'expires_at', label: 'الانتهاء', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'treasury',
+    title: 'تقرير الخزينة',
+    description: 'تدفقات النقد داخل وخارج الخزائن',
+    group: 'finance',
+    icon: 'account-balance-wallet',
+    webRoute: '/reports/treasury',
+    permission: 'view_reports',
+    feature: 'advanced_reports',
+    apiMethod: 'treasurySummary',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'total_cash_in', label: 'إجمالي الوارد', format: 'money', tone: 'success' },
+      { key: 'total_cash_out', label: 'إجمالي الصادر', format: 'money', tone: 'danger' },
+      { key: 'net_balance', label: 'صافي الرصيد', format: 'money', tone: 'primary' },
+    ],
+    sections: [
+      {
+        id: 'vaults',
+        title: 'الخزائن',
+        extractRows: (p) => reportRows(p, ['vaults']),
+        fields: [
+          { key: 'name', label: 'الخزينة', format: 'text', primary: true },
+          { key: 'cash_in', label: 'وارد', format: 'money' },
+          { key: 'cash_out', label: 'صادر', format: 'money' },
+          { key: 'balance', label: 'الرصيد', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'expenses',
+    title: 'تقرير المصروفات',
+    description: 'المصروفات حسب التصنيف واليوم',
+    group: 'finance',
+    icon: 'payments',
+    webRoute: '/reports/expenses',
+    permission: 'view_reports',
+    feature: 'advanced_reports',
+    apiMethod: 'expensesSummary',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'total_expenses', label: 'إجمالي المصروفات', format: 'money', tone: 'danger' },
+    ],
+    sections: [
+      {
+        id: 'by-category',
+        title: 'حسب التصنيف',
+        extractRows: (p) => reportRows(p, ['by_category']),
+        fields: [
+          { key: 'category_name', label: 'التصنيف', format: 'text', primary: true },
+          { key: 'total', label: 'المبلغ', format: 'money' },
+          { key: 'count', label: 'العدد', format: 'number' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'dining',
+    title: 'تقرير المطاعم',
+    description: 'إشغال الطاولات وأداء النادل',
+    group: 'operations',
+    icon: 'restaurant',
+    webRoute: '/reports/dining',
+    permission: 'view_reports',
+    apiMethod: 'dining',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'total_tables', label: 'الطاولات', format: 'number', tone: 'info' },
+      { key: 'occupied', label: 'مشغولة', format: 'number', tone: 'warning' },
+      { key: 'utilization', label: 'نسبة الإشغال', format: 'percent', tone: 'primary' },
+    ],
+    sections: [
+      {
+        id: 'waiters',
+        title: 'أداء النادل',
+        extractRows: (p) => reportRows(p, ['waiter_performance']),
+        fields: [
+          { key: 'waiter_name', label: 'النادل', format: 'text', primary: true },
+          { key: 'orders', label: 'الطلبات', format: 'number' },
+          { key: 'revenue', label: 'الإيراد', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'delivery',
+    title: 'تقرير التوصيل',
+    description: 'التوصيلات والرسوم حسب السائق',
+    group: 'operations',
+    icon: 'delivery-dining',
+    webRoute: '/reports/delivery',
+    permission: 'view_reports',
+    apiMethod: 'delivery',
+    filters: ['dateRange'],
+    metrics: [
+      { key: 'total_deliveries', label: 'عدد التوصيلات', format: 'number', tone: 'info' },
+      { key: 'total_fees', label: 'إجمالي الرسوم', format: 'money', tone: 'primary' },
+      { key: 'avg_fee', label: 'متوسط الرسوم', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'deliveries',
+        title: 'التوصيلات',
+        extractRows: (p) => reportRows(p, ['deliveries']),
+        fields: [
+          { key: 'order_number', label: 'الطلب', format: 'text', primary: true },
+          { key: 'driver_name', label: 'السائق', format: 'text' },
+          { key: 'fee', label: 'الرسوم', format: 'money' },
+          { key: 'status', label: 'الحالة', format: 'badge' },
+        ],
+      },
+      {
+        id: 'by-driver',
+        title: 'حسب السائق',
+        extractRows: (p) => reportRows(p, ['by_driver']),
+        fields: [
+          { key: 'driver_name', label: 'السائق', format: 'text', primary: true },
+          { key: 'count', label: 'العدد', format: 'number' },
+          { key: 'total_fees', label: 'الرسوم', format: 'money' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'shifts',
+    title: 'أداء الورديات',
+    description: 'مبيعات الورديات والفروقات النقدية',
+    group: 'operations',
+    icon: 'schedule',
+    webRoute: '/reports/shifts',
+    permission: 'view_reports',
+    feature: 'advanced_reports',
+    apiMethod: 'shiftPerformance',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'total_shifts', label: 'عدد الورديات', format: 'number', tone: 'info' },
+      { key: 'total_sales_total', label: 'إجمالي المبيعات', format: 'money', tone: 'primary' },
+      { key: 'avg_discrepancy', label: 'متوسط الفرق', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'shifts',
+        title: 'الورديات',
+        extractRows: (p) => reportRows(p, ['shifts']),
+        fields: [
+          { key: 'cashier_name', label: 'الكاشير', format: 'text', primary: true },
+          { key: 'sales_total', label: 'المبيعات', format: 'money' },
+          { key: 'sales_count', label: 'عدد الفواتير', format: 'number' },
+          { key: 'discrepancy', label: 'الفرق', format: 'money' },
+          { key: 'closed_at', label: 'الإغلاق', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'saved-reports',
+    title: 'التقارير المحفوظة',
+    description: 'تقارير محفوظة مسبقاً من الويب',
+    group: 'other',
+    icon: 'bookmark',
+    webRoute: '/reports/saved',
+    permission: 'view_reports',
+    apiMethod: 'savedList',
+    filters: ['perPage'],
+    paginated: true,
+    metrics: [],
+    sections: [
+      {
+        id: 'saved',
+        title: 'المحفوظة',
+        extractRows: (p) => {
+          const data = reportSummary(p);
+          const nested = data.data;
+          if (Array.isArray(nested)) return nested as Record<string, unknown>[];
+          return reportRows(p, ['data']);
+        },
+        fields: [
+          { key: 'name', label: 'الاسم', format: 'text', primary: true },
+          { key: 'type', label: 'النوع', format: 'text' },
+          { key: 'branch_name', label: 'الفرع', format: 'text' },
+          { key: 'created_at', label: 'تاريخ الحفظ', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'partner-performance',
+    title: 'تقارير الشريك',
+    description: 'ملخص المبيعات والأرباح حسب الفترة (صلاحية شريك)',
+    group: 'other',
+    icon: 'business-center',
+    webRoute: '/reports/partner',
+    permission: 'view_partner_reports',
+    usePartnerApi: true,
+    apiMethod: 'comprehensive',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'total_sales', label: 'إجمالي المبيعات', format: 'money', tone: 'primary' },
+      { key: 'sales_count', label: 'عدد الفواتير', format: 'number', tone: 'info' },
+      { key: 'net_profit', label: 'صافي الربح', format: 'money', tone: 'success' },
+      { key: 'profit_margin', label: 'هامش الربح', format: 'percent', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'branches',
+        title: 'حسب الفرع',
+        extractRows: (p) => reportRows(p, ['by_branch']),
+        fields: [
+          { key: 'branch_name', label: 'الفرع', format: 'text', primary: true },
+          { key: 'total_sales', label: 'المبيعات', format: 'money' },
+          { key: 'sales_count', label: 'العدد', format: 'number' },
+          { key: 'net', label: 'الصافي', format: 'money' },
+        ],
+      },
+      {
+        id: 'top-products',
+        title: 'أفضل المنتجات',
+        extractRows: (p) => reportRows(p, ['top_products']),
+        fields: [
+          { key: 'name', label: 'المنتج', format: 'text', primary: true },
+          { key: 'total_revenue', label: 'الإيراد', format: 'money' },
+          { key: 'total_quantity', label: 'الكمية', format: 'number' },
+        ],
+      },
+    ],
+  },
+];
+
+export function getReportDefinition(id: ReportId): ReportDefinition | undefined {
+  return REPORT_DEFINITIONS.find((r) => r.id === id);
+}
+
+export function listReportHubItems(): ReportHubItem[] {
+  return REPORT_DEFINITIONS.map(({ id, title, description, group, icon, webRoute, permission, feature }) => ({
+    id,
+    title,
+    description,
+    group,
+    icon,
+    webRoute,
+    permission,
+    feature,
+  }));
+}

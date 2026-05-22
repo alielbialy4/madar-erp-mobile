@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { textStart } from '@/constants/layout';
 import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -9,7 +9,7 @@ import { ConfirmDialog, AppLoadingState, AppErrorState } from '@/components/feed
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { Sale } from '@/types/api';
@@ -33,6 +33,7 @@ export function PartialRefundScreen({ route, navigation }: { route: any; navigat
 }
 
 function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any }) {
+  const c = useColors();
   const loader = useCallback(() => salesAPI.getById(saleId), [saleId]);
   const { data: sale, loading, error, reload } = useAsyncResource<Sale>(loader);
 
@@ -43,6 +44,46 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+
+  const styles = useMemo(() => StyleSheet.create({
+    emptyText: { ...textStart, color: c.textMuted, fontSize: typography.body },
+    itemRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.border, gap: spacing.sm },
+    itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    itemInfo: { flex: 1, gap: 2 },
+    itemName: { fontSize: typography.body, fontWeight: '700', color: c.text, ...textStart },
+    itemMeta: { fontSize: typography.small, color: c.textMuted, ...textStart },
+    itemTotal: { fontSize: typography.body, fontWeight: '800', color: c.primary },
+    itemDetails: { gap: 2 },
+    qtyInfo: { fontSize: typography.tiny, color: c.textMuted, ...textStart },
+    itemActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
+    qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    qtyBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+    qtyBtnDisabled: { backgroundColor: c.disabled },
+    qtyBtnText: { color: '#fff', fontSize: typography.h3, fontWeight: '900' },
+    qtyInput: {
+      width: 56,
+      height: 36,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: radius.md,
+      textAlign: 'center',
+      fontSize: typography.body,
+      fontWeight: '700',
+      color: c.text,
+      backgroundColor: c.surface,
+    },
+    restockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    restockLabel: { fontSize: typography.small, color: c.textMuted, ...textStart },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    totalLabel: { fontSize: typography.body, fontWeight: '800', color: c.text, ...textStart },
+    totalValue: { fontSize: typography.h3, fontWeight: '900', color: c.danger },
+    messageBox: { padding: spacing.md, borderRadius: radius.md },
+    successBox: { backgroundColor: c.softSuccess },
+    errorBox: { backgroundColor: c.softDanger },
+    messageText: { fontSize: typography.body, ...textStart, fontWeight: '700' },
+    successText: { color: c.success },
+    errorText: { color: c.danger },
+  }), [c]);
 
   if (loading) return <AppScreen title="استرداد جزئي" onBack={navigation.goBack}><AppLoadingState /></AppScreen>;
   if (error || !sale) return <AppScreen title="استرداد جزئي" onBack={navigation.goBack}><AppErrorState message={error || 'لم يتم العثور على البيع'} onRetry={reload} /></AppScreen>;
@@ -160,8 +201,8 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
                     <Switch
                       value={line.restock}
                       onValueChange={() => toggleRestock(itemId)}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={colors.surface}
+                      trackColor={{ false: c.border, true: c.primary }}
+                      thumbColor={c.surface}
                       disabled={availableQty <= 0}
                     />
                     <Text style={styles.restockLabel}>إعادة للمخزون</Text>
@@ -220,43 +261,3 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  emptyText: { ...textStart, color: colors.textMuted, fontSize: typography.body },
-  itemRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.sm },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  itemInfo: { flex: 1, gap: 2 },
-  itemName: { fontSize: typography.body, fontWeight: '700', color: colors.text, ...textStart },
-  itemMeta: { fontSize: typography.small, color: colors.textMuted, ...textStart },
-  itemTotal: { fontSize: typography.body, fontWeight: '800', color: colors.primary },
-  itemDetails: { gap: 2 },
-  qtyInfo: { fontSize: typography.tiny, color: colors.textMuted, ...textStart },
-  itemActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  qtyBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  qtyBtnDisabled: { backgroundColor: colors.disabled },
-  qtyBtnText: { color: '#fff', fontSize: typography.h3, fontWeight: '900' },
-  qtyInput: {
-    width: 56,
-    height: 36,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    textAlign: 'center',
-    fontSize: typography.body,
-    fontWeight: '700',
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  restockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  restockLabel: { fontSize: typography.small, color: colors.textMuted, ...textStart },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: typography.body, fontWeight: '800', color: colors.text, ...textStart },
-  totalValue: { fontSize: typography.h3, fontWeight: '900', color: colors.danger },
-  messageBox: { padding: spacing.md, borderRadius: radius.md },
-  successBox: { backgroundColor: colors.softSuccess },
-  errorBox: { backgroundColor: colors.softDanger },
-  messageText: { fontSize: typography.body, ...textStart, fontWeight: '700' },
-  successText: { color: colors.success },
-  errorText: { color: colors.danger },
-});

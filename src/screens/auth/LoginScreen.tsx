@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { flexRow, rootRtl, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -14,7 +14,7 @@ import { AppButton, AppInput } from '@/components/ui';
 import { FormError } from '@/components/forms';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 
 const schema = z.object({
   tenant_slug: z.string().optional(),
@@ -27,11 +27,64 @@ type LoginForm = z.infer<typeof schema>;
 const TABLET_MIN = 768;
 
 export function LoginScreen() {
+  const c = useColors();
   const { width } = useWindowDimensions();
   const isWide = width >= TABLET_MIN;
   const login = useAuthStore((state) => state.login);
   const loading = useAuthStore((state) => state.loading);
   const error = useAuthStore((state) => state.error);
+
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.sidebar },
+    flex: { flex: 1 },
+    scroll: { flexGrow: 1 },
+    scrollWide: { minHeight: '100%' },
+    split: { flexGrow: 1 },
+    splitWide: { ...flexRow, minHeight: '100%' },
+    brandPanel: {
+      backgroundColor: c.sidebar,
+      paddingHorizontal: spacing.xxl,
+      paddingVertical: spacing.xxxl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      minHeight: 260,
+      borderBottomLeftRadius: radius.xxxl,
+      borderBottomRightRadius: radius.xxxl,
+      overflow: 'hidden',
+    },
+    brandPanelWide: { flex: 1, minHeight: undefined, borderRadius: 0 },
+    logoWrap: { alignItems: 'center', marginBottom: spacing.sm },
+    logoTitle: { color: c.primaryForeground, fontSize: 28, fontFamily: fonts.extraBold, fontWeight: '800' },
+    tagline: { color: '#94A3B8', fontSize: typography.body, fontFamily: fonts.medium, textAlign: 'center', lineHeight: 24 },
+    divider: { width: 40, height: 2, backgroundColor: c.brandAccent, borderRadius: 1, marginVertical: spacing.sm },
+    brandHint: { color: '#64748B', fontSize: typography.tiny, fontFamily: fonts.regular },
+    formSection: {
+      flex: 1,
+      backgroundColor: c.background,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xxl,
+      gap: spacing.lg,
+      justifyContent: 'center',
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+    },
+    formSectionWide: { flex: 1, maxWidth: 520, borderTopLeftRadius: radius.xxxl },
+    formHeader: { gap: spacing.xs },
+    formTitle: { ...textStart, color: c.text, fontSize: typography.pageTitle, fontFamily: fonts.extraBold, fontWeight: '800' },
+    formSubtitle: { ...textStart, color: c.textMuted, fontSize: typography.body, fontFamily: fonts.regular },
+    formCard: {
+      gap: spacing.lg,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.xxl,
+      padding: spacing.cardPadding,
+    },
+    apiHint: { ...textStart, color: c.textCaption, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
+    footer: { color: c.textCaption, fontSize: typography.tiny, textAlign: 'center', fontFamily: fonts.regular },
+  }), [c]);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
@@ -55,10 +108,10 @@ export function LoginScreen() {
         <ScrollView contentContainerStyle={[styles.scroll, isWide ? styles.scrollWide : undefined]} keyboardShouldPersistTaps="handled">
           <View style={[styles.split, isWide ? styles.splitWide : undefined]}>
             <View style={[styles.brandPanel, isWide ? styles.brandPanelWide : undefined]}>
-              <View style={styles.logoCircle}>
-                <MaterialIcons name="store" size={36} color={colors.accent} />
+              <View style={styles.logoWrap}>
+                <BrandLogo height={64} inverted />
               </View>
-              <Text style={styles.logo}>Madar ERP</Text>
+              <Text style={styles.logoTitle}>Madar ERP</Text>
               <Text style={styles.tagline}>سجّل دخولك لإدارة المبيعات ونقاط البيع بسهولة</Text>
               <View style={styles.divider} />
               <Text style={styles.brandHint}>دخول آمن — بياناتك محمية</Text>
@@ -122,63 +175,3 @@ export function LoginScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.sidebar },
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1 },
-  scrollWide: { minHeight: '100%' },
-  split: { flexGrow: 1 },
-  splitWide: { ...flexRow, minHeight: '100%' },
-  brandPanel: {
-    backgroundColor: colors.sidebar,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xxxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    minHeight: 260,
-    borderBottomLeftRadius: radius.xxxl,
-    borderBottomRightRadius: radius.xxxl,
-    overflow: 'hidden',
-  },
-  brandPanelWide: { flex: 1, minHeight: undefined, borderRadius: 0 },
-  logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(37, 99, 235, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  logo: { color: colors.primaryForeground, fontSize: 28, fontFamily: fonts.extraBold, fontWeight: '800' },
-  tagline: { color: '#94A3B8', fontSize: typography.body, fontFamily: fonts.medium, textAlign: 'center', lineHeight: 24 },
-  divider: { width: 40, height: 2, backgroundColor: colors.brandAccent, borderRadius: 1, marginVertical: spacing.sm },
-  brandHint: { color: '#64748B', fontSize: typography.tiny, fontFamily: fonts.regular },
-  formSection: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xxl,
-    gap: spacing.lg,
-    justifyContent: 'center',
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  formSectionWide: { flex: 1, maxWidth: 520, borderTopLeftRadius: radius.xxxl },
-  formHeader: { gap: spacing.xs },
-  formTitle: { ...textStart, color: colors.text, fontSize: typography.pageTitle, fontFamily: fonts.extraBold, fontWeight: '800' },
-  formSubtitle: { ...textStart, color: colors.textMuted, fontSize: typography.body, fontFamily: fonts.regular },
-  formCard: {
-    gap: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.xxl,
-    padding: spacing.cardPadding,
-  },
-  apiHint: { ...textStart, color: colors.textCaption, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-  footer: { color: colors.textCaption, fontSize: typography.tiny, textAlign: 'center', fontFamily: fonts.regular },
-});

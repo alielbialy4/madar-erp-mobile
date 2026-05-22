@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { textStart } from '@/constants/layout';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -11,11 +11,12 @@ import { CrudListScreen } from '@/screens/shared/CrudListScreen';
 import { extractArray } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 
 export function ExpensesScreen() {
+  const c = useColors();
   const [createOpen, setCreateOpen] = useState(false);
   const [categories, setCategories] = useState<Record<string, unknown>[]>([]);
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
@@ -29,6 +30,16 @@ export function ExpensesScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
 
   const [listKey, setListKey] = useState(0);
+
+  const styles = useMemo(() => StyleSheet.create({
+    wrapper: { flex: 1 },
+    listWrapper: { flex: 1 },
+    fabWrapper: { position: 'absolute', bottom: spacing.lg, start: spacing.lg, end: spacing.lg },
+    fabButton: { borderRadius: 999 },
+    sheetContent: { gap: spacing.md },
+    emptyHint: { color: c.textMuted, fontSize: typography.small, ...textStart },
+    errorText: { color: c.danger, ...textStart, fontWeight: '800' },
+  }), [c]);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -133,13 +144,3 @@ export function ExpensesScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: { flex: 1 },
-  listWrapper: { flex: 1 },
-  fabWrapper: { position: 'absolute', bottom: spacing.lg, start: spacing.lg, end: spacing.lg },
-  fabButton: { borderRadius: 999 },
-  sheetContent: { gap: spacing.md },
-  emptyHint: { color: colors.textMuted, fontSize: typography.small, ...textStart },
-  errorText: { color: colors.danger, ...textStart, fontWeight: '800' },
-});

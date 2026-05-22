@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { flexRow, textStart } from '@/constants/layout';
+import { FlatList, Pressable, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import type { Vault } from '@/types/api';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppInput, AppSectionHeader, AppSelect } from '@/components/ui';
-import { colors } from '@/constants/colors';
-import { radius, spacing } from '@/constants/spacing';
+import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { PosSheetHeader, PosTotalHero, usePosSheetStyles } from '@/components/pos/posSheetUi';
+import { useColors } from '@/hooks/useColors';
+import { flexRow, textStart } from '@/constants/layout';
+import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import { fonts } from '@/constants/fonts';
 import { money } from '@/utils/format';
 
 export type SplitLine = {
@@ -26,6 +29,8 @@ type Props = {
 };
 
 export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onClose, onConfirm }: Props) {
+  const c = useColors();
+  const s = usePosSheetStyles();
   const [lines, setLines] = useState<SplitLine[]>([
     { payment_method: 'cash', vault_id: vaults[0]?.id ?? '', amount: '' },
     { payment_method: 'card', vault_id: vaults[1]?.id ?? vaults[0]?.id ?? '', amount: '' },
@@ -42,7 +47,7 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
   }, [visible, vaults]);
 
   const updateLine = (index: number, field: keyof SplitLine, value: string) => {
-    setLines((prev) => prev.map((l, i) => i === index ? { ...l, [field]: value } : l));
+    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
     setError(null);
   };
 
@@ -55,6 +60,7 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
   };
 
   const totalPaid = lines.reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
+  const remaining = Math.max(0, totalDue - totalPaid);
   const mismatch = Math.abs(totalPaid - totalDue) > 0.02;
   const activeLines = lines.filter((l) => (parseFloat(l.amount) || 0) > 0);
 
@@ -64,7 +70,7 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
       return;
     }
     if (activeLines.length < 2) {
-      setError('يجب أن يكون هناك خطان نشطان على الأقل');
+      setError('أضف خطّي دفع على الأقل بمبالغ أكبر من صفر.');
       return;
     }
     if (activeLines.some((line) => !line.vault_id)) {
@@ -72,7 +78,7 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
       return;
     }
     if (mismatch) {
-      setError(`المجموع (${money(totalPaid)}) لا يساوي المستحق (${money(totalDue)})`);
+      setError(`المجموع المدفوع (${money(totalPaid)}) يجب أن يساوي المستحق (${money(totalDue)})`);
       return;
     }
     onConfirm(activeLines);
@@ -80,19 +86,57 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.container}>
-        <AppSectionHeader title="دفع مقسم" />
-        <Text style={styles.totalLabel}>المبلغ المستحق: {money(totalDue)}</Text>
-        {vaults.length === 0 ? (
-          <Text style={styles.errorText}>لا توجد خزنة متاحة. لا يمكن تنفيذ الدفع المقسم بأمان.</Text>
+      <View style={s.root}>
+        <PosSheetHeader title="دفع مقسم" subtitle="وزّع المبلغ على أكثر من طريقة دفع وخزنة" />
+        <PosTotalHero label="المستحق" amount={money(totalDue)} />
+
+        <View style={s.splitMeter}>
+          <View style={s.meterBox}>
+            <Text style={[s.meterValue, s.meterDue]}>{money(totalDue)}</Text>
+            <Text style={s.meterLabel}>المستحق</Text>
+          </View>
+          <View style={s.meterBox}>
+            <Text style={[s.meterValue, s.meterPaid]}>{money(totalPaid)}</Text>
+            <Text style={s.meterLabel}>المدفوع</Text>
+          </View>
+          <View style={s.meterBox}>
+            <Text style={[s.meterValue, s.meterRemain]}>{money(remaining)}</Text>
+            <Text style={s.meterLabel}>المتبقي</Text>
+          </View>
+        </View>
+
+        {mismatch && totalPaid > 0 ? (
+          <View style={s.errorBanner}>
+            <Text style={s.errorText}>فرق: {money(totalDue - totalPaid)} — عدّل المبالغ</Text>
+          </View>
         ) : null}
+
+        {vaults.length === 0 ? (
+          <View style={s.errorBanner}>
+            <Text style={s.errorText}>لا توجد خزنة متاحة. لا يمكن تنفيذ الدفع المقسم.</Text>
+          </View>
+        ) : null}
+
         <FlatList
           data={lines}
           keyExtractor={(_, i) => String(i)}
+          scrollEnabled={lines.length > 2}
+          style={{ maxHeight: 320 }}
+          contentContainerStyle={{ gap: spacing.md }}
           renderItem={({ item, index }) => (
-            <View style={styles.lineCard}>
+            <View style={s.lineCard}>
+              <View style={[flexRow, { justifyContent: 'space-between', alignItems: 'center' }]}>
+                <Text style={{ ...textStart, fontFamily: fonts.bold, fontSize: typography.body, color: c.text }}>
+                  خط دفع {index + 1}
+                </Text>
+                {lines.length > 2 ? (
+                  <Pressable onPress={() => removeLine(index)} hitSlop={8}>
+                    <MaterialIcons name="delete-outline" size={22} color={c.danger} />
+                  </Pressable>
+                ) : null}
+              </View>
               <AppSelect
-                label={`طريقة الدفع ${index + 1}`}
+                label="طريقة الدفع"
                 value={item.payment_method}
                 onChange={(v) => updateLine(index, 'payment_method', v)}
                 options={[
@@ -103,39 +147,40 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
               />
               <AppInput
                 label="المبلغ"
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 value={item.amount}
                 onChangeText={(v) => updateLine(index, 'amount', v)}
+                placeholder="0.00"
               />
               <AppSelect
                 label="الخزنة"
                 value={item.vault_id}
                 onChange={(v) => updateLine(index, 'vault_id', v)}
-                options={vaults.map((vault) => ({ label: vault.name, value: vault.id }))}
+                options={vaults.map((vault) => ({ label: vault.name, value: String(vault.id) }))}
               />
-              {lines.length > 2 ? (
-                <AppButton title="حذف" variant="ghost" onPress={() => removeLine(index)} size="sm" />
-              ) : null}
             </View>
           )}
         />
-        <Text style={styles.summaryText}>الإجمالي المدفوع: {money(totalPaid)}</Text>
-        {mismatch ? <Text style={styles.errorText}>فرق: {money(totalDue - totalPaid)}</Text> : null}
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <View style={styles.actions}>
-          <AppButton title="إضافة خط دفع" variant="outline" onPress={addLine} style={{ flex: 1 }} />
-          <AppButton title="تأكيد" onPress={handleConfirm} disabled={vaults.length === 0 || mismatch || activeLines.length < 2} style={{ flex: 1 }} />
+
+        {error ? (
+          <View style={s.errorBanner}>
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <View style={s.stickyFooter}>
+          <View style={[flexRow, { gap: spacing.sm }]}>
+            <AppButton title="إضافة خط" variant="outline" onPress={addLine} style={{ flex: 1 }} />
+            <AppButton
+              title="تأكيد التوزيع"
+              onPress={handleConfirm}
+              disabled={vaults.length === 0 || mismatch || activeLines.length < 2}
+              style={{ flex: 1 }}
+            />
+          </View>
+          <AppButton title="إلغاء" variant="ghost" onPress={onClose} fullWidth />
         </View>
       </View>
     </AppBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.md },
-  totalLabel: { color: colors.text, fontSize: typography.h3, fontWeight: '900', ...textStart },
-  lineCard: { borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.xl, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.sm },
-  summaryText: { color: colors.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-  errorText: { color: colors.danger, fontSize: typography.small, ...textStart, fontWeight: '800' },
-  actions: { ...flexRow, gap: spacing.md },
-});

@@ -1,17 +1,7 @@
-import type { ListParams, Warehouse } from '@/types/api';
+import type { InventoryBalance, ListParams, Warehouse } from '@/types/api';
 import { del, get, post, put } from './client';
 
-export type InventoryBalance = {
-  id: string;
-  product_id: number;
-  product?: { id: number; name: string; barcode?: string | null; unit?: string | null; min_stock_alert?: number };
-  warehouse_name?: string | null;
-  branch_name?: string | null;
-  category_name?: string | null;
-  quantity: number;
-  balance_status_label_ar?: string;
-  batch?: { batch_number?: string | null; expiry_date?: string | null } | null;
-};
+export type { InventoryBalance };
 
 export const inventoryAPI = {
   warehouses: () => get<Warehouse[]>('/inventory/warehouses'),

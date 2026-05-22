@@ -1,12 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { AppText as Text } from './AppText';
-import { colors } from '@/constants/colors';
+import { Pressable, View } from 'react-native';
+import { AppText } from './AppText';
+import { useColors } from '@/hooks/useColors';
 import { flexRow } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
-import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
-import { pressScale } from '@/utils/animations';
+import { fonts } from '@/constants/fonts';
 
 type Option<T extends string> = { value: T; label: string };
 
@@ -17,63 +16,52 @@ type Props<T extends string> = {
 };
 
 export function AppSegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
+  const c = useColors();
   return (
-    <View style={styles.wrap}>
+    <View style={{
+      ...flexRow,
+      backgroundColor: c.surfaceMuted,
+      borderRadius: radius.lg,
+      padding: 4,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+    }}>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            style={({ pressed }) => [
-              styles.segment,
-              active ? styles.segmentActive : undefined,
-              pressed ? pressScale(true, 0.98) : undefined,
-            ]}
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: spacing.sm,
+              borderRadius: radius.md,
+              minHeight: 40,
+              backgroundColor: active ? c.surface : 'transparent',
+              borderWidth: active ? 1 : 0,
+              borderColor: active ? c.borderSubtle : 'transparent',
+              ...(active ? {
+                shadowColor: c.shadow,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 1,
+                shadowRadius: 3,
+                elevation: 2,
+              } : {}),
+            }}
           >
-            <Text style={[styles.label, active ? styles.labelActive : undefined]}>{opt.label}</Text>
+            <AppText style={{
+              fontSize: typography.label,
+              fontFamily: active ? fonts.bold : fonts.medium,
+              fontWeight: active ? '700' : '500',
+              color: active ? c.text : c.textMuted,
+            }}>
+              {opt.label}
+            </AppText>
           </Pressable>
         );
       })}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    ...flexRow,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.lg,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  segment: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    minHeight: 40,
-  },
-  segmentActive: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    shadowColor: colors.shadowMd,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  label: {
-    fontSize: typography.small,
-    fontFamily: fonts.medium,
-    color: colors.textMuted,
-  },
-  labelActive: {
-    color: colors.text,
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-  },
-});

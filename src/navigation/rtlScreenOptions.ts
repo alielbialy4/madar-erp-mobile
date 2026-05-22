@@ -4,5 +4,7 @@ import type { NativeStackNavigationOptions } from '@react-navigation/native-stac
 export const rtlStackScreenOptions: NativeStackNavigationOptions = {
   headerShown: false,
   animation: 'slide_from_right',
+  gestureEnabled: true,
+  fullScreenGestureEnabled: true,
   gestureDirection: 'horizontal',
 };

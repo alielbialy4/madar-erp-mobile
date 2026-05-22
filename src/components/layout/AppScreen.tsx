@@ -1,11 +1,11 @@
-import React, { PropsWithChildren, useMemo } from 'react';
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
+import React, { PropsWithChildren } from 'react';
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { rootRtl, screenRtl } from '@/constants/layout';
-import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
+import { useOptionalGoBack } from '@/hooks/useOptionalGoBack';
 import { AppHeader } from './AppHeader';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -19,29 +19,43 @@ type Props = PropsWithChildren<{
   contentStyle?: ViewStyle;
   headerRight?: React.ReactNode;
   noHeader?: boolean;
+  safeEdges?: ('top' | 'bottom' | 'left' | 'right')[];
 }>;
 
-export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, onRefresh, children, contentStyle, headerRight, noHeader }: Props) {
+export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, onRefresh, children, contentStyle, headerRight, noHeader, safeEdges }: Props) {
   const c = useColors();
   const tabBarInset = useTabBarBottomInset(spacing.md);
-  const styles = useMemo(() => createStyles(c, tabBarInset), [c, tabBarInset]);
+  const defaultBack = useOptionalGoBack();
+  const handleBack = onBack ?? defaultBack;
   const showHeader = !noHeader;
+  const edges = safeEdges ?? ['top', 'left', 'right'];
+
   const content = (
-    <View style={[styles.content, contentStyle]}>
+    <View
+      style={[
+        {
+          flex: 1,
+          padding: spacing.lg,
+          gap: spacing.lg,
+          ...(noHeader ? { paddingTop: spacing.md } : {}),
+        },
+        contentStyle,
+      ]}
+    >
       {children}
     </View>
   );
 
   return (
-    <SafeAreaView style={[styles.safe, rootRtl, screenRtl]} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', android: undefined })}>
-        {showHeader ? <AppHeader title={title} subtitle={subtitle} onBack={onBack} right={headerRight} /> : null}
+    <SafeAreaView style={[{ flex: 1, backgroundColor: c.background }, rootRtl, screenRtl]} edges={edges}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.select({ ios: 'padding', android: undefined })}>
+        {showHeader ? <AppHeader title={title} subtitle={subtitle} onBack={handleBack} right={headerRight} /> : null}
         <OfflineBanner />
         {scroll ? (
           <ScrollView
-            style={styles.flex}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} /> : undefined}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarInset }}
+            refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -51,13 +65,4 @@ export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, 
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
-
-function createStyles(c: AppColors, tabBarInset: number) {
-  return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: c.background },
-    flex: { flex: 1 },
-    scrollContent: { flexGrow: 1, paddingBottom: tabBarInset },
-    content: { flex: 1, padding: spacing.lg, gap: spacing.lg },
-  });
 }

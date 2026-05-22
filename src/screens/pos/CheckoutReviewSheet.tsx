@@ -1,15 +1,20 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { flexRow, textStart } from '@/constants/layout';
+import { View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppSectionHeader } from '@/components/ui';
-import { colors } from '@/constants/colors';
-import { radius, spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
+import { AppButton } from '@/components/ui';
+import {
+  PosSheetHeader,
+  PosSheetSection,
+  PosTotalHero,
+  usePosSheetStyles,
+} from '@/components/pos/posSheetUi';
+import { useColors } from '@/hooks/useColors';
 import { money } from '@/utils/format';
 import type { CartLine } from '@/store/posStore';
 import type { Coupon } from '@/types/api';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { flexRow } from '@/constants/layout';
 
 type Props = {
   visible: boolean;
@@ -18,6 +23,9 @@ type Props = {
   discount: number;
   total: number;
   coupon: { coupon: Coupon; discount: number } | null;
+  loyaltyDiscount?: number;
+  loyaltyPointsRedeemed?: number;
+  giftCard?: { code: string; amount: number; balance: number } | null;
   paymentType: string;
   paid: number;
   customerName: string | null;
@@ -26,65 +34,153 @@ type Props = {
   loading?: boolean;
 };
 
-export function CheckoutReviewSheet({ visible, cart, subtotal, discount, total, coupon, paymentType, paid, customerName, onClose, onConfirm, loading }: Props) {
-  const paymentLabels: Record<string, string> = { cash: 'نقدي', card: 'بطاقة', credit: 'آجل', wallet: 'محفظة', split: 'مقسم' };
+const PAYMENT_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  cash: 'payments',
+  card: 'credit-card',
+  credit: 'schedule',
+  wallet: 'account-balance-wallet',
+  split: 'call-split',
+  gift_card: 'card-giftcard',
+};
+
+export function CheckoutReviewSheet({
+  visible,
+  cart,
+  subtotal,
+  discount,
+  total,
+  coupon,
+  loyaltyDiscount = 0,
+  loyaltyPointsRedeemed = 0,
+  giftCard,
+  paymentType,
+  paid,
+  customerName,
+  onClose,
+  onConfirm,
+  loading,
+}: Props) {
+  const c = useColors();
+  const s = usePosSheetStyles();
+  const paymentLabels: Record<string, string> = {
+    cash: 'نقدي',
+    card: 'بطاقة',
+    credit: 'آجل',
+    wallet: 'محفظة',
+    split: 'مقسم',
+    gift_card: 'بطاقة هدايا',
+  };
   const couponDiscount = coupon?.discount ?? 0;
-  const grandTotal = total - couponDiscount;
+  const grandTotal = Math.max(0, total - couponDiscount - loyaltyDiscount);
+  const giftAmount = paymentType === 'gift_card' && giftCard ? giftCard.amount : 0;
+  const cashDue = Math.max(0, grandTotal - giftAmount);
+  const effectivePaid = paymentType === 'gift_card' ? paid + giftAmount : paid;
+  const change = effectivePaid > grandTotal ? effectivePaid - grandTotal : 0;
+
+  const paymentIcon = PAYMENT_ICONS[paymentType] ?? 'payment';
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.container}>
-        <AppSectionHeader title="مراجعة الطلب" />
-        {customerName ? <Text style={styles.customerText}>العميل: {customerName}</Text> : null}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>الأصناف</Text>
+      <View style={s.root}>
+        <PosSheetHeader
+          title="مراجعة الطلب"
+          subtitle={customerName ? `العميل: ${customerName}` : 'بيع بدون عميل'}
+        />
+        <PosTotalHero label="الإجمالي النهائي" amount={money(grandTotal)} hint={`${cart.length} أصناف في السلة`} />
+
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>الأصناف</Text>
           {cart.map((line, i) => (
-            <View key={i} style={styles.lineRow}>
-              <Text style={styles.lineTotal}>{money(line.quantity * line.unit_price)}</Text>
-              <View style={styles.lineInfo}>
-                <Text style={styles.lineName}>{line.product_name}</Text>
-                <Text style={styles.lineMeta}>{money(line.unit_price)} × {line.quantity}</Text>
-                {line.selected_options?.map((opt, j) => (
-                  <Text key={j} style={styles.optionText}>
-                    {opt.group_title}: {opt.options.map((o) => o.name).join(', ')}
+            <View key={i} style={s.lineCard}>
+              <View style={s.lineRow}>
+                <Text style={s.lineAmount}>{money(line.quantity * line.unit_price)}</Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.lineName}>{line.product_name}</Text>
+                  <Text style={s.lineMeta}>
+                    {money(line.unit_price)} × {line.quantity}
                   </Text>
-                ))}
+                  {line.selected_options?.map((opt, j) => (
+                    <Text key={j} style={s.lineMeta}>
+                      {opt.group_title}: {opt.options.map((o) => o.name).join('، ')}
+                    </Text>
+                  ))}
+                </View>
               </View>
             </View>
           ))}
         </View>
-        <View style={styles.summaryBox}>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>المجموع الفرعي</Text><Text style={styles.summaryValue}>{money(subtotal)}</Text></View>
-          {discount > 0 ? <View style={styles.summaryRow}><Text style={styles.summaryLabel}>الخصم</Text><Text style={[styles.summaryValue, { color: colors.danger }]}>-{money(discount)}</Text></View> : null}
-          {couponDiscount > 0 ? <View style={styles.summaryRow}><Text style={styles.summaryLabel}>كوبون ({coupon!.coupon.code})</Text><Text style={[styles.summaryValue, { color: colors.danger }]}>-{money(couponDiscount)}</Text></View> : null}
-          <View style={[styles.summaryRow, styles.totalRow]}><Text style={styles.totalLabel}>الإجمالي</Text><Text style={styles.totalValue}>{money(grandTotal)}</Text></View>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>طريقة الدفع</Text><Text style={styles.summaryValue}>{paymentLabels[paymentType] ?? paymentType}</Text></View>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>المدفوع</Text><Text style={styles.summaryValue}>{money(paid)}</Text></View>
-          {paid > grandTotal ? <View style={styles.summaryRow}><Text style={styles.summaryLabel}>الباقي</Text><Text style={styles.summaryValue}>{money(paid - grandTotal)}</Text></View> : null}
+
+        <PosSheetSection label="ملخص المبالغ">
+          <View style={s.summaryRow}>
+            <Text style={s.summaryLabel}>المجموع الفرعي</Text>
+            <Text style={s.summaryValue}>{money(subtotal)}</Text>
+          </View>
+          {discount > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>خصم</Text>
+              <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(discount)}</Text>
+            </View>
+          ) : null}
+          {couponDiscount > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>كوبون ({coupon!.coupon.code})</Text>
+              <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(couponDiscount)}</Text>
+            </View>
+          ) : null}
+          {loyaltyDiscount > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>نقاط ولاء ({loyaltyPointsRedeemed})</Text>
+              <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(loyaltyDiscount)}</Text>
+            </View>
+          ) : null}
+          {giftAmount > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>بطاقة هدايا ({giftCard!.code})</Text>
+              <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(giftAmount)}</Text>
+            </View>
+          ) : null}
+          <View style={s.divider} />
+          <View style={s.summaryRow}>
+            <Text style={[s.summaryLabel, { color: c.text, fontFamily: 'Tajawal_700Bold' }]}>الإجمالي</Text>
+            <Text style={[s.summaryValue, { fontSize: 18, color: c.primary }]}>{money(grandTotal)}</Text>
+          </View>
+        </PosSheetSection>
+
+        <PosSheetSection label="الدفع">
+          <View style={[flexRow, { alignItems: 'center', gap: 12 }]}>
+            <MaterialIcons name={paymentIcon} size={24} color={c.primary} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <View style={s.summaryRow}>
+                <Text style={s.summaryLabel}>طريقة الدفع</Text>
+                <Text style={s.summaryValue}>{paymentLabels[paymentType] ?? paymentType}</Text>
+              </View>
+              {paymentType === 'gift_card' && giftCard ? (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>بطاقة الهدايا</Text>
+                  <Text style={s.summaryValue}>{money(giftAmount)}</Text>
+                </View>
+              ) : null}
+              {cashDue > 0.01 || paymentType !== 'gift_card' ? (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>المدفوع</Text>
+                  <Text style={s.summaryValue}>{money(paymentType === 'gift_card' ? paid : paid)}</Text>
+                </View>
+              ) : null}
+              {change > 0 ? (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>الباقي للعميل</Text>
+                  <Text style={[s.summaryValue, { color: c.success }]}>{money(change)}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </PosSheetSection>
+
+        <View style={s.stickyFooter}>
+          <AppButton title="تأكيد البيع" onPress={onConfirm} loading={loading} fullWidth size="lg" />
+          <AppButton title="رجوع للتعديل" variant="outline" onPress={onClose} fullWidth />
         </View>
-        <AppButton title="تأكيد البيع" onPress={onConfirm} loading={loading} fullWidth size="lg" />
-        <AppButton title="رجوع" variant="outline" onPress={onClose} fullWidth />
       </View>
     </AppBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.md },
-  customerText: { color: colors.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-  section: { gap: spacing.sm },
-  sectionTitle: { color: colors.textMuted, fontSize: typography.small, fontWeight: '800', ...textStart },
-  lineRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: colors.borderSubtle, paddingVertical: spacing.xs },
-  lineInfo: { flex: 1, gap: 2 },
-  lineName: { color: colors.text, fontWeight: '700', ...textStart, fontSize: typography.small },
-  lineMeta: { color: colors.textMuted, ...textStart, fontSize: typography.tiny },
-  optionText: { color: colors.textMuted, ...textStart, fontSize: typography.tiny },
-  lineTotal: { color: colors.text, fontWeight: '800', fontSize: typography.small, minWidth: 70, writingDirection: 'ltr', textAlign: 'left' },
-  summaryBox: { backgroundColor: colors.surfaceMuted, borderRadius: radius.xl, padding: spacing.md, gap: spacing.xs },
-  summaryRow: { ...flexRow, justifyContent: 'space-between' },
-  summaryLabel: { color: colors.textMuted, fontSize: typography.small },
-  summaryValue: { color: colors.text, fontSize: typography.small, fontWeight: '700' },
-  totalRow: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sm, marginTop: spacing.xs },
-  totalLabel: { color: colors.text, fontSize: typography.body, fontWeight: '900' },
-  totalValue: { color: colors.text, fontSize: typography.h3, fontWeight: '800' },
-});

@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { purchasesAPI } from '@/api/purchases';
 import { CrudListScreen, statusTone } from '@/screens/shared/CrudListScreen';
 import { AppButton } from '@/components/ui';
@@ -16,7 +17,12 @@ export function PurchasesScreen({ navigation }: { navigation: any }) {
       itemMeta={(item) => money(item.total ?? item.subtotal ?? 0)}
       itemBadge={(item) => ({ label: String(item.status ?? '—'), tone: statusTone(item.status) })}
       emptyTitle="لا توجد مشتريات"
-      headerRight={<AppButton title="إنشاء شراء" onPress={() => navigation.navigate('CreatePurchase')} />}
+      headerRight={
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          <AppButton title="مرتجعات" variant="secondary" onPress={() => navigation.navigate('PurchaseReturnsList')} />
+          <AppButton title="إنشاء شراء" onPress={() => navigation.navigate('CreatePurchase')} />
+        </View>
+      }
     />
   );
 }

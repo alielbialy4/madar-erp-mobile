@@ -1,20 +1,34 @@
 import React from 'react';
+import { View } from 'react-native';
 import { couponsAPI } from '@/api/coupons';
 import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { AppButton } from '@/components/ui';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
 import { money } from '@/utils/format';
 import type { Coupon } from '@/types/api';
 
-export function CouponsScreen() {
+export function CouponsScreen({ navigation }: { navigation: any }) {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
+
   return (
     <CrudListScreen<Coupon & Record<string, unknown>>
       title="الكوبونات"
-      subtitle="إدارة وقراءة الكوبونات"
+      subtitle="التحقق في POS يتطلب شبكة؛ سياسة الفرع من إعدادات الفرع"
       loader={couponsAPI.list}
+      onItemPress={(item) => navigation.navigate('CouponForm', { id: String(item.id) })}
       itemTitle={(item) => `${item.name} (${item.code})`}
-      itemSubtitle={(item) => item.type === 'percentage' ? `نسبة ${item.value}%` : `خصم ${money(item.value)}`}
-      itemMeta={(item) => item.min_order_amount ? `حد أدنى: ${money(item.min_order_amount)}` : undefined}
+      itemSubtitle={(item) => (item.type === 'percentage' ? `نسبة ${item.value}%` : `خصم ${money(item.value)}`)}
+      itemMeta={(item) => (item.min_order_amount ? `حد أدنى: ${money(item.min_order_amount)}` : item.branch_id ? `فرع: ${item.branch_id}` : undefined)}
       itemBadge={(item) => ({ label: item.is_active === false ? 'غير نشط' : 'نشط', tone: item.is_active === false ? 'warning' : 'success' })}
-      emptyTitle="لا توجد كوبونات"
+      emptyTitle="لا كوبونات"
+      headerRight={
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          {canManage ? <AppButton title="جديد" onPress={() => navigation.navigate('CouponForm', {})} /> : null}
+          <AppButton title="تقرير" variant="secondary" onPress={() => navigation.navigate('ReportViewer', { reportId: 'marketing-coupons' })} />
+        </View>
+      }
     />
   );
 }

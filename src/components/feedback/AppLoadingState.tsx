@@ -1,20 +1,38 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
-import { colors } from '@/constants/colors';
+import { ActivityIndicator, View } from 'react-native';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import { fonts } from '@/constants/fonts';
+import { AppText } from '@/components/ui/AppText';
+import { AppSkeletonList } from './AppSkeletonList';
 
-export function AppLoadingState({ message = 'جاري تحميل البيانات...' }: { message?: string }) {
+type Props = {
+  message?: string;
+  variant?: 'spinner' | 'skeleton';
+  skeletonRows?: number;
+};
+
+export function AppLoadingState({ message = 'جاري التحميل...', variant = 'spinner', skeletonRows = 6 }: Props) {
+  const c = useColors();
+
+  if (variant === 'skeleton') {
+    return (
+      <View style={{ flex: 1 }}>
+        <AppSkeletonList rows={skeletonRows} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.state}>
-      <ActivityIndicator color={colors.accent} size="large" />
-      <Text style={styles.message}>{message}</Text>
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.huge, gap: spacing.md }}>
+      <ActivityIndicator size="large" color={c.accent} />
+      <AppText style={{
+        fontSize: typography.body, fontFamily: fonts.medium,
+        color: c.textMuted, textAlign: 'center', writingDirection: 'rtl',
+      }}>
+        {message}
+      </AppText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  state: { padding: spacing.xxxl, alignItems: 'center', gap: spacing.md },
-  message: { color: colors.textMuted, fontSize: typography.body, textAlign: 'center' },
-});

@@ -54,8 +54,17 @@ export function createDashboardStyles(c: AppColors) {
       borderColor: c.borderSubtle,
       ...elevation,
     },
+    heroGradientBand: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 120,
+      backgroundColor: c.primarySoftMuted,
+      opacity: 0.55,
+    },
     heroAccent: {
-      height: 4,
+      height: 5,
       backgroundColor: c.primary,
     },
     heroBody: { padding: spacing.lg, gap: spacing.md },
@@ -185,7 +194,8 @@ export function createDashboardStyles(c: AppColors) {
     },
 
     kpiGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-    kpiCell: { flexGrow: 1, flexBasis: '47%', minWidth: 148 },
+    kpiCell: { flexGrow: 1, flexBasis: '47%', minWidth: 156 },
+    kpiCellTablet: { flexBasis: '23%', minWidth: 140 },
     kpiCellWide: { flexBasis: '100%', minWidth: '100%' },
 
     kpiCard: {

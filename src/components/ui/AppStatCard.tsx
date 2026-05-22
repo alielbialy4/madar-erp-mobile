@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { textStart } from '@/constants/layout';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
+import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -19,29 +20,32 @@ type Props = {
   icon?: React.ReactNode;
 };
 
-const toneSoft = {
-  primary: colors.accentSoft,
-  success: colors.softSuccess,
-  warning: colors.softWarning,
-  danger: colors.softDanger,
-  info: colors.softInfo,
-};
-
-const toneIcon = {
-  primary: colors.accent,
-  success: colors.success,
-  warning: colors.warning,
-  danger: colors.danger,
-  info: colors.info,
-};
-
-const tierRing = {
-  primary: colors.accent,
-  secondary: colors.border,
-};
-
 export function AppStatCard({ label, value, hint, tone = 'primary', tier = 'primary', icon }: Props) {
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isPrimary = tier === 'primary';
+
+  const toneSoft: Record<Tone, string> = {
+    primary: c.accentSoft,
+    success: c.softSuccess,
+    warning: c.softWarning,
+    danger: c.softDanger,
+    info: c.softInfo,
+  };
+
+  const toneIcon: Record<Tone, string> = {
+    primary: c.accent,
+    success: c.success,
+    warning: c.warning,
+    danger: c.danger,
+    info: c.info,
+  };
+
+  const tierRing: Record<Tier, string> = {
+    primary: c.accent,
+    secondary: c.border,
+  };
+
   return (
     <View
       style={[
@@ -66,64 +70,66 @@ export function AppStatCard({ label, value, hint, tone = 'primary', tier = 'prim
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    minWidth: 148,
-    flex: 1,
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderRadius: radius.xxxl,
-    padding: spacing.lg,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 1,
-        shadowRadius: 3,
-      },
-      android: { elevation: 1 },
-      default: {},
-    }),
-  },
-  primaryCard: {
-    minHeight: 108,
-  },
-  secondaryCard: {
-    minHeight: 100,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  label: {
-    ...textStart,
-    color: colors.textMuted,
-    fontSize: typography.small,
-    fontFamily: fonts.medium,
-    fontWeight: '600',
-  },
-  value: {
-    ...textStart,
-    color: colors.text,
-    fontFamily: fonts.extraBold,
-    fontWeight: '800',
-  },
-  valuePrimary: {
-    fontSize: 26,
-  },
-  valueSecondary: {
-    fontSize: typography.pageTitle,
-  },
-  hint: {
-    ...textStart,
-    color: colors.textCaption,
-    fontSize: typography.tiny,
-    fontFamily: fonts.regular,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    card: {
+      minWidth: 148,
+      flex: 1,
+      gap: spacing.sm,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderRadius: radius.xxxl,
+      padding: spacing.lg,
+      ...Platform.select({
+        ios: {
+          shadowColor: c.shadow,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 1,
+          shadowRadius: 3,
+        },
+        android: { elevation: 1 },
+        default: {},
+      }),
+    },
+    primaryCard: {
+      minHeight: 108,
+    },
+    secondaryCard: {
+      minHeight: 100,
+    },
+    iconBox: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'flex-start',
+    },
+    dot: { width: 12, height: 12, borderRadius: 6 },
+    label: {
+      ...textStart,
+      color: c.textMuted,
+      fontSize: typography.small,
+      fontFamily: fonts.medium,
+      fontWeight: '600',
+    },
+    value: {
+      ...textStart,
+      color: c.text,
+      fontFamily: fonts.extraBold,
+      fontWeight: '800',
+    },
+    valuePrimary: {
+      fontSize: 26,
+    },
+    valueSecondary: {
+      fontSize: typography.pageTitle,
+    },
+    hint: {
+      ...textStart,
+      color: c.textCaption,
+      fontSize: typography.tiny,
+      fontFamily: fonts.regular,
+    },
+  });
+}

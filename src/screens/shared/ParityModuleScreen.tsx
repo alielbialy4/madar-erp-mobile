@@ -5,7 +5,7 @@ import { AppScreen } from '@/components/layout';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { AppBadge, AppCard, AppInput, AppSectionHeader, AppText as Text } from '@/components/ui';
 import { get } from '@/api/client';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/spacing';
@@ -95,6 +95,7 @@ function flattenObject(data: unknown): [string, unknown][] {
 }
 
 export function ParityModuleScreen({ route, navigation }: Props) {
+  const c = useColors();
   const params = route.params;
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
@@ -107,6 +108,47 @@ export function ParityModuleScreen({ route, navigation }: Props) {
   const status = params?.status ?? 'Disabled with reason';
   const title = params?.title ?? 'مسار من الويب';
   const note = params?.note;
+
+  const styles = useMemo(() => StyleSheet.create({
+    statusCard: { borderColor: c.accentBorder },
+    statusHeader: { ...flexRow, alignItems: 'center', gap: spacing.md },
+    statusIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: radius.xl,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statusTextCol: { flex: 1, gap: spacing.xs },
+    statusTitle: { color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },
+    statusNote: { color: c.textMuted, lineHeight: 22, fontSize: typography.small },
+    list: { gap: spacing.sm },
+    rowCard: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.xl,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    rowPressed: { backgroundColor: c.surfaceMuted },
+    rowTop: { ...flexRow, alignItems: 'flex-start', gap: spacing.sm },
+    rowTitle: { flex: 1, ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },
+    rowMeta: { color: c.accent, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small },
+    rowSubtitle: { color: c.textMuted, fontSize: typography.small, lineHeight: 21 },
+    metricGrid: { gap: spacing.sm },
+    metric: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      backgroundColor: c.surfaceMuted,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    metricLabel: { color: c.textMuted, fontSize: typography.tiny },
+    metricValue: { color: c.text, fontFamily: fonts.bold, fontWeight: '700' },
+  }), [c]);
 
   const load = useCallback(
     async (refresh = false) => {
@@ -146,7 +188,7 @@ export function ParityModuleScreen({ route, navigation }: Props) {
       <AppCard style={styles.statusCard}>
         <View style={styles.statusHeader}>
           <View style={styles.statusIcon}>
-            <MaterialIcons name={disabled ? 'lock-outline' : 'fact-check'} size={20} color={disabled ? colors.warning : colors.accent} />
+            <MaterialIcons name={disabled ? 'lock-outline' : 'fact-check'} size={20} color={disabled ? c.warning : c.accent} />
           </View>
           <View style={styles.statusTextCol}>
             <Text style={styles.statusTitle}>{disabled ? 'مسار معطل بأمان' : 'مسار مطابقة للويب'}</Text>
@@ -166,7 +208,7 @@ export function ParityModuleScreen({ route, navigation }: Props) {
       ) : (
         <>
           <AppInput value={query} onChangeText={setQuery} placeholder="بحث في هذا المسار..." returnKeyType="search" />
-          {loading ? <AppLoadingState message="جاري تحميل بيانات المسار..." /> : null}
+          {loading ? <AppLoadingState variant="skeleton" skeletonRows={6} /> : null}
           {error ? <AppErrorState message={error} onRetry={() => void load(false)} /> : null}
           {!loading && !error && rows.length === 0 && metrics.length === 0 ? (
             <AppEmptyState title="لا توجد بيانات" message="الخادم لم يرجع عناصر لهذا المسار حالياً." />
@@ -202,44 +244,3 @@ export function ParityModuleScreen({ route, navigation }: Props) {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  statusCard: { borderColor: colors.accentBorder },
-  statusHeader: { ...flexRow, alignItems: 'center', gap: spacing.md },
-  statusIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusTextCol: { flex: 1, gap: spacing.xs },
-  statusTitle: { color: colors.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },
-  statusNote: { color: colors.textMuted, lineHeight: 22, fontSize: typography.small },
-  list: { gap: spacing.sm },
-  rowCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  rowPressed: { backgroundColor: colors.surfaceMuted },
-  rowTop: { ...flexRow, alignItems: 'flex-start', gap: spacing.sm },
-  rowTitle: { flex: 1, ...textStart, color: colors.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },
-  rowMeta: { color: colors.accent, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small },
-  rowSubtitle: { color: colors.textMuted, fontSize: typography.small, lineHeight: 21 },
-  metricGrid: { gap: spacing.sm },
-  metric: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceMuted,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  metricLabel: { color: colors.textMuted, fontSize: typography.tiny },
-  metricValue: { color: colors.text, fontFamily: fonts.bold, fontWeight: '700' },
-});

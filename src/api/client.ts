@@ -84,3 +84,26 @@ export async function del<T = unknown>(url: string, params?: RequestParams): Pro
   const response = await apiClient.delete<ApiEnvelope<T>>(url, { params });
   return response.data;
 }
+
+export async function postMultipart<T = unknown>(url: string, formData: FormData): Promise<ApiEnvelope<T>> {
+  const response = await apiClient.post<ApiEnvelope<T>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function putMultipart<T = unknown>(url: string, formData: FormData): Promise<ApiEnvelope<T>> {
+  const response = await apiClient.post<ApiEnvelope<T>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+/** Binary export responses (reports export, valuation export, etc.). */
+export async function postBlob(url: string, data?: unknown): Promise<Blob> {
+  const response = await apiClient.post(url, data ?? {}, {
+    responseType: 'blob',
+    headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf,*/*' },
+  });
+  return response.data as Blob;
+}

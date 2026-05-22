@@ -1,37 +1,44 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
-import { colors } from '@/constants/colors';
-import { spacing, radius } from '@/constants/spacing';
+import { View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useColors } from '@/hooks/useColors';
+import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { AppButton } from '@/components/ui';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { AppText } from '@/components/ui/AppText';
 
-export function AppEmptyState({ title = 'لا توجد بيانات', message, actionLabel, onAction }: { title?: string; message?: string; actionLabel?: string; onAction?: () => void }) {
+type Props = {
+  title?: string;
+  message?: string;
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  action?: React.ReactNode;
+};
+
+export function AppEmptyState({ title = 'لا توجد بيانات', message, icon = 'inbox', action }: Props) {
+  const c = useColors();
   return (
-    <View style={styles.state}>
-      <View style={styles.iconBox}>
-        <MaterialIcons name="inbox" size={32} color={colors.textCaption} />
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.huge, gap: spacing.md, paddingHorizontal: spacing.xxl }}>
+      <View style={{
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center',
+      }}>
+        <MaterialIcons name={icon} size={32} color={c.textCaption} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-      {actionLabel && onAction ? <AppButton title={actionLabel} onPress={onAction} variant="outline" size="sm" /> : null}
+      <AppText style={{
+        fontSize: typography.subtitle, fontFamily: fonts.bold, fontWeight: '700',
+        color: c.text, textAlign: 'center', writingDirection: 'rtl',
+      }}>
+        {title}
+      </AppText>
+      {message ? (
+        <AppText style={{
+          fontSize: typography.body, color: c.textMuted, textAlign: 'center', writingDirection: 'rtl',
+          lineHeight: 22, maxWidth: 280,
+        }}>
+          {message}
+        </AppText>
+      ) : null}
+      {action}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  state: { padding: spacing.xxxl, alignItems: 'center', gap: spacing.md },
-  iconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xxl,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  title: { color: colors.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, fontWeight: '700', textAlign: 'center' },
-  message: { color: colors.textMuted, fontSize: typography.body, textAlign: 'center', lineHeight: 23 },
-});

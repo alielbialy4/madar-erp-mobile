@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { AppText as Text } from './AppText';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
+import type { AppColors } from '@/constants/colors';
 import { flexRow } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
@@ -16,6 +17,9 @@ type Props = {
 };
 
 export function AppTabs({ tabs, activeKey, onChange }: Props) {
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {tabs.map((tab) => {
@@ -34,32 +38,34 @@ export function AppTabs({ tabs, activeKey, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    ...flexRow,
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  tab: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  label: {
-    fontSize: typography.small,
-    fontFamily: fonts.medium,
-    color: colors.textMuted,
-  },
-  labelActive: {
-    color: colors.primaryForeground,
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    row: {
+      ...flexRow,
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    tab: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+    },
+    tabActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    label: {
+      fontSize: typography.small,
+      fontFamily: fonts.medium,
+      color: c.textMuted,
+    },
+    labelActive: {
+      color: c.primaryForeground,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+    },
+  });
+}

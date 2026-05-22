@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -12,13 +12,14 @@ import { useBranchStore } from '@/store/branchStore';
 import { extractArray, extractData } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 
 type MovementType = 'deposit' | 'withdraw';
 
 export function VaultsScreen({ navigation }: { navigation: any }) {
+  const c = useColors();
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [shift, setShift] = useState<Record<string, unknown> | null>(null);
@@ -33,6 +34,17 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
   const [movementSubmitting, setMovementSubmitting] = useState(false);
   const [movementError, setMovementError] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  const styles = useMemo(() => StyleSheet.create({
+    stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
+    card: { gap: spacing.md },
+    vaultRow: { gap: spacing.sm },
+    vaultActions: { ...flexRow, gap: spacing.sm },
+    actionBtn: { flex: 1 },
+    sheetContent: { gap: spacing.md },
+    vaultName: { color: c.text, fontSize: typography.body, fontWeight: '800', ...textStart },
+    errorText: { color: c.danger, ...textStart, fontWeight: '800' },
+  }), [c]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,14 +169,3 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-  card: { gap: spacing.md },
-  vaultRow: { gap: spacing.sm },
-  vaultActions: { ...flexRow, gap: spacing.sm },
-  actionBtn: { flex: 1 },
-  sheetContent: { gap: spacing.md },
-  vaultName: { color: colors.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-  errorText: { color: colors.danger, ...textStart, fontWeight: '800' },
-});

@@ -26,6 +26,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavShell } from '@/navigation/NavShellContext';
 import { fadeIn } from '@/utils/animations';
+import { chevronForwardIcon } from '@/utils/rtl';
 
 function navigateFromMore(
   navigation: {
@@ -66,7 +67,7 @@ function HubCard({
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         styles.card,
-        columns >= 3 ? styles.cardThird : styles.cardHalf,
+        columns >= 4 ? styles.cardQuarter : columns >= 3 ? styles.cardThird : styles.cardHalf,
         disabled ? styles.cardDisabled : undefined,
         pressed && !disabled ? styles.cardPressed : undefined,
       ]}
@@ -83,7 +84,10 @@ function HubCard({
           {item.description}
         </Text>
       ) : null}
-      {item.badge ? <AppBadge label={item.badge} tone="info" /> : null}
+      <View style={styles.cardFooter}>
+        {item.badge ? <AppBadge label={item.badge} tone="info" /> : <View />}
+        {!disabled ? <MaterialIcons name={chevronForwardIcon()} size={18} color={c.textCaption} /> : null}
+      </View>
       {item.disabledReason ? (
         <Text style={styles.cardLock} numberOfLines={2}>
           {item.disabledReason}
@@ -108,9 +112,12 @@ function SectionBlock({
 }) {
   return (
     <Animated.View style={[styles.section, { opacity }]}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+      <View style={[styles.sectionHeader, flexRow]}>
+        <View style={styles.sectionAccent} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
       </View>
       <View style={styles.cardGrid}>{children}</View>
     </Animated.View>
@@ -128,7 +135,7 @@ export function MoreScreen({
   const c = useColors();
   const styles = useMemo(() => createStyles(c), [c]);
   const { width } = useWindowDimensions();
-  const columns = width >= 900 ? 3 : 2;
+  const columns = width >= 1100 ? 4 : width >= 900 ? 3 : 2;
   const { openDrawer, openCommandPalette } = useNavShell();
 
   const user = useAuthStore((state) => state.user);
@@ -167,6 +174,15 @@ export function MoreScreen({
 
   return (
     <AppScreen title="المزيد" subtitle="مركز الوحدات — تنظيم حسب نشاط العمل" noHeader>
+      <View style={styles.hubHero}>
+        <View style={styles.hubHeroIcon}>
+          <MaterialIcons name="apps" size={28} color={c.accent} />
+        </View>
+        <View style={styles.hubHeroText}>
+          <Text style={styles.hubHeroTitle}>مركز الوحدات</Text>
+          <Text style={styles.hubHeroSub}>كل عمليات ERP منظمة حسب نشاط العمل — ابحث أو افتح القائمة الكاملة</Text>
+        </View>
+      </View>
       <View style={styles.toolbar}>
         <AppInput
           value={query}
@@ -241,8 +257,9 @@ function createStyles(c: AppColors) {
     cardGrid: {
       ...flexRow,
       flexWrap: 'wrap',
-      gap: spacing.sm,
+      gap: spacing.md,
       justifyContent: 'flex-start',
+      alignItems: 'stretch',
     },
     card: {
       backgroundColor: c.surface,
@@ -250,17 +267,66 @@ function createStyles(c: AppColors) {
       borderWidth: 1,
       borderColor: c.borderSubtle,
       padding: spacing.md,
-      minHeight: 112,
+      minHeight: 128,
       gap: spacing.xs,
       alignItems: 'flex-start',
     },
+    sectionAccent: {
+      width: 4,
+      height: 20,
+      borderRadius: 2,
+      backgroundColor: c.accent,
+    },
+    hubHero: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.lg,
+      borderRadius: radius.xxxl,
+      backgroundColor: c.primarySoftMuted,
+      borderWidth: 1,
+      borderColor: c.primarySoftBorder,
+      marginBottom: spacing.sm,
+    },
+    hubHeroIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.xl,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    hubHeroText: { flex: 1, gap: 4 },
+    hubHeroTitle: {
+      ...textStart,
+      fontSize: typography.sectionTitle,
+      fontFamily: fonts.extraBold,
+      color: c.text,
+    },
+    hubHeroSub: {
+      ...textStart,
+      fontSize: typography.tiny,
+      color: c.textMuted,
+      lineHeight: 18,
+    },
     cardHalf: {
-      flexBasis: '48%',
+      width: '48%',
       maxWidth: '48%',
     },
     cardThird: {
-      flexBasis: '31%',
-      maxWidth: '31%',
+      width: '31.5%',
+      maxWidth: '31.5%',
+    },
+    cardQuarter: {
+      width: '23.5%',
+      maxWidth: '23.5%',
+    },
+    cardFooter: {
+      ...flexRow,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: 'auto' as const,
     },
     cardPressed: { backgroundColor: c.surfaceMuted },
     cardDisabled: { opacity: 0.55 },

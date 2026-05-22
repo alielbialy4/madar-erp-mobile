@@ -1,246 +1,373 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { shiftsAPI } from '@/api/shifts';
-import { vaultsAPI } from '@/api/vaults';
 import { useBranchStore } from '@/store/branchStore';
-import { AppScreen, AppBottomSheet } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect, AppStatCard } from '@/components/ui';
-import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { extractArray, extractData } from '@/utils/data';
-import { dateText, money, numberText } from '@/utils/format';
+import { useAuthStore } from '@/store/authStore';
+import { AppScreen } from '@/components/layout';
+import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
+import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
+import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
+import { ShiftFilterSheet, type ShiftListFilters } from '@/components/shifts/ShiftFilterSheet';
+import { ShiftSummarySheet } from '@/components/shifts/ShiftSummarySheet';
+import { extractArray, extractData, extractPagination } from '@/utils/data';
+import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { colors } from '@/constants/colors';
+import { formatShiftLabel } from '@/utils/shiftLabel';
+import { parseApiMoneyFirst } from '@/utils/parseMoney';
+import { dateDaysAgoLocal, todayLocalDateString } from '@/utils/dateLocal';
+import { useColors } from '@/hooks/useColors';
+import { usePermissions } from '@/hooks/usePermissions';
+import { hasRole } from '@/utils/permissions';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
 
-export function ShiftScreen({ navigation }: { route: any; navigation: any }) {
-  const activeBranch = useBranchStore((state) => state.activeBranch);
-  const [currentShift, setCurrentShift] = useState<Record<string, unknown> | null>(null);
-  const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
-  const [shifts, setShifts] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const defaultFilters = (): ShiftListFilters => ({
+  from_date: dateDaysAgoLocal(30),
+  to_date: todayLocalDateString(),
+  status: 'all',
+  branch_id: '',
+  user_id: '',
+});
+
+export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBack: () => void } }) {
+  const c = useColors();
+  const { can, user } = usePermissions();
+  const activeBranch = useBranchStore((s) => s.activeBranch);
+  const viewMode = useBranchStore((s) => s.viewMode);
+  const isGlobalView = viewMode === 'global';
+
+  const [filters, setFilters] = useState(defaultFilters);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterUsers, setFilterUsers] = useState<ShiftFilterUser[]>([]);
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<ShiftListRow[]>([]);
+  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1 });
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const [currentShift, setCurrentShift] = useState<ActiveShiftExtended | null>(null);
+  const [currentMeta, setCurrentMeta] = useState<CurrentMeta | null>(null);
+  const [currentLoading, setCurrentLoading] = useState(false);
 
   const [openSheet, setOpenSheet] = useState(false);
   const [closeSheet, setCloseSheet] = useState(false);
-  const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
-  const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null);
-  const [startingCash, setStartingCash] = useState('');
-  const [actualCash, setActualCash] = useState('');
-  const [closeNotes, setCloseNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [confirmVisible, setConfirmVisible] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'open' | 'close' | null>(null);
+  const [summaryShiftId, setSummaryShiftId] = useState<string | null>(null);
+  const [summaryBranchId, setSummaryBranchId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const isAdmin = Boolean(user?.is_super_admin || can('access_admin_routes') || hasRole(user, ['admin']));
+  const canOpen = can(['open_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
+  const canClose = can(['close_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
+
+  const effectiveBranchForCurrent = useMemo(() => {
+    if (!isGlobalView && activeBranch?.id) return activeBranch.id;
+    if (isGlobalView && filters.branch_id) return filters.branch_id;
+    return activeBranch?.id ?? null;
+  }, [isGlobalView, activeBranch?.id, filters.branch_id]);
+
+  const listBranchId = useMemo(() => {
+    if (isGlobalView && filters.branch_id) return filters.branch_id;
+    return undefined;
+  }, [isGlobalView, filters.branch_id]);
+
+  const filterUsersBranchParam = useMemo(() => {
+    if (isGlobalView) return listBranchId;
+    return activeBranch?.id;
+  }, [isGlobalView, listBranchId, activeBranch?.id]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        subtitle: { color: c.textMuted, fontSize: typography.small, ...textStart },
+        stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
+        card: { gap: spacing.md },
+        currentRow: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
+        currentItem: { gap: 2 },
+        currentLabel: { color: c.textMuted, fontSize: typography.small, ...textStart },
+        currentValue: { color: c.text, fontWeight: '800', ...textStart },
+        actions: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
+        pager: { ...flexRow, justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm },
+        pagerText: { color: c.textMuted, fontSize: typography.small },
+      }),
+    [c],
+  );
+
+  const loadFilterUsers = useCallback(async () => {
     try {
-      const [shiftsRes, currentRes] = await Promise.all([
-        shiftsAPI.list({ limit: 20 }),
-        activeBranch?.id ? shiftsAPI.current(activeBranch.id) : Promise.resolve({ data: null }),
-      ]);
-      const allShifts = extractArray<Record<string, unknown>>(shiftsRes);
-      setShifts(allShifts);
-      const activeShift = extractData<Record<string, unknown> | null>(currentRes as any) ?? null;
-      setCurrentShift(activeShift);
-      if (activeShift?.id) {
-        try {
-          const summaryRes = await shiftsAPI.getSummary(String(activeShift.id));
-          setSummary(extractData<Record<string, unknown>>(summaryRes as any) ?? null);
-        } catch {
-          setSummary(null);
-        }
-      } else {
-        setSummary(null);
+      const res = await shiftsAPI.filterUsers(
+        filterUsersBranchParam ? { branch_id: filterUsersBranchParam } : undefined,
+      );
+      setFilterUsers(extractArray<ShiftFilterUser>(res));
+    } catch {
+      setFilterUsers([]);
+    }
+  }, [filterUsersBranchParam]);
+
+  const loadList = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      const userNum = parseInt(filters.user_id.trim(), 10);
+      const res = await shiftsAPI.list({
+        page,
+        per_page: 20,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+        status: filters.status === 'all' ? undefined : filters.status,
+        branch_id: listBranchId,
+        user_id: Number.isFinite(userNum) && userNum > 0 ? userNum : undefined,
+      });
+      setRows(extractArray<ShiftListRow>(res));
+      const pag = extractPagination(res);
+      if (pag) {
+        setPagination({
+          current_page: pag.current_page ?? page,
+          last_page: pag.last_page ?? 1,
+        });
       }
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      setListError(normalizeApiError(err).message);
+      setRows([]);
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
-  }, [activeBranch?.id]);
+  }, [page, filters, listBranchId]);
 
-  useEffect(() => { void load(); }, [load]);
+  const loadCurrent = useCallback(async () => {
+    if (!effectiveBranchForCurrent) {
+      setCurrentShift(null);
+      setCurrentMeta(null);
+      return;
+    }
+    setCurrentLoading(true);
+    try {
+      const res = await shiftsAPI.current(effectiveBranchForCurrent);
+      const shift = extractData<ActiveShiftExtended | null>(res) ?? null;
+      setCurrentShift(shift);
+      setCurrentMeta((res as { meta?: CurrentMeta }).meta ?? null);
+    } catch {
+      setCurrentShift(null);
+      setCurrentMeta(null);
+    } finally {
+      setCurrentLoading(false);
+    }
+  }, [effectiveBranchForCurrent]);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadList(), loadCurrent(), loadFilterUsers()]);
+  }, [loadList, loadCurrent, loadFilterUsers]);
 
   useEffect(() => {
-    if (!openSheet && !closeSheet) return;
-    vaultsAPI.list({ active_only: true })
-      .then((res) => setVaults(extractArray(res)))
-      .catch(() => {});
-  }, [openSheet, closeSheet]);
+    void loadFilterUsers();
+  }, [loadFilterUsers]);
 
-  const handleOpenShift = async () => {
-    if (!selectedVaultId || !startingCash) { setActionError('أدخل البيانات المطلوبة'); return; }
-    setSubmitting(true);
-    setActionError(null);
-    try {
-      await shiftsAPI.open({
-        vault_id: selectedVaultId,
-        starting_cash: Number(startingCash),
-      });
-      setOpenSheet(false);
-      setSelectedVaultId(null);
-      setStartingCash('');
-      void load();
-    } catch (err) {
-      setActionError(normalizeApiError(err).message);
-    } finally {
-      setSubmitting(false);
-    }
+  useEffect(() => {
+    void loadList();
+  }, [loadList]);
+
+  useEffect(() => {
+    void loadCurrent();
+  }, [loadCurrent]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAll();
+    }, [refreshAll]),
+  );
+
+  const openSummary = (row: ShiftListRow) => {
+    const branchId = row.branch_id || row.branch?.id || (!isGlobalView ? activeBranch?.id : null) || null;
+    setSummaryShiftId(row.id);
+    setSummaryBranchId(branchId);
   };
 
-  const handleCloseShift = async () => {
-    if (!actualCash) { setActionError('أدخل النقدية الفعلية'); return; }
-    setSubmitting(true);
-    setActionError(null);
-    try {
-      await shiftsAPI.close(String(currentShift!.id), {
-        actual_cash: Number(actualCash),
-        ...(closeNotes ? { notes: closeNotes } : {}),
-      });
-      setCloseSheet(false);
-      setActualCash('');
-      setCloseNotes('');
-      void load();
-    } catch (err) {
-      setActionError(normalizeApiError(err).message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const statusBadge = (status: string) => (
+    <AppBadge label={status === 'open' ? 'مفتوحة' : 'مغلقة'} tone={status === 'open' ? 'success' : 'default'} />
+  );
+
+  const canCloseCurrent =
+    currentShift &&
+    (currentMeta?.can_close_shift !== false || can(['manage_shifts', 'access_admin_routes']));
+
+  const vaultLedger =
+    currentShift?.status === 'open'
+      ? parseApiMoneyFirst(currentShift.vault?.balance, currentShift.vault)
+      : null;
+  const drawerExpected =
+    currentShift?.status === 'open' ? parseApiMoneyFirst(currentShift.expected_cash) : null;
+
+  const headerRight = (
+    <Pressable onPress={() => setFilterOpen(true)} accessibilityLabel="تصفية">
+      <MaterialIcons name="filter-list" size={24} color={c.text} />
+    </Pressable>
+  );
 
   return (
-    <AppScreen title="إدارة الورديات" onBack={navigation.goBack}>
-      {loading ? <AppLoadingState /> : null}
-      {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      {!loading && !error ? (
-        <>
-          <View style={styles.stats}>
-            <AppStatCard label="الحالة" value={currentShift ? 'مفتوحة' : 'مغلقة'} tone={currentShift ? 'success' : 'warning'} />
-            <AppStatCard label="نقدية البداية" value={money(currentShift?.starting_cash ?? 0)} tone="primary" />
-          </View>
+    <AppScreen
+      title="إدارة الورديات"
+      subtitle="متابعة الورديات الحالية وسجل الإغلاق"
+      onBack={navigation.goBack}
+      headerRight={headerRight}
+      refreshing={listLoading && !listError}
+      onRefresh={() => void refreshAll()}
+    >
+      <Text style={styles.subtitle}>عرض الوردية النشطة، التصفية، وملخص كل وردية — مطابق للويب.</Text>
 
-          {currentShift ? (
-            <AppCard style={styles.card}>
-              <AppSectionHeader title="الوردية الحالية" />
-              <AppListItem
-                title={`وردية ${currentShift.shift_no ?? currentShift.id}`}
-                subtitle={dateText(String(currentShift.opened_at ?? ''))}
-                meta={money(currentShift.expected_cash ?? currentShift.starting_cash ?? 0)}
-                badge={<AppBadge label="مفتوحة" tone="success" />}
-              />
-              {summary ? (
-                <View style={styles.summarySection}>
-                  <Text style={styles.summaryTitle}>ملخص الوردية</Text>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{money(summary.total_sales ?? 0)}</Text>
-                    <Text style={styles.summaryLabel}>إجمالي المبيعات</Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{money(summary.total_expenses ?? 0)}</Text>
-                    <Text style={styles.summaryLabel}>إجمالي المصروفات</Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{money(summary.expected_cash ?? 0)}</Text>
-                    <Text style={styles.summaryLabel}>النقدية المتوقعة</Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{numberText(summary.total_transactions ?? 0)}</Text>
-                    <Text style={styles.summaryLabel}>عدد العمليات</Text>
-                  </View>
+      <AppCard style={styles.card}>
+        <AppSectionHeader title="الوردية الحالية" />
+        {currentLoading ? (
+          <AppLoadingState />
+        ) : !effectiveBranchForCurrent ? (
+          <AppEmptyState title="اختر فرعاً" message="حدد فرعاً لعرض الوردية المفتوحة (من الفلاتر أو مبدّل الفرع)." />
+        ) : currentShift ? (
+          <>
+            <View style={styles.currentRow}>
+              <View style={styles.currentItem}>
+                <Text style={styles.currentLabel}>الخزنة</Text>
+                <Text style={styles.currentValue}>{currentShift.vault?.name ?? '—'}</Text>
+              </View>
+              <View style={styles.currentItem}>
+                <Text style={styles.currentLabel}>نقدية الافتتاح</Text>
+                <Text style={styles.currentValue}>{money(currentShift.starting_cash ?? 0)}</Text>
+              </View>
+              <View style={styles.currentItem}>
+                <Text style={styles.currentLabel}>وقت الافتتاح</Text>
+                <Text style={styles.currentValue}>{dateText(currentShift.opened_at)}</Text>
+              </View>
+              {vaultLedger !== null ? (
+                <View style={styles.currentItem}>
+                  <Text style={styles.currentLabel}>رصيد الخزنة الدفتري</Text>
+                  <Text style={styles.currentValue}>{money(vaultLedger)}</Text>
                 </View>
               ) : null}
-              <AppButton title="إغلاق الوردية" variant="danger" onPress={() => { setActionError(null); setCloseSheet(true); }} />
-            </AppCard>
-          ) : (
-            <AppCard style={styles.card}>
-              <AppEmptyState title="لا توجد وردية نشطة" message="افتح وردية جديدة للبدء" />
-              <AppButton title="فتح وردية" onPress={() => { setActionError(null); setOpenSheet(true); }} />
-            </AppCard>
-          )}
-
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="سجل الورديات" />
-            {shifts.length === 0 ? <AppEmptyState title="لا توجد ورديات" /> : shifts.map((s) => (
-              <AppListItem
-                key={String(s.id)}
-                title={`وردية ${s.shift_no ?? s.id}`}
-                subtitle={dateText(String(s.opened_at ?? ''))}
-                meta={money(s.expected_cash ?? s.starting_cash ?? 0)}
-                badge={<AppBadge label={s.closed_at ? 'مغلقة' : 'مفتوحة'} tone={s.closed_at ? 'default' : 'success'} />}
+              {drawerExpected !== null ? (
+                <View style={styles.currentItem}>
+                  <Text style={styles.currentLabel}>النقد المتوقع في الدرج</Text>
+                  <Text style={styles.currentValue}>{money(drawerExpected)}</Text>
+                </View>
+              ) : null}
+              {statusBadge(currentShift.status ?? 'open')}
+            </View>
+            <View style={styles.actions}>
+              <AppButton
+                title="ملخص الوردية"
+                variant="secondary"
+                onPress={() => {
+                  setSummaryShiftId(currentShift.id);
+                  setSummaryBranchId(
+                    currentShift.branch_id ?? currentShift.branch?.id ?? effectiveBranchForCurrent,
+                  );
+                }}
               />
-            ))}
-          </AppCard>
-        </>
+              {canCloseCurrent ? (
+                <AppButton title="إغلاق الوردية" variant="danger" onPress={() => setCloseSheet(true)} />
+              ) : null}
+            </View>
+          </>
+        ) : (
+          <>
+            <AppEmptyState title="لا توجد وردية مفتوحة" message="افتح وردية جديدة للبدء." />
+            {canOpen ? <AppButton title="فتح وردية" onPress={() => setOpenSheet(true)} /> : null}
+          </>
+        )}
+      </AppCard>
+
+      <View style={styles.stats}>
+        <AppStatCard label="السجلات" value={String(rows.length)} tone="primary" />
+        <AppStatCard label="الصفحة" value={`${pagination.current_page}/${pagination.last_page}`} tone="info" />
+      </View>
+
+      <AppCard style={styles.card}>
+        <AppSectionHeader title="سجل الورديات" />
+        {listLoading ? <AppLoadingState /> : null}
+        {listError ? <AppErrorState message={listError} onRetry={loadList} /> : null}
+        {!listLoading && !listError && rows.length === 0 ? (
+          <AppEmptyState title="لا توجد ورديات" message="غيّر الفترة أو الفلاتر." />
+        ) : null}
+        {!listLoading && !listError
+          ? rows.map((row) => (
+              <AppListItem
+                key={row.id}
+                title={formatShiftLabel(row, row.id, row.branch?.name)}
+                subtitle={`${row.branch?.name ?? '—'} · ${row.user?.name ?? row.user_id}`}
+                meta={money(row.drawer_balance ?? row.starting_cash ?? 0)}
+                badge={statusBadge(row.status)}
+                onPress={() => openSummary(row)}
+                showChevron
+              />
+            ))
+          : null}
+
+        {pagination.last_page > 1 ? (
+          <View style={styles.pager}>
+            <Text style={styles.pagerText}>
+              صفحة {pagination.current_page} من {pagination.last_page}
+            </Text>
+            <View style={{ ...flexRow, gap: spacing.sm }}>
+              <AppButton
+                title="السابق"
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1}
+                onPress={() => setPage((p) => Math.max(1, p - 1))}
+              />
+              <AppButton
+                title="التالي"
+                variant="secondary"
+                size="sm"
+                disabled={page >= pagination.last_page}
+                onPress={() => setPage((p) => p + 1)}
+              />
+            </View>
+          </View>
+        ) : null}
+      </AppCard>
+
+      {canOpen && currentShift ? (
+        <AppButton title="فتح وردية أخرى" variant="secondary" onPress={() => setOpenSheet(true)} />
       ) : null}
 
-      <AppBottomSheet visible={openSheet} onClose={() => setOpenSheet(false)}>
-        <View style={styles.sheetContent}>
-          <AppSectionHeader title="فتح وردية" />
-          <AppSelect
-            label="الخزنة"
-            value={selectedVaultId}
-            options={vaults.map((v) => ({ label: String(v.name ?? ''), value: String(v.id) }))}
-            onChange={setSelectedVaultId}
-          />
-          <AppInput label="نقدية البداية" keyboardType="numeric" value={startingCash} onChangeText={setStartingCash} placeholder="أدخل المبلغ" />
-          {actionError ? <Text style={styles.errorText}>{actionError}</Text> : null}
-          <AppButton
-            title="فتح الوردية"
-            loading={submitting}
-            disabled={!selectedVaultId || !startingCash}
-            onPress={() => { setConfirmAction('open'); setConfirmVisible(true); }}
-          />
-        </View>
-      </AppBottomSheet>
-
-      <AppBottomSheet visible={closeSheet} onClose={() => setCloseSheet(false)}>
-        <View style={styles.sheetContent}>
-          <AppSectionHeader title="إغلاق الوردية" />
-          <Text style={styles.expectedText}>النقدية المتوقعة: {money(currentShift?.expected_cash ?? 0)}</Text>
-          <AppInput label="النقدية الفعلية" keyboardType="numeric" value={actualCash} onChangeText={setActualCash} placeholder="أدخل المبلغ" />
-          <AppInput label="ملاحظات" value={closeNotes} onChangeText={setCloseNotes} multiline />
-          {actionError ? <Text style={styles.errorText}>{actionError}</Text> : null}
-          <AppButton
-            title="إغلاق الوردية"
-            variant="danger"
-            loading={submitting}
-            disabled={!actualCash}
-            onPress={() => { setConfirmAction('close'); setConfirmVisible(true); }}
-          />
-        </View>
-      </AppBottomSheet>
-
-      <ConfirmDialog
-        visible={confirmVisible}
-        title={confirmAction === 'open' ? 'تأكيد فتح الوردية' : 'تأكيد إغلاق الوردية'}
-        message={confirmAction === 'open' ? `نقدية البداية: ${money(Number(startingCash) || 0)}` : `النقدية الفعلية: ${money(Number(actualCash) || 0)}`}
-        confirmLabel="تأكيد"
-        onConfirm={() => {
-          setConfirmVisible(false);
-          if (confirmAction === 'open') void handleOpenShift();
-          else if (confirmAction === 'close') void handleCloseShift();
-          setConfirmAction(null);
+      <ShiftFilterSheet
+        visible={filterOpen}
+        filters={filters}
+        filterUsers={filterUsers}
+        showBranchFilter={isGlobalView}
+        onClose={() => setFilterOpen(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setPage(1);
         }}
-        onCancel={() => { setConfirmVisible(false); setConfirmAction(null); }}
+      />
+
+      <OpenShiftSheet
+        visible={openSheet}
+        branchId={effectiveBranchForCurrent}
+        onClose={() => setOpenSheet(false)}
+        onSuccess={() => void refreshAll()}
+      />
+
+      <CloseShiftSheet
+        visible={closeSheet}
+        shift={currentShift}
+        isAdmin={isAdmin}
+        onClose={() => setCloseSheet(false)}
+        onSuccess={() => void refreshAll()}
+      />
+
+      <ShiftSummarySheet
+        visible={!!summaryShiftId}
+        shiftId={summaryShiftId}
+        branchId={summaryBranchId}
+        onClose={() => {
+          setSummaryShiftId(null);
+          setSummaryBranchId(null);
+        }}
       />
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-  card: { gap: spacing.md },
-  summarySection: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
-  summaryTitle: { color: colors.text, fontSize: typography.h3, fontWeight: '900', ...textStart },
-  summaryRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { color: colors.textMuted, fontSize: typography.small, ...textStart },
-  summaryValue: { color: colors.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-  sheetContent: { gap: spacing.md },
-  expectedText: { color: colors.info, fontSize: typography.body, fontWeight: '800', ...textStart },
-  errorText: { color: colors.danger, ...textStart, fontWeight: '800' },
-});

@@ -1,17 +1,19 @@
-import React from 'react';
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { pressScale } from '@/utils/animations';
+import React, { useMemo } from 'react';
+import { FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { isTablet } from '@/constants/responsive';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppBadge, AppInput } from '@/components/ui';
 import { AppEmptyState } from '@/components/feedback';
 import { flexRow, textStart } from '@/constants/layout';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useResponsiveColumns } from '@/hooks/useResponsiveColumns';
 import type { Product } from '@/types/api';
 import { money, numberText } from '@/utils/format';
+import { resolveMediaUrl } from '@/utils/media';
 
 type CategoryItem = { id: string; name: string };
 
@@ -35,6 +37,8 @@ type Props = {
   products: Product[];
   onProductPress: (product: Product) => void;
   loading?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 export function PosCatalogPanel({
@@ -49,10 +53,104 @@ export function PosCatalogPanel({
   onSelectCategory,
   products,
   onProductPress,
+  refreshing,
+  onRefresh,
 }: Props) {
+  const c = useColors();
   const { width } = useWindowDimensions();
-  const columns = useResponsiveColumns(2, 3, 4);
-  const productWidth = Math.max(120, (width * 0.55 - spacing.lg * 2 - spacing.md * (columns - 1)) / columns);
+  const tablet = isTablet(width);
+  const columns = useResponsiveColumns(2, 3, tablet ? 4 : 3);
+  const productWidth = tablet
+    ? undefined
+    : Math.max(120, (width * 0.92 - spacing.lg * 2 - spacing.md * (columns - 1)) / columns);
+
+  const styles = useMemo(() => StyleSheet.create({
+    panel: { flex: 1, gap: spacing.md, minWidth: 0 },
+    searchRow: {},
+    searchInput: { minHeight: 38 },
+    sectionHead: { ...flexRow, alignItems: 'center', gap: spacing.sm },
+    backLink: { ...textStart, color: c.accent, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700' },
+    sectionTitle: { ...textStart, flex: 1, color: c.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, fontWeight: '700' },
+    countBadge: {
+      fontSize: typography.tiny,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+      color: c.textMuted,
+      backgroundColor: c.surfaceMuted,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radius.pill,
+      overflow: 'hidden',
+    },
+    list: { paddingBottom: spacing.xl, gap: spacing.md },
+    categoryRow: { gap: spacing.md },
+    categoryCard: {
+      flex: 1,
+      minHeight: 120,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.xxl,
+      padding: spacing.md,
+      gap: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.xl,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryIconText: { color: c.accent, fontSize: typography.sectionTitle, fontFamily: fonts.extraBold, fontWeight: '800' },
+    categoryName: { ...textStart, color: c.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, textAlign: 'center' },
+    chipsList: { paddingVertical: spacing.xs },
+    chip: {
+      minHeight: 34,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      justifyContent: 'center',
+    },
+    chipActive: { backgroundColor: c.accentSoft, borderColor: c.accentBorder },
+    chipText: { color: c.text, fontFamily: fonts.medium, fontWeight: '600', fontSize: typography.small, writingDirection: 'rtl' },
+    chipTextActive: { color: c.accent, fontFamily: fonts.extraBold, fontWeight: '800', writingDirection: 'rtl' },
+    productRow: { gap: spacing.md },
+    productCard: {
+      marginBottom: spacing.md,
+    },
+    productCardInner: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.xxl,
+      padding: spacing.md,
+      gap: spacing.xs,
+      ...Platform.select({
+        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+        android: { elevation: 2 },
+        default: {},
+      }),
+    },
+    productImage: {
+      height: 72,
+      borderRadius: radius.xl,
+      backgroundColor: c.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    productImagePhoto: { width: '100%', height: '100%' },
+    productImageText: { color: c.textCaption, fontSize: 26, fontFamily: fonts.extraBold },
+    productBadges: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs },
+    productName: { ...textStart, color: c.text, fontSize: typography.posProductName, fontFamily: fonts.bold, fontWeight: '700' },
+    productPrice: { ...textStart, color: c.text, fontSize: typography.posPrice, fontFamily: fonts.extraBold, fontWeight: '800' },
+    productMeta: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
+  }), [c]);
 
   const categoryCards = [{ id: 'all', name: 'كل المنتجات' }, ...categories];
 
@@ -123,22 +221,33 @@ export function PosCatalogPanel({
             keyExtractor={(item) => String(item.id)}
             columnWrapperStyle={columns > 1 ? styles.productRow : undefined}
             contentContainerStyle={styles.list}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} />
+              ) : undefined
+            }
             ListEmptyComponent={<AppEmptyState title="لا توجد منتجات" />}
             renderItem={({ item }) => {
               const qty = availableQty(item);
               const low = qty !== null && qty <= Number(item.min_stock_alert ?? 0);
               const hasOptions = item.option_groups?.some((g) => g.options && g.options.length > 0);
+              const thumb = resolveMediaUrl(item.image);
               return (
-                <Pressable
+                <PressableScale
                   onPress={() => onProductPress(item)}
-                  style={({ pressed }) => [
+                  pressedScale={0.96}
+                  style={[
                     styles.productCard,
-                    { width: productWidth },
-                    pressed ? [styles.productCardPressed, pressScale(true)] : undefined,
+                    productWidth ? { width: productWidth } : { flex: 1 },
                   ]}
                 >
+                  <View style={styles.productCardInner}>
                   <View style={styles.productImage}>
-                    <Text style={styles.productImageText}>{item.name.charAt(0)}</Text>
+                    {thumb ? (
+                      <Image source={{ uri: thumb }} style={styles.productImagePhoto} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.productImageText}>{item.name.charAt(0)}</Text>
+                    )}
                   </View>
                   {(low || hasOptions) ? (
                     <View style={styles.productBadges}>
@@ -149,7 +258,8 @@ export function PosCatalogPanel({
                   <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                   <Text style={styles.productPrice}>{money(item.selling_price)}</Text>
                   <Text style={styles.productMeta}>{qty === null ? 'غير محدد' : `المتاح: ${numberText(qty)}`}</Text>
-                </Pressable>
+                  </View>
+                </PressableScale>
               );
             }}
           />
@@ -158,86 +268,3 @@ export function PosCatalogPanel({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  panel: { flex: 1, gap: spacing.md, minWidth: 0 },
-  searchRow: {},
-  searchInput: { minHeight: 38 },
-  sectionHead: { ...flexRow, alignItems: 'center', gap: spacing.sm },
-  backLink: { ...textStart, color: colors.accent, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700' },
-  sectionTitle: { ...textStart, flex: 1, color: colors.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, fontWeight: '700' },
-  countBadge: {
-    fontSize: typography.tiny,
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    color: colors.textMuted,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  list: { paddingBottom: spacing.xl, gap: spacing.md },
-  categoryRow: { gap: spacing.md },
-  categoryCard: {
-    flex: 1,
-    minHeight: 120,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.xxl,
-    padding: spacing.md,
-    gap: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIconText: { color: colors.accent, fontSize: typography.sectionTitle, fontFamily: fonts.extraBold, fontWeight: '800' },
-  categoryName: { ...textStart, color: colors.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, textAlign: 'center' },
-  chipsList: { paddingVertical: spacing.xs },
-  chip: {
-    minHeight: 34,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-  chipText: { color: colors.text, fontWeight: '600', fontSize: typography.small },
-  chipTextActive: { color: colors.accent, fontWeight: '800' },
-  productRow: { gap: spacing.md },
-  productCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.xxl,
-    padding: spacing.md,
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  productCardPressed: {
-    borderColor: colors.accentBorder,
-    backgroundColor: colors.softPrimary,
-  },
-  productImage: {
-    height: 68,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  productImageText: { color: colors.textCaption, fontSize: 26, fontFamily: fonts.extraBold },
-  productBadges: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs },
-  productName: { ...textStart, color: colors.text, fontSize: typography.posProductName, fontFamily: fonts.bold, fontWeight: '700' },
-  productPrice: { ...textStart, color: colors.text, fontSize: typography.posPrice, fontFamily: fonts.extraBold, fontWeight: '800' },
-  productMeta: { ...textStart, color: colors.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
-});

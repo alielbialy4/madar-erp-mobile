@@ -1,52 +1,35 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppInput, AppListItem } from '@/components/ui';
-import { ResourceList } from '@/components/lists';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useListResource } from '@/hooks/useListResource';
+import { View } from 'react-native';
 import { promotionsAPI } from '@/api/promotions';
+import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { AppButton } from '@/components/ui';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
 import { asText, dateText } from '@/utils/format';
-import { spacing } from '@/constants/spacing';
 
-export function PromotionsScreen() {
-  const [query, setQuery] = React.useState('');
-  const debounced = useDebouncedValue(query);
-  const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Record<string, unknown>>(
-    (params) => promotionsAPI.getAll(params),
-    debounced ? { search: debounced } : {},
-  );
+export function PromotionsScreen({ navigation }: { navigation: any }) {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
 
   return (
-    <AppScreen title="العروض" subtitle="إدارة العروض الترويجية" scroll={false}>
-      <View style={styles.searchWrap}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث..." returnKeyType="search" />
-      </View>
-      <ResourceList
-        data={items}
-        loading={loading}
-        refreshing={refreshing}
-        error={error}
-        onRefresh={refresh}
-        onEndReached={loadMore}
-        emptyTitle="لا توجد عروض"
-        keyExtractor={(item, index) => String(item.id ?? index)}
-        renderItem={({ item }) => {
-          const isActive = Boolean(item.is_active);
-          const typeLabel = String(item.type === 'bogo' ? 'اشترِ واحصل' : item.type === 'percentage_discount' ? 'نسبة مئوية' : 'مبلغ ثابت');
-          return (
-            <AppListItem
-              title={asText(item.name)}
-              subtitle={`${typeLabel} • ${dateText(asText(item.start_date, ''))} → ${dateText(asText(item.end_date, ''))}`}
-              badge={<AppBadge label={isActive ? 'نشط' : 'متوقف'} tone={isActive ? 'success' : 'danger'} />}
-            />
-          );
-        }}
-      />
-    </AppScreen>
+    <CrudListScreen<Record<string, unknown>>
+      title="العروض"
+      subtitle="تطبيق تلقائي في POS عند استيفاء الشروط"
+      loader={(p) => promotionsAPI.getAll(p) as never}
+      onItemPress={(item) => navigation.navigate('PromotionForm', { id: String(item.id) })}
+      itemTitle={(item) => asText(item.name)}
+      itemSubtitle={(item) => {
+        const typeLabel = item.type === 'bogo' ? 'BOGO' : item.type === 'percentage_discount' ? 'نسبة' : 'مبلغ';
+        return `${typeLabel} • ${dateText(asText(item.start_date, ''))}`;
+      }}
+      itemBadge={(item) => ({ label: item.is_active ? 'نشط' : 'متوقف', tone: item.is_active ? 'success' : 'danger' })}
+      emptyTitle="لا عروض"
+      headerRight={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {canManage ? <AppButton title="جديد" onPress={() => navigation.navigate('PromotionForm', {})} /> : null}
+          <AppButton title="تقرير" variant="secondary" onPress={() => navigation.navigate('ReportViewer', { reportId: 'marketing-promotions' })} />
+        </View>
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
-});

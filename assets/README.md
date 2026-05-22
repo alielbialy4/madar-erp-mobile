@@ -2,6 +2,10 @@
 
 Placeholder PNGs in this folder were generated for development and internal testing (`node scripts/generate-placeholder-assets.mjs`).
 
+In-app branding:
+
+- `logo.png` — Madar logo (same file as web `front/public/logo.png`)
+
 Before App Store / Play Store submission, replace:
 
 - `icon.png` — 1024×1024 app icon

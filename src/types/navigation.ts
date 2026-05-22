@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { ReportId } from '@/reports/types';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -18,9 +19,14 @@ export type POSStackParamList = {
 };
 
 export type ProductsStackParamList = {
-  ProductsHome: undefined;
+  ProductsHome: { category_id?: number } | undefined;
   ProductDetail: { id: number; name?: string };
+  ProductForm: { id?: number };
+  ProductInsights: { id: number; name?: string };
   Categories: undefined;
+  CategoryForm: { id?: number };
+  CategoriesReorder: undefined;
+  ProductsReorder: undefined;
 };
 
 export type SalesStackParamList = {
@@ -29,6 +35,15 @@ export type SalesStackParamList = {
   PartialRefund: { saleId: number };
 };
 
+export type InventoryListPresetKey =
+  | 'balances'
+  | 'warehouses'
+  | 'movements'
+  | 'expiry'
+  | 'reorderRules'
+  | 'requisitions'
+  | 'stockCounts';
+
 export type MoreStackParamList = {
   MoreHome: undefined;
   Customers: undefined;
@@ -36,30 +51,88 @@ export type MoreStackParamList = {
   Refunds: undefined;
   Dining: undefined;
   DiningTableOrder: { tableId: string; tableName?: string };
+  WaiterPos: undefined;
+  DiningHallForm: { id?: string; name?: string };
   Kitchen: undefined;
   KitchenOrder: { id: number };
+  KitchenStationsList: undefined;
+  KitchenStationForm: { id?: string; name?: string };
+  KitchenPrintJobs: undefined;
   Inventory: undefined;
+  Warehouses: undefined;
+  WarehouseDetail: { id: string; name?: string };
+  WarehouseForm: { id?: string };
+  InventoryList: { preset: InventoryListPresetKey; warehouse_id?: string; warehouse_name?: string; product_id?: string };
+  StockBalanceDetail: { product_id: number; warehouse_id?: string; product_name?: string };
+  InventoryMovementDetail: { movement: Record<string, unknown> };
+  StockAdjustmentsList: undefined;
+  StockAdjustmentDetail: { id: string };
   StockAdjustment: undefined;
+  StockTransfersList: undefined;
+  StockTransferDetail: { id: string };
   StockTransfer: undefined;
+  StockCountsList: undefined;
+  StockCountDetail: { id: string };
+  StockCountCreate: undefined;
+  ReorderRulesList: undefined;
+  ReorderRuleForm: { id?: number };
+  RequisitionsList: undefined;
+  RequisitionDetail: { id: string };
+  RequisitionCreate: undefined;
   Purchases: undefined;
   PurchaseDetail: { id: number };
   CreatePurchase: undefined;
+  EditPurchase: { id: number };
+  PurchaseReturnsList: undefined;
+  PurchaseReturnDetail: { id: number };
   CreatePurchaseReturn: { purchaseId: number };
   Suppliers: undefined;
   SupplierDetail: { id: number | string; name?: string };
+  SupplierReport: { id: number | string; name?: string };
+  SupplierStatement: { id: number | string; name?: string };
+  SupplierPayment: { supplierId: number; name?: string; purchaseId?: number };
   Vaults: undefined;
   ShiftManagement: undefined;
   Expenses: undefined;
   Coupons: undefined;
+  CouponForm: { id?: string };
   Delivery: undefined;
+  DeliveryDetail: { id: string };
+  DriversList: undefined;
+  DriverForm: { id?: string; name?: string };
+  DeliveryZonesList: undefined;
+  DeliveryZoneForm: { id?: string };
+  DriverSettlements: undefined;
+  DeliveryFinanceDashboard: undefined;
+  DeliveryFinanceLiabilities: undefined;
+  DeliveryFinanceSettlements: undefined;
+  DeliveryFinanceAlerts: undefined;
   Promotions: undefined;
+  PromotionForm: { id?: string };
   GiftCards: undefined;
+  GiftCardDetail: { id: string };
   Users: undefined;
+  UserForm: { id?: number };
+  Roles: undefined;
+  BranchesList: undefined;
+  BranchDetail: { id: string };
+  BranchForm: { id?: string };
+  BranchSettings: { id: string };
+  TenantSettings: undefined;
+  ActivityLogs: undefined;
+  ActivityLogDetail: { id: number };
+  BackupInfo: undefined;
   Reports: undefined;
+  ReportViewer: { reportId: ReportId };
+  LegacyReports: undefined;
   Notifications: undefined;
   Settings: undefined;
   Profile: undefined;
   SyncStatus: undefined;
+  PrinterProfiles: undefined;
+  PrinterProfileForm: { id?: string };
+  PrinterDiagnostics: undefined;
+  PrintQueue: undefined;
   ParityModule: {
     title: string;
     webRoute: string;

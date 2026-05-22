@@ -11,7 +11,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { AppScreen, AppBottomSheet } from '@/components/layout';
 import { AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { extractArray } from '@/utils/data';
@@ -30,6 +30,7 @@ type PurchaseItem = {
 };
 
 export function CreatePurchaseScreen({ navigation }: { route: any; navigation: any }) {
+  const c = useColors();
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const [suppliers, setSuppliers] = useState<Record<string, unknown>[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<Record<string, unknown> | null>(null);
@@ -54,6 +55,29 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  const styles = useMemo(() => StyleSheet.create({
+    listContent: { paddingBottom: spacing.xxl, gap: spacing.md },
+    headerSection: { gap: spacing.md, paddingBottom: spacing.md },
+    selectorButton: { borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: spacing.md, gap: spacing.xs },
+    selectorLabel: { color: c.textMuted, fontSize: typography.small, ...textStart },
+    selectorValue: { color: c.text, fontSize: typography.body, fontWeight: '700', ...textStart },
+    itemRow: { ...flexRow, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: spacing.md, gap: spacing.sm, alignItems: 'flex-start' },
+    itemInfo: { flex: 1, gap: spacing.sm },
+    itemName: { color: c.text, fontWeight: '900', ...textStart },
+    itemFields: { ...flexRow, gap: spacing.sm },
+    smallInput: { flex: 1 },
+    itemTotal: { color: c.primary, fontWeight: '800', ...textStart },
+    removeBtn: { minHeight: 36, flex: 0 },
+    footer: { gap: spacing.md, paddingTop: spacing.lg },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    totalLabel: { color: c.textMuted, fontSize: typography.body, ...textStart },
+    totalValue: { color: c.text, fontSize: typography.h3, fontWeight: '900', ...textStart },
+    errorText: { color: c.danger, ...textStart, fontWeight: '800' },
+    sheetContent: { gap: spacing.md },
+    sheetList: { maxHeight: 350 },
+    hintText: { color: c.textMuted, fontSize: typography.small, ...textStart },
+  }), [c]);
 
   useEffect(() => {
     setSupplierLoading(true);
@@ -277,26 +301,3 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  listContent: { paddingBottom: spacing.xxl, gap: spacing.md },
-  headerSection: { gap: spacing.md, paddingBottom: spacing.md },
-  selectorButton: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, gap: spacing.xs },
-  selectorLabel: { color: colors.textMuted, fontSize: typography.small, ...textStart },
-  selectorValue: { color: colors.text, fontSize: typography.body, fontWeight: '700', ...textStart },
-  itemRow: { ...flexRow, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, gap: spacing.sm, alignItems: 'flex-start' },
-  itemInfo: { flex: 1, gap: spacing.sm },
-  itemName: { color: colors.text, fontWeight: '900', ...textStart },
-  itemFields: { ...flexRow, gap: spacing.sm },
-  smallInput: { flex: 1 },
-  itemTotal: { color: colors.primary, fontWeight: '800', ...textStart },
-  removeBtn: { minHeight: 36, flex: 0 },
-  footer: { gap: spacing.md, paddingTop: spacing.lg },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { color: colors.textMuted, fontSize: typography.body, ...textStart },
-  totalValue: { color: colors.text, fontSize: typography.h3, fontWeight: '900', ...textStart },
-  errorText: { color: colors.danger, ...textStart, fontWeight: '800' },
-  sheetContent: { gap: spacing.md },
-  sheetList: { maxHeight: 350 },
-  hintText: { color: colors.textMuted, fontSize: typography.small, ...textStart },
-});

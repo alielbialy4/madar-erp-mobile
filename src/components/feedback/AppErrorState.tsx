@@ -1,37 +1,41 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
-import { colors } from '@/constants/colors';
-import { spacing, radius } from '@/constants/spacing';
+import { View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useColors } from '@/hooks/useColors';
+import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { AppButton } from '@/components/ui';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { AppText } from '@/components/ui/AppText';
+import { AppButton } from '@/components/ui/AppButton';
 
-export function AppErrorState({ message = 'حدث خطأ أثناء تحميل البيانات', onRetry }: { message?: string; onRetry?: () => void }) {
+type Props = {
+  message?: string;
+  onRetry?: () => void;
+};
+
+export function AppErrorState({ message = 'حدث خطأ أثناء تحميل البيانات', onRetry }: Props) {
+  const c = useColors();
   return (
-    <View style={styles.state}>
-      <View style={styles.iconBox}>
-        <MaterialIcons name="error-outline" size={32} color={colors.danger} />
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.huge, gap: spacing.md, paddingHorizontal: spacing.xxl }}>
+      <View style={{
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: c.softDanger, alignItems: 'center', justifyContent: 'center',
+      }}>
+        <MaterialIcons name="error-outline" size={32} color={c.danger} />
       </View>
-      <Text style={styles.title}>حدث خطأ</Text>
-      <Text style={styles.message}>{message}</Text>
-      {onRetry ? <AppButton title="إعادة المحاولة" onPress={onRetry} variant="outline" size="sm" /> : null}
+      <AppText style={{
+        fontSize: typography.subtitle, fontFamily: fonts.bold, fontWeight: '700',
+        color: c.text, textAlign: 'center', writingDirection: 'rtl',
+      }}>
+        عذراً، حدث خطأ
+      </AppText>
+      <AppText style={{
+        fontSize: typography.body, color: c.textMuted, textAlign: 'center', writingDirection: 'rtl',
+        lineHeight: 22, maxWidth: 280,
+      }}>
+        {message}
+      </AppText>
+      {onRetry ? <AppButton title="إعادة المحاولة" variant="outline" onPress={onRetry} size="sm" /> : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  state: { padding: spacing.xxxl, alignItems: 'center', gap: spacing.md },
-  iconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xxl,
-    backgroundColor: colors.softDanger,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  title: { color: colors.text, fontSize: typography.cardTitle, fontFamily: fonts.bold, fontWeight: '700', textAlign: 'center' },
-  message: { color: colors.textMuted, fontSize: typography.body, textAlign: 'center', lineHeight: 23 },
-});

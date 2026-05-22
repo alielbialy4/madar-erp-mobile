@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -7,7 +7,7 @@ import { AppScreen } from '@/components/layout';
 import { AppBadge, AppCard, AppSectionHeader } from '@/components/ui';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { asText } from '@/utils/format';
@@ -23,15 +23,28 @@ type Props<T extends Record<string, unknown>> = {
   loader: () => Promise<ApiEnvelope<T>>;
   fields: Field<T>[];
   onBack?: () => void;
+  headerRight?: React.ReactNode;
   badge?: (item: T) => { label: string; tone?: 'default' | 'success' | 'warning' | 'danger' | 'info' } | undefined;
   children?: (item: T, actions: { refresh: () => void }) => React.ReactNode;
 };
 
-export function DetailScreen<T extends Record<string, unknown>>({ title, loader, fields, onBack, badge, children }: Props<T>) {
+export function DetailScreen<T extends Record<string, unknown>>({ title, loader, fields, onBack, headerRight, badge, children }: Props<T>) {
+  const c = useColors();
   const { data, loading, error, refresh, refreshing } = useAsyncResource<T>(loader);
 
+  const styles = useMemo(() => StyleSheet.create({
+    headerCard: { gap: spacing.sm },
+    badgeRow: { ...flexRow },
+    mainTitle: { color: c.text, fontSize: typography.h2, fontWeight: '900', ...textStart },
+    card: { gap: spacing.md },
+    fieldRow: { ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md, borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: spacing.sm },
+    label: { color: c.textMuted, fontSize: typography.small, ...textStart, minWidth: 112 },
+    value: { color: c.text, fontSize: typography.body, fontWeight: '700', ...textStart, flex: 1 },
+    ltr: { writingDirection: 'ltr', textAlign: 'left' },
+  }), [c]);
+
   return (
-    <AppScreen title={title} onBack={onBack} refreshing={refreshing} onRefresh={refresh}>
+    <AppScreen title={title} onBack={onBack} headerRight={headerRight} refreshing={refreshing} onRefresh={refresh}>
       {loading && !data ? <AppLoadingState /> : null}
       {error && !data ? <AppErrorState message={error} onRetry={refresh} /> : null}
       {data ? (
@@ -55,14 +68,3 @@ export function DetailScreen<T extends Record<string, unknown>>({ title, loader,
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  headerCard: { gap: spacing.sm },
-  badgeRow: { ...flexRow },
-  mainTitle: { color: colors.text, fontSize: typography.h2, fontWeight: '900', ...textStart },
-  card: { gap: spacing.md },
-  fieldRow: { ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: spacing.sm },
-  label: { color: colors.textMuted, fontSize: typography.small, ...textStart, minWidth: 112 },
-  value: { color: colors.text, fontSize: typography.body, fontWeight: '700', ...textStart, flex: 1 },
-  ltr: { writingDirection: 'ltr', textAlign: 'left' },
-});

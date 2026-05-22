@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
@@ -16,6 +16,8 @@ type Props = {
 
 export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wide }: Props) {
   const c = useColors();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
   const ds = useMemo(() => createDashboardStyles(c), [c]);
   const toneStyle = KPI_TONE_STYLES[tone];
   const bg = c[toneStyle.bg as keyof AppColors] as string;
@@ -23,7 +25,7 @@ export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wi
   const iconColor = c[toneStyle.icon as keyof AppColors] as string;
 
   return (
-    <View style={[ds.kpiCell, wide ? ds.kpiCellWide : undefined]}>
+    <View style={[ds.kpiCell, isTablet && !wide ? ds.kpiCellTablet : undefined, wide ? ds.kpiCellWide : undefined]}>
       <View style={[ds.kpiCard, { backgroundColor: c.surface, borderColor: border }]}>
         <View style={ds.kpiTop}>
           <View style={[ds.kpiIconWrap, { backgroundColor: bg }]}>

@@ -16,4 +16,8 @@ export const diningAPI = {
   releaseForPos: (tableId: string) => post(`/pos/tables/${tableId}/release`),
   updateTableStatus: (tableId: string, status: string) => patch(`/tables/${tableId}/status`, { status }),
   deleteTable: (tableId: string) => del(`/tables/${tableId}`),
+  createHall: (branchId: string, payload: Record<string, unknown>) =>
+    post(`/branches/${branchId}/dining-halls`, payload, { 'X-Branch-Id': branchId }),
+  updateHall: (id: string, payload: Record<string, unknown>) => put(`/dining-halls/${id}`, payload),
+  deleteHall: (id: string) => del(`/dining-halls/${id}`),
 };

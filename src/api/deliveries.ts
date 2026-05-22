@@ -6,5 +6,5 @@ export const deliveriesAPI = {
   getById: (id: string) => get(`/deliveries/${id}`),
   assignDriver: (id: string, driverId: string) => post(`/deliveries/${id}/assign`, { driver_id: driverId }),
   updateStatus: (id: string, status: string, notes?: string) => patch(`/deliveries/${id}/status`, { status, notes }),
-  getZones: (params?: ListParams) => get('/delivery-zones', params),
+  getToday: (params?: ListParams) => get('/deliveries/today', params),
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { textStart } from '@/constants/layout';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -6,15 +6,17 @@ import { AppScreen } from '@/components/layout';
 import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
 import { syncAll } from '@/services/sync/syncService';
-import { getPendingOrders, removePendingOrders, retryFailedOrders } from '@/services/offline/posOrders';
+import { countByStatus, getPendingOrders, removePendingOrders, retryFailedOrders } from '@/services/offline/posOrders';
+import { usePrintStore } from '@/store/printStore';
 import { usePosStore } from '@/store/posStore';
 import { useNetworkStore } from '@/store/networkStore';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { numberText } from '@/utils/format';
 
 export function SyncStatusScreen() {
+  const c = useColors();
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
@@ -25,11 +27,23 @@ export function SyncStatusScreen() {
   const refreshPendingOrders = usePosStore((s) => s.refreshPendingOrders);
   const pendingOrders = usePosStore((s) => s.pendingOrders);
 
+  const styles = useMemo(() => StyleSheet.create({
+    statText: { color: c.text, fontSize: typography.body, fontWeight: '800', ...textStart },
+    resultText: { color: c.info, fontSize: typography.small, ...textStart, fontWeight: '700' },
+    actions: { gap: spacing.md },
+  }), [c]);
+
+  const printPending = usePrintStore((s) => s.pendingCount);
+  const printFailed = usePrintStore((s) => s.failedCount);
+  const refreshPrint = usePrintStore((s) => s.refresh);
+
   const loadPending = useCallback(async () => {
     const orders = await getPendingOrders();
-    setPendingCount(orders.length);
-    setFailedCount(orders.filter((o) => o.status === 'failed').length);
-  }, []);
+    const counts = countByStatus(orders);
+    setPendingCount(counts.pending);
+    setFailedCount(counts.failed);
+    await refreshPrint();
+  }, [refreshPrint]);
 
   useEffect(() => {
     void loadPending();
@@ -109,6 +123,8 @@ export function SyncStatusScreen() {
         <AppSectionHeader title="الطلبات المعلقة" />
         <Text style={styles.statText}>طلبات بانتظار المزامنة: {numberText(pendingCount)}</Text>
         <Text style={styles.statText}>طلبات فاشلة: {numberText(failedCount)}</Text>
+        <Text style={styles.statText}>طباعة معلقة: {numberText(printPending)}</Text>
+        <Text style={styles.statText}>طباعة فاشلة: {numberText(printFailed)}</Text>
       </AppCard>
       <AppCard>
         <AppSectionHeader title="إجراءات" />
@@ -131,9 +147,3 @@ export function SyncStatusScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  statText: { color: colors.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-  resultText: { color: colors.info, fontSize: typography.small, ...textStart, fontWeight: '700' },
-  actions: { gap: spacing.md },
-});

@@ -1,9 +1,14 @@
 import { create } from 'zustand';
 import type { CartLineSelectedOption, Coupon, Customer, Product, SalePayload } from '@/types/api';
+import { giftCardsAPI } from '@/api/giftCards';
 import { posAPI } from '@/api/pos';
 import { loadPosCatalog, savePosCatalog } from '@/services/offline/catalogCache';
-import { addPendingOrder, getPendingOrders, PendingOfflineOrder } from '@/services/offline/posOrders';
+import { getPendingOrders } from '@/services/offline/posOrders';
+import type { OfflinePosOrderRecord } from '@/types/offline';
+import { saveOfflinePosOrder, OFFLINE_SAVE_MESSAGE } from '@/services/offline/offlineCheckout';
+import { syncAll } from '@/services/sync/syncEngine';
 import { normalizeApiError } from '@/utils/errors';
+import { useAuthStore } from './authStore';
 import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
 
@@ -35,21 +40,42 @@ type PosState = {
   loading: boolean;
   error: string | null;
   lastSyncedAt: string | null;
-  pendingOrders: PendingOfflineOrder[];
+  pendingOrders: OfflinePosOrderRecord[];
   walletBalance: number | null;
   pointsBalance: number | null;
   appliedCoupon: { coupon: Coupon; discount: number } | null;
+  catalogSettings: Record<string, unknown>;
   loadCatalog: () => Promise<void>;
   addProduct: (product: Product, selectedOptions?: CartLineSelectedOption[]) => void;
   updateQuantity: (productId: number, delta: number) => void;
   removeLine: (productId: number) => void;
   clearCart: () => void;
   setCustomer: (customer: Customer | null) => void;
-  submitSale: (paymentType: SalePayload['payment_type'], paid: number, notes?: string, splitLines?: SplitLine[], couponData?: { coupon_id: string | null; coupon_discount: number }, manualDiscount?: number) => Promise<{ ok: boolean; message: string; saleId?: number; queued?: boolean }>;
+  submitSale: (
+    paymentType: SalePayload['payment_type'],
+    paid: number,
+    notes?: string,
+    splitLines?: SplitLine[],
+    couponData?: { coupon_id: string | null; coupon_discount: number },
+    manualDiscount?: number,
+    extras?: SubmitSaleExtras,
+  ) => Promise<{ ok: boolean; message: string; saleId?: number; queued?: boolean }>;
   refreshPendingOrders: () => Promise<void>;
   setWalletBalance: (balance: number | null) => void;
   setPointsBalance: (points: number | null) => void;
   setAppliedCoupon: (coupon: { coupon: Coupon; discount: number } | null) => void;
+  restoreCartFromHold: (
+    lines: CartLine[],
+    customer: Customer | null,
+    manualDiscount: number,
+    appliedCoupon: { coupon: Coupon; discount: number } | null,
+  ) => void;
+};
+
+export type SubmitSaleExtras = {
+  loyaltyPointsRedeemed?: number;
+  loyaltyDiscount?: number;
+  giftCard?: { id: number; code: string; amount: number };
 };
 
 function priceOf(product: Product): number {
@@ -93,6 +119,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   walletBalance: null,
   pointsBalance: null,
   appliedCoupon: null,
+  catalogSettings: {},
 
   loadCatalog: async () => {
     set({ loading: true, error: null });
@@ -103,12 +130,13 @@ export const usePosStore = create<PosState>((set, get) => ({
         const response = await posAPI.pullCatalog(branchId);
         const catalog = response.data;
         if (catalog) {
-          await savePosCatalog(catalog);
+          await savePosCatalog(catalog, branchId);
           set({
             products: catalog.products ?? [],
             categories: catalog.categories ?? [],
             customers: catalog.customers ?? [],
             coupons: catalog.coupons ?? [],
+            catalogSettings: (catalog.settings ?? {}) as Record<string, unknown>,
             lastSyncedAt: response.data?.generated_at ?? new Date().toISOString(),
             loading: false,
           });
@@ -123,6 +151,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           categories: cached.catalog.categories ?? [],
           customers: cached.catalog.customers ?? [],
           coupons: cached.catalog.coupons ?? [],
+          catalogSettings: (cached.catalog.settings ?? {}) as Record<string, unknown>,
           lastSyncedAt: cached.saved_at,
           loading: false,
         });
@@ -138,6 +167,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           categories: cached.catalog.categories ?? [],
           customers: cached.catalog.customers ?? [],
           coupons: cached.catalog.coupons ?? [],
+          catalogSettings: (cached.catalog.settings ?? {}) as Record<string, unknown>,
           lastSyncedAt: cached.saved_at,
           loading: false,
           error: null,
@@ -191,7 +221,11 @@ export const usePosStore = create<PosState>((set, get) => ({
   setPointsBalance: (points) => set({ pointsBalance: points }),
   setAppliedCoupon: (coupon) => set({ appliedCoupon: coupon }),
 
-  submitSale: async (paymentType, paid, notes, splitLines, couponData, manualDiscount = 0) => {
+  restoreCartFromHold: (lines, customer, manualDiscount, appliedCoupon) => {
+    set({ cart: lines, selectedCustomer: customer, appliedCoupon });
+  },
+
+  submitSale: async (paymentType, paid, notes, splitLines, couponData, manualDiscount = 0, extras) => {
     const cart = get().cart;
     const branchId = useBranchStore.getState().activeBranch?.id;
     if (!branchId) return { ok: false, message: 'يجب اختيار فرع قبل إتمام البيع' };
@@ -199,6 +233,22 @@ export const usePosStore = create<PosState>((set, get) => ({
     const amount = cartTotals(cart);
     const safeManualDiscount = Math.min(Math.max(Number(manualDiscount) || 0, 0), amount.total);
     const totalAfterManualDiscount = Math.max(0, amount.total - safeManualDiscount);
+    const loyaltyPoints = Math.max(0, Math.floor(extras?.loyaltyPointsRedeemed ?? 0));
+    const couponDisc = couponData?.coupon_discount ?? 0;
+    const totalBeforeLoyalty = Math.max(0, totalAfterManualDiscount - couponDisc);
+    const loyaltyDiscount = Math.min(
+      Math.max(0, extras?.loyaltyDiscount ?? 0),
+      totalBeforeLoyalty,
+    );
+    const payableTotal = Math.max(0, totalBeforeLoyalty - loyaltyDiscount);
+    if (!useNetworkStore.getState().isOnline && (loyaltyPoints > 0 || extras?.giftCard)) {
+      return {
+        ok: false,
+        message: loyaltyPoints > 0
+          ? 'استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.'
+          : 'الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.',
+      };
+    }
     const payload: SalePayload = {
       customer_id: get().selectedCustomer?.id ?? null,
       items: cart.map((line) => ({
@@ -215,28 +265,66 @@ export const usePosStore = create<PosState>((set, get) => ({
       })),
       subtotal: amount.subtotal,
       discount: amount.discount + safeManualDiscount,
-      total: totalAfterManualDiscount,
-      paid,
+      total: payableTotal,
+      paid: paymentType === 'credit' ? paid : Math.min(paid, payableTotal),
       payment_type: paymentType,
       order_type: 'takeaway',
       notes,
       coupon_id: couponData?.coupon_id ?? null,
       coupon_discount: couponData?.coupon_discount ?? 0,
+      loyalty_points_redeemed: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+      loyalty_discount: loyaltyDiscount > 0 ? loyaltyDiscount : undefined,
       payment_lines: splitLines
         ? splitLines.filter((r) => (parseFloat(r.amount) || 0) > 0).map((r) => ({ vault_id: r.vault_id, amount: parseFloat(r.amount) || 0, payment_method: r.payment_method }))
         : null,
     };
     if (!useNetworkStore.getState().isOnline) {
-      await addPendingOrder(payload, branchId);
-      await get().refreshPendingOrders();
-      get().clearCart();
-      return { ok: false, queued: true, message: 'تم حفظ الطلب في قائمة الانتظار. لم يتم تأكيد البيع من الخادم بعد.' };
+      try {
+        const user = useAuthStore.getState().user;
+        const branch = useBranchStore.getState().activeBranch;
+        await saveOfflinePosOrder({
+          payload,
+          branchId,
+          cashierId: user?.id ?? null,
+          coupon: get().appliedCoupon?.coupon ?? null,
+          couponDiscount: get().appliedCoupon?.discount,
+          cartLines: cart,
+          products: get().products.map((p) => ({ id: p.id, name: p.name, category_id: p.category_id ?? null })),
+          branchName: branch?.name,
+          cashierName: user?.name,
+        });
+        await get().refreshPendingOrders();
+        get().clearCart();
+        return { ok: false, queued: true, message: OFFLINE_SAVE_MESSAGE };
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : 'تعذر حفظ الطلب محلياً' };
+      }
     }
     try {
       const response = await posAPI.createSale(payload);
       if (response.status === 'success') {
+        const saleId = Number((response.data as { id?: number })?.id) || undefined;
+        if (extras?.giftCard && saleId && extras.giftCard.amount > 0) {
+          try {
+            await giftCardsAPI.redeem(String(extras.giftCard.id), {
+              amount: extras.giftCard.amount,
+              sale_id: saleId,
+              customer_id: get().selectedCustomer?.id ?? undefined,
+            });
+          } catch (err) {
+            return {
+              ok: false,
+              message:
+                err instanceof Error
+                  ? `تم إنشاء البيع #${saleId} لكن فشل خصم بطاقة الهدايا: ${err.message}`
+                  : `تم إنشاء البيع #${saleId} لكن فشل خصم بطاقة الهدايا`,
+              saleId,
+            };
+          }
+        }
         get().clearCart();
-        return { ok: true, message: response.message || 'تمت عملية البيع بنجاح', saleId: Number((response.data as any)?.id) || undefined };
+        void syncAll();
+        return { ok: true, message: response.message || 'تمت عملية البيع بنجاح', saleId };
       }
       return { ok: false, message: response.message || 'لا يمكن تنفيذ هذه العملية حالياً' };
     } catch (error) {

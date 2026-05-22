@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
-import { AppText as Text } from '@/components/ui/AppText';
+import { AppText } from '@/components/ui/AppText';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
@@ -9,11 +9,12 @@ import { BranchSwitcherScreen } from './BranchSwitcherScreen';
 import { useAuthStore } from '@/store/authStore';
 import { authAPI } from '@/api/auth';
 import { normalizeApiError } from '@/utils/errors';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 
 export function SettingsScreen({ navigation }: { navigation: any }) {
+  const c = useColors();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const [branchMode, setBranchMode] = useState(false);
@@ -25,7 +26,8 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
@@ -33,13 +35,13 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 
   const handleUpdateProfile = async () => {
     setBusy(true);
-    setMessage(null);
+    setProfileMessage(null);
     try {
       await authAPI.updateProfile({ name, email, phone });
-      setMessage('تم تحديث البيانات بنجاح');
+      setProfileMessage('تم تحديث البيانات بنجاح');
       setEditingProfile(false);
     } catch (err) {
-      setMessage(normalizeApiError(err).message);
+      setProfileMessage(normalizeApiError(err).message);
     } finally {
       setBusy(false);
     }
@@ -47,24 +49,26 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      setMessage('كلمة المرور الجديدة غير متطابقة');
+      setPasswordMessage('كلمة المرور الجديدة غير متطابقة');
       return;
     }
     setBusy(true);
-    setMessage(null);
+    setPasswordMessage(null);
     try {
       await authAPI.changePassword({ current_password: currentPassword, new_password: newPassword, new_password_confirmation: confirmPassword });
-      setMessage('تم تغيير كلمة المرور بنجاح');
+      setPasswordMessage('تم تغيير كلمة المرور بنجاح');
       setEditingPassword(false);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setMessage(normalizeApiError(err).message);
+      setPasswordMessage(normalizeApiError(err).message);
     } finally {
       setBusy(false);
     }
   };
+
+  const rowActions = { ...flexRow, gap: spacing.sm };
 
   return (
     <AppScreen title="الإعدادات" subtitle="إعدادات الحساب والسياق">
@@ -82,10 +86,10 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
             <AppInput label="الاسم" value={name} onChangeText={setName} />
             <AppInput label="البريد" value={email} onChangeText={setEmail} keyboardType="email-address" />
             <AppInput label="الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            {message ? <Text style={styles.messageText}>{message}</Text> : null}
-            <View style={styles.rowActions}>
-              <AppButton title="حفظ" onPress={handleUpdateProfile} loading={busy} style={styles.halfBtn} />
-              <AppButton title="إلغاء" variant="secondary" onPress={() => setEditingProfile(false)} style={styles.halfBtn} />
+            {profileMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{profileMessage}</AppText> : null}
+            <View style={rowActions}>
+              <AppButton title="حفظ" onPress={handleUpdateProfile} loading={busy} style={{ flex: 1 }} />
+              <AppButton title="إلغاء" variant="secondary" onPress={() => setEditingProfile(false)} style={{ flex: 1 }} />
             </View>
           </>
         )}
@@ -99,10 +103,10 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
             <AppInput label="كلمة المرور الحالية" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
             <AppInput label="كلمة المرور الجديدة" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
             <AppInput label="تأكيد كلمة المرور" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-            {message ? <Text style={styles.messageText}>{message}</Text> : null}
-            <View style={styles.rowActions}>
-              <AppButton title="تغيير" onPress={handleChangePassword} loading={busy} style={styles.halfBtn} />
-              <AppButton title="إلغاء" variant="secondary" onPress={() => { setEditingPassword(false); setMessage(null); }} style={styles.halfBtn} />
+            {passwordMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{passwordMessage}</AppText> : null}
+            <View style={rowActions}>
+              <AppButton title="تغيير" onPress={handleChangePassword} loading={busy} style={{ flex: 1 }} />
+              <AppButton title="إلغاء" variant="secondary" onPress={() => { setEditingPassword(false); setPasswordMessage(null); }} style={{ flex: 1 }} />
             </View>
           </>
         )}
@@ -112,27 +116,34 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
         <AppListItem title="تغيير الفرع / العرض العام" subtitle="يستخدم X-Branch-Id مثل تطبيق الويب" onPress={() => setBranchMode(true)} />
       </AppCard>
       <AppCard>
-        <AppSectionHeader title="المزامنة" />
-        <AppListItem title="حالة المزامنة" subtitle="عرض الطلبات المعلقة وإعادة المحاولة" onPress={() => navigation?.navigate('SyncStatus')} />
+        <AppSectionHeader title="الإدارة" />
+        <AppListItem title="المستخدمون" subtitle="إدارة الحسابات والأدوار" onPress={() => navigation.navigate('Users')} />
+        <AppListItem title="الفروع" subtitle="إعدادات POS والضريبة لكل فرع" onPress={() => navigation.navigate('BranchesList')} />
+        <AppListItem title="إعدادات المستأجر" subtitle="قراءة بيانات الشركة" onPress={() => navigation.navigate('TenantSettings')} />
+        <AppListItem title="سجل النشاط" subtitle="بحث وتصفية الأحداث" onPress={() => navigation.navigate('ActivityLogs')} />
+        <AppListItem title="النسخ الاحتياطي" subtitle="ويب فقط — سبب التعطيل" onPress={() => navigation.navigate('BackupInfo')} />
+        <AppListItem title="الكوبونات" onPress={() => navigation.navigate('Coupons')} />
+        <AppListItem title="العروض" onPress={() => navigation.navigate('Promotions')} />
+        <AppListItem title="بطاقات الهدايا" onPress={() => navigation.navigate('GiftCards')} />
       </AppCard>
       <AppCard>
-        <AppSectionHeader title="الجلسة" />
-        <AppButton title="تسجيل الخروج" variant="danger" onPress={() => setLogoutConfirm(true)} />
+        <AppSectionHeader title="النظام" />
+        <AppListItem title="الملف الشخصي" subtitle="عرض الحساب والأدوار" onPress={() => navigation.navigate('Profile')} />
+        <AppListItem title="حالة المزامنة" subtitle="اطلع على حالة الاتصال والمزامنة" onPress={() => navigation?.navigate('SyncStatus')} />
+        <AppListItem title="ملفات الطابعات" subtitle="شبكة Ethernet · بلوتوث Android · AirPrint iOS" onPress={() => navigation?.navigate('PrinterProfiles')} />
+        <AppListItem title="تشخيص الطباعة" subtitle="اختبار اتصال وطباعة عربية" onPress={() => navigation?.navigate('PrinterDiagnostics')} />
+        <AppListItem title="قائمة انتظار الطباعة" subtitle="إعادة محاولة المهام الفاشلة" onPress={() => navigation?.navigate('PrintQueue')} />
+        <AppListItem title="الإشعارات" subtitle="الإشعارات غير المقروءة" onPress={() => navigation?.navigate('Notifications')} />
       </AppCard>
+      <AppButton title="تسجيل الخروج" variant="danger" onPress={() => setLogoutConfirm(true)} loading={busy} fullWidth />
       <ConfirmDialog
         visible={logoutConfirm}
         title="تسجيل الخروج"
         message="سيتم تسجيل خروجك من التطبيق."
         confirmLabel="خروج"
-        onConfirm={() => { setLogoutConfirm(false); logout(); }}
+        onConfirm={() => { setLogoutConfirm(false); void logout(); }}
         onCancel={() => setLogoutConfirm(false)}
       />
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  messageText: { color: colors.info, fontSize: typography.small, ...textStart, fontWeight: '700' },
-  rowActions: { ...flexRow, gap: spacing.md },
-  halfBtn: { flex: 1 },
-});

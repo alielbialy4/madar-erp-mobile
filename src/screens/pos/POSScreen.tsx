@@ -1,35 +1,41 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
+import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { PosCatalogPanel, PosOrderPanel, PosTopBar } from '@/components/pos';
-import { colors } from '@/constants/colors';
+import { OfflinePrintIndicators } from '@/components/printing/OfflinePrintIndicators';
+import { useColors } from '@/hooks/useColors';
+import { fonts } from '@/constants/fonts';
 import { rootRtl, textStart } from '@/constants/layout';
+import { responsive } from '@/constants/responsive';
 import { spacing } from '@/constants/spacing';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { couponsAPI } from '@/api/coupons';
+import { giftCardsAPI } from '@/api/giftCards';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { walletAPI } from '@/api/wallet';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useNetworkStore } from '@/store/networkStore';
 import { cartTotals, usePosStore } from '@/store/posStore';
-import type { ActiveShift, CartLineSelectedOption, Customer, Product, SalePayload, Vault } from '@/types/api';
+import type { ActiveShift, CartLineSelectedOption, Customer, Product, PosCheckoutPaymentType, Vault } from '@/types/api';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
 import { SplitPaymentSheet, SplitLine } from './SplitPaymentSheet';
 import { CheckoutReviewSheet } from './CheckoutReviewSheet';
-
-const TABLET_MIN = 900;
+import { PosCheckoutSheet } from './PosCheckoutSheet';
+import { HoldCartsSheet } from './HoldCartsSheet';
 
 export function POSScreen() {
+  const c = useColors();
   const { width } = useWindowDimensions();
-  const isTablet = width >= TABLET_MIN;
+  const isTablet = width >= responsive.tabletMinSplit;
   const tabBarInset = useTabBarBottomInset(spacing.sm);
   const user = useAuthStore((s) => s.user);
   const activeBranch = useBranchStore((state) => state.activeBranch);
@@ -55,6 +61,10 @@ export function POSScreen() {
   const setWalletBalance = usePosStore((state) => state.setWalletBalance);
   const setPointsBalance = usePosStore((state) => state.setPointsBalance);
   const setAppliedCoupon = usePosStore((state) => state.setAppliedCoupon);
+  const catalogSettings = usePosStore((state) => state.catalogSettings);
+  const restoreCartFromHold = usePosStore((state) => state.restoreCartFromHold);
+
+  const isOnline = useNetworkStore((s) => s.isOnline);
 
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState<string>('all');
@@ -63,7 +73,13 @@ export function POSScreen() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [paid, setPaid] = useState('');
-  const [paymentType, setPaymentType] = useState<SalePayload['payment_type']>('cash');
+  const [paymentType, setPaymentType] = useState<PosCheckoutPaymentType>('cash');
+  const [loyaltyPointsInput, setLoyaltyPointsInput] = useState('');
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardMessage, setGiftCardMessage] = useState<string | null>(null);
+  const [appliedGiftCard, setAppliedGiftCard] = useState<{ id: number; code: string; balance: number; amount: number } | null>(null);
+  const [holdCartsOpen, setHoldCartsOpen] = useState(false);
+  const [holdCartsMode, setHoldCartsMode] = useState<'list' | 'save'>('list');
   const [notes, setNotes] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [manualDiscount, setManualDiscount] = useState('');
@@ -90,13 +106,32 @@ export function POSScreen() {
     if (!allowManualDiscount) return 0;
     return Math.min(Math.max(value, 0), totals.total);
   }, [allowManualDiscount, manualDiscount, totals.total]);
+  const loyaltyEgpPerPoint = useMemo(() => {
+    const raw = catalogSettings?.loyalty_egp_per_point_redeem;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0.5;
+  }, [catalogSettings]);
+
+  const loyaltyPointsNum = useMemo(() => {
+    const n = parseInt(loyaltyPointsInput, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, [loyaltyPointsInput]);
+
+  const loyaltyDiscount = useMemo(() => {
+    if (!isOnline || loyaltyPointsNum <= 0) return 0;
+    return Math.round(loyaltyPointsNum * loyaltyEgpPerPoint * 100) / 100;
+  }, [isOnline, loyaltyPointsNum, loyaltyEgpPerPoint]);
+
   const effectiveTotal = useMemo(() => {
     const couponDiscount = appliedCoupon?.discount ?? 0;
-    return Math.max(0, totals.total - manualDiscountAmount - couponDiscount);
-  }, [totals.total, manualDiscountAmount, appliedCoupon]);
+    const beforeLoyalty = Math.max(0, totals.total - manualDiscountAmount - couponDiscount);
+    return Math.max(0, beforeLoyalty - loyaltyDiscount);
+  }, [totals.total, manualDiscountAmount, appliedCoupon, loyaltyDiscount]);
 
   const cartItemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const prevCartCount = useRef(0);
+  const [catalogRefreshing, setCatalogRefreshing] = useState(false);
+  const [cartPulse, setCartPulse] = useState(false);
 
   useEffect(() => {
     void loadCatalog();
@@ -168,11 +203,24 @@ export function POSScreen() {
   }, [selectedCustomer?.id, setWalletBalance, setPointsBalance]);
 
   useEffect(() => {
-    if (!isTablet && cartItemCount > prevCartCount.current) {
-      setMobileTab('cart');
+    if (cartItemCount > prevCartCount.current) {
+      setCartPulse(true);
+      const t = setTimeout(() => setCartPulse(false), 400);
+      if (!isTablet) setMobileTab('cart');
+      prevCartCount.current = cartItemCount;
+      return () => clearTimeout(t);
     }
     prevCartCount.current = cartItemCount;
   }, [cartItemCount, isTablet]);
+
+  const refreshCatalog = async () => {
+    setCatalogRefreshing(true);
+    try {
+      await loadCatalog();
+    } finally {
+      setCatalogRefreshing(false);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -256,21 +304,94 @@ export function POSScreen() {
     setCouponMessage(null);
   };
 
+  const salePaymentType = useMemo((): 'cash' | 'card' | 'credit' | 'split' | 'wallet' => {
+    if (paymentType === 'gift_card') {
+      const remainder = appliedGiftCard ? Math.max(0, effectiveTotal - appliedGiftCard.amount) : effectiveTotal;
+      return remainder > 0.01 ? 'cash' : 'cash';
+    }
+    if (paymentType === 'split') return 'split';
+    return paymentType as 'cash' | 'card' | 'credit' | 'wallet';
+  }, [paymentType, appliedGiftCard, effectiveTotal]);
+
+  const validateGiftCard = async () => {
+    if (!isOnline) {
+      setGiftCardMessage('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+      return;
+    }
+    const code = giftCardCode.trim();
+    if (!code) return;
+    setGiftCardMessage(null);
+    try {
+      const res = await giftCardsAPI.check(code);
+      const data = res.data as { id?: number; balance?: number; code?: string; status?: string } | null;
+      if (res.status !== 'success' || !data?.id) {
+        setGiftCardMessage(res.message || 'بطاقة الهدايا غير صالحة');
+        return;
+      }
+      const balance = Number(data.balance ?? 0);
+      if (balance <= 0) {
+        setGiftCardMessage('رصيد البطاقة غير كافٍ');
+        return;
+      }
+      const amount = Math.min(balance, effectiveTotal);
+      setAppliedGiftCard({ id: data.id, code: String(data.code ?? code), balance, amount });
+      setGiftCardMessage(`رصيد البطاقة: ${money(balance)}`);
+      const remainder = Math.max(0, effectiveTotal - amount);
+      if (remainder > 0.01) setPaid(String(remainder));
+      else setPaid('0');
+    } catch (err) {
+      setGiftCardMessage(normalizeApiError(err).message);
+    }
+  };
+
   const handleCheckout = async () => {
     setCheckoutMessage(null);
     if (!shift) {
       setCheckoutMessage('يجب فتح وردية قبل إتمام البيع.');
       return;
     }
+    if (!isOnline && loyaltyPointsNum > 0) {
+      setCheckoutMessage('استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+      return;
+    }
+    if (loyaltyPointsNum > 0 && pointsBalance != null && loyaltyPointsNum > pointsBalance) {
+      setCheckoutMessage('النقاط أكثر من الرصيد المتاح');
+      return;
+    }
+    if (paymentType === 'gift_card') {
+      if (!isOnline) {
+        setCheckoutMessage('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+        return;
+      }
+      if (!appliedGiftCard) {
+        setCheckoutMessage('تحقق من بطاقة الهدايا أولاً');
+        return;
+      }
+    }
     setSubmitting(true);
-    const paidAmount = Number(paid || effectiveTotal);
+    const giftAmount = paymentType === 'gift_card' && appliedGiftCard ? appliedGiftCard.amount : 0;
+    const cashDue = Math.max(0, effectiveTotal - giftAmount);
+    const paidAmount =
+      paymentType === 'gift_card'
+        ? cashDue > 0.01
+          ? Number(paid || cashDue)
+          : 0
+        : Number(paid || effectiveTotal);
     const result = await submitSale(
-      paymentType,
+      salePaymentType,
       paidAmount,
       notes,
-      paymentType === 'split' ? splitLines : undefined,
+      salePaymentType === 'split' ? splitLines : undefined,
       appliedCoupon ? { coupon_id: appliedCoupon.coupon.id, coupon_discount: appliedCoupon.discount } : undefined,
       manualDiscountAmount,
+      {
+        loyaltyPointsRedeemed: loyaltyPointsNum > 0 ? loyaltyPointsNum : undefined,
+        loyaltyDiscount: loyaltyDiscount > 0 ? loyaltyDiscount : undefined,
+        giftCard:
+          paymentType === 'gift_card' && appliedGiftCard
+            ? { id: appliedGiftCard.id, code: appliedGiftCard.code, amount: appliedGiftCard.amount }
+            : undefined,
+      },
     );
     setSubmitting(false);
     setCheckoutMessage(result.message);
@@ -285,6 +406,11 @@ export function POSScreen() {
       setAppliedCoupon(null);
       setCouponMessage(null);
       setSplitLines([]);
+      setLoyaltyPointsInput('');
+      setGiftCardCode('');
+      setAppliedGiftCard(null);
+      setGiftCardMessage(null);
+      setPaymentType('cash');
     }
   };
 
@@ -294,22 +420,38 @@ export function POSScreen() {
     setCheckoutOpen(true);
   };
 
+  const openSaveHoldCart = () => {
+    if (cart.length === 0) {
+      Alert.alert('حفظ السلة', 'السلة فارغة');
+      return;
+    }
+    setHoldCartsMode('save');
+    setHoldCartsOpen(true);
+  };
+
+  const openHoldCartsList = () => {
+    setHoldCartsMode('list');
+    setHoldCartsOpen(true);
+  };
+
   const showCatalog = isTablet || mobileTab === 'catalog';
   const showCart = isTablet || mobileTab === 'cart';
 
   return (
-    <SafeAreaView style={[styles.safe, rootRtl]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: c.background }, rootRtl]} edges={['top', 'left', 'right']}>
       <PosTopBar
         mobileTab={mobileTab}
         onMobileTabChange={setMobileTab}
         cartCount={cartItemCount}
+        cartPulse={cartPulse}
         shiftLabel={shiftLabel}
         cashierName={user?.name}
         lastSyncedLabel={lastSyncedLabel}
         showMobileTabs={!isTablet}
       />
 
-      {posNotice ? <Text style={styles.noticeText}>{posNotice}</Text> : null}
+      <OfflinePrintIndicators compact />
+      {posNotice ? <Text style={[styles.noticeText, { color: c.info, backgroundColor: c.softInfo }]}>{posNotice}</Text> : null}
 
       {!activeBranch ? (
         <View style={styles.centered}>
@@ -317,7 +459,7 @@ export function POSScreen() {
         </View>
       ) : loading && products.length === 0 ? (
         <View style={styles.centered}>
-          <AppLoadingState />
+          <AppLoadingState variant="skeleton" skeletonRows={6} />
         </View>
       ) : error && products.length === 0 ? (
         <View style={styles.centered}>
@@ -354,6 +496,9 @@ export function POSScreen() {
                 }}
                 products={filteredProducts}
                 onProductPress={handleProductPress}
+                loading={loading}
+                refreshing={catalogRefreshing}
+                onRefresh={() => void refreshCatalog()}
               />
             </View>
           ) : null}
@@ -372,6 +517,8 @@ export function POSScreen() {
                 onSelectCustomer={() => setCustomerOpen(true)}
                 onClearCart={clearCart}
                 onCheckout={openCheckout}
+                onSaveHoldCart={openSaveHoldCart}
+                onOpenHoldCarts={openHoldCartsList}
                 onUpdateQty={updateQuantity}
                 onRemoveLine={removeLine}
               />
@@ -380,67 +527,51 @@ export function POSScreen() {
         </View>
       )}
 
-      <AppBottomSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)}>
-        <View style={styles.sheet}>
-          <AppSectionHeader title="إتمام البيع" />
-          {walletText ? <Text style={styles.walletInfo}>{walletText}</Text> : null}
-          <AppSelect
-            label="طريقة الدفع"
-            variant="solid"
-            value={paymentType}
-            onChange={(value) => setPaymentType(value as SalePayload['payment_type'])}
-            options={[
-              { label: 'نقدي', value: 'cash' },
-              { label: 'بطاقة', value: 'card' },
-              { label: 'آجل', value: 'credit' },
-              ...(selectedCustomer ? [{ label: 'محفظة', value: 'wallet' }] : []),
-              { label: 'مقسم', value: 'split' },
-            ]}
-          />
-          {paymentType === 'wallet' && walletBalance !== null && walletBalance < effectiveTotal ? (
-            <Text style={styles.errorText}>رصيد المحفظة غير كافٍ ({money(walletBalance)})</Text>
-          ) : null}
-          {paymentType !== 'split' ? (
-            <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={setPaid} />
-          ) : null}
-          {paymentType === 'split' ? (
-            <>
-              {vaults.length === 0 ? <Text style={styles.errorText}>لا توجد خزنة متاحة للدفع المقسم.</Text> : null}
-              <AppButton title="تفعيل الدفع المقسم" variant="secondary" onPress={() => setSplitOpen(true)} disabled={vaults.length === 0} />
-            </>
-          ) : null}
-          {allowManualDiscount ? (
-            <AppInput label="خصم يدوي" keyboardType="numeric" value={manualDiscount} onChangeText={setManualDiscount} placeholder="0.00" />
-          ) : (
-            <Text style={styles.sheetMsg}>الخصم اليدوي غير مفعل في إعدادات هذا الفرع.</Text>
-          )}
-          {allowCoupons ? (
-            <>
-              <AppInput label="كوبون" value={couponCode} onChangeText={setCouponCode} placeholder="أدخل كود الكوبون" />
-              {!appliedCoupon ? (
-                <AppButton title="تحقق من الكوبون" variant="outline" onPress={validateCoupon} disabled={!couponCode.trim()} size="sm" />
-              ) : (
-                <View style={styles.couponRow}>
-                  <Text style={styles.couponApplied}>{appliedCoupon.coupon.code}: -{money(appliedCoupon.discount)}</Text>
-                  <AppButton title="إزالة" variant="ghost" onPress={removeCoupon} size="sm" />
-                </View>
-              )}
-            </>
-          ) : (
-            <Text style={styles.sheetMsg}>الكوبونات غير مفعلة في إعدادات هذا الفرع.</Text>
-          )}
-          {couponMessage ? <Text style={styles.sheetMsg}>{couponMessage}</Text> : null}
-          <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
-          {checkoutMessage ? <Text style={styles.sheetMsg}>{checkoutMessage}</Text> : null}
-          <AppButton
-            title="مراجعة الطلب"
-            onPress={() => setReviewOpen(true)}
-            disabled={paymentType === 'split' && splitLines.length === 0}
-            size="lg"
-            fullWidth
-          />
-        </View>
-      </AppBottomSheet>
+      <PosCheckoutSheet
+        visible={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        amountDue={effectiveTotal}
+        walletText={walletText}
+        walletBalance={walletBalance}
+        pointsBalance={pointsBalance}
+        loyaltyEgpPerPoint={loyaltyEgpPerPoint}
+        loyaltyPointsInput={loyaltyPointsInput}
+        onLoyaltyPointsInputChange={setLoyaltyPointsInput}
+        loyaltyDiscount={loyaltyDiscount}
+        loyaltyBlockedOffline={!isOnline}
+        isOnline={isOnline}
+        paymentType={paymentType}
+        onPaymentTypeChange={setPaymentType}
+        paid={paid}
+        onPaidChange={setPaid}
+        allowManualDiscount={allowManualDiscount}
+        manualDiscount={manualDiscount}
+        onManualDiscountChange={setManualDiscount}
+        allowCoupons={allowCoupons}
+        couponCode={couponCode}
+        onCouponCodeChange={setCouponCode}
+        appliedCoupon={appliedCoupon}
+        onValidateCoupon={() => void validateCoupon()}
+        onRemoveCoupon={removeCoupon}
+        couponMessage={couponMessage}
+        giftCardCode={giftCardCode}
+        onGiftCardCodeChange={setGiftCardCode}
+        onValidateGiftCard={() => void validateGiftCard()}
+        onClearGiftCard={() => {
+          setAppliedGiftCard(null);
+          setGiftCardMessage(null);
+        }}
+        appliedGiftCard={appliedGiftCard}
+        giftCardMessage={giftCardMessage}
+        notes={notes}
+        onNotesChange={setNotes}
+        checkoutMessage={checkoutMessage}
+        hasCustomer={!!selectedCustomer}
+        vaultsEmpty={vaults.length === 0}
+        onOpenSplit={() => setSplitOpen(true)}
+        onReview={() => setReviewOpen(true)}
+        splitLinesCount={splitLines.length}
+      />
 
       <CheckoutReviewSheet
         visible={reviewOpen}
@@ -449,12 +580,31 @@ export function POSScreen() {
         discount={totals.discount + manualDiscountAmount}
         total={Math.max(0, totals.total - manualDiscountAmount)}
         coupon={appliedCoupon}
+        loyaltyDiscount={loyaltyDiscount}
+        loyaltyPointsRedeemed={loyaltyPointsNum}
+        giftCard={appliedGiftCard}
         paymentType={paymentType}
         paid={Number(paid || effectiveTotal)}
         customerName={selectedCustomer?.name ?? null}
         onClose={() => setReviewOpen(false)}
         onConfirm={handleCheckout}
         loading={submitting}
+      />
+
+      <HoldCartsSheet
+        visible={holdCartsOpen}
+        onClose={() => setHoldCartsOpen(false)}
+        initialMode={holdCartsMode}
+        cart={cart}
+        customer={selectedCustomer}
+        manualDiscount={manualDiscountAmount}
+        appliedCoupon={appliedCoupon}
+        cartTotal={effectiveTotal}
+        onRestore={(data) => {
+          restoreCartFromHold(data.lines, data.customer, data.manualDiscount, data.appliedCoupon);
+          setManualDiscount(String(data.manualDiscount || ''));
+          setHoldCartsOpen(false);
+        }}
       />
 
       <ModifierPickerSheet
@@ -521,7 +671,7 @@ function PosCustomerList({ customers, onSelect, onClear }: { customers: Customer
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   centered: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
   workspace: { flex: 1, padding: spacing.md, gap: spacing.md },
   workspaceTablet: { flexDirection: 'row', alignItems: 'stretch' },
@@ -531,18 +681,17 @@ const styles = StyleSheet.create({
   cartColTablet: { width: 400, maxWidth: 440, flexGrow: 0, flexShrink: 0 },
   fullCol: { flex: 1 },
   sheet: { gap: spacing.md },
-  walletInfo: { ...textStart, color: colors.info, fontSize: 12, fontWeight: '700' },
-  errorText: { ...textStart, color: colors.danger, fontWeight: '700', fontSize: 13 },
+  walletInfo: { ...textStart, fontSize: 12, fontFamily: fonts.bold, fontWeight: '700' },
+  errorText: { ...textStart, fontWeight: '700', fontSize: 13, fontFamily: fonts.bold },
   couponRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  couponApplied: { ...textStart, color: colors.success, fontWeight: '700' },
-  sheetMsg: { ...textStart, color: colors.textMuted, fontWeight: '600', fontSize: 13 },
+  couponApplied: { ...textStart, fontWeight: '700', fontFamily: fonts.bold },
+  sheetMsg: { ...textStart, fontWeight: '600', fontSize: 13, fontFamily: fonts.medium },
   noticeText: {
     ...textStart,
-    color: colors.info,
-    backgroundColor: colors.softInfo,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     fontWeight: '700',
     fontSize: 12,
+    fontFamily: fonts.bold,
   },
 });

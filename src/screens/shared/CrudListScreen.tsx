@@ -58,7 +58,10 @@ export function CrudListScreen<T extends Record<string, unknown>>({
         onRefresh={refresh}
         onEndReached={loadMore}
         emptyTitle={emptyTitle}
-        keyExtractor={(item, index) => String(item.id ?? index)}
+        keyExtractor={(item, index) => {
+          const id = item.id;
+          return id != null && id !== '' ? `row-${String(id)}-${index}` : `row-idx-${index}`;
+        }}
         renderItem={({ item }) => {
           const badge = itemBadge?.(item);
           return (

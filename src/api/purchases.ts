@@ -22,7 +22,8 @@ export const purchasesAPI = {
   update: (id: number, data: PurchasePayload) => put(`/purchases/${id}`, data),
   delete: (id: number) => del(`/purchases/${id}`),
   getPayments: (purchaseId: number) => get(`/purchases/${purchaseId}/payments`),
-  addPayment: (purchaseId: number, payload: { amount: number; payment_date: string; notes?: string }) => post(`/purchases/${purchaseId}/payments`, payload),
+  addPayment: (purchaseId: number, payload: { amount: number; payment_date: string; vault_id?: string; notes?: string }) =>
+    post(`/purchases/${purchaseId}/payments`, payload),
 };
 
 export const purchaseReturnsAPI = {

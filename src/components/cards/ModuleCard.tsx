@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
+import type { AppColors } from '@/constants/colors';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -46,6 +47,9 @@ export function ModuleCard({
 }) {
   const iconName = (moduleKey && moduleIcons[moduleKey]) || 'folder';
   const isLogout = moduleKey === 'logout';
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
+
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -59,7 +63,7 @@ export function ModuleCard({
         <MaterialIcons
           name={iconName}
           size={20}
-          color={disabled ? colors.textCaption : isLogout ? colors.danger : colors.accent}
+          color={disabled ? c.textCaption : isLogout ? c.danger : c.accent}
         />
       </View>
       <View style={styles.textCol}>
@@ -70,51 +74,53 @@ export function ModuleCard({
         <Text style={styles.description} numberOfLines={2}>{description}</Text>
       </View>
       {!disabled && onPress ? (
-        <MaterialIcons name={chevronForwardIcon()} size={20} color={colors.textCaption} />
+        <MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />
       ) : null}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    ...flexRow,
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    minHeight: 64,
-  },
-  pressed: { backgroundColor: colors.surfaceMuted },
-  disabled: { opacity: 0.55 },
-  iconWell: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWellDanger: {
-    backgroundColor: colors.softDanger,
-  },
-  textCol: { flex: 1, gap: 4 },
-  titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  title: {
-    ...textStart,
-    flex: 1,
-    color: colors.text,
-    fontSize: typography.body,
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-  },
-  titleDisabled: { color: colors.textCaption },
-  description: {
-    ...textStart,
-    color: colors.textMuted,
-    fontSize: typography.tiny,
-    fontFamily: fonts.regular,
-    lineHeight: 20,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    row: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: c.surface,
+      minHeight: 64,
+    },
+    pressed: { backgroundColor: c.surfaceMuted },
+    disabled: { opacity: 0.55 },
+    iconWell: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.xl,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconWellDanger: {
+      backgroundColor: c.softDanger,
+    },
+    textCol: { flex: 1, gap: 4 },
+    titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+    title: {
+      ...textStart,
+      flex: 1,
+      color: c.text,
+      fontSize: typography.body,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+    },
+    titleDisabled: { color: c.textCaption },
+    description: {
+      ...textStart,
+      color: c.textMuted,
+      fontSize: typography.tiny,
+      fontFamily: fonts.regular,
+      lineHeight: 20,
+    },
+  });
+}

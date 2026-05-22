@@ -15,4 +15,7 @@ export function AppText({ style, ...props }: TextProps) {
   );
 }
 
+/** Use instead of react-native Text so Tajawal is always applied */
+export const Text = AppText;
+
 export { fonts as appFonts } from '@/constants/fonts';

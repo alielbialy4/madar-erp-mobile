@@ -1,5 +1,7 @@
-import React, { PropsWithChildren } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { PropsWithChildren, useEffect } from 'react';
+import { View, ActivityIndicator, Text } from 'react-native';
+import { applyGlobalTypography } from '@/bootstrap/typography';
+import { fonts } from '@/constants/fonts';
 import {
   useFonts,
   Tajawal_400Regular,
@@ -8,10 +10,11 @@ import {
   Tajawal_800ExtraBold,
   Tajawal_900Black,
 } from '@expo-google-fonts/tajawal';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
 import { rootRtl } from '@/constants/layout';
 
 export function FontProvider({ children }: PropsWithChildren) {
+  const c = useColors();
   const [loaded] = useFonts({
     Tajawal_400Regular,
     Tajawal_500Medium,
@@ -20,22 +23,22 @@ export function FontProvider({ children }: PropsWithChildren) {
     Tajawal_900Black,
   });
 
+  useEffect(() => {
+    if (loaded) applyGlobalTypography();
+  }, [loaded]);
+
+  if (loaded) applyGlobalTypography();
+
   if (!loaded) {
     return (
-      <View style={[styles.splash, rootRtl]}>
-        <ActivityIndicator color={colors.accent} size="large" />
+      <View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background }, rootRtl]}>
+        <ActivityIndicator color={c.accent} size="large" />
+        <Text style={{ marginTop: 12, fontFamily: fonts.medium, color: c.textMuted, writingDirection: 'rtl' }}>
+          جاري تحميل الخط…
+        </Text>
       </View>
     );
   }
 
   return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-});

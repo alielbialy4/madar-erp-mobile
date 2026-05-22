@@ -31,6 +31,7 @@ export function DashboardHero({
 
   return (
     <View style={ds.heroOuter}>
+      <View style={ds.heroGradientBand} />
       <View style={ds.heroAccent} />
       <View style={ds.heroBody}>
         <Text style={ds.heroEyebrow}>{eyebrow}</Text>

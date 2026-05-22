@@ -1,14 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { flexRow, textStart } from '@/constants/layout';
+import { FlatList, Image, Pressable, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import type { CartLineSelectedOption, Product } from '@/types/api';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppCard, AppSectionHeader } from '@/components/ui';
-import { colors } from '@/constants/colors';
+import { AppButton } from '@/components/ui';
+import { PosSheetHeader, usePosSheetStyles } from '@/components/pos/posSheetUi';
+import { useColors } from '@/hooks/useColors';
+import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import { fonts } from '@/constants/fonts';
 import { money } from '@/utils/format';
+import { resolveMediaUrl } from '@/utils/media';
 
 type Props = {
   visible: boolean;
@@ -18,6 +22,8 @@ type Props = {
 };
 
 export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Props) {
+  const c = useColors();
+  const s = usePosSheetStyles();
   const [selected, setSelected] = useState<Record<number, number[]>>({});
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -25,6 +31,8 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
     if (!product?.option_groups) return [];
     return product.option_groups.filter((g) => g.options && g.options.length > 0);
   }, [product]);
+
+  const thumb = product?.image ? resolveMediaUrl(product.image) : null;
 
   const toggleSingle = (groupId: number, optionId: number) => {
     setSelected((prev) => {
@@ -37,7 +45,10 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
   const toggleMultiple = (groupId: number, optionId: number) => {
     setSelected((prev) => {
       const current = prev[groupId] ?? [];
-      return { ...prev, [groupId]: current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId] };
+      return {
+        ...prev,
+        [groupId]: current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId],
+      };
     });
     setErrors([]);
   };
@@ -46,10 +57,10 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
     const msgs: string[] = [];
     for (const group of activeGroups) {
       if (group.is_required && (!selected[group.id] || selected[group.id].length === 0)) {
-        msgs.push(`"${group.title}" مطلوب`);
+        msgs.push(`«${group.title}» مطلوب — اختر خياراً واحداً على الأقل`);
       }
       if (group.selection_type === 'single' && (selected[group.id]?.length ?? 0) > 1) {
-        msgs.push(`"${group.title}" يمكن اختيار خيار واحد فقط`);
+        msgs.push(`«${group.title}» — اختيار واحد فقط`);
       }
     }
     return msgs;
@@ -91,66 +102,123 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
 
   return (
     <AppBottomSheet visible={visible} onClose={handleClose}>
-      <View style={styles.container}>
-        <AppSectionHeader title={`خيارات: ${product?.name ?? ''}`} />
+      <View style={{ gap: spacing.md, maxHeight: '82%' }}>
+        {product ? (
+          <View style={[flexRow, { alignItems: 'center', gap: spacing.md, paddingBottom: spacing.sm }]}>
+            {thumb ? (
+              <Image source={{ uri: thumb }} style={{ width: 56, height: 56, borderRadius: radius.xl }} resizeMode="cover" />
+            ) : (
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: radius.xl,
+                  backgroundColor: c.surfaceMuted,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MaterialIcons name="fastfood" size={28} color={c.textCaption} />
+              </View>
+            )}
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ ...textStart, fontSize: typography.sectionTitle, fontFamily: fonts.bold, color: c.text }}>
+                {product.name}
+              </Text>
+              <Text style={{ ...textStart, fontSize: typography.small, fontFamily: fonts.medium, color: c.textMuted }}>
+                {money(product.selling_price)} · اختر الخيارات
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <PosSheetHeader title="خيارات المنتج" />
+        )}
+
         {errors.length > 0 ? (
-          <View style={styles.errorBox}>
-            {errors.map((e, i) => <Text key={i} style={styles.errorText}>{e}</Text>)}
+          <View style={s.errorBanner}>
+            {errors.map((e, i) => (
+              <Text key={i} style={s.errorText}>
+                {e}
+              </Text>
+            ))}
           </View>
         ) : null}
+
         <FlatList
           data={activeGroups}
           keyExtractor={(g) => String(g.id)}
+          style={{ maxHeight: 360 }}
+          contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.md }}
           renderItem={({ item: group }) => (
-            <AppCard style={styles.groupCard}>
-              <View style={styles.groupHeader}>
-                <Text style={styles.groupTitle}>{group.title}</Text>
-                {group.is_required ? <Text style={styles.requiredBadge}>مطلوب</Text> : null}
-                <Text style={styles.groupType}>{group.selection_type === 'single' ? 'اختيار واحد' : 'اختيارات متعددة'}</Text>
+            <View style={s.sectionCard}>
+              <View style={[flexRow, { alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }]}>
+                <Text style={{ fontSize: typography.body, fontFamily: fonts.bold, color: c.text, ...textStart }}>
+                  {group.title}
+                </Text>
+                {group.is_required ? (
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: c.softDanger }}>
+                    <Text style={{ fontSize: 10, fontFamily: fonts.bold, color: c.danger }}>مطلوب</Text>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: typography.tiny, color: c.textCaption }}>اختياري</Text>
+                )}
+                <Text style={{ fontSize: typography.tiny, color: c.textMuted }}>
+                  {group.selection_type === 'single' ? 'اختيار واحد' : 'متعدد'}
+                </Text>
               </View>
-              <View style={styles.optionsWrap}>
+              <View style={[flexRow, { flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }]}>
                 {group.options!.map((opt) => {
                   const isSelected = (selected[group.id] ?? []).includes(opt.id);
+                  const priceDelta = Number(opt.price ?? 0);
                   return (
                     <Pressable
                       key={opt.id}
-                      onPress={() => group.selection_type === 'single' ? toggleSingle(group.id, opt.id) : toggleMultiple(group.id, opt.id)}
-                      style={[styles.optionChip, isSelected ? styles.optionSelected : undefined]}
+                      onPress={() =>
+                        group.selection_type === 'single'
+                          ? toggleSingle(group.id, opt.id)
+                          : toggleMultiple(group.id, opt.id)
+                      }
+                      style={{
+                        minHeight: 44,
+                        paddingHorizontal: spacing.lg,
+                        paddingVertical: spacing.sm,
+                        borderRadius: radius.pill,
+                        borderWidth: 1.5,
+                        borderColor: isSelected ? c.primary : c.border,
+                        backgroundColor: isSelected ? c.softPrimary : c.surface,
+                        ...flexRow,
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                      }}
                     >
-                      <Text style={[styles.optionText, isSelected ? styles.optionTextSelected : undefined]}>
-                        {opt.name} {Number(opt.price ?? 0) > 0 ? `(+${money(opt.price)})` : ''}
+                      {isSelected ? <MaterialIcons name="check-circle" size={16} color={c.primary} /> : null}
+                      <Text
+                        style={{
+                          fontSize: typography.small,
+                          fontFamily: fonts.bold,
+                          color: isSelected ? c.primary : c.text,
+                          writingDirection: 'rtl',
+                        }}
+                      >
+                        {opt.name}
+                        {priceDelta > 0 ? ` (+${money(priceDelta)})` : ''}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
-            </AppCard>
+            </View>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>لا توجد خيارات لهذا المنتج</Text>}
+          ListEmptyComponent={
+            <Text style={{ ...textStart, color: c.textMuted, paddingVertical: spacing.lg }}>لا توجد خيارات لهذا المنتج</Text>
+          }
         />
-        <View style={styles.actions}>
-          <AppButton title="إضافة للسلة" onPress={handleConfirm} style={{ flex: 1 }} />
-          <AppButton title="إلغاء" variant="outline" onPress={handleClose} style={{ flex: 1 }} />
+
+        <View style={s.stickyFooter}>
+          <AppButton title="إضافة إلى السلة" onPress={handleConfirm} size="lg" fullWidth />
+          <AppButton title="إلغاء" variant="outline" onPress={handleClose} fullWidth />
         </View>
       </View>
     </AppBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.md, maxHeight: '80%' },
-  groupCard: { gap: spacing.sm },
-  groupHeader: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  groupTitle: { fontSize: typography.body, fontWeight: '900', color: colors.text },
-  requiredBadge: { fontSize: typography.tiny, color: colors.danger, fontWeight: '800' },
-  groupType: { fontSize: typography.tiny, color: colors.textMuted },
-  optionsWrap: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
-  optionChip: { minHeight: 38, paddingHorizontal: spacing.lg, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center' },
-  optionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  optionText: { fontSize: typography.small, color: colors.text, fontWeight: '700' },
-  optionTextSelected: { color: colors.primaryForeground },
-  errorBox: { backgroundColor: colors.softDanger, borderRadius: radius.xl, padding: spacing.md, gap: spacing.xs },
-  errorText: { color: colors.danger, fontSize: typography.small, ...textStart, fontWeight: '700' },
-  emptyText: { color: colors.textMuted, ...textStart, paddingVertical: spacing.lg },
-  actions: { ...flexRow, gap: spacing.md, paddingTop: spacing.md },
-});

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors } from '@/constants/colors';
+import { useColors } from '@/hooks/useColors';
+import type { AppColors } from '@/constants/colors';
 import { radius } from '@/constants/spacing';
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
 };
 
 export function AppSkeleton({ width = '100%', height = 16, style, rounded }: Props) {
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   const opacity = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -37,6 +40,9 @@ export function AppSkeleton({ width = '100%', height = 16, style, rounded }: Pro
 }
 
 export function AppSkeletonCard() {
+  const c = useColors();
+  const styles = useMemo(() => createStyles(c), [c]);
+
   return (
     <View style={styles.card}>
       <AppSkeleton height={14} width="40%" />
@@ -46,16 +52,18 @@ export function AppSkeletonCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  base: { backgroundColor: colors.borderSubtle, borderRadius: radius.md },
-  rounded: { borderRadius: radius.pill },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    padding: 16,
-    gap: 8,
-  },
-  gap: { marginTop: 8 },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    base: { backgroundColor: c.borderSubtle, borderRadius: radius.md },
+    rounded: { borderRadius: radius.pill },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      padding: 16,
+      gap: 8,
+    },
+    gap: { marginTop: 8 },
+  });
+}

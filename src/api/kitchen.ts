@@ -1,5 +1,5 @@
 import type { KitchenOrder } from '@/types/api';
-import { get, patch } from './client';
+import { get, patch, post } from './client';
 
 export const kitchenAPI = {
   getOrders: (params?: { status?: string; per_page?: number; station_id?: string }) => get<KitchenOrder[]>('/kitchen/orders', params),
@@ -10,4 +10,5 @@ export const kitchenAPI = {
   bulkUpdateStatus: (orderIds: number[], status: string) => patch('/kitchen/orders/bulk-status', { order_ids: orderIds, status }),
   updateItemStatus: (orderId: number, itemId: number, status: string) => patch(`/kitchen/orders/${orderId}/items/${itemId}/status`, { status }),
   rerouteItem: (orderId: number, itemId: number, payload: { kitchen_station_id?: string | null; reason?: string | null; allow_ready_override?: boolean }) => patch(`/kitchen/orders/${orderId}/items/${itemId}/station`, payload),
+  reprintOrder: (saleId: number, payload?: { sale_item_ids?: number[] }) => post(`/kitchen/orders/${saleId}/reprint`, payload ?? {}),
 };

@@ -1,0 +1,141 @@
+import React, { useMemo, useState } from 'react';
+import { Pressable, View, useWindowDimensions } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { AppScreen } from '@/components/layout';
+import { AppButton } from '@/components/ui';
+import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { defaultReportFilters, useReport } from '@/hooks/useReport';
+import { usePermissions } from '@/hooks/usePermissions';
+import { getReportDefinition } from '@/reports/reportDefinitions';
+import type { ReportDefinition, ReportId } from '@/reports/types';
+import { useBranchStore } from '@/store/branchStore';
+import { useColors } from '@/hooks/useColors';
+import { spacing } from '@/constants/spacing';
+import { flexRow } from '@/constants/layout';
+import { ReportFilterSheet } from './ReportFilterSheet';
+import { ReportSummaryCards } from './ReportSummaryCards';
+import { ReportListCards } from './ReportListCards';
+import { ReportFilterChips } from './ReportFilterChips';
+import { ReportExportActions } from './ReportExportActions';
+
+type Props = {
+  reportId: ReportId;
+  navigation: { goBack: () => void };
+};
+
+export function BaseReportScreen({ reportId, navigation }: Props) {
+  const definition = getReportDefinition(reportId);
+  if (!definition) {
+    return (
+      <AppScreen title="تقرير غير موجود" onBack={navigation.goBack}>
+        <AppEmptyState title="التقرير غير معرّف في التطبيق" />
+      </AppScreen>
+    );
+  }
+  return <BaseReportScreenContent definition={definition} navigation={navigation} />;
+}
+
+function BaseReportScreenContent({
+  definition,
+  navigation,
+}: {
+  definition: ReportDefinition;
+  navigation: { goBack: () => void };
+}) {
+  const c = useColors();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const { can, hasFeature } = usePermissions();
+  const activeBranch = useBranchStore((s) => s.activeBranch);
+  const viewMode = useBranchStore((s) => s.viewMode);
+
+  const initialFilters = useMemo(() => {
+    const f = defaultReportFilters();
+    if (viewMode === 'branch' && activeBranch?.id) f.branch_id = activeBranch.id;
+    return f;
+  }, [activeBranch?.id, viewMode]);
+
+  const [filters, setFilters] = useState(initialFilters);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const allowed = can(definition.permission) && (!definition.feature || hasFeature(definition.feature));
+
+  const { payload, metrics, loading, refreshing, loadingMore, error, refresh, loadMore, hasMore } = useReport(
+    definition,
+    filters,
+  );
+
+  const headerRight = (
+    <View style={{ ...flexRow, gap: spacing.sm }}>
+      <Pressable onPress={() => setFilterOpen(true)} accessibilityLabel="فلاتر">
+        <MaterialIcons name="filter-list" size={24} color={c.text} />
+      </Pressable>
+      <Pressable onPress={() => void refresh()} accessibilityLabel="تحديث">
+        <MaterialIcons name="refresh" size={24} color={c.accent} />
+      </Pressable>
+    </View>
+  );
+
+  const subtitle = definition.filters.includes('dateRange')
+    ? `${filters.from_date} — ${filters.to_date}`
+    : definition.description;
+
+  const sectionsContent = useMemo(() => {
+    if (!payload) return [];
+    return definition.sections.map((section) => ({
+      section,
+      rows: section.extractRows(payload),
+    }));
+  }, [definition.sections, payload]);
+
+  const hasRows = sectionsContent.some((s) => s.rows.length > 0);
+
+  if (!allowed) {
+    return (
+      <AppScreen title={definition.title} onBack={navigation.goBack}>
+        <AppErrorState message="ليس لديك صلاحية لعرض هذا التقرير." />
+      </AppScreen>
+    );
+  }
+
+  return (
+    <AppScreen
+      title={definition.title}
+      subtitle={subtitle}
+      onBack={navigation.goBack}
+      headerRight={headerRight}
+      refreshing={refreshing}
+      onRefresh={() => void refresh()}
+      contentStyle={{ maxWidth: isTablet ? 1200 : undefined, alignSelf: isTablet ? 'center' : undefined, width: '100%' }}
+    >
+      {loading && !payload ? <AppLoadingState /> : null}
+      {error && !payload ? <AppErrorState message={error} onRetry={() => void refresh()} /> : null}
+      {payload ? (
+        <>
+          <ReportFilterChips definition={definition} filters={filters} />
+          <ReportSummaryCards definition={definition} metrics={metrics} />
+          <ReportExportActions definition={definition} filters={filters} />
+          {sectionsContent.map(({ section, rows }) =>
+            rows.length ? <ReportListCards key={section.id} section={section} rows={rows} /> : null,
+          )}
+          {!hasRows ? <AppEmptyState title="لا توجد بيانات لهذا التقرير في الفترة المحددة." /> : null}
+          {hasMore ? (
+            <AppButton
+              title={loadingMore ? 'جاري التحميل...' : 'تحميل المزيد'}
+              variant="secondary"
+              disabled={loadingMore}
+              onPress={() => void loadMore()}
+            />
+          ) : null}
+        </>
+      ) : null}
+      <ReportFilterSheet
+        visible={filterOpen}
+        definition={definition}
+        filters={filters}
+        onClose={() => setFilterOpen(false)}
+        onApply={setFilters}
+      />
+    </AppScreen>
+  );
+}

@@ -37,8 +37,8 @@ const GROUP_META: Record<MoreHubGroupId, { title: string; subtitle: string }> = 
   purchases: { title: 'المشتريات والموردين', subtitle: 'فواتير، موردون، دفعات' },
   finance: { title: 'المالية والورديات', subtitle: 'خزن، ورديات، مدفوعات' },
   marketing: { title: 'التسويق', subtitle: 'كوبونات، عروض، بطاقات هدايا' },
-  reports: { title: 'التقارير', subtitle: 'ملخصات وتقارير تحليلية' },
-  admin: { title: 'الإدارة', subtitle: 'إعدادات، موظفون، فروع' },
+  reports: { title: 'التقارير', subtitle: 'مركز تقارير مطابق للويب' },
+  admin: { title: 'الإدارة والحساب', subtitle: 'إعدادات، موظفون، فروع، نشاط' },
 };
 
 /** Route → hub group (bottom tabs excluded) */

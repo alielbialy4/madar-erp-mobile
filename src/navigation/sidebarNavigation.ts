@@ -8,6 +8,10 @@ export function navigateSidebarAction(
   action: SidebarNavAction,
 ) {
   if (action.kind === 'tab') {
+    if (action.tab === 'ProductsTab') {
+      navigation.navigate('ProductsTab', { screen: 'ProductsHome' });
+      return;
+    }
     navigation.navigate(action.tab);
     return;
   }

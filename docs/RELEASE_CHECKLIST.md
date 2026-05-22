@@ -13,7 +13,7 @@
 
 ## Environment
 
-1. Copy `mobile/.env.example` → `mobile/.env`.
+1. Copy `madar-erp-mobile/.env.example` → `madar-erp-mobile/.env`.
 2. Set `EXPO_PUBLIC_API_URL` to your staging API (never ship localhost as production default).
 3. Optional: `EXPO_PUBLIC_DEFAULT_TENANT_SLUG` for multi-tenant login.
 4. Confirm no secrets committed (tokens only in SecureStore at runtime).
@@ -21,12 +21,12 @@
 ## EAS builds (when credentials ready)
 
 ```bash
-cd mobile
+cd madar-erp-mobile
 npx eas build --platform ios --profile preview
 npx eas build --platform android --profile preview
 ```
 
-See `mobile/eas.json` for profiles.
+See `madar-erp-mobile/eas.json` for profiles.
 
 ## Device testing matrix
 
@@ -73,7 +73,7 @@ See `mobile/eas.json` for profiles.
 ## Pre-flight commands
 
 ```bash
-cd mobile
+cd madar-erp-mobile
 npm install
 npm run typecheck
 npm run lint

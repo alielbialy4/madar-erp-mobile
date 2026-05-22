@@ -9,6 +9,7 @@ import { PosCatalogPanel, PosOrderPanel, PosTopBar } from '@/components/pos';
 import { colors } from '@/constants/colors';
 import { rootRtl, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
+import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { couponsAPI } from '@/api/coupons';
 import { shiftsAPI } from '@/api/shifts';
@@ -29,6 +30,7 @@ const TABLET_MIN = 900;
 export function POSScreen() {
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_MIN;
+  const tabBarInset = useTabBarBottomInset(spacing.sm);
   const user = useAuthStore((s) => s.user);
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const products = usePosStore((state) => state.products);
@@ -322,7 +324,13 @@ export function POSScreen() {
           <AppErrorState message={error} onRetry={loadCatalog} />
         </View>
       ) : (
-        <View style={[styles.workspace, isTablet ? styles.workspaceTablet : undefined]}>
+        <View
+          style={[
+            styles.workspace,
+            isTablet ? styles.workspaceTablet : undefined,
+            !isTablet ? { paddingBottom: tabBarInset } : undefined,
+          ]}
+        >
           {showCatalog ? (
             <View style={[styles.catalogCol, isTablet ? styles.catalogColTablet : styles.fullCol]}>
               <PosCatalogPanel

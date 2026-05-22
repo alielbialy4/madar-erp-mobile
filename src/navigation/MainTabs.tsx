@@ -8,7 +8,7 @@ import { SalesStack } from './SalesStack';
 import { MoreStack } from './MoreStack';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
-import { AppTabBar } from '@/components/layout/AppTabBar';
+import { PremiumBottomNav } from '@/components/navigation/PremiumBottomNav';
 import { CommandPalette } from '@/components/navigation/CommandPalette';
 import { navigateSidebarAction } from './sidebarNavigation';
 import { sidebarActionKey } from './sidebarNavMap';
@@ -18,6 +18,12 @@ import { flattenNavCatalog } from './navCatalog';
 import { NavShellProvider } from './NavShellContext';
 import { pushRecentRoute, getRecentRoutes, type RecentRoute } from '@/services/navigation/recentRoutes';
 import { rootRtl, screenRtl } from '@/constants/layout';
+import {
+  BOTTOM_NAV_HEIGHT,
+  TAB_BAR_FLOAT_GAP,
+  TAB_BAR_MIN_BOTTOM_INSET,
+} from '@/constants/tabBar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -30,6 +36,9 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
+  const sceneBottomPad =
+    BOTTOM_NAV_HEIGHT + TAB_BAR_FLOAT_GAP + Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET);
   const user = useAuthStore((s) => s.user);
   const viewMode = useBranchStore((s) => s.viewMode);
   const isSuperAdmin = Boolean(user?.is_super_admin);
@@ -121,10 +130,16 @@ export function MainTabs() {
         />
         <Tab.Navigator
           screenListeners={tabScreenListeners}
-          tabBar={(props) => <AppTabBar {...props} />}
+          tabBar={(props) => (
+            <View style={styles.tabBarOverlay} pointerEvents="box-none">
+              <PremiumBottomNav {...props} />
+            </View>
+          )}
           screenOptions={{
             headerShown: false,
             tabBarShowLabel: false,
+            tabBarHideOnKeyboard: true,
+            sceneStyle: { paddingBottom: sceneBottomPad },
           }}
         >
           <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ tabBarLabel: 'الرئيسية' }} />
@@ -157,5 +172,16 @@ export function MainTabs() {
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1 },
+  shell: { flex: 1, overflow: 'visible' },
+  /** Custom tabBar ignores tabBarStyle — must overlay, not reserve a gray layout slot */
+  tabBarOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+    zIndex: 100,
+  },
 });

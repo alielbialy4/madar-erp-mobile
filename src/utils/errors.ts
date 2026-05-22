@@ -27,7 +27,7 @@ function networkMessage(error: AxiosError): string {
   if (env.apiUrl.includes('localhost') || env.apiUrl.includes('127.0.0.1')) {
     return `تعذر الاتصال بالخادم. على الهاتف استخدم IP جهازك بدل localhost في EXPO_PUBLIC_API_URL (مثال: http://192.168.x.x:8000/api). الحالي: ${host}`;
   }
-  return `تعذر الاتصال بالخادم (${host}). تحقق من الإنترنت ومن EXPO_PUBLIC_API_URL في mobile/.env`;
+  return `تعذر الاتصال بالخادم (${host}). تحقق من الإنترنت ومن EXPO_PUBLIC_API_URL في madar-erp-mobile/.env`;
 }
 
 export function normalizeApiError(error: unknown): NormalizedApiError {

@@ -81,7 +81,7 @@ Status legend: **PASS** | **FAIL** | **NOT TESTED** — each item includes a sho
 |------|--------|------|
 | `npm run typecheck` | PASS | `tsc --noEmit` exit 0 |
 | `npm run lint` | PASS | ESLint exit 0 (no errors) |
-| `npx expo export --platform web` | PASS | Bundle exported to `mobile/dist` |
+| `npx expo export --platform web` | PASS | Bundle exported to `madar-erp-mobile/dist` |
 
 ## Summary counts
 

@@ -5,6 +5,7 @@ import { rootRtl, screenRtl } from '@/constants/layout';
 import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
+import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { AppHeader } from './AppHeader';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -22,7 +23,8 @@ type Props = PropsWithChildren<{
 
 export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, onRefresh, children, contentStyle, headerRight, noHeader }: Props) {
   const c = useColors();
-  const styles = useMemo(() => createStyles(c), [c]);
+  const tabBarInset = useTabBarBottomInset(spacing.md);
+  const styles = useMemo(() => createStyles(c, tabBarInset), [c, tabBarInset]);
   const showHeader = !noHeader;
   const content = (
     <View style={[styles.content, contentStyle]}>
@@ -51,11 +53,11 @@ export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, 
   );
 }
 
-function createStyles(c: AppColors) {
+function createStyles(c: AppColors, tabBarInset: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
     flex: { flex: 1 },
-    scrollContent: { flexGrow: 1 },
+    scrollContent: { flexGrow: 1, paddingBottom: tabBarInset },
     content: { flex: 1, padding: spacing.lg, gap: spacing.lg },
   });
 }

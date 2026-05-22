@@ -118,7 +118,7 @@ export const lightColors: AppColors = {
 
   posShellBg: '#F6F7FB',
   tabBarActive: '#2563EB',
-  tabBarInactive: '#94A3B8',
+  tabBarInactive: '#64748B',
 };
 
 /** Dark tokens — `front/src/design-system/globals.css` .dark */

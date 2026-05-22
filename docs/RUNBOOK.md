@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-cd mobile
+cd madar-erp-mobile
 npm install
 cp .env.example .env
 ```
@@ -55,7 +55,7 @@ npm start -- --clear
 
 ## EAS
 
-`mobile/eas.json` is present for internal handoff. Typical commands:
+`madar-erp-mobile/eas.json` is present for internal handoff. Typical commands:
 
 ```bash
 npx eas login

@@ -1,6 +1,12 @@
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://your-api-domain.com/api';
+  const raw = (process.env.EXPO_PUBLIC_API_URL || '').trim();
+  const apiUrl =
+    raw && !raw.includes('your-api-domain.com')
+      ? raw.replace(/\/+$/, '').endsWith('/api')
+        ? raw.replace(/\/+$/, '')
+        : `${raw.replace(/\/+$/, '')}/api`
+      : 'http://back.test/api';
   const devHttpApi = apiUrl.startsWith('http://');
 
   return {

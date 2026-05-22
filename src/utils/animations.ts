@@ -32,3 +32,25 @@ export function tabPulse(value: Animated.Value) {
     useNativeDriver: true,
   }).start();
 }
+
+export function animateTabIndicator(
+  translateX: Animated.Value,
+  width: Animated.Value,
+  toX: number,
+  toW: number,
+) {
+  Animated.parallel([
+    Animated.spring(translateX, {
+      toValue: toX,
+      friction: 9,
+      tension: 90,
+      useNativeDriver: false,
+    }),
+    Animated.spring(width, {
+      toValue: toW,
+      friction: 9,
+      tension: 90,
+      useNativeDriver: false,
+    }),
+  ]).start();
+}

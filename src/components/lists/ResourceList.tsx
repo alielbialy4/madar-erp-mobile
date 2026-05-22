@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FlatList, ListRenderItem, RefreshControl, StyleSheet, View } from 'react-native';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
+import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 
 type Props<T> = {
@@ -18,6 +19,12 @@ type Props<T> = {
 };
 
 export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, onEndReached, renderItem, keyExtractor, emptyTitle, noPadding }: Props<T>) {
+  const tabBarInset = useTabBarBottomInset(spacing.lg);
+  const contentStyle = useMemo(
+    () => [styles.content, { paddingBottom: tabBarInset }, noPadding ? styles.noPadding : undefined],
+    [noPadding, tabBarInset],
+  );
+
   if (loading && data.length === 0) return <AppLoadingState />;
   if (error && data.length === 0) return <AppErrorState message={error} onRetry={onRefresh} />;
 
@@ -26,7 +33,7 @@ export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, o
       data={data}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
-      contentContainerStyle={[styles.content, noPadding ? styles.noPadding : undefined]}
+      contentContainerStyle={contentStyle}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={colors.accent} /> : undefined}
       onEndReached={onEndReached}

@@ -1,6 +1,6 @@
 # API Contracts Used
 
-All requests use `EXPO_PUBLIC_API_URL` through `mobile/src/api/client.ts`, with `Authorization`, `X-Tenant-Slug`, `X-Branch-Id`, and Arabic language headers.
+All requests use `EXPO_PUBLIC_API_URL` through `madar-erp-mobile/src/api/client.ts`, with `Authorization`, `X-Tenant-Slug`, `X-Branch-Id`, and Arabic language headers.
 
 ## Core
 

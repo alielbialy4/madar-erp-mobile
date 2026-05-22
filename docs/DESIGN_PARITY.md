@@ -61,7 +61,7 @@ Weights loaded: 400, 500, 700, 800, 900 (same as web index.html).
 | Logo + app name | Logo mark + "Madar Pos" |
 | Footer `v3.5.0` | Same |
 
-Menu source: `mobile/src/navigation/buildSidebarMenu.ts` (copy of `front/src/Layouts/buildSidebarMenu.ts`). Web-only routes are hidden when no mobile screen exists (`sidebarNavMap.ts`).
+Menu source: `madar-erp-mobile/src/navigation/buildSidebarMenu.ts` (copy of `front/src/Layouts/buildSidebarMenu.ts`). Web-only routes are hidden when no mobile screen exists (`sidebarNavMap.ts`).
 
 ## Not replicated on mobile (by design)
 

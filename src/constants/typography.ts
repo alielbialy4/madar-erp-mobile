@@ -1,0 +1,17 @@
+export const typography = {
+  pageTitle: 24,
+  sectionTitle: 18,
+  cardTitle: 15,
+  table: 14,
+  body: 14,
+  label: 13,
+  helper: 12,
+  h1: 24,
+  h2: 18,
+  h3: 15,
+  small: 13,
+  tiny: 12,
+  posProductName: 15,
+  posPrice: 18,
+  posTotal: 30,
+};

@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

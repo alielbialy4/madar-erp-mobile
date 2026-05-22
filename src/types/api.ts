@@ -1,0 +1,360 @@
+export type ID = string | number;
+
+export type ApiStatus = 'success' | 'error' | string;
+
+export type PaginationMeta = {
+  total?: number;
+  per_page?: number;
+  current_page?: number;
+  last_page?: number;
+};
+
+export type ApiEnvelope<T = unknown> = {
+  status?: ApiStatus;
+  message?: string;
+  data?: T;
+  errors?: Record<string, string[] | string>;
+  pagination?: PaginationMeta;
+  meta?: Record<string, unknown>;
+};
+
+export type ListParams = {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  q?: string;
+  branch_id?: string | null;
+  status?: string;
+  from_date?: string;
+  to_date?: string;
+  [key: string]: unknown;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  code?: string | null;
+  is_main?: boolean;
+  settings?: Record<string, unknown> | null;
+};
+
+export type PlanAccess = {
+  can_operate?: boolean;
+  features?: string[];
+  enabled_features?: string[];
+  limits?: Record<string, unknown>;
+  is_tenant_active?: boolean;
+  is_subscription_valid?: boolean;
+};
+
+export type User = {
+  id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  active?: boolean;
+  current_branch_id?: string | null;
+  current_branch?: Branch | null;
+  branch_ids?: string[];
+  has_global_view?: boolean;
+  can_use_global_view?: boolean;
+  permissions_version?: number;
+  roles?: string[];
+  permissions?: string[];
+  is_super_admin?: boolean;
+  plan_access?: PlanAccess | null;
+  token?: string;
+};
+
+export type AuthSession = {
+  token: string;
+  user: User;
+  tenant_slug?: string;
+};
+
+export type Product = {
+  id: number;
+  name: string;
+  barcode?: string | null;
+  barcodes?: string[] | null;
+  description?: string | null;
+  selling_price?: number | string;
+  cost_price?: number | string | null;
+  category_id?: number | null;
+  category?: { id: number; name: string } | null;
+  image?: string | null;
+  stock_quantity?: number;
+  branch_available_quantity?: number;
+  available_quantity?: number;
+  min_stock_alert?: number;
+  unit?: string | null;
+  units?: { id: number; name: string; factor_to_base?: number | string; is_base?: boolean; barcode?: string | null }[];
+  track_inventory?: boolean;
+  option_groups?: ProductOptionGroup[];
+  variants?: { id: string; name?: string; sku?: string | null; additional_price?: number | string | null }[];
+};
+
+export type ProductOptionGroup = {
+  id: number;
+  title: string;
+  selection_type: 'single' | 'multiple';
+  pricing_type: 'free' | 'per_option' | 'group_price';
+  group_price?: number | string | null;
+  is_required?: boolean;
+  options?: { id: number; name: string; price?: number | string }[];
+};
+
+export type Category = {
+  id: number;
+  name: string;
+  description?: string | null;
+  active?: boolean;
+  image?: string | null;
+  parent_id?: number | null;
+  sort_order?: number;
+};
+
+export type Customer = {
+  id: number;
+  name: string;
+  phone?: string | null;
+  primary_phone?: string | null;
+  email?: string | null;
+  balance?: number | string | null;
+  debt?: number | string | null;
+  wallet_balance?: number | string | null;
+  points_balance?: number;
+  addresses?: CustomerAddress[];
+  default_address?: CustomerAddress | null;
+  latest_order?: Record<string, unknown> | null;
+};
+
+export type CustomerAddress = {
+  id: string;
+  label?: string | null;
+  address_line_1?: string | null;
+  area?: string | null;
+  city?: string | null;
+  is_default?: boolean;
+  delivery_fee?: number | string | null;
+};
+
+export type SaleItemPayload = {
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  discount?: number;
+  unit_id?: number | null;
+  variant_id?: string | null;
+  selected_options?: { product_option_group_id: number; option_ids: number[] }[];
+};
+
+export type SalePayload = {
+  customer_id?: number | null;
+  items: SaleItemPayload[];
+  subtotal: number;
+  tax?: number;
+  discount?: number;
+  total: number;
+  paid: number;
+  payment_type: 'cash' | 'card' | 'credit' | 'layaway' | 'split' | 'wallet';
+  notes?: string;
+  warehouse_id?: string | null;
+  order_type?: 'dine_in' | 'takeaway' | 'delivery';
+  dining_table_id?: string | null;
+  delivery_fee?: number;
+  delivery_address?: string;
+  delivery_phone?: string;
+  coupon_id?: string | null;
+  coupon_discount?: number;
+  payment_lines?: { vault_id: string; amount: number; payment_method?: string }[] | null;
+};
+
+export type Sale = {
+  id: number;
+  invoice_number?: string | null;
+  print_sequence?: number | null;
+  total?: number | string;
+  subtotal?: number | string;
+  paid?: number | string;
+  status?: string;
+  payment_type?: string;
+  order_type?: string;
+  created_at?: string;
+  customer?: Customer | null;
+  items?: Record<string, unknown>[];
+};
+
+export type PosCatalog = {
+  generated_at?: string;
+  version?: number;
+  branch_id?: string;
+  branch?: Branch | null;
+  products: Product[];
+  categories: Category[];
+  customers: Customer[];
+  coupons?: Coupon[];
+  vaults?: Vault[];
+  warehouses?: Warehouse[];
+  settings?: Record<string, unknown>;
+  open_shift?: ActiveShift | null;
+};
+
+export type Coupon = {
+  id: string;
+  code: string;
+  name: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  min_order_amount?: number | null;
+  max_discount_amount?: number | null;
+  is_active?: boolean;
+  branch_id?: string | null;
+};
+
+export type Warehouse = {
+  id: string;
+  name: string;
+  code?: string | null;
+  status?: string;
+  branch?: Branch | null;
+};
+
+export type ActiveShift = {
+  id: string;
+  shift_no?: number | null;
+  branch_id: string;
+  vault_id: string;
+  opened_at?: string;
+  starting_cash?: string | number;
+  expected_cash?: string | number | null;
+  status?: string;
+  vault?: Vault | null;
+};
+
+export type Vault = {
+  id: string;
+  name: string;
+  code?: string | null;
+  balance?: string | number;
+  is_active?: boolean;
+  branch?: Branch | null;
+};
+
+export type KitchenOrder = {
+  id: number;
+  invoice_number?: string | null;
+  print_sequence?: number | null;
+  status?: string;
+  kitchen_status?: string | null;
+  order_type?: string;
+  total?: number | string;
+  created_at?: string;
+  wait_time?: number;
+  is_overdue?: boolean;
+  dining_table?: { id: string; name?: string; number?: string } | null;
+  customer?: Customer | null;
+  items?: Record<string, unknown>[];
+};
+
+export type DiningHall = {
+  id: string;
+  branch_id?: string;
+  name: string;
+  is_active?: boolean;
+  tables?: DiningTable[];
+};
+
+export type DiningTable = {
+  id: string;
+  dining_hall_id?: string;
+  branch_id?: string;
+  name?: string;
+  number?: string | null;
+  capacity?: number;
+  status?: 'available' | 'occupied' | 'reserved' | 'closed' | string;
+  current_order_id?: string | null;
+};
+
+export type CartLineSelectedOption = {
+  product_option_group_id: number;
+  group_title: string;
+  pricing_type: 'free' | 'per_option' | 'group_price';
+  group_price?: number;
+  options: {
+    product_option_id: number;
+    name: string;
+    option_price: number;
+    applied_price: number;
+  }[];
+};
+
+export type ExpenseCategory = {
+  id: number;
+  name: string;
+  description?: string | null;
+  is_active?: boolean;
+};
+
+export type Promotion = {
+  id: number;
+  name: string;
+  branch_id?: string | null;
+  type: 'bogo' | 'percentage_discount' | 'fixed_discount';
+  reward_value: number;
+  is_active: boolean;
+  start_date: string;
+  end_date: string;
+  priority?: number;
+  conditions?: {
+    condition_type: string;
+    condition_value: Record<string, unknown>;
+  }[];
+};
+
+export type GiftCard = {
+  id: string;
+  code: string;
+  initial_balance: number;
+  remaining_balance: number;
+  status?: string;
+  customer_id?: number | null;
+  expires_at?: string | null;
+};
+
+export type Delivery = {
+  id: string;
+  status: string;
+  order?: Record<string, unknown>;
+  driver?: { id: string; name: string } | null;
+  delivery_fee?: number;
+  delivery_address?: string;
+  customer?: Customer | null;
+  created_at?: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  type: 'deposit' | 'withdraw' | 'payment' | 'refund';
+  amount: number;
+  balance_after?: number;
+  description?: string | null;
+  created_at?: string;
+};
+
+export type McpUser = {
+  id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  active?: boolean;
+  roles?: string[];
+  created_at?: string;
+};
+
+export type McpRole = {
+  id: number;
+  name: string;
+  guard_name?: string;
+  permissions?: string[];
+};

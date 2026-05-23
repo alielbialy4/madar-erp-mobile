@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -8,6 +8,7 @@ import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyle
 import { chevronForwardIcon } from '@/utils/rtl';
 import { numberText } from '@/utils/format';
 import type { Warehouse } from '@/types/api';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   warehouse: Warehouse;

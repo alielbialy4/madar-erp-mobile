@@ -17,7 +17,7 @@ import type { SidebarNavAction } from './sidebarNavMap';
 import { buildMobileSidebarMenu } from './buildSidebarMenu';
 import { flattenNavCatalog } from './navCatalog';
 import { NavShellProvider } from './NavShellContext';
-import { isPosTabletFullscreen } from './posFullscreen';
+import { isPosFullscreen } from './posFullscreen';
 import { pushRecentRoute, getRecentRoutes, type RecentRoute } from '@/services/navigation/recentRoutes';
 import { rootRtl, screenRtl } from '@/constants/layout';
 import {
@@ -54,8 +54,8 @@ export function MainTabs() {
   const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>([]);
   const tabNavigationRef = useRef<BottomTabNavigationProp<MainTabParamList> | null>(null);
 
-  const posTabletFullscreen = isPosTabletFullscreen(activeTab, width);
-  const showTabletSidebar = isTablet && !posTabletFullscreen;
+  const posFullscreen = isPosFullscreen(activeTab);
+  const showTabletSidebar = isTablet && !posFullscreen;
 
   const menu = useMemo(
     () => buildMobileSidebarMenu(isSuperAdmin, (perm) => hasPermission(user, perm), viewMode, (feature) => hasFeature(user, feature)),
@@ -130,7 +130,7 @@ export function MainTabs() {
             />
           ) : null}
           <View style={styles.mainContent}>
-            {!posTabletFullscreen ? (
+            {!posFullscreen ? (
               <Navbar
                 onMenuPress={() => (isTablet ? setCommandOpen(true) : setSidebarOpen(true))}
                 onNavigate={handleSidebarNavigate}

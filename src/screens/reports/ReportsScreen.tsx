@@ -10,12 +10,12 @@ import type { ReportGroupId, ReportId } from '@/reports/types';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
-import { storageGet, storageSet } from '@/services/storage';
+import { storageGet, storageKeys, storageSet } from '@/services/storage';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
 
-const RECENT_KEY = 'reports_recent';
+const RECENT_KEY = storageKeys.reportsRecent;
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Reports'>;
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAuthStore } from '@/store/authStore';
 import { useColors } from '@/hooks/useColors';
@@ -8,6 +8,7 @@ import { flexRow } from '@/constants/layout';
 import { createDashboardStyles } from './dashboardStyles';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   navigation: BottomTabNavigationProp<MainTabParamList>;

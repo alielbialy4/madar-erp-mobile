@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -19,6 +19,7 @@ import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
 import { typography } from '@/constants/typography';
+import { Text } from '@/components/ui/AppText';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductInsights'>;
 type Route = RouteProp<ProductsStackParamList, 'ProductInsights'>;

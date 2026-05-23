@@ -1,6 +1,6 @@
-import { storageGet, storageSet } from '@/services/storage';
+import { storageGet, storageKeys, storageSet } from '@/services/storage';
 
-const KEY = 'madar.nav.recent';
+const KEY = storageKeys.recentRoutes;
 const MAX = 8;
 
 export type RecentRoute = {

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { AppButton } from '@/components/ui';
 import { AppEmptyState, AppErrorState } from '@/components/feedback';
 import { DashboardHero } from './DashboardHero';
@@ -15,6 +15,7 @@ import { money, numberText } from '@/utils/format';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
+import { Text } from '@/components/ui/AppText';
 
 export type BranchOperationalPayload = Record<string, unknown> & {
   error?: string;

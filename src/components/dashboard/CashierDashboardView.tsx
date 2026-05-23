@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge, AppButton } from '@/components/ui';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
@@ -21,6 +21,7 @@ import type { ActiveShift } from '@/types/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
+import { Text } from '@/components/ui/AppText';
 
 type ShiftTotals = {
   cash_sales?: string | number;

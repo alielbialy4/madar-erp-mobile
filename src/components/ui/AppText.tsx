@@ -1,16 +1,17 @@
 import React from 'react';
-import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
+import { StyleSheet, Text as RNText, TextProps, TextStyle, type StyleProp } from 'react-native';
 import { textStart } from '@/constants/layout';
-import { fontFamilyForWeight } from '@/constants/fonts';
+import { fonts, resolveTajawalStyle } from '@/constants/fonts';
 
 export function AppText({ style, ...props }: TextProps) {
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
-  const fontFamily = flat?.fontFamily ?? fontFamilyForWeight(flat?.fontWeight);
   const hasAlign = flat?.textAlign != null;
+  const resolved = resolveTajawalStyle(style as StyleProp<TextStyle>);
+
   return (
     <RNText
       {...props}
-      style={[!hasAlign ? textStart : undefined, style, { fontFamily }]}
+      style={[!hasAlign ? textStart : undefined, resolved]}
     />
   );
 }

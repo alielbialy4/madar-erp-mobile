@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
@@ -10,6 +10,7 @@ import type { MobileSidebarMenuItem } from '@/navigation/buildSidebarMenu';
 import { sidebarActionKey } from '@/navigation/sidebarNavMap';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { chevronForwardIcon } from '@/utils/rtl';
+import { Text } from '@/components/ui/AppText';
 
 export function getMenuKey(item: MobileSidebarMenuItem, index: number): string {
   if (item.type === 'section') return `section:${item.label}:${index}`;

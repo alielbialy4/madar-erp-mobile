@@ -1,3 +1,5 @@
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native';
+
 /** Matches front/public/index.html — Tajawal from Google Fonts */
 export const fonts = {
   regular: 'Tajawal_400Regular',
@@ -41,4 +43,22 @@ export function fontFamilyForWeight(fontWeight?: string | number): string {
 
 export function appFont(weight: FontWeightKey = 'medium') {
   return { fontFamily: fonts[weight] };
+}
+
+/**
+ * Resolve a TextStyle to a single Tajawal face.
+ * fontWeight wins over fontFamily (avoids Regular + bold synthesizing to system font).
+ */
+export function resolveTajawalStyle(style?: StyleProp<TextStyle>, fallback: string = fonts.regular): TextStyle {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  if (!flat) return { fontFamily: fallback };
+
+  const { fontWeight, fontFamily, ...rest } = flat;
+  return {
+    ...rest,
+    fontFamily:
+      fontWeight != null
+        ? fontFamilyForWeight(fontWeight)
+        : fontFamily ?? fallback,
+  };
 }

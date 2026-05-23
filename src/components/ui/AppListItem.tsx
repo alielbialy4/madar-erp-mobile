@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
 import { useColors } from '@/hooks/useColors';
@@ -7,6 +7,7 @@ import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   title: string;

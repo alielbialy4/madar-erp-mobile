@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, textStart } from '@/constants/layout';
@@ -8,7 +8,8 @@ import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { useNetworkStore } from '@/store/networkStore';
+import { backArrowIcon } from '@/utils/rtl';
+import { PosBranchMark, PosOnlineChip, PosShiftChip, usePosHeaderBarStyle } from '@/components/pos/posHeaderUi';
 
 type MobileTab = 'catalog' | 'cart';
 
@@ -17,11 +18,12 @@ type Props = {
   onMobileTabChange: (tab: MobileTab) => void;
   cartCount: number;
   shiftLabel: string;
+  hasShift?: boolean;
+  branchName?: string | null;
   cashierName?: string;
   lastSyncedLabel?: string | null;
   showMobileTabs?: boolean;
   onExit?: () => void;
-  /** Brief pulse when cart count increases (add-to-cart feedback). */
   cartPulse?: boolean;
 };
 
@@ -30,14 +32,16 @@ export function PosTopBar({
   onMobileTabChange,
   cartCount,
   shiftLabel,
+  hasShift = false,
+  branchName,
   cashierName,
   lastSyncedLabel,
   showMobileTabs = true,
   onExit,
   cartPulse,
 }: Props) {
-  const isOnline = useNetworkStore((s) => s.isOnline);
   const c = useColors();
+  const bar = usePosHeaderBarStyle();
   const styles = useMemo(() => createStyles(c), [c]);
   const cartScale = useRef(new Animated.Value(1)).current;
 
@@ -49,44 +53,60 @@ export function PosTopBar({
     ]).start();
   }, [cartPulse, cartScale]);
 
+  const metaParts = [cashierName, lastSyncedLabel ? `مزامنة ${lastSyncedLabel}` : null].filter(Boolean);
+
   return (
-    <View style={styles.bar}>
-      <View style={styles.topRow}>
+    <View style={bar.bar}>
+      <View style={styles.mainRow}>
         {onExit ? (
-          <Pressable onPress={onExit} style={styles.exitBtn}>
-            <MaterialIcons name="arrow-forward" size={20} color={c.text} />
+          <Pressable onPress={onExit} style={styles.exitBtn} accessibilityRole="button" accessibilityLabel="خروج">
+            <MaterialIcons name={backArrowIcon()} size={20} color={c.text} />
           </Pressable>
         ) : null}
-        <View style={[styles.statusChip, isOnline ? styles.chipOnline : styles.chipOffline]}>
-          <View style={[styles.dot, { backgroundColor: isOnline ? c.success : c.danger }]} />
-          <Text style={styles.chipText}>{isOnline ? 'متصل' : 'غير متصل'}</Text>
+
+        <PosBranchMark size="sm" />
+
+        <View style={styles.identity}>
+          <Text style={bar.title}>نقطة البيع</Text>
+          <Text style={bar.branchName} numberOfLines={1}>
+            {branchName?.trim() || 'بدون فرع'}
+          </Text>
         </View>
-        <View style={styles.infoGroup}>
-          <Text style={styles.shiftLabel} numberOfLines={1}>{shiftLabel}</Text>
-          {cashierName ? <Text style={styles.cashier} numberOfLines={1}>{cashierName}</Text> : null}
+
+        <View style={styles.chips}>
+          <PosShiftChip active={hasShift} label={shiftLabel} />
+          <PosOnlineChip compact />
         </View>
-        {lastSyncedLabel ? (
-          <Text style={styles.synced} numberOfLines={1}>{lastSyncedLabel}</Text>
-        ) : null}
       </View>
+
+      {metaParts.length > 0 ? (
+        <Text style={bar.meta} numberOfLines={1}>
+          {metaParts.join(' · ')}
+        </Text>
+      ) : null}
+
       {showMobileTabs ? (
-        <View style={styles.tabs}>
+        <View style={styles.segment}>
           <Pressable
             onPress={() => onMobileTabChange('catalog')}
-            style={[styles.tab, mobileTab === 'catalog' ? styles.tabActive : undefined]}
+            style={[styles.segmentItem, mobileTab === 'catalog' && styles.segmentItemActive]}
           >
-            <MaterialIcons name="grid-view" size={18} color={mobileTab === 'catalog' ? c.accent : c.textCaption} />
-            <Text style={[styles.tabLabel, mobileTab === 'catalog' ? styles.tabLabelActive : undefined]}>الكتالوج</Text>
+            <MaterialIcons name="grid-view" size={18} color={mobileTab === 'catalog' ? c.primary : c.textMuted} />
+            <Text style={[styles.segmentLabel, mobileTab === 'catalog' && styles.segmentLabelActive]}>الكتالوج</Text>
           </Pressable>
+
           <Pressable
             onPress={() => onMobileTabChange('cart')}
-            style={[styles.tab, mobileTab === 'cart' ? styles.tabActive : undefined]}
+            style={[styles.segmentItem, mobileTab === 'cart' && styles.segmentItemActive]}
           >
-            <Animated.View style={{ transform: [{ scale: cartScale }], ...flexRow, alignItems: 'center', gap: 4 }}>
-              <MaterialIcons name="shopping-cart" size={18} color={mobileTab === 'cart' ? c.accent : c.textCaption} />
-              <Text style={[styles.tabLabel, mobileTab === 'cart' ? styles.tabLabelActive : undefined]}>
-                السلة{cartCount > 0 ? ` (${cartCount})` : ''}
-              </Text>
+            <Animated.View style={[styles.cartTabInner, { transform: [{ scale: cartScale }] }]}>
+              <MaterialIcons name="shopping-cart" size={18} color={mobileTab === 'cart' ? c.primary : c.textMuted} />
+              <Text style={[styles.segmentLabel, mobileTab === 'cart' && styles.segmentLabelActive]}>السلة</Text>
+              {cartCount > 0 ? (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+                </View>
+              ) : null}
             </Animated.View>
           </Pressable>
         </View>
@@ -96,54 +116,78 @@ export function PosTopBar({
 }
 
 function createStyles(c: AppColors) {
+  const segmentShadow = Platform.select({
+    ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
+    android: { elevation: 2 },
+    default: {},
+  });
+
   return StyleSheet.create({
-    bar: {
-      backgroundColor: c.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderSubtle,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      gap: spacing.sm,
-    },
-    topRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+    mainRow: { ...flexRow, alignItems: 'center', gap: spacing.sm },
     exitBtn: {
-      width: 32,
-      height: 32,
+      width: 36,
+      height: 36,
       borderRadius: radius.lg,
       backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    statusChip: {
+    identity: { flex: 1, minWidth: 0, gap: 1 },
+    chips: { ...flexRow, alignItems: 'center', gap: spacing.xs, flexShrink: 0 },
+    segment: {
       ...flexRow,
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-      borderRadius: radius.pill,
+      backgroundColor: c.surfaceMuted,
+      borderRadius: radius.xl,
       borderWidth: 1,
+      borderColor: c.borderSubtle,
+      padding: 3,
+      gap: 3,
     },
-    chipOnline: { backgroundColor: c.softSuccess, borderColor: c.softSuccessBorder },
-    chipOffline: { backgroundColor: c.softDanger, borderColor: c.softDangerBorder },
-    dot: { width: 7, height: 7, borderRadius: 4 },
-    chipText: { fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', color: c.text },
-    infoGroup: { flex: 1, gap: 0 },
-    shiftLabel: { ...textStart, fontSize: typography.small, fontFamily: fonts.bold, color: c.text },
-    cashier: { ...textStart, fontSize: typography.tiny, color: c.textMuted, fontFamily: fonts.medium },
-    synced: { ...textStart, fontSize: 10, color: c.textCaption, fontFamily: fonts.regular },
-    tabs: { ...flexRow, gap: spacing.sm },
-    tab: {
+    segmentItem: {
       flex: 1,
       ...flexRow,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.xs,
-      minHeight: 38,
+      minHeight: 40,
       borderRadius: radius.lg,
-      backgroundColor: c.surfaceMuted,
     },
-    tabActive: { backgroundColor: c.accentSoft },
-    tabLabel: { fontSize: typography.small, fontFamily: fonts.medium, color: c.textCaption, fontWeight: '600' },
-    tabLabelActive: { color: c.accent, fontFamily: fonts.bold, fontWeight: '700' },
+    segmentItemActive: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      ...segmentShadow,
+    },
+    segmentLabel: {
+      fontSize: typography.small,
+      fontFamily: fonts.medium,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    segmentLabelActive: {
+      color: c.primary,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+    },
+    cartTabInner: { ...flexRow, alignItems: 'center', gap: spacing.xs, position: 'relative' },
+    cartBadge: {
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 4,
+      borderRadius: radius.pill,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginStart: -2,
+    },
+    cartBadgeText: {
+      fontSize: 10,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+      color: c.primaryForeground,
+      writingDirection: 'ltr',
+    },
   });
 }

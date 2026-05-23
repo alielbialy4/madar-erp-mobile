@@ -12,6 +12,7 @@ type PrintState = {
   pendingCount: number;
   failedCount: number;
   refresh: () => Promise<void>;
+  reset: () => void;
 };
 
 export const usePrintStore = create<PrintState>((set) => ({
@@ -41,4 +42,18 @@ export const usePrintStore = create<PrintState>((set) => ({
       failedCount: counts.failed,
     });
   },
+  reset: () =>
+    set({
+      jobs: [],
+      profiles: [],
+      diagnostics: {
+        last_error: null,
+        last_error_at: null,
+        last_success_at: null,
+        last_profile_id: null,
+        last_profile_name: null,
+      },
+      pendingCount: 0,
+      failedCount: 0,
+    }),
 }));

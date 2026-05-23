@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { backArrowIcon } from '@/utils/rtl';
@@ -9,6 +9,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   title: string;

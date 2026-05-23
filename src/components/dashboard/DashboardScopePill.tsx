@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { createDashboardStyles } from './dashboardStyles';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   label: string;

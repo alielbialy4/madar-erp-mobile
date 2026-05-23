@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { Text } from '@/components/ui/AppText';
 
 type Tone = 'primary' | 'success' | 'warning' | 'danger' | 'info';
 

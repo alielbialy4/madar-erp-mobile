@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ComponentProps } from 'react';
 import { useColors } from '@/hooks/useColors';
@@ -7,6 +7,7 @@ import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { Text } from '@/components/ui/AppText';
 
 type IconName = ComponentProps<typeof MaterialIcons>['name'];
 

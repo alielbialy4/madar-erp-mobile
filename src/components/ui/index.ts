@@ -1,4 +1,5 @@
 export { AppText, Text } from './AppText';
+export { AppTextInput, TextInput } from './AppTextInput';
 export { AppButton } from './AppButton';
 export { AppCard } from './AppCard';
 export { AppInput } from './AppInput';

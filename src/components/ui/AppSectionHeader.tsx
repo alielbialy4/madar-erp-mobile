@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { Text } from '@/components/ui/AppText';
 
 export function AppSectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   const c = useColors();

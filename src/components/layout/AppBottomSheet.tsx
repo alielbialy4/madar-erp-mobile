@@ -13,13 +13,23 @@ type Props = {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
+  /** When false, backdrop tap and hardware back won't dismiss (e.g. required POS shift). */
+  dismissable?: boolean;
+  /** Wider sheet for dense layouts like POS tables. */
+  size?: 'default' | 'wide';
 };
 
-export function AppBottomSheet({ visible, onClose, children, title }: Props) {
+export function AppBottomSheet({ visible, onClose, children, title, dismissable = true, size = 'default' }: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTabletSheet = width >= 900;
+  const isWideSheet = size === 'wide';
+  const sheetMaxWidth = isWideSheet
+    ? Math.min(width - spacing.lg * 2, 1100)
+    : isTabletSheet
+      ? Math.min(width - spacing.xxl * 2, 760)
+      : width;
   const backdrop = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(48)).current;
 
@@ -38,6 +48,7 @@ export function AppBottomSheet({ visible, onClose, children, title }: Props) {
   }, [visible, backdrop, translateY]);
 
   const handleClose = () => {
+    if (!dismissable) return;
     Animated.parallel([
       Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 48, duration: 180, useNativeDriver: true }),
@@ -47,7 +58,12 @@ export function AppBottomSheet({ visible, onClose, children, title }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={dismissable ? handleClose : undefined}
+    >
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View
           style={{
@@ -60,17 +76,22 @@ export function AppBottomSheet({ visible, onClose, children, title }: Props) {
             opacity: backdrop,
           }}
         >
-          <Pressable style={{ flex: 1 }} onPress={handleClose} accessibilityRole="button" accessibilityLabel="إغلاق" />
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={dismissable ? handleClose : undefined}
+            accessibilityRole="button"
+            accessibilityLabel="إغلاق"
+          />
         </Animated.View>
         <KeyboardAvoidingView
-          style={{ maxHeight: '86%' }}
+          style={{ maxHeight: isWideSheet ? '92%' : '86%' }}
           behavior={Platform.select({ ios: 'padding', android: undefined })}
           pointerEvents="box-none"
         >
           <Animated.View
             style={{
               transform: [{ translateY }],
-              width: isTabletSheet ? Math.min(width - spacing.xxl * 2, 760) : '100%',
+              width: isWideSheet || isTabletSheet ? sheetMaxWidth : '100%',
               alignSelf: 'center',
               backgroundColor: c.surface,
               borderTopLeftRadius: radius.xxxl,
@@ -85,10 +106,12 @@ export function AppBottomSheet({ visible, onClose, children, title }: Props) {
               }),
             }}
           >
-            <View style={{
-              width: 36, height: 4, borderRadius: 2,
-              backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg,
-            }} />
+            {dismissable ? (
+              <View style={{
+                width: 36, height: 4, borderRadius: 2,
+                backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg,
+              }} />
+            ) : null}
             {title ? (
               <AppText style={{
                 ...textStart,

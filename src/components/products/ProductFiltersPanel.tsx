@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { createCategoryStyles } from '@/components/categories/categoryStyles';
 import { useColors } from '@/hooks/useColors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
 import { spacing } from '@/constants/spacing';
 import type { ProductListFilters } from '@/components/lists/ListFiltersBar';
+import { Text } from '@/components/ui/AppText';
 
 type CategoryOption = { id: number; name: string };
 

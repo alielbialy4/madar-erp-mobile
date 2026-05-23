@@ -6,6 +6,8 @@ export const storageKeys = {
   branchViewMode: 'madar.branch.view_mode',
   posCatalog: 'madar.pos.catalog',
   posPendingOrders: 'madar.pos.pending_orders',
+  posTableCarts: 'madar.pos.table_carts',
+  posLocallyOccupiedTables: 'madar.pos.locally_occupied_tables',
   posFailedOrders: 'madar.pos.failed_orders',
   offlineQueue: 'madar.offline.queue',
   cachedUser: 'madar.auth.cached_user',
@@ -13,4 +15,7 @@ export const storageKeys = {
   printJobsQueue: 'madar.print.jobs',
   kitchenRoutingRules: 'madar.print.kitchen_routing',
   printDiagnostics: 'madar.print.diagnostics',
+  heldCartsLocal: 'madar.pos.held_carts_local',
+  recentRoutes: 'madar.nav.recent',
+  reportsRecent: 'reports_recent',
 };

@@ -9,28 +9,24 @@ import { spacing } from '@/constants/spacing';
 import type { Branch, Product } from '@/types/api';
 import type { CartLine } from '@/store/posStore';
 
-type CategoryItem = { id: string; name: string };
+type CategoryItem = { id: string; name: string; image?: string | null };
 
 type CartPanelProps = {
   cart: CartLine[];
   effectiveTotal: number;
   subtotal: number;
-  branchName?: string | null;
-  orderTypeLabel?: string | null;
+  selectedTableId?: string | null;
+  selectedTableName?: string | null;
+  onSelectTakeaway: () => void;
+  onSelectDineIn: () => void;
+  orderModeDisabled?: boolean;
   shiftError: string | null;
   hasShift: boolean;
   pendingCount: number;
   selectedCustomerName?: string | null;
-  selectedTableName?: string | null;
-  walletText?: string | null;
-  couponLabel?: string | null;
-  manualDiscountLabel?: string | null;
-  promotionLabel?: string | null;
   taxLabel?: string | null;
   serviceChargeLabel?: string | null;
   deliveryFeeLabel?: string | null;
-  loyaltyLabel?: string | null;
-  giftCardLabel?: string | null;
   splitPaid?: number | null;
   splitRemaining?: number | null;
   onSelectCustomer: () => void;
@@ -48,11 +44,10 @@ type CartPanelProps = {
 
 type Props = {
   shiftLabel: string;
+  hasShift?: boolean;
   cashierName?: string | null;
   lastSyncedLabel?: string | null;
   onExitPos: () => void;
-  onSaveHoldCart: () => void;
-  onOpenHoldCarts: () => void;
   onCashMovement: () => void;
   onOpenTables: () => void;
   posNotice: string | null;
@@ -82,11 +77,10 @@ type Props = {
 
 export function PosTabletScreen({
   shiftLabel,
+  hasShift,
   cashierName,
   lastSyncedLabel,
   onExitPos,
-  onSaveHoldCart,
-  onOpenHoldCarts,
   onCashMovement,
   onOpenTables,
   posNotice,
@@ -124,11 +118,10 @@ export function PosTabletScreen({
     <>
       <PosTabletTopBar
         shiftLabel={shiftLabel}
+        hasShift={hasShift}
         cashierName={cashierName}
         lastSyncedLabel={lastSyncedLabel}
         onExitPos={onExitPos}
-        onSaveHoldCart={onSaveHoldCart}
-        onOpenHoldCarts={onOpenHoldCarts}
         onCashMovement={onCashMovement}
         onOpenTables={onOpenTables}
       />
@@ -151,7 +144,12 @@ export function PosTabletScreen({
         </View>
       ) : error && products.length === 0 ? (
         <View style={styles.centered}>
-          <AppErrorState message={error} onRetry={onRetryCatalog} />
+          <AppErrorState
+            title="تعذر تحميل كتالوج البيع"
+            message={error}
+            onRetry={onRetryCatalog}
+            retryLabel="إعادة تحميل الكتالوج"
+          />
         </View>
       ) : (
         <View style={styles.workspace}>
@@ -173,7 +171,6 @@ export function PosTabletScreen({
                 onSelectCategory={onSelectCategory}
                 onExitCategory={onExitCategory}
                 activeCategoryName={activeCategoryName}
-                onOpenTables={onOpenTables}
                 products={filteredProducts}
                 productQuantities={productQuantities}
                 onProductPress={onProductPress}

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -10,6 +10,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { dateText, money } from '@/utils/format';
 import type { Sale } from '@/types/api';
+import { Text } from '@/components/ui/AppText';
 
 type BadgeTone = 'default' | 'success' | 'warning' | 'danger' | 'info';
 

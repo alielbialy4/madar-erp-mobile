@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppBadge, AppButton, AppSectionHeader } from '@/components/ui';
+import { AppButton } from '@/components/ui';
+import { PosOrderModeToggle } from '@/components/pos/PosOrderModeToggle';
 import { AppEmptyState } from '@/components/feedback';
 import { flexRow, rtlDirection, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
@@ -17,22 +18,18 @@ type Props = {
   cart: CartLine[];
   effectiveTotal: number;
   subtotal: number;
-  branchName?: string | null;
-  orderTypeLabel?: string | null;
+  selectedTableId?: string | null;
+  onSelectTakeaway: () => void;
+  onSelectDineIn: () => void;
+  orderModeDisabled?: boolean;
   shiftError: string | null;
   hasShift: boolean;
   pendingCount: number;
   selectedCustomerName?: string | null;
   selectedTableName?: string | null;
-  walletText?: string | null;
-  couponLabel?: string | null;
-  manualDiscountLabel?: string | null;
-  promotionLabel?: string | null;
   taxLabel?: string | null;
   serviceChargeLabel?: string | null;
   deliveryFeeLabel?: string | null;
-  loyaltyLabel?: string | null;
-  giftCardLabel?: string | null;
   splitPaid?: number | null;
   splitRemaining?: number | null;
   onSelectCustomer: () => void;
@@ -41,7 +38,6 @@ type Props = {
   onSaveHoldCart?: () => void;
   onOpenHoldCarts?: () => void;
   onCashMovement?: () => void;
-  onOpenTables?: () => void;
   onUpdateQty: (lineKey: string, delta: number) => void;
   onRemoveLine: (lineKey: string) => void;
   onPrintKitchen?: () => void;
@@ -57,20 +53,40 @@ function lineOptionsPrice(line: CartLine): number {
   }, 0);
 }
 
+function splitFeeLabel(label: string): { name: string; value: string } {
+  const idx = label.indexOf(':');
+  if (idx === -1) return { name: label, value: '' };
+  return { name: label.slice(0, idx).trim(), value: label.slice(idx + 1).trim() };
+}
+
+function formatCartLineSummary(item: CartLine): string {
+  const parts = [item.product_name];
+  if (item.variant_name) parts.push(item.variant_name);
+  for (const opt of item.selected_options ?? []) {
+    parts.push(`${opt.group_title}: ${opt.options.map((o) => o.name).join(', ')}`);
+  }
+  if (item.notes) parts.push('ملاحظة');
+  return parts.join(' · ');
+}
+
 function PosCartIconBtn({
   icon,
   onPress,
   disabled,
   tone = 'default',
   accessibilityLabel,
+  size = 'md',
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   onPress: () => void;
   disabled?: boolean;
   tone?: 'default' | 'danger' | 'accent';
   accessibilityLabel: string;
+  size?: 'md' | 'lg';
 }) {
   const c = useColors();
+  const dim = size === 'lg' ? 54 : 48;
+  const iconSize = size === 'lg' ? 26 : 24;
   const bg = tone === 'danger' ? c.softDanger : tone === 'accent' ? c.accentSoft : c.surfaceMuted;
   const border = tone === 'danger' ? c.softDangerBorder : tone === 'accent' ? c.accentBorder : c.borderSubtle;
   const iconColor = tone === 'danger' ? c.danger : tone === 'accent' ? c.accent : c.text;
@@ -81,8 +97,8 @@ function PosCartIconBtn({
       disabled={disabled}
       style={({ pressed }) => [
         {
-          width: 48,
-          height: 48,
+          width: dim,
+          height: dim,
           borderRadius: radius.lg,
           borderWidth: 1,
           borderColor: border,
@@ -95,7 +111,7 @@ function PosCartIconBtn({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <MaterialIcons name={icon} size={24} color={iconColor} />
+      <MaterialIcons name={icon} size={iconSize} color={iconColor} />
     </Pressable>
   );
 }
@@ -104,22 +120,18 @@ export function PosOrderPanel({
   cart,
   effectiveTotal,
   subtotal,
-  branchName,
-  orderTypeLabel,
+  selectedTableId,
+  onSelectTakeaway,
+  onSelectDineIn,
+  orderModeDisabled,
   shiftError,
   hasShift,
   pendingCount,
   selectedCustomerName,
   selectedTableName,
-  walletText,
-  couponLabel,
-  manualDiscountLabel,
-  promotionLabel,
   taxLabel,
   serviceChargeLabel,
   deliveryFeeLabel,
-  loyaltyLabel,
-  giftCardLabel,
   splitPaid,
   splitRemaining,
   onSelectCustomer,
@@ -128,7 +140,6 @@ export function PosOrderPanel({
   onSaveHoldCart,
   onOpenHoldCarts,
   onCashMovement,
-  onOpenTables,
   onUpdateQty,
   onRemoveLine,
   onPrintKitchen,
@@ -140,11 +151,8 @@ export function PosOrderPanel({
   const c = useColors();
   const styles = useMemo(() => createStyles(c, isTablet), [c, isTablet]);
 
-  const showCartUtilities = onSaveHoldCart || onOpenHoldCarts || onCashMovement || onOpenTables;
   const showKitchenPrint = Boolean(onPrintKitchen) && kitchenPrintEnabled;
-  const selectedContext = [orderTypeLabel, selectedTableName ? `طاولة: ${selectedTableName}` : null, selectedCustomerName ? `عميل: ${selectedCustomerName}` : null]
-    .filter(Boolean)
-    .join(' • ');
+  const isDineIn = Boolean(selectedTableId);
 
   const handleClearCart = () => {
     if (cart.length === 0) return;
@@ -157,16 +165,36 @@ export function PosOrderPanel({
   return (
     <View style={[styles.panel, rtlDirection]}>
       <View style={styles.header}>
-        <AppSectionHeader title="الطلب الحالي" action={<AppBadge label={`${numberText(itemCount)} صنف`} tone="info" />} />
-        <View style={styles.contextBlock}>
-          <View style={styles.statusRow}>
-            <AppBadge label={orderTypeLabel ?? 'تيك أواي'} tone={selectedTableName ? 'success' : 'default'} />
-            <AppBadge label={hasShift ? 'وردية نشطة' : 'لا توجد وردية'} tone={hasShift ? 'success' : 'warning'} />
+        <View style={styles.headerTop}>
+          <View style={styles.headerIconWrap}>
+            <MaterialIcons name="receipt-long" size={22} color={c.primary} />
           </View>
-          <Text style={styles.contextText} numberOfLines={2}>
-            {branchName ?? 'بدون فرع'}{selectedContext ? ` • ${selectedContext}` : ''}
-          </Text>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerTitle}>الطلب الحالي</Text>
+            <Text style={styles.headerSubtitle}>
+              {itemCount > 0 ? `${numberText(itemCount)} صنف في السلة` : 'لا توجد أصناف بعد'}
+            </Text>
+          </View>
+          <View style={styles.itemCountPill}>
+            <MaterialIcons name="shopping-cart" size={16} color={c.primary} />
+            <Text style={styles.itemCountText}>{numberText(itemCount)}</Text>
+          </View>
         </View>
+        {selectedCustomerName ? (
+          <View style={styles.customerChip}>
+            <MaterialIcons name="person" size={16} color={c.textMuted} />
+            <Text style={styles.customerName} numberOfLines={1}>
+              {selectedCustomerName}
+            </Text>
+          </View>
+        ) : null}
+        <PosOrderModeToggle
+          isDineIn={isDineIn}
+          dineInLabel={selectedTableName}
+          onSelectTakeaway={onSelectTakeaway}
+          onSelectDineIn={onSelectDineIn}
+          disabled={orderModeDisabled}
+        />
       </View>
 
       {shiftError ? (
@@ -175,24 +203,17 @@ export function PosOrderPanel({
           <Text style={styles.alertDangerText}>{shiftError}</Text>
         </View>
       ) : null}
-      {!hasShift ? (
-        <View style={styles.alertWarning}>
-          <MaterialIcons name="warning" size={16} color={c.warning} />
-          <Text style={styles.alertWarningText}>لا توجد وردية نشطة. افتح وردية لإتمام البيع.</Text>
-        </View>
-      ) : null}
       {pendingCount > 0 ? (
         <View style={styles.alertInfo}>
           <Text style={styles.alertInfoText}>طلبات محلية معلقة: {numberText(pendingCount)}</Text>
         </View>
       ) : null}
-      {walletText ? <Text style={styles.walletText}>{walletText}</Text> : null}
 
       {cart.length === 0 ? (
         <View style={styles.emptyWrap}>
           <AppEmptyState
             title="السلة فارغة"
-            message={isTablet ? 'اختر منتجات من الكتالوج على اليمين أو افتح الطاولات.' : 'اختر منتجات من الكتالوج.'}
+            message={isTablet ? 'اختر منتجات من الكتالوج على اليمين.' : 'اختر منتجات من الكتالوج.'}
           />
         </View>
       ) : (
@@ -203,45 +224,35 @@ export function PosOrderPanel({
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => {
             const key = cartLineKey(item);
-            const lineUnit = item.unit_price + lineOptionsPrice(item);
-            const lineGross = lineUnit * item.quantity;
+            const lineGross = (item.unit_price + lineOptionsPrice(item)) * item.quantity;
             const lineTotal = Math.max(0, lineGross - (item.discount || 0));
             return (
               <View style={styles.line}>
-                <View style={styles.lineTop}>
-                  <View style={styles.lineInfo}>
-                    <Text style={styles.lineTitle} numberOfLines={2}>{item.product_name}</Text>
-                    {item.variant_name ? <Text style={styles.lineOption}>الاختيار: {item.variant_name}</Text> : null}
-                    {item.selected_options?.map((opt, j) => (
-                      <Text key={j} style={styles.lineOption} numberOfLines={2}>
-                        {opt.group_title}: {opt.options.map((o) => o.name).join(', ')}
-                      </Text>
-                    ))}
-                    <View style={styles.lineMetaRow}>
-                      <Text style={styles.lineMeta}>
-                        {money(lineUnit)} × {numberText(item.quantity)}
-                      </Text>
-                      {item.discount > 0 ? <Text style={styles.lineDiscount}>-{money(item.discount)}</Text> : null}
-                      {item.notes ? (
-                        <View style={styles.noteRow}>
-                          <MaterialIcons name="sticky-note-2" size={14} color={c.textMuted} />
-                          <Text style={styles.lineOption} numberOfLines={1}>ملاحظة</Text>
-                        </View>
-                      ) : null}
-                    </View>
+                <View style={styles.lineRow}>
+                  <View style={styles.lineLeading}>
+                    <Text style={styles.lineSummary} numberOfLines={1} ellipsizeMode="tail">
+                      {formatCartLineSummary(item)}
+                      {item.discount > 0 ? ` · -${money(item.discount)}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.qtyGroup}>
+                    <Pressable onPress={() => onUpdateQty(key, -1)} style={styles.qtyBtn} hitSlop={4}>
+                      <MaterialIcons name="remove" size={16} color={c.textMuted} />
+                    </Pressable>
+                    <Text style={styles.qtyValue}>{numberText(item.quantity)}</Text>
+                    <Pressable onPress={() => onUpdateQty(key, 1)} style={styles.qtyBtn} hitSlop={4}>
+                      <MaterialIcons name="add" size={16} color={c.accent} />
+                    </Pressable>
                   </View>
                   <Text style={styles.lineTotal}>{money(lineTotal)}</Text>
-                </View>
-                <View style={styles.qtyRow}>
-                  <Pressable onPress={() => onUpdateQty(key, 1)} style={styles.qtyBtn}>
-                    <MaterialIcons name="add" size={isTablet ? 20 : 18} color={c.accent} />
-                  </Pressable>
-                  <Text style={styles.qtyValue}>{numberText(item.quantity)}</Text>
-                  <Pressable onPress={() => onUpdateQty(key, -1)} style={styles.qtyBtn}>
-                    <MaterialIcons name="remove" size={isTablet ? 20 : 18} color={c.textMuted} />
-                  </Pressable>
-                  <Pressable onPress={() => onRemoveLine(key)} style={styles.removeBtn}>
-                    <MaterialIcons name="delete-outline" size={isTablet ? 22 : 18} color={c.danger} />
+                  <Pressable
+                    onPress={() => onRemoveLine(key)}
+                    style={styles.removeBtn}
+                    hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityLabel="حذف من السلة"
+                  >
+                    <MaterialIcons name="delete-outline" size={18} color={c.danger} />
                   </Pressable>
                 </View>
               </View>
@@ -251,56 +262,67 @@ export function PosOrderPanel({
       )}
 
       <View style={styles.footer}>
-        <View style={styles.benefitsBox}>
-          <Text style={styles.benefitsTitle}>العميل والخصومات</Text>
-          <Text style={styles.benefitsText}>
-            {selectedCustomerName ? `العميل: ${selectedCustomerName}` : 'بدون عميل محدد'}
-          </Text>
-          {walletText ? <Text style={styles.benefitsText}>{walletText}</Text> : null}
-          {manualDiscountLabel || couponLabel || loyaltyLabel || giftCardLabel ? (
-            <>
-              {manualDiscountLabel ? <Text style={styles.discountText}>{manualDiscountLabel}</Text> : null}
-              {couponLabel ? <Text style={styles.discountText}>{couponLabel}</Text> : null}
-              {loyaltyLabel ? <Text style={styles.discountText}>{loyaltyLabel}</Text> : null}
-              {giftCardLabel ? <Text style={styles.discountText}>{giftCardLabel}</Text> : null}
-            </>
-          ) : (
-            <Text style={styles.benefitsHint}>الخصم والكوبون والمحفظة من شاشة الدفع.</Text>
-          )}
-        </View>
         <View style={styles.totalsSection}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>المجموع الفرعي</Text>
             <Text style={styles.summaryValue}>{money(subtotal)}</Text>
           </View>
-          {promotionLabel ? <Text style={styles.couponText}>{promotionLabel}</Text> : null}
-          {manualDiscountLabel ? <Text style={styles.couponText}>{manualDiscountLabel}</Text> : null}
-          {couponLabel ? <Text style={styles.couponText}>{couponLabel}</Text> : null}
-          {taxLabel ? <Text style={styles.subtotalText}>{taxLabel}</Text> : null}
-          {serviceChargeLabel ? <Text style={styles.subtotalText}>{serviceChargeLabel}</Text> : null}
-          {deliveryFeeLabel ? <Text style={styles.subtotalText}>{deliveryFeeLabel}</Text> : null}
-          {loyaltyLabel ? <Text style={styles.couponText}>{loyaltyLabel}</Text> : null}
-          {giftCardLabel ? <Text style={styles.couponText}>{giftCardLabel}</Text> : null}
-          {splitPaid != null ? <Text style={styles.subtotalText}>المدفوع: {money(splitPaid)}</Text> : null}
-          {splitRemaining != null ? <Text style={styles.subtotalText}>المتبقي: {money(splitRemaining)}</Text> : null}
-          <View style={styles.totalRow}>
+          {taxLabel ? (() => {
+            const fee = splitFeeLabel(taxLabel);
+            return (
+              <View style={styles.summaryRow}>
+                <Text style={styles.feeLabel}>{fee.name}</Text>
+                <Text style={styles.feeValue}>{fee.value}</Text>
+              </View>
+            );
+          })() : null}
+          {serviceChargeLabel ? (() => {
+            const fee = splitFeeLabel(serviceChargeLabel);
+            return (
+              <View style={styles.summaryRow}>
+                <Text style={styles.feeLabel}>{fee.name}</Text>
+                <Text style={styles.feeValue}>{fee.value}</Text>
+              </View>
+            );
+          })() : null}
+          {deliveryFeeLabel ? (() => {
+            const fee = splitFeeLabel(deliveryFeeLabel);
+            return (
+              <View style={styles.summaryRow}>
+                <Text style={styles.feeLabel}>{fee.name}</Text>
+                <Text style={styles.feeValue}>{fee.value}</Text>
+              </View>
+            );
+          })() : null}
+          {splitPaid != null ? (
+            <View style={styles.summaryRow}>
+              <Text style={styles.feeLabel}>المدفوع</Text>
+              <Text style={styles.feeValue}>{money(splitPaid)}</Text>
+            </View>
+          ) : null}
+          {splitRemaining != null ? (
+            <View style={styles.summaryRow}>
+              <Text style={styles.feeLabel}>المتبقي</Text>
+              <Text style={styles.feeValue}>{money(splitRemaining)}</Text>
+            </View>
+          ) : null}
+          <View style={styles.totalHighlight}>
             <Text style={styles.totalLabel}>الإجمالي</Text>
             <Text style={styles.totalValue}>{money(effectiveTotal)}</Text>
           </View>
         </View>
-        {isTablet ? (
-          <View style={styles.toolbarRow}>
-            <PosCartIconBtn icon="person-outline" accessibilityLabel="اختيار عميل" onPress={onSelectCustomer} />
-            {onOpenTables ? (
-              <PosCartIconBtn icon="table-restaurant" accessibilityLabel="الطاولات" onPress={onOpenTables} tone="accent" />
-            ) : null}
-            {onSaveHoldCart ? (
-              <PosCartIconBtn icon="pause-circle-outline" accessibilityLabel="حفظ السلة" onPress={onSaveHoldCart} disabled={cart.length === 0} />
-            ) : null}
-            {onOpenHoldCarts ? (
-              <PosCartIconBtn icon="inventory-2" accessibilityLabel="السلات المحفوظة" onPress={onOpenHoldCarts} />
-            ) : null}
+        <View style={styles.checkoutRow}>
+          <AppButton
+            title={`الدفع — ${money(effectiveTotal)}`}
+            disabled={cart.length === 0 || !hasShift}
+            onPress={onCheckout}
+            size="xl"
+            style={styles.checkoutBtn}
+          />
+          <View style={styles.checkoutIcons}>
+            <PosCartIconBtn size="lg" icon="person-outline" accessibilityLabel="اختيار عميل" onPress={onSelectCustomer} />
             <PosCartIconBtn
+              size="lg"
               icon="delete-outline"
               accessibilityLabel="مسح السلة"
               onPress={handleClearCart}
@@ -309,61 +331,18 @@ export function PosOrderPanel({
             />
             {showKitchenPrint ? (
               <PosCartIconBtn
+                size="lg"
                 icon="print"
                 accessibilityLabel="طباعة للمطبخ"
                 onPress={onPrintKitchen!}
                 disabled={cart.length === 0}
                 tone="accent"
               />
+            ) : onCashMovement ? (
+              <PosCartIconBtn size="lg" icon="payments" accessibilityLabel="حركة نقدية" onPress={onCashMovement} tone="accent" />
             ) : null}
           </View>
-        ) : (
-          <View style={styles.actions}>
-            <AppButton title="عميل" variant="outline" onPress={onSelectCustomer} style={styles.half} size="sm" />
-            <AppButton title="مسح السلة" variant="ghost" onPress={handleClearCart} style={styles.half} size="sm" />
-          </View>
-        )}
-        {!isTablet && showKitchenPrint ? (
-          <AppButton
-            title="طباعة للمطبخ"
-            variant="secondary"
-            onPress={onPrintKitchen}
-            disabled={cart.length === 0}
-            size="sm"
-            fullWidth
-          />
-        ) : null}
-        {!isTablet && showCartUtilities ? (
-          <>
-            {onSaveHoldCart || onOpenHoldCarts ? (
-              <View style={styles.actions}>
-                {onSaveHoldCart ? (
-                  <AppButton title="حفظ السلة" variant="secondary" onPress={onSaveHoldCart} style={styles.half} size="sm" />
-                ) : null}
-                {onOpenHoldCarts ? (
-                  <AppButton title="السلات المحفوظة" variant="outline" onPress={onOpenHoldCarts} style={styles.half} size="sm" />
-                ) : null}
-              </View>
-            ) : null}
-            {onCashMovement || onOpenTables ? (
-              <View style={styles.actions}>
-                {onCashMovement ? (
-                  <AppButton title="حركة نقدية" variant="outline" onPress={onCashMovement} style={styles.half} size="sm" />
-                ) : null}
-                {onOpenTables ? (
-                  <AppButton title="الطاولات" variant="secondary" onPress={onOpenTables} style={styles.half} size="sm" />
-                ) : null}
-              </View>
-            ) : null}
-          </>
-        ) : null}
-        <AppButton
-          title={`الدفع — ${money(effectiveTotal)}`}
-          disabled={cart.length === 0 || !hasShift}
-          onPress={onCheckout}
-          size="lg"
-          fullWidth
-        />
+        </View>
       </View>
     </View>
   );
@@ -382,53 +361,145 @@ function createStyles(c: AppColors, isTablet: boolean) {
       minHeight: 0,
     },
     header: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: isTablet ? spacing.md : spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
-      backgroundColor: isTablet ? c.surfaceMuted : c.surface,
+      backgroundColor: c.surface,
+      gap: spacing.md,
+      ...Platform.select({
+        ios: {
+          shadowColor: c.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+        },
+        android: { elevation: 2 },
+        default: {},
+      }),
+    },
+    headerTop: {
+      ...flexRow,
+      alignItems: 'center',
       gap: spacing.sm,
     },
-    contextBlock: { gap: spacing.xs },
-    statusRow: { ...flexRow, gap: spacing.xs, flexWrap: 'wrap' },
-    contextText: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.medium, lineHeight: 18 },
+    headerIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.lg,
+      backgroundColor: c.softPrimary,
+      borderWidth: 1,
+      borderColor: c.softPrimaryBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitleBlock: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    headerTitle: {
+      ...textStart,
+      color: c.text,
+      fontSize: typography.sectionTitle,
+      fontFamily: fonts.extraBold,
+      fontWeight: '800',
+      letterSpacing: -0.3,
+    },
+    headerSubtitle: {
+      ...textStart,
+      color: c.textCaption,
+      fontSize: typography.tiny,
+      fontFamily: fonts.medium,
+      fontWeight: '500',
+    },
+    itemCountPill: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: radius.pill,
+      backgroundColor: c.softPrimary,
+      borderWidth: 1,
+      borderColor: c.softPrimaryBorder,
+    },
+    itemCountText: {
+      color: c.primary,
+      fontFamily: fonts.extraBold,
+      fontWeight: '800',
+      fontSize: typography.small,
+      writingDirection: 'rtl',
+    },
+    customerChip: {
+      ...flexRow,
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: spacing.xs,
+      maxWidth: '100%',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.pill,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+    },
+    customerName: {
+      ...textStart,
+      color: c.text,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+      fontSize: typography.small,
+      flexShrink: 1,
+    },
     emptyWrap: { flex: 1, justifyContent: 'center', padding: spacing.lg },
     list: { flex: 1, minHeight: 0 },
     listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
     line: {
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
-      paddingVertical: isTablet ? spacing.md : spacing.sm,
-      gap: spacing.sm,
+      paddingVertical: isTablet ? spacing.sm : spacing.xs,
     },
-    lineTop: { ...flexRow, justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md },
-    lineInfo: { gap: 2, flex: 1, minWidth: 0 },
-    lineTitle: {
+    lineRow: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.sm,
+      minHeight: 36,
+    },
+    lineLeading: {
+      flex: 1,
+      minWidth: 0,
+      justifyContent: 'center',
+    },
+    lineSummary: {
       ...textStart,
+      color: c.text,
+      fontFamily: fonts.medium,
+      fontSize: typography.small,
+    },
+    qtyGroup: {
+      ...flexRow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      flexShrink: 0,
+      paddingHorizontal: spacing.xs,
+    },
+    lineTotal: {
       color: c.text,
       fontFamily: fonts.bold,
       fontWeight: '700',
-      fontSize: isTablet ? typography.cardTitle : typography.cardTitle,
-    },
-    lineOption: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
-    lineMeta: { ...textStart, color: c.textMuted, fontSize: typography.small, fontFamily: fonts.medium },
-    lineMetaRow: { ...flexRow, alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
-    lineDiscount: { ...textStart, color: c.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-    noteRow: { ...flexRow, gap: spacing.xs, alignItems: 'center' },
-    qtyRow: { ...flexRow, gap: spacing.xs, alignItems: 'center', justifyContent: 'space-between' },
-    lineTotal: {
-      color: c.text,
-      fontFamily: fonts.extraBold,
-      fontWeight: '800',
-      fontSize: typography.body,
+      fontSize: typography.small,
       writingDirection: 'rtl',
-      textAlign: 'left',
       flexShrink: 0,
+      textAlign: 'left',
+      marginStart: spacing.xs,
     },
     qtyBtn: {
-      width: isTablet ? 44 : 36,
-      height: isTablet ? 44 : 36,
-      borderRadius: radius.md,
+      width: 28,
+      height: 28,
+      borderRadius: radius.sm,
       backgroundColor: c.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
@@ -436,68 +507,95 @@ function createStyles(c: AppColors, isTablet: boolean) {
     qtyValue: {
       fontFamily: fonts.bold,
       fontWeight: '700',
-      fontSize: isTablet ? typography.sectionTitle : typography.body,
+      fontSize: typography.label,
       color: c.text,
-      minWidth: 28,
+      minWidth: 22,
       textAlign: 'center',
     },
     removeBtn: {
-      width: isTablet ? 44 : 36,
-      height: isTablet ? 44 : 36,
-      borderRadius: radius.md,
+      width: 28,
+      height: 28,
+      borderRadius: radius.sm,
       alignItems: 'center',
       justifyContent: 'center',
     },
     footer: {
       borderTopWidth: 1,
       borderTopColor: c.borderSubtle,
-      padding: spacing.md,
-      gap: spacing.sm,
-      backgroundColor: isTablet ? c.surface : c.surfaceMuted,
+      padding: spacing.lg,
+      gap: spacing.md,
+      backgroundColor: c.surface,
     },
     totalsSection: {
-      gap: spacing.xs,
-      padding: spacing.md,
-      borderRadius: radius.sm,
-      backgroundColor: isTablet ? c.surfaceMuted : c.surface,
+      gap: spacing.sm,
+      padding: spacing.lg,
+      borderRadius: radius.xl,
+      backgroundColor: c.surfaceMuted,
       borderWidth: 1,
       borderColor: c.borderSubtle,
     },
-    benefitsBox: {
-      gap: 3,
-      padding: spacing.sm,
-      borderRadius: radius.sm,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+    summaryRow: {
+      ...flexRow,
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: spacing.sm,
+      minHeight: 24,
     },
-    benefitsTitle: { ...textStart, color: c.textCaption, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-    benefitsText: { ...textStart, color: c.text, fontSize: typography.tiny, fontFamily: fonts.medium },
-    benefitsHint: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.regular },
-    discountText: { ...textStart, color: c.success, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-    totalRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
-    summaryRow: { ...flexRow, justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-    summaryLabel: { ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.medium },
-    summaryValue: { color: c.text, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', writingDirection: 'rtl' },
-    totalLabel: { color: c.textMuted, fontSize: typography.body, fontFamily: fonts.medium, writingDirection: 'rtl' },
-    totalValue: {
-      color: c.primary,
-      fontSize: isTablet ? typography.posTotal : typography.posPrice,
-      fontFamily: fonts.extraBold,
-      fontWeight: '800',
+    summaryLabel: {
+      ...textStart,
+      color: c.textMuted,
+      fontSize: typography.small,
+      fontFamily: fonts.medium,
+      fontWeight: '500',
+    },
+    summaryValue: {
+      color: c.text,
+      fontSize: typography.body,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
       writingDirection: 'rtl',
     },
-    subtotalText: { ...textStart, color: c.textCaption, fontSize: typography.tiny, fontFamily: fonts.regular },
-    couponText: { ...textStart, color: c.success, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700' },
-    customerRow: { ...flexRow, alignItems: 'center', gap: spacing.xs },
-    customerText: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small },
-    walletText: {
+    feeLabel: {
       ...textStart,
-      color: c.info,
+      color: c.textCaption,
+      fontSize: typography.tiny,
+      fontFamily: fonts.medium,
+      fontWeight: '500',
+    },
+    feeValue: {
+      color: c.textMuted,
       fontSize: typography.small,
       fontFamily: fonts.bold,
       fontWeight: '700',
+      writingDirection: 'rtl',
+    },
+    totalHighlight: {
+      ...flexRow,
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.xs,
+      paddingTop: spacing.md,
       paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      borderRadius: radius.lg,
+      backgroundColor: c.softPrimary,
+      borderWidth: 1,
+      borderColor: c.softPrimaryBorder,
+    },
+    totalLabel: {
+      color: c.primary,
+      fontSize: typography.body,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+      writingDirection: 'rtl',
+    },
+    totalValue: {
+      color: c.primary,
+      fontSize: isTablet ? typography.posTotal : typography.sectionTitle,
+      fontFamily: fonts.extraBold,
+      fontWeight: '800',
+      writingDirection: 'rtl',
+      letterSpacing: -0.4,
     },
     alertDanger: {
       ...flexRow,
@@ -510,17 +608,6 @@ function createStyles(c: AppColors, isTablet: boolean) {
       alignItems: 'center',
     },
     alertDangerText: { ...textStart, color: c.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
-    alertWarning: {
-      ...flexRow,
-      gap: spacing.sm,
-      backgroundColor: c.softWarning,
-      borderRadius: radius.lg,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      marginHorizontal: spacing.md,
-      alignItems: 'center',
-    },
-    alertWarningText: { ...textStart, color: '#B45309', fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
     alertInfo: {
       backgroundColor: c.softInfo,
       borderRadius: radius.lg,
@@ -529,8 +616,21 @@ function createStyles(c: AppColors, isTablet: boolean) {
       marginHorizontal: spacing.md,
     },
     alertInfoText: { ...textStart, color: c.info, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
-    actions: { ...flexRow, gap: spacing.sm },
-    toolbarRow: { ...flexRow, gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' },
-    half: { flex: 1, minWidth: 0 },
+    checkoutRow: {
+      ...flexRow,
+      alignItems: 'stretch',
+      gap: spacing.sm,
+    },
+    checkoutBtn: {
+      flex: 1,
+      minWidth: 0,
+      borderRadius: radius.xl,
+    },
+    checkoutIcons: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.xs,
+      flexShrink: 0,
+    },
   });
 }

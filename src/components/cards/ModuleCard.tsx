@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
@@ -9,6 +9,7 @@ import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppBadge } from '@/components/ui';
+import { Text } from '@/components/ui/AppText';
 
 const moduleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   customers: 'people',

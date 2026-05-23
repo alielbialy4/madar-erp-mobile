@@ -23,7 +23,6 @@ export const flexRow: ViewStyle = { flexDirection: 'row' };
 export const flexCol: ViewStyle = { flexDirection: 'column' };
 
 const textRtlBase: TextStyle = {
-  fontFamily: fonts.regular,
   writingDirection: 'rtl',
 };
 

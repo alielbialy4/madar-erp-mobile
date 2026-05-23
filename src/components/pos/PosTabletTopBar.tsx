@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, rtlDirection, textStart } from '@/constants/layout';
@@ -9,11 +9,18 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useBranchStore } from '@/store/branchStore';
-import { useNetworkStore } from '@/store/networkStore';
 import { backArrowIcon } from '@/utils/rtl';
+import {
+  PosBranchMark,
+  PosOnlineChip,
+  PosShiftChip,
+  posHeaderElevation,
+  usePosHeaderBarStyle,
+} from '@/components/pos/posHeaderUi';
 
 type Props = {
   shiftLabel: string;
+  hasShift?: boolean;
   cashierName?: string | null;
   lastSyncedLabel?: string | null;
   onExitPos: () => void;
@@ -30,27 +37,38 @@ type MenuAction = {
   onPress?: () => void;
 };
 
-function TopBarAction({
+function QuickAction({
   label,
   icon,
   onPress,
+  accent,
 }: {
   label: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   onPress?: () => void;
+  accent?: boolean;
 }) {
   const c = useColors();
   const styles = useMemo(() => createStyles(c), [c]);
   return (
-    <Pressable onPress={onPress} style={styles.quickActionBtn} accessibilityRole="button">
-      <MaterialIcons name={icon} size={18} color={c.text} />
-      <Text style={styles.quickActionLabel} numberOfLines={1}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[styles.quickActionBtn, accent && styles.quickActionAccent]}
+      accessibilityRole="button"
+    >
+      <View style={[styles.quickActionIcon, accent && styles.quickActionIconAccent]}>
+        <MaterialIcons name={icon} size={18} color={accent ? c.primary : c.text} />
+      </View>
+      <Text style={[styles.quickActionLabel, accent && styles.quickActionLabelAccent]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 export function PosTabletTopBar({
   shiftLabel,
+  hasShift = false,
   cashierName,
   lastSyncedLabel,
   onExitPos,
@@ -59,15 +77,15 @@ export function PosTabletTopBar({
   onCashMovement,
   onOpenTables,
 }: Props) {
-  const isOnline = useNetworkStore((s) => s.isOnline);
   const activeBranch = useBranchStore((s) => s.activeBranch);
   const viewMode = useBranchStore((s) => s.viewMode);
   const c = useColors();
+  const bar = usePosHeaderBarStyle();
   const styles = useMemo(() => createStyles(c), [c]);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const branchLabel = viewMode === 'global' ? 'كل الفروع' : activeBranch?.name ?? 'بدون فرع';
-  const metaLine = [branchLabel, isOnline ? 'متصل' : 'غير متصل', shiftLabel, cashierName].filter(Boolean).join(' · ');
+  const metaParts = [cashierName, lastSyncedLabel ? `آخر مزامنة ${lastSyncedLabel}` : null].filter(Boolean);
 
   const menuActions = useMemo(() => {
     const items: MenuAction[] = [];
@@ -78,30 +96,37 @@ export function PosTabletTopBar({
   return (
     <>
       <View style={[styles.bar, rtlDirection]}>
-        <Pressable onPress={onExitPos} style={styles.exitPosBtn} accessibilityRole="button">
+        <Pressable onPress={onExitPos} style={styles.exitBtn} accessibilityRole="button" accessibilityLabel="خروج من نقطة البيع">
           <MaterialIcons name={backArrowIcon()} size={20} color={c.danger} />
-          <Text style={styles.exitPosLabel}>خروج من نقطة البيع</Text>
         </Pressable>
 
-        <View style={styles.quickActions}>
-          {onOpenTables ? <TopBarAction label="الطاولات" icon="table-restaurant" onPress={onOpenTables} /> : null}
-          {onOpenHoldCarts ? <TopBarAction label="السلات" icon="inventory-2" onPress={onOpenHoldCarts} /> : null}
-          {onSaveHoldCart ? <TopBarAction label="حفظ السلة" icon="pause-circle-outline" onPress={onSaveHoldCart} /> : null}
-        </View>
+        <PosBranchMark />
 
-        <View style={styles.meta}>
-          <Text style={styles.metaLine} numberOfLines={1}>
-            {metaLine}
-          </Text>
-          {lastSyncedLabel ? (
-            <Text style={styles.synced} numberOfLines={1}>
-              {lastSyncedLabel}
+        <View style={styles.center}>
+          <View style={styles.centerTop}>
+            <Text style={bar.branchName} numberOfLines={1}>
+              {branchLabel}
+            </Text>
+            <View style={styles.chips}>
+              <PosShiftChip active={hasShift} label={shiftLabel} />
+              <PosOnlineChip compact />
+            </View>
+          </View>
+          {metaParts.length > 0 ? (
+            <Text style={bar.meta} numberOfLines={1}>
+              {metaParts.join(' · ')}
             </Text>
           ) : null}
         </View>
 
+        <View style={styles.actions}>
+          {onOpenTables ? <QuickAction label="الطاولات" icon="table-restaurant" onPress={onOpenTables} accent /> : null}
+          {onOpenHoldCarts ? <QuickAction label="السلات" icon="inventory-2" onPress={onOpenHoldCarts} /> : null}
+          {onSaveHoldCart ? <QuickAction label="حفظ" icon="pause-circle-outline" onPress={onSaveHoldCart} /> : null}
+        </View>
+
         {menuActions.length > 0 ? (
-          <Pressable onPress={() => setMenuOpen(true)} style={styles.menuBtn} accessibilityLabel="إجراءات نقطة البيع">
+          <Pressable onPress={() => setMenuOpen(true)} style={styles.menuBtn} accessibilityLabel="إجراءات إضافية">
             <MaterialIcons name="more-vert" size={22} color={c.text} />
           </Pressable>
         ) : null}
@@ -136,66 +161,76 @@ function createStyles(c: AppColors) {
     bar: {
       ...flexRow,
       alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      backgroundColor: c.surface,
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: c.surfaceHeader ?? c.surface,
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
-      minHeight: 52,
+      minHeight: 60,
+      ...posHeaderElevation(c),
     },
-    quickActions: {
-      ...flexRow,
+    exitBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.xl,
       alignItems: 'center',
-      gap: spacing.sm,
-      flexShrink: 1,
-      minWidth: 0,
-    },
-    quickActionBtn: {
-      ...flexRow,
-      alignItems: 'center',
-      gap: spacing.xs,
-      minHeight: 44,
-      maxWidth: 120,
-      paddingHorizontal: spacing.md,
-      borderRadius: radius.lg,
-      backgroundColor: c.surfaceMuted,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
-    },
-    quickActionLabel: {
-      ...textStart,
-      color: c.text,
-      fontSize: typography.small,
-      fontFamily: fonts.bold,
-      fontWeight: '700',
-    },
-    exitPosBtn: {
-      ...flexRow,
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.lg,
+      justifyContent: 'center',
       backgroundColor: c.softDanger,
       borderWidth: 1,
       borderColor: c.softDangerBorder,
       flexShrink: 0,
     },
-    exitPosLabel: {
+    center: { flex: 1, minWidth: 0, gap: 3 },
+    centerTop: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+    chips: { ...flexRow, alignItems: 'center', gap: spacing.xs, flexShrink: 0 },
+    actions: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.xs,
+      flexShrink: 0,
+    },
+    quickActionBtn: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.lg,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      maxWidth: 108,
+    },
+    quickActionAccent: {
+      backgroundColor: c.primarySoftMuted,
+      borderColor: c.primarySoftBorder,
+    },
+    quickActionIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
+    },
+    quickActionIconAccent: {
+      backgroundColor: `${c.primary}18`,
+    },
+    quickActionLabel: {
       ...textStart,
-      color: c.danger,
-      fontSize: typography.small,
+      fontSize: typography.tiny,
       fontFamily: fonts.bold,
       fontWeight: '700',
+      color: c.text,
     },
-    meta: { flex: 1, minWidth: 0, gap: 2, paddingHorizontal: spacing.xs },
-    metaLine: { ...textStart, fontSize: typography.small, fontFamily: fonts.medium, color: c.text },
-    synced: { ...textStart, fontSize: typography.tiny, color: c.textCaption, fontFamily: fonts.regular },
+    quickActionLabelAccent: {
+      color: c.primary,
+    },
     menuBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.lg,
+      width: 40,
+      height: 40,
+      borderRadius: radius.xl,
       backgroundColor: c.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
@@ -208,8 +243,8 @@ function createStyles(c: AppColors) {
       backgroundColor: 'rgba(0,0,0,0.35)',
       justifyContent: 'flex-start',
       alignItems: 'flex-end',
-      paddingTop: 56,
-      paddingHorizontal: spacing.md,
+      paddingTop: 64,
+      paddingHorizontal: spacing.lg,
     },
     menuSheet: {
       minWidth: 220,
@@ -219,6 +254,11 @@ function createStyles(c: AppColors) {
       borderColor: c.borderSubtle,
       paddingVertical: spacing.sm,
       gap: spacing.xs,
+      ...Platform.select({
+        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24 },
+        android: { elevation: 8 },
+        default: {},
+      }),
     },
     menuTitle: {
       ...textStart,

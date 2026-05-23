@@ -7,7 +7,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success';
-type Size = 'sm' | 'default' | 'lg';
+type Size = 'sm' | 'default' | 'lg' | 'xl';
 
 type Props = {
   title: string;
@@ -36,7 +36,7 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
     Animated.spring(scaleRef, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }).start();
   }, [scaleRef]);
 
-  const bg = variant === 'primary' ? c.accent
+  const bg = variant === 'primary' ? c.primary
     : variant === 'danger' ? c.danger
     : variant === 'success' ? c.success
     : variant === 'secondary' ? c.surfaceMuted
@@ -47,15 +47,16 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
     ? c.primaryForeground
     : variant === 'danger' || variant === 'success'
       ? '#FFFFFF'
-    : variant === 'ghost' ? c.accent : c.text;
+    : variant === 'ghost' ? c.primary : c.text;
 
   const borderColor = variant === 'outline' ? c.border
     : variant === 'secondary' ? c.border
     : variant === 'ghost' ? 'transparent'
     : bg;
 
-  const minHeight = size === 'sm' ? 40 : size === 'lg' ? 48 : 44;
-  const px = size === 'sm' ? spacing.md : size === 'lg' ? spacing.xxl : spacing.lg;
+  const minHeight = size === 'sm' ? 40 : size === 'lg' ? 48 : size === 'xl' ? 58 : 44;
+  const px = size === 'sm' ? spacing.md : size === 'lg' ? spacing.xxl : size === 'xl' ? spacing.xxxl : spacing.lg;
+  const titleSize = size === 'sm' ? typography.label : size === 'xl' ? typography.sectionTitle : typography.body;
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleRef }] }}>
@@ -87,7 +88,7 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
         ) : (
           <>
             {icon}
-            <AppText style={{ fontSize: size === 'sm' ? typography.label : typography.body, fontFamily: fonts.bold, fontWeight: '700', color: fg, writingDirection: 'rtl', textAlign: 'center' }}>
+            <AppText style={{ fontSize: titleSize, fontFamily: fonts.bold, fontWeight: '700', color: fg, writingDirection: 'rtl', textAlign: 'center' }}>
               {title}
             </AppText>
           </>

@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { Text, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { createDashboardStyles, KPI_TONE_STYLES, type KpiTone } from './dashboardStyles';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   label: string;

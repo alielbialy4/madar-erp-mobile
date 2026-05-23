@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { categoriesAPI } from '@/api/categories';
 import { productsAPI } from '@/api/products';
 import { AppScreen } from '@/components/layout';
 import { ReorderList } from '@/components/lists/ReorderList';
 import { AppButton, AppSelect } from '@/components/ui';
-import { AppText as UiText } from '@/components/ui/AppText';
+import { AppText as UiText, Text } from '@/components/ui/AppText';
 import { AppLoadingState } from '@/components/feedback';
 import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
 import { extractArray } from '@/utils/data';

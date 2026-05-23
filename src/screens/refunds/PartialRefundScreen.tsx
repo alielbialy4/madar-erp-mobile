@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { textStart } from '@/constants/layout';
-import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
+import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { salesAPI } from '@/api/sales';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppInput, AppSectionHeader, AppSelect } from '@/components/ui';

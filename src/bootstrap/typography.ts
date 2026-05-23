@@ -3,24 +3,46 @@
  * Loaded after useFonts succeeds (see FontProvider).
  */
 import { Platform, Text, TextInput, type TextStyle } from 'react-native';
-import { fonts } from '@/constants/fonts';
+import { fonts, resolveTajawalStyle } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
 
 let applied = false;
+
+const WEB_FONT_FAMILY =
+  'Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal, system-ui, sans-serif';
+const WEB_FONT_ID = 'madar-tajawal-global';
+
+function applyWebTypography() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+  document.documentElement.style.fontFamily = WEB_FONT_FAMILY;
+  document.body.style.fontFamily = WEB_FONT_FAMILY;
+  const root = document.getElementById('root');
+  if (root) root.style.fontFamily = WEB_FONT_FAMILY;
+
+  if (document.getElementById(WEB_FONT_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = WEB_FONT_ID;
+  style.textContent = `
+    html, body, #root {
+      font-family: ${WEB_FONT_FAMILY};
+    }
+    input, textarea, select, button {
+      font-family: ${WEB_FONT_FAMILY};
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export function applyGlobalTypography() {
   if (applied) return;
   applied = true;
 
-  const defaultText: TextStyle = {
-    fontFamily: fonts.regular,
-    writingDirection: 'rtl',
-  };
+  const defaultText: TextStyle = resolveTajawalStyle({ writingDirection: 'rtl' });
 
   const defaultInput: TextStyle = {
-    fontFamily: fonts.medium,
-    fontSize: typography.body,
-    writingDirection: 'rtl',
+    ...resolveTajawalStyle({ fontSize: typography.body, writingDirection: 'rtl' }, fonts.medium),
   };
 
   type WithDefaultProps = { defaultProps?: { style?: TextStyle } };
@@ -30,11 +52,5 @@ export function applyGlobalTypography() {
   T.defaultProps = { ...T.defaultProps, style: defaultText };
   I.defaultProps = { ...I.defaultProps, style: defaultInput };
 
-  if (Platform.OS === 'web' && typeof document !== 'undefined') {
-    const family = 'Tajawal, system-ui, sans-serif';
-    document.documentElement.style.fontFamily = family;
-    document.body.style.fontFamily = family;
-    const root = document.getElementById('root');
-    if (root) root.style.fontFamily = family;
-  }
+  applyWebTypography();
 }

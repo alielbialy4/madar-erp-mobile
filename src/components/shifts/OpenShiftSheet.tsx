@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppInput, AppSectionHeader, AppSelect, AppText } from '@/components/ui';
+import { AppButton, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { useAuthStore } from '@/store/authStore';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hasPermission, hasRole } from '@/utils/permissions';
+import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
-import { textStart } from '@/constants/layout';
 import type { ShiftFilterUser } from '@/types/shifts';
 
 type Props = {
@@ -17,9 +17,20 @@ type Props = {
   branchId: string | null;
   onClose: () => void;
   onSuccess: () => void;
+  /** POS gate: blocking sheet with exit action. Default: optional sheet from shift management. */
+  mode?: 'default' | 'required';
+  onExitPos?: () => void;
 };
 
-export function OpenShiftSheet({ visible, branchId, onClose, onSuccess }: Props) {
+export function OpenShiftSheet({
+  visible,
+  branchId,
+  onClose,
+  onSuccess,
+  mode = 'default',
+  onExitPos,
+}: Props) {
+  const isRequired = mode === 'required';
   const user = useAuthStore((s) => s.user);
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [vaultId, setVaultId] = useState<string | null>(null);
@@ -104,9 +115,11 @@ export function OpenShiftSheet({ visible, branchId, onClose, onSuccess }: Props)
         starting_cash: amount,
         ...(forUserId != null ? { for_user_id: forUserId } : {}),
       });
-      Alert.alert('تم', 'تم فتح الوردية بنجاح');
+      if (!isRequired) {
+        Alert.alert('تم', 'تم فتح الوردية بنجاح');
+      }
       onSuccess();
-      onClose();
+      if (!isRequired) onClose();
     } catch (err) {
       setErrorMsg(normalizeApiError(err).message);
     } finally {
@@ -114,10 +127,20 @@ export function OpenShiftSheet({ visible, branchId, onClose, onSuccess }: Props)
     }
   };
 
+  const sheetTitle = isRequired ? 'لا توجد وردية مفتوحة' : 'فتح وردية';
+  const sheetDescription = isRequired
+    ? 'يجب فتح وردية قبل البيع. حدد الخزنة ونقدية الافتتاح.'
+    : 'حدد الخزنة ونقدية الافتتاح لبدء وردية جديدة.';
+
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} title="فتح وردية">
+    <AppBottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={sheetTitle}
+      dismissable={!isRequired}
+    >
       <View style={{ gap: spacing.md, paddingBottom: spacing.md }}>
-        <AppText style={textStart}>حدد الخزنة ونقدية الافتتاح لبدء وردية جديدة.</AppText>
+        <AppText style={textStart}>{sheetDescription}</AppText>
 
         {!branchId ? (
           <AppText style={{ ...textStart, color: '#b45309' }}>اختر فرعاً لعرض الخزائن المتاحة.</AppText>
@@ -155,12 +178,31 @@ export function OpenShiftSheet({ visible, branchId, onClose, onSuccess }: Props)
 
         {errorMsg ? <AppText style={{ ...textStart, color: '#dc2626', fontWeight: '700' }}>{errorMsg}</AppText> : null}
 
-        <AppButton
-          title="فتح الوردية"
-          loading={submitting}
-          disabled={!branchId || !vaultId || loadingVaults || vaults.length === 0}
-          onPress={() => void handleOpen()}
-        />
+        {isRequired ? (
+          <View style={{ ...flexRow, gap: spacing.sm, marginTop: spacing.xs }}>
+            <AppButton
+              title="خروج من POS"
+              variant="ghost"
+              onPress={onExitPos}
+              disabled={submitting || !onExitPos}
+              style={{ flex: 1 }}
+            />
+            <AppButton
+              title="فتح الوردية"
+              loading={submitting}
+              disabled={!branchId || !vaultId || loadingVaults || vaults.length === 0}
+              onPress={() => void handleOpen()}
+              style={{ flex: 1 }}
+            />
+          </View>
+        ) : (
+          <AppButton
+            title="فتح الوردية"
+            loading={submitting}
+            disabled={!branchId || !vaultId || loadingVaults || vaults.length === 0}
+            onPress={() => void handleOpen()}
+          />
+        )}
       </View>
     </AppBottomSheet>
   );

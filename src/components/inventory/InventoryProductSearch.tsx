@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/components/ui/AppText';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { get } from '@/api/client';
 import { AppInput } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Text } from '@/components/ui/AppText';
 import {
   ActivityIndicator,
   I18nManager,
   Modal,
   Platform,
   Pressable,
-  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

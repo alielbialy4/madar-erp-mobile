@@ -37,21 +37,18 @@ import { ModifierPickerSheet } from './ModifierPickerSheet';
 import { SplitPaymentSheet, SplitLine } from './SplitPaymentSheet';
 import { CheckoutReviewSheet } from './CheckoutReviewSheet';
 import { PosCheckoutSheet } from './PosCheckoutSheet';
-import { HoldCartsSheet } from './HoldCartsSheet';
 import { VariantPickerSheet } from './VariantPickerSheet';
 import { QuickCustomerSheet } from './QuickCustomerSheet';
 import { CashMovementSheet } from './CashMovementSheet';
 import { PosTablesSheet } from './PosTablesSheet';
+import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
+import { usePosDiningTable } from '@/hooks/usePosDiningTable';
+import { diningAPI } from '@/api/dining';
+import { saleItemsFromCart } from '@/utils/posDining';
+import { getLocallyOccupiedTables, markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
 
 type ProductVariantSelection = { id: string; name?: string | null };
-type SelectedPosTable = {
-  id: string;
-  name?: string | null;
-  number?: string | null;
-  hallName?: string | null;
-  activeOrderId?: number | string | null;
-};
 
 function productHasOptions(product: Product | null): boolean {
   return Boolean(product?.option_groups?.some((g) => g.options && g.options.length > 0));
@@ -110,11 +107,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [giftCardCode, setGiftCardCode] = useState('');
   const [giftCardMessage, setGiftCardMessage] = useState<string | null>(null);
   const [appliedGiftCard, setAppliedGiftCard] = useState<{ id: number; code: string; balance: number; amount: number } | null>(null);
-  const [holdCartsOpen, setHoldCartsOpen] = useState(false);
-  const [holdCartsMode, setHoldCartsMode] = useState<'list' | 'save'>('list');
   const [notes, setNotes] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [manualDiscount, setManualDiscount] = useState('');
+  const [manualDiscountPercent, setManualDiscountPercent] = useState('');
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [layawayTermMonths, setLayawayTermMonths] = useState('');
   const [layawayMarkupPercent, setLayawayMarkupPercent] = useState('0');
@@ -128,6 +124,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [submitting, setSubmitting] = useState(false);
   const [shift, setShift] = useState<ActiveShift | null>(null);
   const [shiftError, setShiftError] = useState<string | null>(null);
+  const [shiftLoading, setShiftLoading] = useState(true);
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
   const [modifierVariant, setModifierVariant] = useState<ProductVariantSelection | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
@@ -136,7 +133,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<SelectedPosTable | null>(null);
+  const [locallyOccupiedIds, setLocallyOccupiedIds] = useState<string[]>([]);
   const [splitOpen, setSplitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
@@ -144,10 +141,60 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const debouncedQuery = useDebouncedValue(query);
   const totals = useMemo(() => cartTotals(cart), [cart]);
+
+  useEffect(() => {
+    void getLocallyOccupiedTables().then(setLocallyOccupiedIds).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!tablesOpen) return;
+    void getLocallyOccupiedTables().then(setLocallyOccupiedIds).catch(() => {});
+  }, [tablesOpen]);
+
+  const clearCartContext = useCallback(() => {
+    clearCart();
+    setManualDiscount('');
+    setManualDiscountPercent('');
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponMessage(null);
+  }, [clearCart, setAppliedCoupon]);
+
+  const restoreCartContext = useCallback(
+    (snapshot: {
+      lines: typeof cart;
+      cartDiscount: number;
+      customer: Customer | null;
+      appliedCoupon: { coupon: Coupon; discount: number } | null;
+    }) => {
+      restoreCartFromHold(snapshot.lines, snapshot.customer, snapshot.cartDiscount, snapshot.appliedCoupon);
+      setManualDiscount(snapshot.cartDiscount > 0 ? String(snapshot.cartDiscount) : '');
+      setManualDiscountPercent('');
+      setCouponCode('');
+      setCouponMessage(null);
+    },
+    [restoreCartFromHold],
+  );
+
+  const {
+    selectedTable,
+    selectedTableName,
+    switching: tableSwitching,
+    setDiningTable,
+    updateTableMeta,
+    releaseLocalTable,
+  } = usePosDiningTable({
+    online: isOnline,
+    lines: cart,
+    cartDiscount: Number(manualDiscount) || 0,
+    selectedCustomer,
+    appliedCoupon,
+    clearCartContext,
+    restoreCart: restoreCartContext,
+    onLocallyOccupiedChange: setLocallyOccupiedIds,
+  });
+
   const orderType: PosOrderType = selectedTable ? 'dine_in' : needsDelivery ? 'delivery' : 'takeaway';
-  const selectedTableName = selectedTable
-    ? selectedTable.name ?? (selectedTable.number ? `طاولة ${selectedTable.number}` : `طاولة ${selectedTable.id}`)
-    : null;
   const orderTypeLabel =
     orderType === 'dine_in' ? 'صالة' : orderType === 'delivery' ? 'توصيل' : 'تيك أواي';
   const allowManualDiscount = posAllowsDiscount(catalogSettings);
@@ -157,11 +204,72 @@ export function POSScreen({ navigation }: { navigation: any }) {
     const zone = deliveryZones.find((z) => String(z.id) === deliveryZoneId);
     return zone ? Number(zone.delivery_fee ?? 0) || 0 : 0;
   }, [selectedTable, needsDelivery, deliveryZoneId, deliveryZones]);
+  const maxManualDiscountable = useMemo(() => {
+    if (!allowManualDiscount) return 0;
+    const preview = computePosCheckoutTotals({
+      lines: cart,
+      products,
+      promotions,
+      settings: catalogSettings,
+      branchId: activeBranch?.id ?? null,
+      manualDiscount: 0,
+      couponDiscount: appliedCoupon?.discount ?? 0,
+      loyaltyDiscount: 0,
+      orderType,
+      deliveryFee,
+    });
+    return Math.max(0, preview.gross - preview.promotionDiscount - preview.couponDiscount);
+  }, [
+    allowManualDiscount,
+    cart,
+    products,
+    promotions,
+    catalogSettings,
+    activeBranch?.id,
+    appliedCoupon,
+    orderType,
+    deliveryFee,
+  ]);
+
+  const handleManualDiscountPercentChange = useCallback(
+    (val: string) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || num < 0) {
+        setManualDiscountPercent('');
+        setManualDiscount('');
+        return;
+      }
+      const clampedPct = Math.min(num, 100);
+      setManualDiscountPercent(clampedPct === 0 ? '' : String(clampedPct));
+      const amount =
+        Math.min(Math.round(((maxManualDiscountable * clampedPct) / 100) * 100) / 100, maxManualDiscountable);
+      setManualDiscount(amount > 0 ? String(amount) : '');
+    },
+    [maxManualDiscountable],
+  );
+
+  const handleManualDiscountAmountChange = useCallback(
+    (val: string) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || num < 0) {
+        setManualDiscount('');
+        setManualDiscountPercent('');
+        return;
+      }
+      const clamped = Math.min(num, maxManualDiscountable);
+      setManualDiscount(clamped === 0 ? '' : String(clamped));
+      const pct =
+        maxManualDiscountable > 0 ? Math.round((clamped / maxManualDiscountable) * 10000) / 100 : 0;
+      setManualDiscountPercent(pct > 0 ? String(pct) : '');
+    },
+    [maxManualDiscountable],
+  );
+
   const manualDiscountAmount = useMemo(() => {
     const value = Number(manualDiscount) || 0;
     if (!allowManualDiscount) return 0;
-    return Math.min(Math.max(value, 0), totals.total);
-  }, [allowManualDiscount, manualDiscount, totals.total]);
+    return Math.min(Math.max(value, 0), maxManualDiscountable);
+  }, [allowManualDiscount, manualDiscount, maxManualDiscountable]);
   const loyaltyEgpPerPoint = useMemo(() => {
     const raw = catalogSettings?.loyalty_egp_per_point_redeem;
     const n = Number(raw);
@@ -208,6 +316,71 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const effectiveTotal = checkoutTotals.total;
 
+  useEffect(() => {
+    if (!selectedTable?.id || !isOnline || cart.length === 0) return;
+    const tableId = selectedTable.id;
+
+    const timer = setTimeout(() => {
+      void diningAPI
+        .syncOrderDraft(tableId, {
+          items: saleItemsFromCart(cart),
+          total: effectiveTotal,
+          customer_id: selectedCustomer?.id ?? null,
+        })
+        .then((response) => {
+          void markTableLocallyOccupied(tableId).then(setLocallyOccupiedIds);
+          const data = response.data as { id?: number | string } | undefined;
+          if (data?.id != null) {
+            updateTableMeta({ activeOrderId: data.id });
+          }
+        })
+        .catch(() => {});
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [selectedTable?.id, cart, effectiveTotal, selectedCustomer?.id, isOnline, updateTableMeta]);
+
+  const handleSelectTakeaway = useCallback(() => {
+    if (!selectedTable) return;
+    const switchToTakeaway = () => {
+      void setDiningTable(null);
+      setPosNotice('تم التحويل إلى تيك أواي.');
+    };
+    if (cart.length > 0) {
+      Alert.alert('تيك أواي', 'سيتم حفظ سلة الطاولة والتحويل إلى تيك أواي.', [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'متابعة', onPress: switchToTakeaway },
+      ]);
+      return;
+    }
+    switchToTakeaway();
+  }, [selectedTable, cart.length, setDiningTable]);
+
+  const handleSelectDineIn = useCallback(() => {
+    setTablesOpen(true);
+  }, []);
+
+  const handleSelectTableFromSheet = useCallback(
+    async (table: {
+      id: string;
+      name?: string | null;
+      number?: string | null;
+      hallName?: string | null;
+      activeOrderId?: number | string | null;
+    }) => {
+      await setDiningTable({
+        id: table.id,
+        name: table.name,
+        number: table.number,
+        hallName: table.hallName,
+        activeOrderId: table.activeOrderId ?? null,
+      });
+      setNeedsDelivery(false);
+      setTablesOpen(false);
+      setPosNotice(`تم اختيار ${table.name ?? 'الطاولة'}.`);
+    },
+    [setDiningTable],
+  );
+
   const cartItemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const productQuantities = useMemo(
     () =>
@@ -228,14 +401,19 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const refreshShift = useCallback(async () => {
     if (!activeBranch?.id) {
       setShift(null);
+      setShiftLoading(false);
       return;
     }
+    setShiftLoading(true);
     try {
       const response = await shiftsAPI.current(activeBranch.id);
       setShift((response.data as ActiveShift | null) ?? null);
       setShiftError(null);
     } catch (err) {
+      setShift(null);
       setShiftError(normalizeApiError(err).message);
+    } finally {
+      setShiftLoading(false);
     }
   }, [activeBranch?.id]);
 
@@ -323,7 +501,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   }, [categoryId, debouncedQuery, products, showCategoryCards]);
 
   const categoryItems = useMemo(
-    () => categories.map((cat) => ({ id: String(cat.id), name: cat.name })),
+    () => categories.map((cat) => ({ id: String(cat.id), name: cat.name, image: cat.image ?? null })),
     [categories],
   );
 
@@ -332,6 +510,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
     : null;
 
   const shiftLabel = shift ? 'وردية نشطة' : 'لا توجد وردية';
+
+  const needOpenShift = Boolean(activeBranch?.id) && !shiftLoading && !shift;
 
   const walletText =
     selectedCustomer && walletBalance !== null
@@ -533,6 +713,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setCheckoutMessage('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.');
       return;
     }
+    if (selectedTable && orderType === 'dine_in' && isOnline && !selectedTable.activeOrderId) {
+      setCheckoutMessage('تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.');
+      return;
+    }
     if (!isOnline && loyaltyPointsNum > 0) {
       setCheckoutMessage('استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
       return;
@@ -598,6 +782,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
         deliveryPhone: needsDelivery ? deliveryPhone.trim() : undefined,
         deliveryZoneId: needsDelivery ? deliveryZoneId || null : null,
         diningTableId: selectedTable?.id ?? null,
+        settleTable:
+          selectedTable && orderType === 'dine_in'
+            ? { tableId: selectedTable.id, orderId: selectedTable.activeOrderId ?? null }
+            : undefined,
       },
     );
     setSubmitting(false);
@@ -610,13 +798,17 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setNotes('');
       setCouponCode('');
       setManualDiscount('');
+      setManualDiscountPercent('');
       setAppliedCoupon(null);
       setCouponMessage(null);
       setLayawayTermMonths('');
       setLayawayMarkupPercent('0');
       setLayawayFirstDueDate('');
       setNeedsDelivery(false);
-      setSelectedTable(null);
+      if (selectedTable?.id) {
+        await releaseLocalTable(selectedTable.id);
+        await setDiningTable(null, { forceRelease: true });
+      }
       setDeliveryZoneId('');
       setDeliveryAddress('');
       setDeliveryPhone('');
@@ -636,20 +828,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
     }
     setPaid(String(effectiveTotal));
     setCheckoutOpen(true);
-  };
-
-  const openSaveHoldCart = () => {
-    if (cart.length === 0) {
-      Alert.alert('حفظ السلة', 'السلة فارغة');
-      return;
-    }
-    setHoldCartsMode('save');
-    setHoldCartsOpen(true);
-  };
-
-  const openHoldCartsList = () => {
-    setHoldCartsMode('list');
-    setHoldCartsOpen(true);
   };
 
   const handleExitCategory = useCallback(() => {
@@ -722,31 +900,24 @@ export function POSScreen({ navigation }: { navigation: any }) {
     cart,
     effectiveTotal,
     subtotal: totals.subtotal,
-    branchName: activeBranch?.name ?? null,
-    orderTypeLabel,
+    selectedTableId: selectedTable?.id ?? null,
+    onSelectTakeaway: handleSelectTakeaway,
+    onSelectDineIn: handleSelectDineIn,
+    orderModeDisabled: tableSwitching,
     shiftError,
     hasShift: !!shift,
     pendingCount: pendingOrders.length,
     selectedCustomerName: selectedCustomer?.name ?? null,
     selectedTableName,
-    walletText,
-    couponLabel,
-    manualDiscountLabel: manualDiscountAmount > 0 ? `خصم يدوي: -${money(manualDiscountAmount)}` : null,
-    promotionLabel,
     taxLabel,
     serviceChargeLabel,
     deliveryFeeLabel,
-    loyaltyLabel: loyaltyDiscount > 0 ? `نقاط ولاء: -${money(loyaltyDiscount)}` : null,
-    giftCardLabel: appliedGiftCard ? `بطاقة هدايا: -${money(appliedGiftCard.amount)}` : null,
     splitPaid: paymentType === 'split' && splitLines.length > 0 ? splitPaid : null,
     splitRemaining: paymentType === 'split' && splitLines.length > 0 ? splitRemaining : null,
     onSelectCustomer: () => setCustomerOpen(true),
     onClearCart: clearCart,
     onCheckout: openCheckout,
-    onSaveHoldCart: openSaveHoldCart,
-    onOpenHoldCarts: openHoldCartsList,
     onCashMovement: () => setCashMovementOpen(true),
-    onOpenTables: () => setTablesOpen(true),
     onUpdateQty: updateQuantity,
     onRemoveLine: removeLine,
     onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
@@ -761,11 +932,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
       {isTablet ? (
         <PosTabletScreen
           shiftLabel={shiftLabel}
+          hasShift={!!shift}
           cashierName={user?.name}
           lastSyncedLabel={lastSyncedLabel}
           onExitPos={handleExitPos}
-          onSaveHoldCart={openSaveHoldCart}
-          onOpenHoldCarts={openHoldCartsList}
           onCashMovement={() => setCashMovementOpen(true)}
           onOpenTables={() => setTablesOpen(true)}
           posNotice={posNotice}
@@ -806,9 +976,12 @@ export function POSScreen({ navigation }: { navigation: any }) {
             cartCount={cartItemCount}
             cartPulse={cartPulse}
             shiftLabel={shiftLabel}
+            hasShift={!!shift}
+            branchName={activeBranch?.name}
             cashierName={user?.name}
             lastSyncedLabel={lastSyncedLabel}
             showMobileTabs
+            onExit={handleExitPos}
           />
           <OfflinePrintIndicators compact />
           {posNotice ? (
@@ -824,7 +997,12 @@ export function POSScreen({ navigation }: { navigation: any }) {
             </View>
           ) : error && products.length === 0 ? (
             <View style={styles.centered}>
-              <AppErrorState message={error} onRetry={loadCatalog} />
+              <AppErrorState
+                title="تعذر تحميل كتالوج البيع"
+                message={error}
+                onRetry={loadCatalog}
+                retryLabel="إعادة تحميل الكتالوج"
+              />
             </View>
           ) : (
         <View style={[styles.workspace, { paddingBottom: tabBarInset }]}>
@@ -855,7 +1033,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
                 }}
                 onExitCategory={handleExitCategory}
                 activeCategoryName={activeCategoryName}
-                onOpenTables={() => setTablesOpen(true)}
                 products={filteredProducts}
                 productQuantities={productQuantities}
                 onProductPress={handleProductPress}
@@ -891,7 +1068,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onPaidChange={setPaid}
         allowManualDiscount={allowManualDiscount}
         manualDiscount={manualDiscount}
-        onManualDiscountChange={setManualDiscount}
+        manualDiscountPercent={manualDiscountPercent}
+        onManualDiscountChange={handleManualDiscountAmountChange}
+        onManualDiscountPercentChange={handleManualDiscountPercentChange}
         allowCoupons={allowCoupons}
         couponCode={couponCode}
         onCouponCodeChange={setCouponCode}
@@ -925,7 +1104,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onLayawayFirstDueDateChange={setLayawayFirstDueDate}
         needsDelivery={needsDelivery}
         onNeedsDeliveryChange={(value) => {
-          if (value) setSelectedTable(null);
+          if (value) void setDiningTable(null, { forceRelease: true });
           setNeedsDelivery(value);
           if (!value) {
             setDeliveryZoneId('');
@@ -964,22 +1143,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onClose={() => setReviewOpen(false)}
         onConfirm={handleCheckout}
         loading={submitting}
-      />
-
-      <HoldCartsSheet
-        visible={holdCartsOpen}
-        onClose={() => setHoldCartsOpen(false)}
-        initialMode={holdCartsMode}
-        cart={cart}
-        customer={selectedCustomer}
-        manualDiscount={manualDiscountAmount}
-        appliedCoupon={appliedCoupon}
-        cartTotal={effectiveTotal}
-        onRestore={(data) => {
-          restoreCartFromHold(data.lines, data.customer, data.manualDiscount, data.appliedCoupon);
-          setManualDiscount(String(data.manualDiscount || ''));
-          setHoldCartsOpen(false);
-        }}
       />
 
       <ModifierPickerSheet
@@ -1063,31 +1226,24 @@ export function POSScreen({ navigation }: { navigation: any }) {
         }}
       />
 
+      <OpenShiftSheet
+        visible={needOpenShift}
+        branchId={activeBranch?.id ?? null}
+        mode="required"
+        onExitPos={handleExitPos}
+        onClose={() => {}}
+        onSuccess={() => void refreshShift()}
+      />
+
       <PosTablesSheet
         visible={tablesOpen}
         branchId={activeBranch?.id ?? null}
         isOnline={isOnline}
-        cart={cart}
-        total={effectiveTotal}
-        customer={selectedCustomer}
         selectedTableId={selectedTable?.id ?? null}
+        locallyOccupiedIds={locallyOccupiedIds}
         onClose={() => setTablesOpen(false)}
         onSelectTable={(table) => {
-          setSelectedTable(table);
-          setNeedsDelivery(false);
-          setPosNotice(`تم اختيار ${table.name ?? 'الطاولة'} للطلب الحالي.`);
-        }}
-        onLinked={(table) => {
-          setSelectedTable(table);
-          clearCart();
-          setManualDiscount('');
-          setCouponCode('');
-          setCouponMessage(null);
-          setNeedsDelivery(false);
-          setPosNotice('تم ربط السلة بالطاولة.');
-        }}
-        onOpenTable={(table) => {
-          navigation.navigate('DiningTableOrder', { tableId: table.id, tableName: table.name });
+          void handleSelectTableFromSheet(table);
         }}
       />
     </SafeAreaView>

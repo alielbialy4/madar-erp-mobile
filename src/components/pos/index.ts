@@ -1,3 +1,4 @@
+export { PosOrderModeToggle } from './PosOrderModeToggle';
 export { PosTopBar } from './PosTopBar';
 export { PosTabletTopBar } from './PosTabletTopBar';
 export { PosTabletSplit } from './PosTabletSplit';

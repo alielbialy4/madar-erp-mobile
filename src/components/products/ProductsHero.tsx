@@ -1,5 +1,12 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Text } from '@/components/ui/AppText';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';

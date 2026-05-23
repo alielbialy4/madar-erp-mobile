@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -7,6 +7,7 @@ import { createCategoryStyles } from '@/components/categories/categoryStyles';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
 import { chevronForwardIcon } from '@/utils/rtl';
 import type { InventoryCardModel } from './inventoryRowUtils';
+import { Text } from '@/components/ui/AppText';
 
 type Props = InventoryCardModel & {
   icon?: React.ComponentProps<typeof MaterialIcons>['name'];

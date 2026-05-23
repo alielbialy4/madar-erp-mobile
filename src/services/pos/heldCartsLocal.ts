@@ -24,7 +24,7 @@ export type HeldCartLocalRecord = {
   created_at: string;
 };
 
-const KEY = 'madar.pos.held_carts_local';
+const KEY = storageKeys.heldCartsLocal;
 
 export async function getLocalHeldCarts(branchId?: string): Promise<HeldCartLocalRecord[]> {
   const all = (await storageGet<HeldCartLocalRecord[]>(KEY)) ?? [];

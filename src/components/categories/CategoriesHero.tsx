@@ -1,5 +1,11 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Text } from '@/components/ui/AppText';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  View,
+} from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';

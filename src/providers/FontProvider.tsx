@@ -1,7 +1,8 @@
 import React, { PropsWithChildren, useEffect } from 'react';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { applyGlobalTypography } from '@/bootstrap/typography';
 import { fonts } from '@/constants/fonts';
+import { Text } from '@/components/ui/AppText';
 import {
   useFonts,
   Tajawal_400Regular,

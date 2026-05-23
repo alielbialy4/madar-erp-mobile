@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
 import { AppScreen } from '@/components/layout';
@@ -16,6 +16,7 @@ import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyle
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 import type { MoreStackParamList } from '@/types/navigation';
+import { Text } from '@/components/ui/AppText';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockAdjustment'>;
 

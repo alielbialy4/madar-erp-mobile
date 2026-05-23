@@ -3,7 +3,8 @@ import type { AuthSession, User } from '@/types/api';
 import { authAPI } from '@/api/auth';
 import { tenantAPI } from '@/api/tenant';
 import { setUnauthorizedHandler } from '@/api/client';
-import { secureDelete, secureGet, secureSet, storageDelete, storageKeys, storageSet } from '@/services/storage';
+import { secureGet, secureSet, storageKeys, storageSet } from '@/services/storage';
+import { clearLocalSessionData } from '@/services/session/clearLocalSessionData';
 import { normalizeApiError } from '@/utils/errors';
 import { useBranchStore } from './branchStore';
 import { useThemeStore } from './themeStore';
@@ -81,6 +82,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     login: async ({ identifier, password, tenant_slug }) => {
       set({ loading: true, error: null });
       try {
+        await clearLocalSessionData();
+        set({ token: null, user: null, tenantSlug: null });
         const slug = tenant_slug?.trim();
         if (slug) await storageSet(storageKeys.tenantSlug, slug);
         const cleanIdentifier = identifier.trim();
@@ -135,12 +138,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     clearLocalSession: async () => {
-      await secureDelete(storageKeys.authSession);
-      await storageDelete(storageKeys.cachedUser);
-      await storageDelete(storageKeys.tenantPrimaryHex);
-      useThemeStore.getState().setPrimaryHex(null);
-      set({ token: null, user: null, loading: false, bootstrapping: false, error: null });
-      useBranchStore.getState().clear();
+      await clearLocalSessionData();
+      set({ token: null, user: null, tenantSlug: null, loading: false, bootstrapping: false, error: null });
     },
   };
 });

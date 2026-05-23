@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, type ReactNode } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -23,6 +23,14 @@ type CouponState = { coupon: { code: string }; discount: number } | null;
 
 type GiftCardState = { id: number; code: string; balance: number; amount: number } | null;
 
+function InputRow({ children }: { children: ReactNode }) {
+  return <View style={{ ...flexRow, gap: spacing.sm, alignItems: 'flex-start' }}>{children}</View>;
+}
+
+function InputCol({ children, flex = 1 }: { children: ReactNode; flex?: number }) {
+  return <View style={{ flex, minWidth: 0 }}>{children}</View>;
+}
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -43,7 +51,9 @@ type Props = {
   onPaidChange: (v: string) => void;
   allowManualDiscount: boolean;
   manualDiscount: string;
+  manualDiscountPercent: string;
   onManualDiscountChange: (v: string) => void;
+  onManualDiscountPercentChange: (v: string) => void;
   allowCoupons: boolean;
   couponCode: string;
   onCouponCodeChange: (v: string) => void;
@@ -103,7 +113,9 @@ export function PosCheckoutSheet({
   onPaidChange,
   allowManualDiscount,
   manualDiscount,
+  manualDiscountPercent,
   onManualDiscountChange,
+  onManualDiscountPercentChange,
   allowCoupons,
   couponCode,
   onCouponCodeChange,
@@ -215,6 +227,10 @@ export function PosCheckoutSheet({
           ? 'خصم النقاط أكبر من المبلغ المستحق'
           : null;
 
+  const showPaidField =
+    (paymentType !== 'split' && paymentType !== 'gift_card' && paymentType !== 'layaway') ||
+    (paymentType === 'gift_card' && cashDue > 0.01);
+
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
       <View style={s.root}>
@@ -227,28 +243,47 @@ export function PosCheckoutSheet({
           </View>
         ) : null}
 
-        {hasCustomer ? (
-          <PosSheetSection label="نقاط الولاء">
-            {loyaltyBlockedOffline ? (
-              <Text style={local.hint}>استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.</Text>
-            ) : (
-              <>
-                <Text style={local.hint}>
-                  الرصيد: {pointsBalance ?? 0} نقطة — سعر النقطة: {money(loyaltyEgpPerPoint)}
-                </Text>
-                <AppInput
-                  label="نقاط للاستبدال"
-                  keyboardType="number-pad"
-                  value={loyaltyPointsInput}
-                  onChangeText={onLoyaltyPointsInputChange}
-                  placeholder="0"
-                />
-                {loyaltyDiscount > 0 ? (
-                  <Text style={local.couponApplied}>خصم النقاط: -{money(loyaltyDiscount)}</Text>
-                ) : null}
-                {loyaltyError ? <Text style={s.errorText}>{loyaltyError}</Text> : null}
-              </>
-            )}
+        {hasCustomer || showPaidField ? (
+          <PosSheetSection label="نقاط ودفع">
+            <InputRow>
+              {hasCustomer ? (
+                <InputCol>
+                  {loyaltyBlockedOffline ? (
+                    <Text style={local.hint}>استبدال النقاط يحتاج اتصالاً بالخادم.</Text>
+                  ) : (
+                    <>
+                      <AppInput
+                        label="نقاط الولاء"
+                        keyboardType="number-pad"
+                        value={loyaltyPointsInput}
+                        onChangeText={onLoyaltyPointsInputChange}
+                        placeholder="0"
+                      />
+                      {loyaltyDiscount > 0 ? (
+                        <Text style={local.couponApplied}>خصم: -{money(loyaltyDiscount)}</Text>
+                      ) : null}
+                      {loyaltyError ? <Text style={s.errorText}>{loyaltyError}</Text> : null}
+                    </>
+                  )}
+                </InputCol>
+              ) : null}
+              {showPaidField ? (
+                <InputCol>
+                  <AppInput
+                    label={paymentType === 'gift_card' ? 'المدفوع (الباقي)' : 'المدفوع'}
+                    keyboardType="numeric"
+                    value={paid}
+                    onChangeText={onPaidChange}
+                    placeholder="0.00"
+                  />
+                </InputCol>
+              ) : null}
+            </InputRow>
+            {hasCustomer && !loyaltyBlockedOffline ? (
+              <Text style={local.hint}>
+                الرصيد: {pointsBalance ?? 0} نقطة — سعر النقطة: {money(loyaltyEgpPerPoint)}
+              </Text>
+            ) : null}
           </PosSheetSection>
         ) : null}
 
@@ -302,8 +337,25 @@ export function PosCheckoutSheet({
                 ) : (
                   <Text style={local.hint}>لا توجد مناطق توصيل نشطة في الكتالوج.</Text>
                 )}
-                <AppInput label="عنوان التوصيل *" value={deliveryAddress} onChangeText={onDeliveryAddressChange} placeholder="العنوان الكامل" />
-                <AppInput label="هاتف التوصيل" value={deliveryPhone} onChangeText={onDeliveryPhoneChange} placeholder="01xxxxxxxxx" keyboardType="phone-pad" />
+                <InputRow>
+                  <InputCol>
+                    <AppInput
+                      label="عنوان التوصيل *"
+                      value={deliveryAddress}
+                      onChangeText={onDeliveryAddressChange}
+                      placeholder="العنوان الكامل"
+                    />
+                  </InputCol>
+                  <InputCol>
+                    <AppInput
+                      label="هاتف التوصيل"
+                      value={deliveryPhone}
+                      onChangeText={onDeliveryPhoneChange}
+                      placeholder="01xxxxxxxxx"
+                      keyboardType="phone-pad"
+                    />
+                  </InputCol>
+                </InputRow>
                 {deliveryFee > 0 ? <Text style={local.hint}>رسوم التوصيل: {money(deliveryFee)}</Text> : null}
               </>
             )}
@@ -328,8 +380,28 @@ export function PosCheckoutSheet({
               <Text style={s.errorText}>الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.</Text>
             ) : !appliedGiftCard ? (
               <>
-                <AppInput label="كود البطاقة" value={giftCardCode} onChangeText={onGiftCardCodeChange} placeholder="أدخل الكود" />
-                <AppButton title="تحقق من الرصيد" variant="outline" onPress={onValidateGiftCard} disabled={!giftCardCode.trim()} size="sm" />
+                <InputRow>
+                  <InputCol flex={2}>
+                    <AppInput
+                      label="كود البطاقة"
+                      value={giftCardCode}
+                      onChangeText={onGiftCardCodeChange}
+                      placeholder="أدخل الكود"
+                    />
+                  </InputCol>
+                  <InputCol>
+                    <View style={{ paddingTop: 22 }}>
+                      <AppButton
+                        title="تحقق"
+                        variant="outline"
+                        onPress={onValidateGiftCard}
+                        disabled={!giftCardCode.trim()}
+                        size="sm"
+                        fullWidth
+                      />
+                    </View>
+                  </InputCol>
+                </InputRow>
               </>
             ) : (
               <View style={local.couponRow}>
@@ -354,33 +426,45 @@ export function PosCheckoutSheet({
               <Text style={s.errorText}>يجب اختيار عميل قبل التقسيط.</Text>
             ) : (
               <>
-                <AppInput
-                  label="عدد الأقساط (بالأشهر) *"
-                  keyboardType="number-pad"
-                  value={layawayTermMonths}
-                  onChangeText={onLayawayTermMonthsChange}
-                  placeholder="12"
-                />
-                <AppInput
-                  label="نسبة الزيادة %"
-                  keyboardType="numeric"
-                  value={layawayMarkupPercent}
-                  onChangeText={onLayawayMarkupPercentChange}
-                  placeholder="0"
-                />
-                <AppInput
-                  label="تاريخ أول قسط *"
-                  value={layawayFirstDueDate}
-                  onChangeText={onLayawayFirstDueDateChange}
-                  placeholder="YYYY-MM-DD"
-                />
-                <AppInput
-                  label="الدفعة المقدمة *"
-                  keyboardType="numeric"
-                  value={paid}
-                  onChangeText={onPaidChange}
-                  placeholder="0.00"
-                />
+                <InputRow>
+                  <InputCol>
+                    <AppInput
+                      label="عدد الأقساط *"
+                      keyboardType="number-pad"
+                      value={layawayTermMonths}
+                      onChangeText={onLayawayTermMonthsChange}
+                      placeholder="12"
+                    />
+                  </InputCol>
+                  <InputCol>
+                    <AppInput
+                      label="نسبة الزيادة %"
+                      keyboardType="numeric"
+                      value={layawayMarkupPercent}
+                      onChangeText={onLayawayMarkupPercentChange}
+                      placeholder="0"
+                    />
+                  </InputCol>
+                </InputRow>
+                <InputRow>
+                  <InputCol>
+                    <AppInput
+                      label="تاريخ أول قسط *"
+                      value={layawayFirstDueDate}
+                      onChangeText={onLayawayFirstDueDateChange}
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </InputCol>
+                  <InputCol>
+                    <AppInput
+                      label="الدفعة المقدمة *"
+                      keyboardType="numeric"
+                      value={paid}
+                      onChangeText={onPaidChange}
+                      placeholder="0.00"
+                    />
+                  </InputCol>
+                </InputRow>
                 <Text style={local.hint}>
                   الإجمالي بعد الزيادة: {money(layawayFinalTotal)} — المتبقي: {money(layawayRemaining)}
                 </Text>
@@ -389,15 +473,7 @@ export function PosCheckoutSheet({
           </PosSheetSection>
         ) : null}
 
-        {paymentType !== 'split' && paymentType !== 'gift_card' && paymentType !== 'layaway' ? (
-          <PosSheetSection label="المبلغ المدفوع">
-            <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={onPaidChange} />
-          </PosSheetSection>
-        ) : paymentType === 'gift_card' && cashDue > 0.01 ? (
-          <PosSheetSection label="المبلغ المدفوع (الباقي)">
-            <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={onPaidChange} />
-          </PosSheetSection>
-        ) : paymentType === 'split' ? (
+        {paymentType === 'split' ? (
           <PosSheetSection label="الدفع المقسم">
             {vaultsEmpty ? (
               <Text style={s.errorText}>لا توجد خزنة متاحة للدفع المقسم.</Text>
@@ -414,36 +490,68 @@ export function PosCheckoutSheet({
           </PosSheetSection>
         ) : null}
 
-        {allowManualDiscount ? (
-          <PosSheetSection label="خصم يدوي">
-            <AppInput
-              label="قيمة الخصم"
-              keyboardType="numeric"
-              value={manualDiscount}
-              onChangeText={onManualDiscountChange}
-              placeholder="0.00"
-            />
-          </PosSheetSection>
-        ) : null}
-
-        {allowCoupons ? (
-          <PosSheetSection label="كوبون / عروض">
-            {!appliedCoupon ? (
-              <>
-                <AppInput label="كود الكوبون" value={couponCode} onChangeText={onCouponCodeChange} placeholder="أدخل الكود" />
-                {!isOnline ? (
-                  <Text style={local.hint}>بدون اتصال: يُتحقق من الكوبون من الكتالوج المخزّن محلياً.</Text>
-                ) : null}
-                <AppButton title="تحقق من الكوبون" variant="outline" onPress={onValidateCoupon} disabled={!couponCode.trim()} size="sm" />
-              </>
-            ) : (
-              <View style={local.couponRow}>
-                <Text style={local.couponApplied}>
-                  {appliedCoupon.coupon.code}: -{money(appliedCoupon.discount)}
-                </Text>
-                <AppButton title="إزالة" variant="ghost" onPress={onRemoveCoupon} size="sm" />
-              </View>
-            )}
+        {allowManualDiscount || allowCoupons ? (
+          <PosSheetSection label="خصومات وكوبونات">
+            {allowManualDiscount ? (
+              <InputRow>
+                <InputCol>
+                  <AppInput
+                    label="خصم %"
+                    keyboardType="decimal-pad"
+                    value={manualDiscountPercent}
+                    onChangeText={onManualDiscountPercentChange}
+                    placeholder="0"
+                  />
+                </InputCol>
+                <InputCol>
+                  <AppInput
+                    label="خصم مبلغ"
+                    keyboardType="decimal-pad"
+                    value={manualDiscount}
+                    onChangeText={onManualDiscountChange}
+                    placeholder="0.00"
+                  />
+                </InputCol>
+              </InputRow>
+            ) : null}
+            {allowCoupons ? (
+              !appliedCoupon ? (
+                <>
+                  <InputRow>
+                    <InputCol flex={2}>
+                      <AppInput
+                        label="كود الكوبون"
+                        value={couponCode}
+                        onChangeText={onCouponCodeChange}
+                        placeholder="أدخل الكود"
+                      />
+                    </InputCol>
+                    <InputCol>
+                      <View style={{ paddingTop: 22 }}>
+                        <AppButton
+                          title="تحقق"
+                          variant="outline"
+                          onPress={onValidateCoupon}
+                          disabled={!couponCode.trim()}
+                          size="sm"
+                          fullWidth
+                        />
+                      </View>
+                    </InputCol>
+                  </InputRow>
+                  {!isOnline ? (
+                    <Text style={local.hint}>بدون اتصال: يُتحقق من الكوبون محلياً.</Text>
+                  ) : null}
+                </>
+              ) : (
+                <View style={local.couponRow}>
+                  <Text style={local.couponApplied}>
+                    {appliedCoupon.coupon.code}: -{money(appliedCoupon.discount)}
+                  </Text>
+                  <AppButton title="إزالة" variant="ghost" onPress={onRemoveCoupon} size="sm" />
+                </View>
+              )
+            ) : null}
             {couponMessage ? <Text style={local.msg}>{couponMessage}</Text> : null}
           </PosSheetSection>
         ) : null}

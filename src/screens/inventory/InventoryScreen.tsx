@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI, warehousesAPI } from '@/api/inventory';
@@ -18,6 +18,7 @@ import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 import type { InventoryListPresetKey, MoreStackParamList } from '@/types/navigation';
+import { Text } from '@/components/ui/AppText';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Inventory'>;
 

@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { createDashboardStyles } from './dashboardStyles';
 import { DashboardSection } from './DashboardSection';
 import type { KpiTone } from './dashboardStyles';
+import { Text } from '@/components/ui/AppText';
 
 export type ListItem = {
   id: string;

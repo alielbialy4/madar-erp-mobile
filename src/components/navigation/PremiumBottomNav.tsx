@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { Text } from '@/components/ui/AppText';
 import {
   Animated,
   Platform,
   Pressable,
-  Text,
   View,
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -93,7 +93,7 @@ function StandardTab({
     Animated.spring(pressScale, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }).start();
   };
 
-  const iconColor = focused ? c.accent : inactive;
+  const iconColor = focused ? c.tabBarActive : inactive;
 
   return (
     <Pressable
@@ -125,7 +125,7 @@ function StandardTab({
             fontSize: 10,
             fontFamily: focused ? fonts.bold : fonts.medium,
             fontWeight: focused ? '700' : '500',
-            color: focused ? c.accent : inactive,
+            color: focused ? c.tabBarActive : inactive,
             textAlign: 'center',
             writingDirection: 'rtl',
             opacity: labelOpacity,
@@ -216,7 +216,7 @@ function PosCenterTab({
                   shadowRadius: 12,
                 },
                 android: { elevation: 10 },
-                default: { boxShadow: '0 6px 20px rgba(51, 102, 255, 0.35)' } as object,
+                default: { boxShadow: `0 6px 20px ${c.cardGlow}` } as object,
               }),
             }}
           >

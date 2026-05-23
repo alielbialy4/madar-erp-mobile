@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -8,6 +8,7 @@ import { numberText } from '@/utils/format';
 import { chevronForwardIcon } from '@/utils/rtl';
 import type { Category } from '@/types/api';
 import { createCategoryStyles } from './categoryStyles';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   category: Category;

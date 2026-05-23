@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { CartLineSelectedOption, CatalogPromotion, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
+import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
 import { giftCardsAPI } from '@/api/giftCards';
+import { diningAPI } from '@/api/dining';
 import { posAPI } from '@/api/pos';
 import { loadPosCatalog, savePosCatalog } from '@/services/offline/catalogCache';
 import { getPendingOrders } from '@/services/offline/posOrders';
@@ -34,7 +35,7 @@ type SplitLine = {
 
 type PosState = {
   products: Product[];
-  categories: { id: number; name: string }[];
+  categories: Pick<Category, 'id' | 'name' | 'image'>[];
   customers: Customer[];
   coupons: Coupon[];
   promotions: CatalogPromotion[];
@@ -78,6 +79,7 @@ type PosState = {
     manualDiscount: number,
     appliedCoupon: { coupon: Coupon; discount: number } | null,
   ) => void;
+  resetSession: () => void;
 };
 
 export type SubmitSaleExtras = {
@@ -91,6 +93,8 @@ export type SubmitSaleExtras = {
   deliveryPhone?: string;
   deliveryZoneId?: string | null;
   diningTableId?: string | null;
+  /** When set, settle an existing table order instead of creating a new sale. */
+  settleTable?: { tableId: string; orderId?: number | string | null };
 };
 
 function priceOf(product: Product, variantId?: string | null): number {
@@ -410,6 +414,61 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
     }
     try {
+      const settleTable = extras?.settleTable;
+      if (settleTable?.tableId && orderType === 'dine_in') {
+        let activeOrderId = settleTable.orderId ?? null;
+        if (!activeOrderId) {
+          try {
+            const activeRes = await diningAPI.getActiveOrder(settleTable.tableId);
+            activeOrderId = (activeRes.data as { id?: number | string } | undefined)?.id ?? null;
+          } catch {
+            activeOrderId = null;
+          }
+        }
+        if (!activeOrderId) {
+          return { ok: false, message: 'تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.' };
+        }
+        const settleRes = await diningAPI.settleOrder(settleTable.tableId, {
+          payment_type: payload.payment_type,
+          paid: salePaid,
+          payment_lines: payload.payment_lines,
+          customer_id: payload.customer_id,
+          loyalty_points_redeemed: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+          loyalty_discount: checkout.loyaltyDiscount > 0 ? checkout.loyaltyDiscount : undefined,
+          discount: checkout.invoiceDiscount,
+          promotion_discount: checkout.promotionDiscount,
+          coupon_id: allowCoupon ? (couponData?.coupon_id ?? null) : null,
+          coupon_discount: checkout.couponDiscount,
+          notes: payload.notes ?? undefined,
+          layaway_terms: paymentType === 'layaway' ? (extras?.layawayTerms ?? null) : null,
+        });
+        if (settleRes.status === 'success') {
+          const saleId = Number((settleRes.data as { id?: number })?.id) || undefined;
+          if (extras?.giftCard && saleId && extras.giftCard.amount > 0) {
+            try {
+              await giftCardsAPI.redeem(String(extras.giftCard.id), {
+                amount: extras.giftCard.amount,
+                sale_id: saleId,
+                customer_id: get().selectedCustomer?.id ?? undefined,
+              });
+            } catch (err) {
+              return {
+                ok: false,
+                message:
+                  err instanceof Error
+                    ? `تم تحصيل الطاولة #${saleId} لكن فشل خصم بطاقة الهدايا: ${err.message}`
+                    : `تم تحصيل الطاولة #${saleId} لكن فشل خصم بطاقة الهدايا`,
+                saleId,
+              };
+            }
+          }
+          get().clearCart();
+          void syncAll();
+          return { ok: true, message: settleRes.message || 'تم تحصيل طلب الطاولة بنجاح', saleId };
+        }
+        return { ok: false, message: settleRes.message || 'تعذر تحصيل طلب الطاولة' };
+      }
+
       const response = await posAPI.createSale(payload);
       if (response.status === 'success') {
         const saleId = Number((response.data as { id?: number })?.id) || undefined;
@@ -445,4 +504,24 @@ export const usePosStore = create<PosState>((set, get) => ({
     const pendingOrders = await getPendingOrders();
     set({ pendingOrders });
   },
+
+  resetSession: () =>
+    set({
+      products: [],
+      categories: [],
+      customers: [],
+      coupons: [],
+      promotions: [],
+      deliveryZones: [],
+      cart: [],
+      selectedCustomer: null,
+      loading: false,
+      error: null,
+      lastSyncedAt: null,
+      pendingOrders: [],
+      walletBalance: null,
+      pointsBalance: null,
+      appliedCoupon: null,
+      catalogSettings: {},
+    }),
 }));

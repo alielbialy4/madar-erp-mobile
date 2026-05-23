@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { productsAPI } from '@/api/products';
@@ -15,7 +15,7 @@ import { ProductOptionGroupsEditor } from '@/components/products/ProductOptionGr
 import { ProductFormSection, SwitchRow } from '@/components/products/ProductFormSection';
 import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
-import { AppText as UiText } from '@/components/ui/AppText';
+import { AppText as UiText, Text } from '@/components/ui/AppText';
 import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hasPermission } from '@/utils/permissions';

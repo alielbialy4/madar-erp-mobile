@@ -28,7 +28,7 @@ export default function App() {
       ...base,
       colors: {
         ...base.colors,
-        primary: c.accent,
+        primary: c.primary,
         background: c.background,
         card: c.surface,
         text: c.text,

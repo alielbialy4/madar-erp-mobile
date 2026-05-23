@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 import { createDashboardStyles } from './dashboardStyles';
 import { DashboardSection } from './DashboardSection';
+import { Text } from '@/components/ui/AppText';
 
 type Props = {
   days: string[];

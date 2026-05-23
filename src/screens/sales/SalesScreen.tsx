@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { salesAPI } from '@/api/sales';
 import { AppScreen } from '@/components/layout';
 import { AppInput } from '@/components/ui';
@@ -14,6 +14,7 @@ import { typography } from '@/constants/typography';
 import { textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { Sale } from '@/types/api';
+import { Text } from '@/components/ui/AppText';
 
 export function SalesScreen({ navigation }: { navigation: { navigate: (a: string, b?: object) => void } }) {
   const c = useColors();

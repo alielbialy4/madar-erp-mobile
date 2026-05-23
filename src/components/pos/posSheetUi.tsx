@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { AppColors } from '@/constants/colors';
@@ -105,29 +105,31 @@ function createPosSheetStyles(c: AppColors) {
     summaryValue: { fontSize: typography.small, fontFamily: fonts.bold, color: c.text, writingDirection: 'rtl' },
     summaryDiscount: { color: c.danger },
     divider: { height: 1, backgroundColor: c.borderSubtle, marginVertical: spacing.xs },
-    paymentGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
+    paymentRow: { ...flexRow, gap: spacing.xs },
     paymentCard: {
-      flexBasis: '48%',
-      flexGrow: 1,
-      minWidth: 120,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      borderRadius: radius.xl,
+      flexGrow: 0,
+      flexShrink: 0,
+      minWidth: 76,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.lg,
       borderWidth: 1.5,
       borderColor: c.border,
       backgroundColor: c.surface,
       alignItems: 'center',
-      gap: spacing.xs,
+      justifyContent: 'center',
+      gap: 4,
     },
     paymentCardActive: {
       borderColor: c.primary,
       backgroundColor: c.softPrimary,
     },
     paymentCardLabel: {
-      fontSize: typography.small,
+      fontSize: typography.tiny,
       fontFamily: fonts.bold,
       color: c.text,
       writingDirection: 'rtl',
+      textAlign: 'center',
     },
     paymentCardLabelActive: { color: c.primary },
     walletBanner: {
@@ -225,7 +227,7 @@ export function PosPaymentMethodGrid({
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>طريقة الدفع</Text>
-      <View style={s.paymentGrid}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.paymentRow}>
         {options.map((opt) => {
           const active = value === opt.key;
           return (
@@ -234,12 +236,14 @@ export function PosPaymentMethodGrid({
               onPress={() => onChange(opt.key)}
               style={[s.paymentCard, active && s.paymentCardActive]}
             >
-              <MaterialIcons name={opt.icon} size={22} color={active ? c.primary : c.textMuted} />
-              <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]}>{opt.label}</Text>
+              <MaterialIcons name={opt.icon} size={20} color={active ? c.primary : c.textMuted} />
+              <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]} numberOfLines={1}>
+                {opt.label}
+              </Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 }

@@ -1,11 +1,12 @@
 import React from 'react';
-import { TextInput, TextInputProps, View } from 'react-native';
+import { TextInputProps, View } from 'react-native';
 import { inputTextAlign, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from './AppText';
+import { AppTextInput } from './AppTextInput';
 
 type Props = TextInputProps & {
   label?: string;
@@ -24,7 +25,7 @@ export function AppInput({ label, error, required, style, textAlign, ...props }:
           {required ? <AppText style={{ color: c.danger, fontSize: typography.label }}>*</AppText> : null}
         </View>
       ) : null}
-      <TextInput
+      <AppTextInput
         placeholderTextColor={c.textCaption}
         textAlign={textAlign ?? inputTextAlign}
         style={[

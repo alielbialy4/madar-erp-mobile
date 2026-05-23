@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
@@ -18,6 +18,8 @@ type Props = {
 export function AppBottomSheet({ visible, onClose, children, title }: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isTabletSheet = width >= 900;
   const backdrop = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(48)).current;
 
@@ -68,6 +70,8 @@ export function AppBottomSheet({ visible, onClose, children, title }: Props) {
           <Animated.View
             style={{
               transform: [{ translateY }],
+              width: isTabletSheet ? Math.min(width - spacing.xxl * 2, 760) : '100%',
+              alignSelf: 'center',
               backgroundColor: c.surface,
               borderTopLeftRadius: radius.xxxl,
               borderTopRightRadius: radius.xxxl,

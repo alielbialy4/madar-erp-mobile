@@ -1,15 +1,21 @@
 import type { TextStyle, ViewStyle } from 'react-native';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 import { fonts } from '@/constants/fonts';
+
+const rtlViewDirection: ViewStyle = Platform.OS === 'web' ? {} : { direction: 'rtl' };
 
 export const rootRtl: ViewStyle = {
   flex: 1,
-  direction: 'rtl',
+  ...rtlViewDirection,
 };
 
 export const screenRtl: ViewStyle = {
   flex: 1,
-  direction: 'rtl',
+  ...rtlViewDirection,
+};
+
+export const rtlDirection: ViewStyle = {
+  ...rtlViewDirection,
 };
 
 export const flexRow: ViewStyle = { flexDirection: 'row' };

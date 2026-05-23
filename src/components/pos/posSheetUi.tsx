@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-// Text used in sheet primitives below
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';

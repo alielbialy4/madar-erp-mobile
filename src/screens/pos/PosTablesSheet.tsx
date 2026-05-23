@@ -23,6 +23,14 @@ type TableRow = DiningTable & {
   dining_hall?: { name?: string | null } | null;
 };
 
+type TableSelection = {
+  id: string;
+  name?: string | null;
+  number?: string | null;
+  hallName?: string | null;
+  activeOrderId?: number | string | null;
+};
+
 type Props = {
   visible: boolean;
   branchId?: string | null;
@@ -30,8 +38,10 @@ type Props = {
   cart: CartLine[];
   total: number;
   customer: Customer | null;
+  selectedTableId?: string | null;
   onClose: () => void;
-  onLinked: () => void;
+  onSelectTable: (table: TableSelection) => void;
+  onLinked: (table: TableSelection) => void;
   onOpenTable: (table: { id: string; name?: string }) => void;
 };
 
@@ -57,7 +67,9 @@ export function PosTablesSheet({
   cart,
   total,
   customer,
+  selectedTableId,
   onClose,
+  onSelectTable,
   onLinked,
   onOpenTable,
 }: Props) {
@@ -65,6 +77,7 @@ export function PosTablesSheet({
   const s = usePosSheetStyles();
   const [tables, setTables] = useState<TableRow[]>([]);
   const [status, setStatus] = useState<'all' | 'available' | 'occupied' | 'reserved' | 'closed'>('all');
+  const [hallFilter, setHallFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -97,6 +110,32 @@ export function PosTablesSheet({
     closed: tables.filter((t) => t.status === 'closed').length,
   }), [tables]);
 
+  const halls = useMemo(() => {
+    const names = new Set<string>();
+    for (const table of tables) names.add(table.dining_hall?.name || 'غير مصنفة');
+    return ['all', ...Array.from(names)];
+  }, [tables]);
+
+  const visibleTables = useMemo(
+    () => tables.filter((table) => hallFilter === 'all' || (table.dining_hall?.name || 'غير مصنفة') === hallFilter),
+    [hallFilter, tables],
+  );
+
+  const selectionFromTable = (table: TableRow): TableSelection => ({
+    id: String(table.id),
+    name: table.name ?? null,
+    number: table.number != null ? String(table.number) : null,
+    hallName: table.dining_hall?.name ?? null,
+    activeOrderId: table.current_order?.id ?? null,
+  });
+
+  const tableName = (table: TableRow) => table.name || `طاولة ${table.number ?? table.id}`;
+
+  const selectTableContext = (table: TableRow) => {
+    onSelectTable(selectionFromTable(table));
+    onClose();
+  };
+
   const linkCart = async (table: TableRow) => {
     if (!table.id) return;
     if (!isOnline) {
@@ -104,8 +143,9 @@ export function PosTablesSheet({
       return;
     }
     if (cart.length === 0) {
+      onSelectTable(selectionFromTable(table));
       onClose();
-      onOpenTable({ id: table.id, name: table.name ?? table.number ?? undefined });
+      onOpenTable({ id: String(table.id), name: tableName(table) });
       return;
     }
     setBusyId(table.id);
@@ -116,9 +156,9 @@ export function PosTablesSheet({
         total,
         customer_id: customer?.id ?? null,
       });
-      onLinked();
+      onLinked(selectionFromTable(table));
       onClose();
-      onOpenTable({ id: table.id, name: table.name ?? table.number ?? undefined });
+      onOpenTable({ id: String(table.id), name: tableName(table) });
     } catch (err) {
       setMessage(normalizeApiError(err).message);
     } finally {
@@ -133,6 +173,12 @@ export function PosTablesSheet({
           title="طاولات POS"
           subtitle={cart.length ? `سيتم ربط السلة الحالية (${money(total)}) بالطاولة المحددة.` : 'اختر طاولة لفتح طلبها أو متابعة التحصيل.'}
         />
+        {selectedTableId ? (
+          <View style={s.walletBanner}>
+            <MaterialIcons name="table-restaurant" size={18} color={c.info} />
+            <Text style={s.walletText}>طاولة محددة حالياً داخل POS.</Text>
+          </View>
+        ) : null}
         {!isOnline ? (
           <View style={s.warningBanner}>
             <Text style={s.warningText}>
@@ -156,21 +202,33 @@ export function PosTablesSheet({
             />
           ))}
         </View>
+        <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+          {halls.map((hall) => (
+            <AppButton
+              key={hall}
+              title={hall === 'all' ? 'كل الصالات' : hall}
+              size="sm"
+              variant={hallFilter === hall ? 'primary' : 'outline'}
+              onPress={() => setHallFilter(hall)}
+            />
+          ))}
+        </View>
         {loading ? <AppLoadingState /> : null}
-        {!loading && tables.length === 0 ? <AppEmptyState title="لا توجد طاولات" /> : null}
+        {!loading && visibleTables.length === 0 ? <AppEmptyState title="لا توجد طاولات" /> : null}
         <View style={{ gap: spacing.sm }}>
-          {tables.map((table) => {
+          {visibleTables.map((table) => {
             const hasOrder = Boolean(table.current_order);
-            const disabled = table.status === 'closed' || !isOnline || busyId !== null;
+            const isSelected = selectedTableId != null && String(selectedTableId) === String(table.id);
+            const disabled = table.status === 'closed' || busyId !== null;
             return (
               <Pressable
                 key={table.id}
                 disabled={disabled}
-                onPress={() => void linkCart(table)}
+                onPress={() => selectTableContext(table)}
                 style={{
                   borderWidth: 1,
-                  borderColor: tableStatusColor(hasOrder ? 'occupied' : String(table.status ?? 'available')),
-                  borderRadius: radius.xxl,
+                  borderColor: isSelected ? c.accent : tableStatusColor(hasOrder ? 'occupied' : String(table.status ?? 'available')),
+                  borderRadius: radius.sm,
                   padding: spacing.md,
                   backgroundColor: c.surface,
                   opacity: disabled ? 0.55 : 1,
@@ -180,7 +238,7 @@ export function PosTablesSheet({
                 <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ ...textStart, color: c.text, fontSize: typography.cardTitle, fontFamily: fonts.bold }}>
-                      {table.name || `طاولة ${table.number ?? table.id}`}
+                      {tableName(table)}
                     </Text>
                     <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.tiny }}>
                       {table.dining_hall?.name ?? 'غير مصنفة'} • {numberText(table.capacity ?? 0)} مقاعد
@@ -197,6 +255,38 @@ export function PosTablesSheet({
                     طلب قائم #{table.current_order?.id ?? '—'} • {money(table.current_order?.total ?? 0)}
                   </Text>
                 ) : null}
+                {!isOnline ? (
+                  <Text style={{ ...textStart, color: c.warning, fontSize: typography.tiny, fontFamily: fonts.bold }}>
+                    ربط سلة POS بالطاولات يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع التكرار.
+                  </Text>
+                ) : null}
+                <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+                  <AppButton
+                    title={cart.length ? 'ربط السلة وفتح الطلب' : 'اختيار وفتح الطلب'}
+                    size="sm"
+                    onPress={() => void linkCart(table)}
+                    disabled={table.status === 'closed' || !isOnline || busyId !== null}
+                    loading={busyId === table.id}
+                  />
+                  <AppButton
+                    title="اختيار فقط"
+                    size="sm"
+                    variant={isSelected ? 'success' : 'outline'}
+                    onPress={() => selectTableContext(table)}
+                    disabled={table.status === 'closed'}
+                  />
+                  {hasOrder ? (
+                    <AppButton
+                      title="فتح الطلب/التسوية"
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => {
+                        onClose();
+                        onOpenTable({ id: String(table.id), name: tableName(table) });
+                      }}
+                    />
+                  ) : null}
+                </View>
               </Pressable>
             );
           })}

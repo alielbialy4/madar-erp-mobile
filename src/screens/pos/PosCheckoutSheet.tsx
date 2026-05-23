@@ -60,10 +60,27 @@ type Props = {
   notes: string;
   onNotesChange: (v: string) => void;
   checkoutMessage: string | null;
+  selectedTableName?: string | null;
   vaultsEmpty: boolean;
   onOpenSplit: () => void;
   onReview: () => void;
   splitLinesCount: number;
+  layawayTermMonths: string;
+  onLayawayTermMonthsChange: (v: string) => void;
+  layawayMarkupPercent: string;
+  onLayawayMarkupPercentChange: (v: string) => void;
+  layawayFirstDueDate: string;
+  onLayawayFirstDueDateChange: (v: string) => void;
+  needsDelivery: boolean;
+  onNeedsDeliveryChange: (v: boolean) => void;
+  deliveryZones: { id: string; name: string; delivery_fee: number | string }[];
+  deliveryZoneId: string;
+  onDeliveryZoneChange: (v: string) => void;
+  deliveryAddress: string;
+  onDeliveryAddressChange: (v: string) => void;
+  deliveryPhone: string;
+  onDeliveryPhoneChange: (v: string) => void;
+  deliveryFee: number;
 };
 
 export function PosCheckoutSheet({
@@ -103,10 +120,27 @@ export function PosCheckoutSheet({
   notes,
   onNotesChange,
   checkoutMessage,
+  selectedTableName,
   vaultsEmpty,
   onOpenSplit,
   onReview,
   splitLinesCount,
+  layawayTermMonths,
+  onLayawayTermMonthsChange,
+  layawayMarkupPercent,
+  onLayawayMarkupPercentChange,
+  layawayFirstDueDate,
+  onLayawayFirstDueDateChange,
+  needsDelivery,
+  onNeedsDeliveryChange,
+  deliveryZones,
+  deliveryZoneId,
+  onDeliveryZoneChange,
+  deliveryAddress,
+  onDeliveryAddressChange,
+  deliveryPhone,
+  onDeliveryPhoneChange,
+  deliveryFee,
 }: Props) {
   const c = useColors();
   const s = usePosSheetStyles();
@@ -132,7 +166,10 @@ export function PosCheckoutSheet({
       { key: 'card', label: 'بطاقة', icon: 'credit-card' },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
     ];
-    if (hasCustomer) base.push({ key: 'wallet', label: 'محفظة', icon: 'account-balance-wallet' });
+    if (hasCustomer) {
+      base.push({ key: 'wallet', label: 'محفظة', icon: 'account-balance-wallet' });
+      base.push({ key: 'layaway', label: 'تقسيط', icon: 'shopping-cart' });
+    }
     base.push({ key: 'gift_card', label: 'بطاقة هدايا', icon: 'card-giftcard' });
     base.push({ key: 'split', label: 'مقسم', icon: 'call-split' });
     return base;
@@ -145,14 +182,28 @@ export function PosCheckoutSheet({
     return amountDue;
   }, [amountDue, paymentType, appliedGiftCard]);
 
+  const layawayFinalTotal = useMemo(() => {
+    const markup = parseFloat(layawayMarkupPercent) || 0;
+    return Math.round(amountDue * (1 + markup / 100) * 100) / 100;
+  }, [amountDue, layawayMarkupPercent]);
+
+  const layawayDownPayment = Number(paid) || 0;
+  const layawayRemaining = Math.max(0, layawayFinalTotal - layawayDownPayment);
+
   const reviewDisabled =
     (paymentType === 'split' && splitLinesCount === 0) ||
+    (paymentType === 'wallet' && (walletBalance == null || walletBalance < cashDue)) ||
     (paymentType === 'gift_card' && !isOnline) ||
     (paymentType === 'gift_card' && !appliedGiftCard) ||
     (paymentType === 'gift_card' &&
       appliedGiftCard &&
       cashDue > 0.01 &&
-      (Number(paid) || 0) < cashDue - 0.01);
+      (Number(paid) || 0) < cashDue - 0.01) ||
+    (paymentType === 'layaway' && (!hasCustomer || !isOnline)) ||
+    (paymentType === 'layaway' && (parseInt(layawayTermMonths, 10) || 0) < 1) ||
+    (paymentType === 'layaway' && !layawayFirstDueDate.trim()) ||
+    (paymentType === 'layaway' && layawayDownPayment > layawayFinalTotal + 0.01) ||
+    (needsDelivery && (!hasCustomer || !deliveryAddress.trim()));
 
   const totalBeforeLoyalty = amountDue + loyaltyDiscount;
   const loyaltyError =
@@ -207,6 +258,64 @@ export function PosCheckoutSheet({
           onChange={(k) => onPaymentTypeChange(k as PosCheckoutPaymentType)}
         />
 
+        <PosSheetSection label="نوع الطلب">
+          {selectedTableName ? (
+            <Text style={local.msg}>صالة — {selectedTableName}</Text>
+          ) : (
+            <View style={local.couponRow}>
+              <AppButton
+                title="تيك أواي"
+                variant={!needsDelivery ? 'primary' : 'outline'}
+                onPress={() => onNeedsDeliveryChange(false)}
+                size="sm"
+                style={{ flex: 1 }}
+              />
+              <AppButton
+                title="توصيل"
+                variant={needsDelivery ? 'primary' : 'outline'}
+                onPress={() => onNeedsDeliveryChange(true)}
+                size="sm"
+                style={{ flex: 1 }}
+              />
+            </View>
+          )}
+        </PosSheetSection>
+
+        {needsDelivery ? (
+          <PosSheetSection label="بيانات التوصيل">
+            {!hasCustomer ? (
+              <Text style={s.errorText}>يجب اختيار عميل قبل التوصيل.</Text>
+            ) : (
+              <>
+                {deliveryZones.length > 0 ? (
+                  <View style={{ gap: spacing.xs }}>
+                    {deliveryZones.map((zone) => (
+                      <AppButton
+                        key={zone.id}
+                        title={`${zone.name} — ${money(Number(zone.delivery_fee ?? 0))}`}
+                        variant={deliveryZoneId === String(zone.id) ? 'primary' : 'outline'}
+                        onPress={() => onDeliveryZoneChange(String(zone.id))}
+                        size="sm"
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={local.hint}>لا توجد مناطق توصيل نشطة في الكتالوج.</Text>
+                )}
+                <AppInput label="عنوان التوصيل *" value={deliveryAddress} onChangeText={onDeliveryAddressChange} placeholder="العنوان الكامل" />
+                <AppInput label="هاتف التوصيل" value={deliveryPhone} onChangeText={onDeliveryPhoneChange} placeholder="01xxxxxxxxx" keyboardType="phone-pad" />
+                {deliveryFee > 0 ? <Text style={local.hint}>رسوم التوصيل: {money(deliveryFee)}</Text> : null}
+              </>
+            )}
+          </PosSheetSection>
+        ) : null}
+
+        {paymentType === 'wallet' && walletBalance == null ? (
+          <View style={s.errorBanner}>
+            <Text style={s.errorText}>تعذر التحقق من رصيد المحفظة.</Text>
+          </View>
+        ) : null}
+
         {paymentType === 'wallet' && walletBalance !== null && walletBalance < cashDue ? (
           <View style={s.errorBanner}>
             <Text style={s.errorText}>رصيد المحفظة غير كافٍ ({money(walletBalance)})</Text>
@@ -237,7 +346,50 @@ export function PosCheckoutSheet({
           </PosSheetSection>
         ) : null}
 
-        {paymentType !== 'split' && paymentType !== 'gift_card' ? (
+        {paymentType === 'layaway' ? (
+          <PosSheetSection label="شروط التقسيط">
+            {!isOnline ? (
+              <Text style={s.errorText}>بيع التقسيط يحتاج اتصالاً بالخادم.</Text>
+            ) : !hasCustomer ? (
+              <Text style={s.errorText}>يجب اختيار عميل قبل التقسيط.</Text>
+            ) : (
+              <>
+                <AppInput
+                  label="عدد الأقساط (بالأشهر) *"
+                  keyboardType="number-pad"
+                  value={layawayTermMonths}
+                  onChangeText={onLayawayTermMonthsChange}
+                  placeholder="12"
+                />
+                <AppInput
+                  label="نسبة الزيادة %"
+                  keyboardType="numeric"
+                  value={layawayMarkupPercent}
+                  onChangeText={onLayawayMarkupPercentChange}
+                  placeholder="0"
+                />
+                <AppInput
+                  label="تاريخ أول قسط *"
+                  value={layawayFirstDueDate}
+                  onChangeText={onLayawayFirstDueDateChange}
+                  placeholder="YYYY-MM-DD"
+                />
+                <AppInput
+                  label="الدفعة المقدمة *"
+                  keyboardType="numeric"
+                  value={paid}
+                  onChangeText={onPaidChange}
+                  placeholder="0.00"
+                />
+                <Text style={local.hint}>
+                  الإجمالي بعد الزيادة: {money(layawayFinalTotal)} — المتبقي: {money(layawayRemaining)}
+                </Text>
+              </>
+            )}
+          </PosSheetSection>
+        ) : null}
+
+        {paymentType !== 'split' && paymentType !== 'gift_card' && paymentType !== 'layaway' ? (
           <PosSheetSection label="المبلغ المدفوع">
             <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={onPaidChange} />
           </PosSheetSection>
@@ -279,6 +431,9 @@ export function PosCheckoutSheet({
             {!appliedCoupon ? (
               <>
                 <AppInput label="كود الكوبون" value={couponCode} onChangeText={onCouponCodeChange} placeholder="أدخل الكود" />
+                {!isOnline ? (
+                  <Text style={local.hint}>بدون اتصال: يُتحقق من الكوبون من الكتالوج المخزّن محلياً.</Text>
+                ) : null}
                 <AppButton title="تحقق من الكوبون" variant="outline" onPress={onValidateCoupon} disabled={!couponCode.trim()} size="sm" />
               </>
             ) : (

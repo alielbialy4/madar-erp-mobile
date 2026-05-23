@@ -9,6 +9,7 @@ import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
+import { useThemeStore } from '@/store/themeStore';
 
 export function TenantSettingsScreen({ navigation }: { navigation: any }) {
   const c = useColors();
@@ -30,7 +31,11 @@ export function TenantSettingsScreen({ navigation }: { navigation: any }) {
       setInfo(data?.tenant ?? (data as Record<string, unknown>) ?? null);
       const themeData = themeRes ? extractData<Record<string, unknown>>(themeRes) : null;
       const primary = String(themeData?.primary_hex ?? '').trim();
-      if (/^#([0-9a-fA-F]{6})$/.test(primary)) setThemeHex(primary);
+      if (/^#([0-9a-fA-F]{6})$/.test(primary)) {
+        const clean = primary.toUpperCase();
+        setThemeHex(clean);
+        useThemeStore.getState().setPrimaryHex(clean);
+      }
       setError(null);
     } catch (err) {
       setError(normalizeApiError(err).message);
@@ -56,6 +61,7 @@ export function TenantSettingsScreen({ navigation }: { navigation: any }) {
     setThemeMessage(null);
     try {
       const response = await tenantAPI.updateTheme(themeHex.trim());
+      useThemeStore.getState().setPrimaryHex(themeHex.trim());
       setThemeMessage(response.message || 'تم حفظ لون الواجهة.');
     } catch (err) {
       setThemeMessage(normalizeApiError(err).message);

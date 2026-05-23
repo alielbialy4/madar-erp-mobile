@@ -7,22 +7,25 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
-        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+        "EXPO_PUBLIC_API_URL": "http://back.test/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": "",
+        "EXPO_PUBLIC_TIMEZONE": "Africa/Cairo"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
-        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+        "EXPO_PUBLIC_API_URL": "https://back-madar.amen-card.com/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": "",
+        "EXPO_PUBLIC_TIMEZONE": "Africa/Cairo"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-api-domain.com/api",
-        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": ""
+        "EXPO_PUBLIC_API_URL": "https://back-madar.amen-card.com/api",
+        "EXPO_PUBLIC_DEFAULT_TENANT_SLUG": "",
+        "EXPO_PUBLIC_TIMEZONE": "Africa/Cairo"
       }
     }
   },

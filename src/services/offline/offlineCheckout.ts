@@ -9,7 +9,7 @@ import { printEngine } from '@/services/printing/printEngine';
 import type { CartLine } from '@/store/posStore';
 
 export const OFFLINE_SAVE_MESSAGE =
-  'تم حفظ الطلب محليًا وسيتم مزامنته عند عودة الاتصال.';
+  'تم حفظ الطلب محلياً وسيتم مزامنته عند عودة الاتصال';
 
 export async function canCheckoutOffline(branchId: string): Promise<{ ok: boolean; message?: string }> {
   const hasCatalog = await hasCachedCatalog(branchId);

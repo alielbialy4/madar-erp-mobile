@@ -23,12 +23,17 @@ type Props = {
   discount: number;
   total: number;
   coupon: { coupon: Coupon; discount: number } | null;
+  promotionDiscount?: number;
+  tax?: number;
+  serviceCharge?: number;
+  deliveryFee?: number;
   loyaltyDiscount?: number;
   loyaltyPointsRedeemed?: number;
   giftCard?: { code: string; amount: number; balance: number } | null;
   paymentType: string;
   paid: number;
   customerName: string | null;
+  tableName?: string | null;
   onClose: () => void;
   onConfirm: () => void;
   loading?: boolean;
@@ -41,6 +46,7 @@ const PAYMENT_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   wallet: 'account-balance-wallet',
   split: 'call-split',
   gift_card: 'card-giftcard',
+  layaway: 'shopping-cart',
 };
 
 export function CheckoutReviewSheet({
@@ -50,12 +56,17 @@ export function CheckoutReviewSheet({
   discount,
   total,
   coupon,
+  promotionDiscount = 0,
+  tax = 0,
+  serviceCharge = 0,
+  deliveryFee = 0,
   loyaltyDiscount = 0,
   loyaltyPointsRedeemed = 0,
   giftCard,
   paymentType,
   paid,
   customerName,
+  tableName,
   onClose,
   onConfirm,
   loading,
@@ -69,9 +80,10 @@ export function CheckoutReviewSheet({
     wallet: 'محفظة',
     split: 'مقسم',
     gift_card: 'بطاقة هدايا',
+    layaway: 'تقسيط',
   };
   const couponDiscount = coupon?.discount ?? 0;
-  const grandTotal = Math.max(0, total - couponDiscount - loyaltyDiscount);
+  const grandTotal = Math.max(0, total - loyaltyDiscount);
   const giftAmount = paymentType === 'gift_card' && giftCard ? giftCard.amount : 0;
   const cashDue = Math.max(0, grandTotal - giftAmount);
   const effectivePaid = paymentType === 'gift_card' ? paid + giftAmount : paid;
@@ -84,7 +96,9 @@ export function CheckoutReviewSheet({
       <View style={s.root}>
         <PosSheetHeader
           title="مراجعة الطلب"
-          subtitle={customerName ? `العميل: ${customerName}` : 'بيع بدون عميل'}
+          subtitle={[customerName ? `العميل: ${customerName}` : 'بيع بدون عميل', tableName ? `الطاولة: ${tableName}` : null]
+            .filter(Boolean)
+            .join(' • ')}
         />
         <PosTotalHero label="الإجمالي النهائي" amount={money(grandTotal)} hint={`${cart.length} أصناف في السلة`} />
 
@@ -115,16 +129,40 @@ export function CheckoutReviewSheet({
             <Text style={s.summaryLabel}>المجموع الفرعي</Text>
             <Text style={s.summaryValue}>{money(subtotal)}</Text>
           </View>
+          {promotionDiscount > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>عروض</Text>
+              <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(promotionDiscount)}</Text>
+            </View>
+          ) : null}
           {discount > 0 ? (
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>خصم</Text>
               <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(discount)}</Text>
             </View>
           ) : null}
-          {couponDiscount > 0 ? (
+          {couponDiscount > 0 && discount <= 0 ? (
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>كوبون ({coupon!.coupon.code})</Text>
               <Text style={[s.summaryValue, s.summaryDiscount]}>-{money(couponDiscount)}</Text>
+            </View>
+          ) : null}
+          {tax > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>الضريبة</Text>
+              <Text style={s.summaryValue}>{money(tax)}</Text>
+            </View>
+          ) : null}
+          {serviceCharge > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>رسوم الخدمة</Text>
+              <Text style={s.summaryValue}>{money(serviceCharge)}</Text>
+            </View>
+          ) : null}
+          {deliveryFee > 0 ? (
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>رسوم التوصيل</Text>
+              <Text style={s.summaryValue}>{money(deliveryFee)}</Text>
             </View>
           ) : null}
           {loyaltyDiscount > 0 ? (

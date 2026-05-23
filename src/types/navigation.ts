@@ -16,6 +16,7 @@ export type MainTabParamList = {
 export type POSStackParamList = {
   POSHome: undefined;
   DiningTableOrder: { tableId: string; tableName?: string } | undefined;
+  WaiterPos: undefined;
 };
 
 export type ProductsStackParamList = {

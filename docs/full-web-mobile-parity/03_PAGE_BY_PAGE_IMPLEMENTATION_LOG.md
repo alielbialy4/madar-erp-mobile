@@ -111,3 +111,65 @@
 ### Validation So Far
 
 - `npm run typecheck`: PASS after Pass 2 implementation fixes.
+
+## 2026-05-23 Critical POS Rebuild
+
+### Implemented: Tablet POS Workspace
+
+- Actual rendered path confirmed: `POSTab` -> `POSStack` -> `POSScreen` -> `PosTabletScreen`.
+- Root cause fixed: POS tablet components were using `rootRtl` as a direction helper even though it also adds `flex: 1`.
+- `PosTabletSplit` now forces physical LTR pane order so the cart stays on the left and catalog on the right while pane content remains RTL.
+- `PosFlexGrid` no longer gives every row `flex: 1`, removing the huge category/product whitespace.
+- `PosTabletTopBar` no longer stretches vertically and now exposes visible `الطاولات`, held-cart, save-cart, and exit actions.
+
+### Implemented: Cart/Catalog Flow
+
+- `PosOrderPanel` rebuilt as a cashier order panel with branch/shift/order type/table/customer context, item count, variant/modifier lines, line totals, discount/note indicators, 44px quantity controls, totals, split paid/remaining, held cart actions, kitchen print, clear, and sticky checkout.
+- `PosCatalogPanel` now has search, scan/search icon, category title/count/breadcrumb, `الخروج من التصنيف`, table entry, dense categories, and denser product cards.
+- Search from category root now shows products immediately; empty search says `لا توجد منتجات مطابقة`.
+
+### Implemented: Tables/Checkout/Offline/Print
+
+- `PosTablesSheet` now shows halls, table status filters, selected table state, active order summary, choose-only action, online cart draft sync, and safe navigation to table order/settlement.
+- `POSStack` now registers `WaiterPos` so table order actions do not navigate to a missing route.
+- `POSScreen` now tracks selected table context, sends `dining_table_id` on checkout, and blocks table checkout offline with an explicit reason.
+- `PosCheckoutSheet` shows dine-in table context, blocks unverified/insufficient wallet payment, keeps loyalty/gift-card/coupon safety, and split payment remains vault-validated.
+- POS kitchen printing now uses the selected table name where available and missing profile says `لم يتم إعداد طابعة.`
+- Offline saved order message standardized to `تم حفظ الطلب محلياً وسيتم مزامنته عند عودة الاتصال`.
+
+### Validation So Far
+
+- `npm run typecheck`: PASS.
+- `npm run lint`: PASS, 0 errors; existing warnings remain.
+- `npx expo export --platform web`: PASS.
+- `npm run web -- --port 19006`: PASS smoke. Browser reached login after fixing web secure-storage fallback; authenticated POS screenshot still requires valid credentials/session data.
+
+## 2026-05-24 Physical Tablet POS Follow-up
+
+### Implemented: Cart And Catalog Polish From Real Screenshot
+
+- `PosOrderPanel`: reworked cart line composition so product title/options are separated from line total and quantity controls. This prevents the product name from being squeezed or hidden on the left cart panel.
+- `POSScreen`: computes a cart quantity map by `product_id` and passes it into tablet and phone catalog panels.
+- `PosCatalogPanel`: shows an `×N` badge on the product image and `في السلة: N` in the stock row when the product is already in the current cart.
+
+### Implemented: Tenant Theme Color Runtime
+
+- `colors.ts`: `getColors()` now accepts tenant `primary_hex` and derives foreground, soft fills, borders, accent, tab active color, ring and card glow.
+- `themeStore`: persists and hydrates tenant primary color.
+- `authStore`: refreshes tenant theme after bootstrap/login and clears it on logout.
+- `TenantSettingsScreen`: applies saved tenant primary color immediately after loading or saving.
+- `App.tsx`, `useColors`, and `AppBadge`: now use tenant-aware colors across navigation, badges and POS controls.
+
+### Implemented: Options/Split/Customer Sheet Stability
+
+- `ModifierPickerSheet`: removed nested `FlatList` from inside `AppBottomSheet`, reset selections per product open, and rebuilt option choices as touch-friendly selectable cards.
+- `SplitPaymentSheet`: removed nested `FlatList` from the bottom sheet and kept split lines as normal sheet content.
+- `POSScreen` customer selector: removed nested `FlatList` from the customer bottom sheet.
+- `AppBottomSheet`: constrains tablet sheet width on `>=900px` screens so option/payment flows do not stretch across the whole tablet.
+
+### Validation
+
+- `npm run typecheck`: PASS.
+- `npm run lint`: PASS, 0 errors; 45 warnings remain.
+- `npx expo export --platform web`: PASS.
+- `npm run web -- --port 19006`: PASS smoke. Browser reached login at 1280x720 with 0 console errors; authenticated POS screenshot still requires real cashier credentials/session data.

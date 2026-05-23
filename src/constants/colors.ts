@@ -211,8 +211,69 @@ export const darkColors: AppColors = {
 
 export type ColorScheme = 'light' | 'dark';
 
-export function getColors(scheme: ColorScheme): AppColors {
-  return scheme === 'dark' ? darkColors : lightColors;
+function normalizeHex(hex?: string | null): string | null {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(String(hex ?? '').trim());
+  return match ? `#${match[1].toUpperCase()}` : null;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+function rgba(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mix(hex: string, target: '#FFFFFF' | '#000000', amount: number): string {
+  const a = Math.min(1, Math.max(0, amount));
+  const src = hexToRgb(hex);
+  const dst = hexToRgb(target);
+  const channel = (s: number, d: number) => Math.round(s + (d - s) * a).toString(16).padStart(2, '0');
+  return `#${channel(src.r, dst.r)}${channel(src.g, dst.g)}${channel(src.b, dst.b)}`.toUpperCase();
+}
+
+function readableForeground(hex: string): string {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.58 ? '#0C1222' : '#FFFFFF';
+}
+
+export function getColors(scheme: ColorScheme, tenantPrimaryHex?: string | null): AppColors {
+  const base = scheme === 'dark' ? darkColors : lightColors;
+  const primary = normalizeHex(tenantPrimaryHex);
+  if (!primary) return base;
+
+  const foreground = readableForeground(primary);
+  const soft = scheme === 'dark' ? rgba(primary, 0.18) : rgba(primary, 0.10);
+  const border = scheme === 'dark' ? rgba(primary, 0.42) : rgba(primary, 0.24);
+  const pressed = mix(primary, scheme === 'dark' ? '#FFFFFF' : '#000000', 0.12);
+
+  return {
+    ...base,
+    primary,
+    primaryPressed: pressed,
+    primaryForeground: foreground,
+    accent: primary,
+    accentSoft: soft,
+    accentBorder: border,
+    brandAccent: primary,
+    ring: primary,
+    softPrimary: soft,
+    softPrimaryBorder: border,
+    primarySoftStrong: soft,
+    primarySoftMuted: scheme === 'dark' ? rgba(primary, 0.12) : rgba(primary, 0.07),
+    primarySoftForeground: primary,
+    primarySoftBorder: border,
+    tabBarActive: primary,
+    cardGlow: rgba(primary, scheme === 'dark' ? 0.16 : 0.10),
+    gradientStart: primary,
+    gradientEnd: mix(primary, scheme === 'dark' ? '#FFFFFF' : '#000000', 0.2),
+  };
 }
 
 /** @deprecated Prefer `useColors()` for theme-aware UI */

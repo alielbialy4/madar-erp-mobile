@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { CartLineSelectedOption, Coupon, Customer, Product, SalePayload } from '@/types/api';
+import type { CartLineSelectedOption, CatalogPromotion, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
+import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
 import { giftCardsAPI } from '@/api/giftCards';
 import { posAPI } from '@/api/pos';
 import { loadPosCatalog, savePosCatalog } from '@/services/offline/catalogCache';
@@ -36,6 +37,8 @@ type PosState = {
   categories: { id: number; name: string }[];
   customers: Customer[];
   coupons: Coupon[];
+  promotions: CatalogPromotion[];
+  deliveryZones: DeliveryZone[];
   cart: CartLine[];
   selectedCustomer: Customer | null;
   loading: boolean;
@@ -81,6 +84,13 @@ export type SubmitSaleExtras = {
   loyaltyPointsRedeemed?: number;
   loyaltyDiscount?: number;
   giftCard?: { id: number; code: string; amount: number };
+  layawayTerms?: LayawayTerms | null;
+  orderType?: PosOrderType;
+  deliveryFee?: number;
+  deliveryAddress?: string;
+  deliveryPhone?: string;
+  deliveryZoneId?: string | null;
+  diningTableId?: string | null;
 };
 
 function priceOf(product: Product, variantId?: string | null): number {
@@ -137,6 +147,8 @@ export const usePosStore = create<PosState>((set, get) => ({
   categories: [],
   customers: [],
   coupons: [],
+  promotions: [],
+  deliveryZones: [],
   cart: [],
   selectedCustomer: null,
   loading: false,
@@ -163,7 +175,9 @@ export const usePosStore = create<PosState>((set, get) => ({
             categories: catalog.categories ?? [],
             customers: catalog.customers ?? [],
             coupons: catalog.coupons ?? [],
-            catalogSettings: (catalog.settings ?? {}) as Record<string, unknown>,
+            promotions: (catalog.promotions ?? []) as CatalogPromotion[],
+            deliveryZones: catalog.delivery_zones ?? [],
+            catalogSettings: resolvePosCatalogSettings(catalog),
             lastSyncedAt: response.data?.generated_at ?? new Date().toISOString(),
             loading: false,
           });
@@ -178,7 +192,9 @@ export const usePosStore = create<PosState>((set, get) => ({
           categories: cached.catalog.categories ?? [],
           customers: cached.catalog.customers ?? [],
           coupons: cached.catalog.coupons ?? [],
-          catalogSettings: (cached.catalog.settings ?? {}) as Record<string, unknown>,
+          promotions: (cached.catalog.promotions ?? []) as CatalogPromotion[],
+          deliveryZones: cached.catalog.delivery_zones ?? [],
+          catalogSettings: resolvePosCatalogSettings(cached.catalog),
           lastSyncedAt: cached.saved_at,
           loading: false,
         });
@@ -194,7 +210,9 @@ export const usePosStore = create<PosState>((set, get) => ({
           categories: cached.catalog.categories ?? [],
           customers: cached.catalog.customers ?? [],
           coupons: cached.catalog.coupons ?? [],
-          catalogSettings: (cached.catalog.settings ?? {}) as Record<string, unknown>,
+          promotions: (cached.catalog.promotions ?? []) as CatalogPromotion[],
+          deliveryZones: cached.catalog.delivery_zones ?? [],
+          catalogSettings: resolvePosCatalogSettings(cached.catalog),
           lastSyncedAt: cached.saved_at,
           loading: false,
           error: null,
@@ -265,17 +283,41 @@ export const usePosStore = create<PosState>((set, get) => ({
     const branchId = useBranchStore.getState().activeBranch?.id;
     if (!branchId) return { ok: false, message: 'يجب اختيار فرع قبل إتمام البيع' };
     if (cart.length === 0) return { ok: false, message: 'السلة فارغة' };
-    const amount = cartTotals(cart);
-    const safeManualDiscount = Math.min(Math.max(Number(manualDiscount) || 0, 0), amount.total);
-    const totalAfterManualDiscount = Math.max(0, amount.total - safeManualDiscount);
+
+    const settings = get().catalogSettings;
+    const orderType: PosOrderType = extras?.orderType ?? 'takeaway';
+    const allowDiscount = posAllowsDiscount(settings);
+    const allowCoupon = posAllowsCoupon(settings);
+    const safeManualDiscount = allowDiscount ? Math.max(0, Number(manualDiscount) || 0) : 0;
+    const couponDisc = allowCoupon ? (couponData?.coupon_discount ?? 0) : 0;
     const loyaltyPoints = Math.max(0, Math.floor(extras?.loyaltyPointsRedeemed ?? 0));
-    const couponDisc = couponData?.coupon_discount ?? 0;
-    const totalBeforeLoyalty = Math.max(0, totalAfterManualDiscount - couponDisc);
-    const loyaltyDiscount = Math.min(
-      Math.max(0, extras?.loyaltyDiscount ?? 0),
-      totalBeforeLoyalty,
-    );
-    const payableTotal = Math.max(0, totalBeforeLoyalty - loyaltyDiscount);
+    const loyaltyDiscountInput = Math.max(0, extras?.loyaltyDiscount ?? 0);
+
+    const checkout = computePosCheckoutTotals({
+      lines: cart,
+      products: get().products,
+      promotions: get().promotions,
+      settings,
+      branchId,
+      manualDiscount: safeManualDiscount,
+      couponDiscount: couponDisc,
+      loyaltyDiscount: loyaltyDiscountInput,
+      orderType,
+      deliveryFee: extras?.deliveryFee ?? 0,
+    });
+
+    const layawayFinalTotal =
+      paymentType === 'layaway' && extras?.layawayTerms
+        ? Math.round(extras.layawayTerms.base_total * (1 + extras.layawayTerms.markup_percent / 100) * 100) / 100
+        : checkout.total;
+    const saleTotal = paymentType === 'layaway' ? layawayFinalTotal : checkout.total;
+    const salePaid =
+      paymentType === 'layaway' && extras?.layawayTerms
+        ? Math.min(Math.max(0, paid), layawayFinalTotal)
+        : paymentType === 'credit'
+          ? paid
+          : Math.min(paid, checkout.total);
+
     if (!useNetworkStore.getState().isOnline && (loyaltyPoints > 0 || extras?.giftCard)) {
       return {
         ok: false,
@@ -284,6 +326,29 @@ export const usePosStore = create<PosState>((set, get) => ({
           : 'الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.',
       };
     }
+    if (!useNetworkStore.getState().isOnline && extras?.diningTableId) {
+      return { ok: false, message: 'طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.' };
+    }
+    if (paymentType === 'layaway') {
+      if (!get().selectedCustomer?.id) {
+        return { ok: false, message: 'التقسيط يتطلب اختيار عميل' };
+      }
+      if (!extras?.layawayTerms) {
+        return { ok: false, message: 'أكمل شروط التقسيط قبل إتمام البيع' };
+      }
+      if (!useNetworkStore.getState().isOnline) {
+        return { ok: false, message: 'بيع التقسيط يحتاج اتصالاً بالخادم' };
+      }
+    }
+    if (orderType === 'delivery') {
+      if (!get().selectedCustomer?.id) {
+        return { ok: false, message: 'التوصيل يتطلب اختيار عميل' };
+      }
+      if (!extras?.deliveryAddress?.trim()) {
+        return { ok: false, message: 'عنوان التوصيل مطلوب' };
+      }
+    }
+
     const payload: SalePayload = {
       customer_id: get().selectedCustomer?.id ?? null,
       items: cart.map((line) => ({
@@ -298,20 +363,29 @@ export const usePosStore = create<PosState>((set, get) => ({
           option_ids: so.options.map((o) => o.product_option_id),
         })),
       })),
-      subtotal: amount.subtotal,
-      discount: amount.discount + safeManualDiscount,
-      total: payableTotal,
-      paid: paymentType === 'credit' ? paid : Math.min(paid, payableTotal),
+      subtotal: checkout.gross,
+      tax: checkout.tax,
+      discount: checkout.invoiceDiscount,
+      promotion_discount: checkout.promotionDiscount,
+      total: saleTotal,
+      paid: salePaid,
       payment_type: paymentType,
-      order_type: 'takeaway',
+      order_type: orderType,
+      dining_table_id: extras?.diningTableId ?? null,
       notes,
-      coupon_id: couponData?.coupon_id ?? null,
-      coupon_discount: couponData?.coupon_discount ?? 0,
+      coupon_id: allowCoupon ? (couponData?.coupon_id ?? null) : null,
+      coupon_discount: checkout.couponDiscount,
       loyalty_points_redeemed: loyaltyPoints > 0 ? loyaltyPoints : undefined,
-      loyalty_discount: loyaltyDiscount > 0 ? loyaltyDiscount : undefined,
+      loyalty_discount: checkout.loyaltyDiscount > 0 ? checkout.loyaltyDiscount : undefined,
+      delivery_fee: checkout.deliveryFee,
+      delivery_address: orderType === 'delivery' ? extras?.deliveryAddress : undefined,
+      delivery_phone: orderType === 'delivery' ? extras?.deliveryPhone : undefined,
+      delivery_zone_id: orderType === 'delivery' ? (extras?.deliveryZoneId ?? null) : null,
+      service_charge: checkout.serviceCharge,
       payment_lines: splitLines
         ? splitLines.filter((r) => (parseFloat(r.amount) || 0) > 0).map((r) => ({ vault_id: r.vault_id, amount: parseFloat(r.amount) || 0, payment_method: r.payment_method }))
         : null,
+      layaway_terms: paymentType === 'layaway' ? (extras?.layawayTerms ?? null) : null,
     };
     if (!useNetworkStore.getState().isOnline) {
       try {

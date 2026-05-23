@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from 'react';
-import { ActivityIndicator, Animated, Pressable, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, ViewStyle } from 'react-native';
+import { AppText } from './AppText';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -42,8 +43,10 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
     : variant === 'outline' ? c.surface
     : 'transparent';
 
-  const fg = variant === 'primary' || variant === 'danger' || variant === 'success'
+  const fg = variant === 'primary'
     ? c.primaryForeground
+    : variant === 'danger' || variant === 'success'
+      ? '#FFFFFF'
     : variant === 'ghost' ? c.accent : c.text;
 
   const borderColor = variant === 'outline' ? c.border
@@ -84,9 +87,9 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
         ) : (
           <>
             {icon}
-            <Text style={{ fontSize: size === 'sm' ? typography.label : typography.body, fontFamily: fonts.bold, fontWeight: '700', color: fg, writingDirection: 'rtl' }}>
+            <AppText style={{ fontSize: size === 'sm' ? typography.label : typography.body, fontFamily: fonts.bold, fontWeight: '700', color: fg, writingDirection: 'rtl', textAlign: 'center' }}>
               {title}
-            </Text>
+            </AppText>
           </>
         )}
       </Pressable>

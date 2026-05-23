@@ -4,7 +4,8 @@ import { useThemeStore } from '@/store/themeStore';
 
 export function useColors(): AppColors {
   const theme = useThemeStore((s) => s.theme);
-  return useMemo(() => getColors(theme), [theme]);
+  const primaryHex = useThemeStore((s) => s.primaryHex);
+  return useMemo(() => getColors(theme, primaryHex), [theme, primaryHex]);
 }
 
 export function useColorScheme() {

@@ -17,6 +17,7 @@ import type { SidebarNavAction } from './sidebarNavMap';
 import { buildMobileSidebarMenu } from './buildSidebarMenu';
 import { flattenNavCatalog } from './navCatalog';
 import { NavShellProvider } from './NavShellContext';
+import { isPosTabletFullscreen } from './posFullscreen';
 import { pushRecentRoute, getRecentRoutes, type RecentRoute } from '@/services/navigation/recentRoutes';
 import { rootRtl, screenRtl } from '@/constants/layout';
 import {
@@ -49,8 +50,12 @@ export function MainTabs() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [activeSidebarRoute, setActiveSidebarRoute] = useState<string>('DashboardTab');
+  const [activeTab, setActiveTab] = useState<keyof MainTabParamList>('DashboardTab');
   const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>([]);
   const tabNavigationRef = useRef<BottomTabNavigationProp<MainTabParamList> | null>(null);
+
+  const posTabletFullscreen = isPosTabletFullscreen(activeTab, width);
+  const showTabletSidebar = isTablet && !posTabletFullscreen;
 
   const menu = useMemo(
     () => buildMobileSidebarMenu(isSuperAdmin, (perm) => hasPermission(user, perm), viewMode, (feature) => hasFeature(user, feature)),
@@ -97,6 +102,7 @@ export function MainTabs() {
     ({ navigation, route }: { navigation: BottomTabNavigationProp<MainTabParamList>; route: { name: string } }) => ({
       focus: () => {
         tabNavigationRef.current = navigation;
+        setActiveTab(route.name as keyof MainTabParamList);
         if (route.name !== 'MoreTab' && route.name !== 'ProductsTab') {
           setActiveSidebarRoute(route.name);
         }
@@ -114,7 +120,7 @@ export function MainTabs() {
     <NavShellProvider value={shellActions}>
       <View style={[styles.shell, rootRtl, screenRtl, { backgroundColor: c.background }]}>
         <View style={styles.mainRow}>
-          {isTablet ? (
+          {showTabletSidebar ? (
             <PersistentTabletSidebar
               activeRoute={activeSidebarRoute}
               onNavigate={handleSidebarNavigate}
@@ -124,11 +130,13 @@ export function MainTabs() {
             />
           ) : null}
           <View style={styles.mainContent}>
-            <Navbar
-              onMenuPress={() => (isTablet ? setCommandOpen(true) : setSidebarOpen(true))}
-              onNavigate={handleSidebarNavigate}
-              onOpenCommandPalette={() => setCommandOpen(true)}
-            />
+            {!posTabletFullscreen ? (
+              <Navbar
+                onMenuPress={() => (isTablet ? setCommandOpen(true) : setSidebarOpen(true))}
+                onNavigate={handleSidebarNavigate}
+                onOpenCommandPalette={() => setCommandOpen(true)}
+              />
+            ) : null}
             <Tab.Navigator
           screenListeners={tabScreenListeners}
           tabBar={isTablet ? () => null : (props) => (
@@ -140,7 +148,7 @@ export function MainTabs() {
             headerShown: false,
             tabBarShowLabel: false,
             tabBarHideOnKeyboard: true,
-            sceneStyle: { paddingBottom: sceneBottomPad },
+            sceneStyle: { flex: 1, minHeight: 0, paddingBottom: sceneBottomPad },
           }}
         >
           <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ tabBarLabel: 'الرئيسية' }} />
@@ -182,8 +190,8 @@ export function MainTabs() {
 
 const styles = StyleSheet.create({
   shell: { flex: 1, overflow: 'visible' },
-  mainRow: { flex: 1, flexDirection: 'row' },
-  mainContent: { flex: 1, minWidth: 0 },
+  mainRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
+  mainContent: { flex: 1, minWidth: 0, minHeight: 0 },
   tabBarOverlay: {
     position: 'absolute',
     left: 0,

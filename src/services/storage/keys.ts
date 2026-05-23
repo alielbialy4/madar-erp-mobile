@@ -1,6 +1,7 @@
 export const storageKeys = {
   authSession: 'madar.auth.session',
   tenantSlug: 'madar.tenant.slug',
+  tenantPrimaryHex: 'madar.tenant.primary_hex',
   activeBranch: 'madar.branch.active',
   branchViewMode: 'madar.branch.view_mode',
   posCatalog: 'madar.pos.catalog',

@@ -255,9 +255,13 @@ export type SalePayload = {
   delivery_phone?: string;
   coupon_id?: string | null;
   coupon_discount?: number;
+  promotion_discount?: number;
   loyalty_points_redeemed?: number;
   loyalty_discount?: number;
   payment_lines?: { vault_id: string; amount: number; payment_method?: string }[] | null;
+  layaway_terms?: LayawayTerms | null;
+  delivery_zone_id?: string | null;
+  service_charge?: number;
 };
 
 /** POS UI may use gift_card; server sale uses cash/card + post-sale redeem API. */
@@ -287,10 +291,34 @@ export type PosCatalog = {
   categories: Category[];
   customers: Customer[];
   coupons?: Coupon[];
+  promotions?: CatalogPromotion[];
+  delivery_zones?: DeliveryZone[];
   vaults?: Vault[];
   warehouses?: Warehouse[];
   settings?: Record<string, unknown>;
   open_shift?: ActiveShift | null;
+};
+
+export type CatalogPromotion = {
+  id: string;
+  name: string;
+  type: string;
+  reward_value: string | number;
+  config?: Record<string, unknown> | null;
+  priority: number;
+  branch_id?: string | null;
+  conditions?: Array<{
+    condition_type: string;
+    condition_value?: Record<string, unknown> | null;
+  }>;
+};
+
+export type DeliveryZone = {
+  id: string;
+  name: string;
+  delivery_fee: number | string;
+  branch_id?: string;
+  is_active?: boolean;
 };
 
 export type Coupon = {
@@ -301,8 +329,20 @@ export type Coupon = {
   value: number;
   min_order_amount?: number | null;
   max_discount_amount?: number | null;
+  max_uses?: number | null;
+  used_count?: number;
+  starts_at?: string | null;
+  expires_at?: string | null;
   is_active?: boolean;
   branch_id?: string | null;
+};
+
+export type LayawayTerms = {
+  base_total: number;
+  markup_percent: number;
+  term_months: number;
+  down_payment_amount: number;
+  first_due_date: string;
 };
 
 export type Warehouse = {

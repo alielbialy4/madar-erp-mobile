@@ -14,35 +14,34 @@ import { RtlProvider } from './src/components/layout/RtlProvider';
 import { getColors } from './src/constants/colors';
 import { fonts } from './src/constants/fonts';
 
-function buildNavTheme(scheme: 'light' | 'dark') {
-  const c = getColors(scheme);
-  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
-  return {
-    ...base,
-    colors: {
-      ...base.colors,
-      primary: c.accent,
-      background: c.background,
-      card: c.surface,
-      text: c.text,
-      border: c.border,
-    },
-    fonts: {
-      regular: { fontFamily: fonts.regular, fontWeight: '400' as const },
-      medium: { fontFamily: fonts.medium, fontWeight: '500' as const },
-      bold: { fontFamily: fonts.bold, fontWeight: '700' as const },
-      heavy: { fontFamily: fonts.extraBold, fontWeight: '800' as const },
-    },
-  };
-}
-
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const startNetworkListener = useNetworkStore((state) => state.start);
   const themeBootstrap = useThemeStore((state) => state.bootstrap);
   const theme = useThemeStore((state) => state.theme);
+  const primaryHex = useThemeStore((state) => state.primaryHex);
 
-  const navTheme = useMemo(() => buildNavTheme(theme), [theme]);
+  const navTheme = useMemo(() => {
+    const c = getColors(theme, primaryHex);
+    const base = theme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: c.accent,
+        background: c.background,
+        card: c.surface,
+        text: c.text,
+        border: c.border,
+      },
+      fonts: {
+        regular: { fontFamily: fonts.regular, fontWeight: '400' as const },
+        medium: { fontFamily: fonts.medium, fontWeight: '500' as const },
+        bold: { fontFamily: fonts.bold, fontWeight: '700' as const },
+        heavy: { fontFamily: fonts.extraBold, fontWeight: '800' as const },
+      },
+    };
+  }, [primaryHex, theme]);
 
   useEffect(() => {
     const stop = startNetworkListener();

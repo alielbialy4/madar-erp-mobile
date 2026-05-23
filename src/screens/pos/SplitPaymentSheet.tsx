@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import type { Vault } from '@/types/api';
@@ -117,14 +117,9 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
           </View>
         ) : null}
 
-        <FlatList
-          data={lines}
-          keyExtractor={(_, i) => String(i)}
-          scrollEnabled={lines.length > 2}
-          style={{ maxHeight: 320 }}
-          contentContainerStyle={{ gap: spacing.md }}
-          renderItem={({ item, index }) => (
-            <View style={s.lineCard}>
+        <View style={{ gap: spacing.md }}>
+          {lines.map((item, index) => (
+            <View key={index} style={s.lineCard}>
               <View style={[flexRow, { justifyContent: 'space-between', alignItems: 'center' }]}>
                 <Text style={{ ...textStart, fontFamily: fonts.bold, fontSize: typography.body, color: c.text }}>
                   خط دفع {index + 1}
@@ -159,8 +154,8 @@ export function SplitPaymentSheet({ visible, totalDue, vaults, hasCustomer, onCl
                 options={vaults.map((vault) => ({ label: vault.name, value: String(vault.id) }))}
               />
             </View>
-          )}
-        />
+          ))}
+        </View>
 
         {error ? (
           <View style={s.errorBanner}>

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import type { CartLineSelectedOption, Product } from '@/types/api';
@@ -11,7 +11,7 @@ import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { money } from '@/utils/format';
+import { money, numberText } from '@/utils/format';
 import { resolveMediaUrl } from '@/utils/media';
 
 type Props = {
@@ -33,6 +33,12 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
   }, [product]);
 
   const thumb = product?.image ? resolveMediaUrl(product.image) : null;
+
+  useEffect(() => {
+    if (!visible) return;
+    setSelected({});
+    setErrors([]);
+  }, [product?.id, visible]);
 
   const toggleSingle = (groupId: number, optionId: number) => {
     setSelected((prev) => {
@@ -102,9 +108,22 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
 
   return (
     <AppBottomSheet visible={visible} onClose={handleClose}>
-      <View style={{ gap: spacing.md, maxHeight: '82%' }}>
+      <View style={{ gap: spacing.md }}>
         {product ? (
-          <View style={[flexRow, { alignItems: 'center', gap: spacing.md, paddingBottom: spacing.sm }]}>
+          <View
+            style={[
+              flexRow,
+              {
+                alignItems: 'center',
+                gap: spacing.md,
+                padding: spacing.sm,
+                borderRadius: radius.xxl,
+                backgroundColor: c.surfaceMuted,
+                borderWidth: 1,
+                borderColor: c.borderSubtle,
+              },
+            ]}
+          >
             {thumb ? (
               <Image source={{ uri: thumb }} style={{ width: 56, height: 56, borderRadius: radius.xl }} resizeMode="cover" />
             ) : (
@@ -144,75 +163,100 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
           </View>
         ) : null}
 
-        <FlatList
-          data={activeGroups}
-          keyExtractor={(g) => String(g.id)}
-          style={{ maxHeight: 360 }}
-          contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.md }}
-          renderItem={({ item: group }) => (
-            <View style={s.sectionCard}>
-              <View style={[flexRow, { alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }]}>
-                <Text style={{ fontSize: typography.body, fontFamily: fonts.bold, color: c.text, ...textStart }}>
-                  {group.title}
-                </Text>
-                {group.is_required ? (
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: c.softDanger }}>
-                    <Text style={{ fontSize: 10, fontFamily: fonts.bold, color: c.danger }}>مطلوب</Text>
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: typography.tiny, color: c.textCaption }}>اختياري</Text>
-                )}
-                <Text style={{ fontSize: typography.tiny, color: c.textMuted }}>
-                  {group.selection_type === 'single' ? 'اختيار واحد' : 'متعدد'}
-                </Text>
-              </View>
-              <View style={[flexRow, { flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }]}>
-                {group.options!.map((opt) => {
-                  const isSelected = (selected[group.id] ?? []).includes(opt.id);
-                  const priceDelta = Number(opt.price ?? 0);
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={() =>
-                        group.selection_type === 'single'
-                          ? toggleSingle(group.id, opt.id)
-                          : toggleMultiple(group.id, opt.id)
-                      }
-                      style={{
-                        minHeight: 44,
-                        paddingHorizontal: spacing.lg,
-                        paddingVertical: spacing.sm,
-                        borderRadius: radius.pill,
-                        borderWidth: 1.5,
-                        borderColor: isSelected ? c.primary : c.border,
-                        backgroundColor: isSelected ? c.softPrimary : c.surface,
-                        ...flexRow,
-                        alignItems: 'center',
-                        gap: spacing.xs,
-                      }}
-                    >
-                      {isSelected ? <MaterialIcons name="check-circle" size={16} color={c.primary} /> : null}
-                      <Text
-                        style={{
-                          fontSize: typography.small,
-                          fontFamily: fonts.bold,
-                          color: isSelected ? c.primary : c.text,
-                          writingDirection: 'rtl',
-                        }}
-                      >
-                        {opt.name}
-                        {priceDelta > 0 ? ` (+${money(priceDelta)})` : ''}
+        <View style={{ gap: spacing.md }}>
+          {activeGroups.length > 0 ? (
+            activeGroups.map((group) => {
+              const groupSelection = selected[group.id] ?? [];
+              return (
+                <View key={group.id} style={[s.sectionCard, { backgroundColor: c.surface }]}>
+                  <View style={[flexRow, { alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }]}>
+                    <Text style={{ fontSize: typography.body, fontFamily: fonts.bold, color: c.text, ...textStart }}>
+                      {group.title}
+                    </Text>
+                    {group.is_required ? (
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: c.softDanger }}>
+                        <Text style={{ fontSize: 10, fontFamily: fonts.bold, color: c.danger }}>مطلوب</Text>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: typography.tiny, color: c.textCaption }}>اختياري</Text>
+                    )}
+                    <Text style={{ fontSize: typography.tiny, color: c.textMuted }}>
+                      {group.selection_type === 'single' ? 'اختيار واحد' : 'متعدد'}
+                    </Text>
+                    {groupSelection.length > 0 ? (
+                      <Text style={{ fontSize: typography.tiny, fontFamily: fonts.bold, color: c.accent }}>
+                        محدد: {numberText(groupSelection.length)}
                       </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-          ListEmptyComponent={
+                    ) : null}
+                  </View>
+                  {group.pricing_type === 'group_price' && Number(group.group_price ?? 0) > 0 ? (
+                    <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.medium }}>
+                      سعر المجموعة: {money(group.group_price)}
+                    </Text>
+                  ) : null}
+                  <View style={[flexRow, { flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }]}>
+                    {group.options!.map((opt) => {
+                      const isSelected = groupSelection.includes(opt.id);
+                      const priceDelta = Number(opt.price ?? 0);
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() =>
+                            group.selection_type === 'single'
+                              ? toggleSingle(group.id, opt.id)
+                              : toggleMultiple(group.id, opt.id)
+                          }
+                          style={{
+                            minHeight: 44,
+                            minWidth: 112,
+                            flexGrow: 1,
+                            flexBasis: '46%',
+                            paddingHorizontal: spacing.md,
+                            paddingVertical: spacing.sm,
+                            borderRadius: radius.lg,
+                            borderWidth: 1.5,
+                            borderColor: isSelected ? c.accent : c.border,
+                            backgroundColor: isSelected ? c.accentSoft : c.surfaceMuted,
+                            ...flexRow,
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: spacing.sm,
+                          }}
+                        >
+                          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                            <Text
+                              style={{
+                                fontSize: typography.small,
+                                fontFamily: fonts.bold,
+                                color: isSelected ? c.accent : c.text,
+                                writingDirection: 'rtl',
+                              }}
+                              numberOfLines={2}
+                            >
+                              {opt.name}
+                            </Text>
+                            {priceDelta > 0 && group.pricing_type !== 'group_price' ? (
+                              <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.medium }}>
+                                +{money(priceDelta)}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <MaterialIcons
+                            name={isSelected ? 'check-circle' : 'radio-button-unchecked'}
+                            size={20}
+                            color={isSelected ? c.accent : c.textCaption}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })
+          ) : (
             <Text style={{ ...textStart, color: c.textMuted, paddingVertical: spacing.lg }}>لا توجد خيارات لهذا المنتج</Text>
-          }
-        />
+          )}
+        </View>
 
         <View style={s.stickyFooter}>
           <AppButton title="إضافة إلى السلة" onPress={handleConfirm} size="lg" fullWidth />

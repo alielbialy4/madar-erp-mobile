@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { PosCatalogPanel, PosOrderPanel, PosTopBar } from '@/components/pos';
+import {
+  PosCatalogPanel,
+  PosOrderPanel,
+  PosTopBar,
+} from '@/components/pos';
+import { PosTabletScreen } from './PosTabletScreen';
 import { OfflinePrintIndicators } from '@/components/printing/OfflinePrintIndicators';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
@@ -15,6 +20,7 @@ import { spacing } from '@/constants/spacing';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { couponsAPI } from '@/api/coupons';
+import { revalidateAppliedCoupon, validateCouponOffline } from '@/api/couponOffline';
 import { giftCardsAPI } from '@/api/giftCards';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
@@ -23,7 +29,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { cartTotals, usePosStore } from '@/store/posStore';
-import type { ActiveShift, CartLineSelectedOption, Customer, Product, PosCheckoutPaymentType, Vault } from '@/types/api';
+import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, Vault, LayawayTerms } from '@/types/api';
+import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, type PosOrderType } from '@/utils/posTotals';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
@@ -35,8 +42,16 @@ import { VariantPickerSheet } from './VariantPickerSheet';
 import { QuickCustomerSheet } from './QuickCustomerSheet';
 import { CashMovementSheet } from './CashMovementSheet';
 import { PosTablesSheet } from './PosTablesSheet';
+import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
 
 type ProductVariantSelection = { id: string; name?: string | null };
+type SelectedPosTable = {
+  id: string;
+  name?: string | null;
+  number?: string | null;
+  hallName?: string | null;
+  activeOrderId?: number | string | null;
+};
 
 function productHasOptions(product: Product | null): boolean {
   return Boolean(product?.option_groups?.some((g) => g.options && g.options.length > 0));
@@ -65,6 +80,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const walletBalance = usePosStore((state) => state.walletBalance);
   const pointsBalance = usePosStore((state) => state.pointsBalance);
   const appliedCoupon = usePosStore((state) => state.appliedCoupon);
+  const coupons = usePosStore((state) => state.coupons);
+  const promotions = usePosStore((state) => state.promotions);
+  const deliveryZones = usePosStore((state) => state.deliveryZones);
+  const catalogSettings = usePosStore((state) => state.catalogSettings);
   const loadCatalog = usePosStore((state) => state.loadCatalog);
   const addProduct = usePosStore((state) => state.addProduct);
   const updateQuantity = usePosStore((state) => state.updateQuantity);
@@ -75,7 +94,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const setWalletBalance = usePosStore((state) => state.setWalletBalance);
   const setPointsBalance = usePosStore((state) => state.setPointsBalance);
   const setAppliedCoupon = usePosStore((state) => state.setAppliedCoupon);
-  const catalogSettings = usePosStore((state) => state.catalogSettings);
   const restoreCartFromHold = usePosStore((state) => state.restoreCartFromHold);
 
   const isOnline = useNetworkStore((s) => s.isOnline);
@@ -98,6 +116,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [couponCode, setCouponCode] = useState('');
   const [manualDiscount, setManualDiscount] = useState('');
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [layawayTermMonths, setLayawayTermMonths] = useState('');
+  const [layawayMarkupPercent, setLayawayMarkupPercent] = useState('0');
+  const [layawayFirstDueDate, setLayawayFirstDueDate] = useState('');
+  const [needsDelivery, setNeedsDelivery] = useState(false);
+  const [deliveryZoneId, setDeliveryZoneId] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryPhone, setDeliveryPhone] = useState('');
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [posNotice, setPosNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +136,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<SelectedPosTable | null>(null);
   const [splitOpen, setSplitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
@@ -118,9 +144,19 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const debouncedQuery = useDebouncedValue(query);
   const totals = useMemo(() => cartTotals(cart), [cart]);
-  const branchSettings = activeBranch?.settings ?? {};
-  const allowManualDiscount = branchSettings.allow_pos_discount !== false;
-  const allowCoupons = branchSettings.allow_pos_coupon !== false;
+  const orderType: PosOrderType = selectedTable ? 'dine_in' : needsDelivery ? 'delivery' : 'takeaway';
+  const selectedTableName = selectedTable
+    ? selectedTable.name ?? (selectedTable.number ? `طاولة ${selectedTable.number}` : `طاولة ${selectedTable.id}`)
+    : null;
+  const orderTypeLabel =
+    orderType === 'dine_in' ? 'صالة' : orderType === 'delivery' ? 'توصيل' : 'تيك أواي';
+  const allowManualDiscount = posAllowsDiscount(catalogSettings);
+  const allowCoupons = posAllowsCoupon(catalogSettings);
+  const deliveryFee = useMemo(() => {
+    if (selectedTable || !needsDelivery || !deliveryZoneId) return 0;
+    const zone = deliveryZones.find((z) => String(z.id) === deliveryZoneId);
+    return zone ? Number(zone.delivery_fee ?? 0) || 0 : 0;
+  }, [selectedTable, needsDelivery, deliveryZoneId, deliveryZones]);
   const manualDiscountAmount = useMemo(() => {
     const value = Number(manualDiscount) || 0;
     if (!allowManualDiscount) return 0;
@@ -142,13 +178,45 @@ export function POSScreen({ navigation }: { navigation: any }) {
     return Math.round(loyaltyPointsNum * loyaltyEgpPerPoint * 100) / 100;
   }, [isOnline, loyaltyPointsNum, loyaltyEgpPerPoint]);
 
-  const effectiveTotal = useMemo(() => {
-    const couponDiscount = appliedCoupon?.discount ?? 0;
-    const beforeLoyalty = Math.max(0, totals.total - manualDiscountAmount - couponDiscount);
-    return Math.max(0, beforeLoyalty - loyaltyDiscount);
-  }, [totals.total, manualDiscountAmount, appliedCoupon, loyaltyDiscount]);
+  const checkoutTotals = useMemo(
+    () =>
+      computePosCheckoutTotals({
+        lines: cart,
+        products,
+        promotions,
+        settings: catalogSettings,
+        branchId: activeBranch?.id ?? null,
+        manualDiscount: manualDiscountAmount,
+        couponDiscount: appliedCoupon?.discount ?? 0,
+        loyaltyDiscount,
+        orderType,
+        deliveryFee,
+      }),
+    [
+      cart,
+      products,
+      promotions,
+      catalogSettings,
+      activeBranch?.id,
+      manualDiscountAmount,
+      appliedCoupon,
+      loyaltyDiscount,
+      orderType,
+      deliveryFee,
+    ],
+  );
+
+  const effectiveTotal = checkoutTotals.total;
 
   const cartItemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
+  const productQuantities = useMemo(
+    () =>
+      cart.reduce<Record<number, number>>((acc, line) => {
+        acc[line.product_id] = (acc[line.product_id] ?? 0) + line.quantity;
+        return acc;
+      }, {}),
+    [cart],
+  );
   const prevCartCount = useRef(0);
   const [catalogRefreshing, setCatalogRefreshing] = useState(false);
   const [cartPulse, setCartPulse] = useState(false);
@@ -245,13 +313,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const filteredProducts = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
+    const browsingCategoryId = showCategoryCards && q ? 'all' : categoryId;
     return products.filter((product) => {
       const matchesCategory =
-        categoryId === 'all' || String(product.category_id ?? product.category?.id ?? '') === categoryId;
+        browsingCategoryId === 'all' || String(product.category_id ?? product.category?.id ?? '') === browsingCategoryId;
       const haystack = `${product.name} ${product.barcode ?? ''} ${(product.barcodes ?? []).join(' ')}`.toLowerCase();
       return matchesCategory && (!q || haystack.includes(q));
     });
-  }, [categoryId, debouncedQuery, products]);
+  }, [categoryId, debouncedQuery, products, showCategoryCards]);
 
   const categoryItems = useMemo(
     () => categories.map((cat) => ({ id: String(cat.id), name: cat.name })),
@@ -272,6 +341,17 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const couponLabel = appliedCoupon
     ? `كوبون ${appliedCoupon.coupon.code}: -${money(appliedCoupon.discount)}`
     : null;
+  const promotionLabel =
+    checkoutTotals.promotionDiscount > 0
+      ? `عروض: -${money(checkoutTotals.promotionDiscount)}`
+      : null;
+  const serviceChargeLabel =
+    checkoutTotals.serviceCharge > 0
+      ? `${checkoutTotals.serviceChargeLabel}: ${money(checkoutTotals.serviceCharge)}`
+      : null;
+  const deliveryFeeLabel =
+    checkoutTotals.deliveryFee > 0 ? `رسوم التوصيل: ${money(checkoutTotals.deliveryFee)}` : null;
+  const taxLabel = checkoutTotals.tax > 0 ? `الضريبة: ${money(checkoutTotals.tax)}` : null;
 
   const handleProductPress = (product: Product) => {
     if (productHasVariants(product)) {
@@ -316,10 +396,21 @@ export function POSScreen({ navigation }: { navigation: any }) {
       return;
     }
     setCouponMessage(null);
+    const cartTotal = Math.max(0, checkoutTotals.gross - checkoutTotals.promotionDiscount - manualDiscountAmount);
+    if (!isOnline) {
+      const offline = validateCouponOffline(coupons, couponCode, cartTotal, activeBranch?.id ?? null);
+      if (offline) {
+        setAppliedCoupon(offline);
+        setCouponMessage(`تم تطبيق الكوبون (بدون اتصال). الخصم: ${money(offline.discount)}`);
+      } else {
+        setCouponMessage('الكوبون غير صالح أو منتهي أو لا ينطبق على هذا المبلغ.');
+      }
+      return;
+    }
     try {
       const response = await couponsAPI.validate({
         code: couponCode.trim(),
-        cart_total: Math.max(0, totals.total - manualDiscountAmount),
+        cart_total: cartTotal,
         customer_id: selectedCustomer?.id ?? null,
         branch_id: activeBranch?.id ?? null,
       });
@@ -340,20 +431,65 @@ export function POSScreen({ navigation }: { navigation: any }) {
     }
   };
 
+  useEffect(() => {
+    if (!appliedCoupon) return;
+    const cartTotal = Math.max(0, checkoutTotals.gross - checkoutTotals.promotionDiscount - manualDiscountAmount);
+    let cancelled = false;
+    void (async () => {
+      const next = await revalidateAppliedCoupon(appliedCoupon, {
+        cartTotal,
+        customerId: selectedCustomer?.id ?? null,
+        branchId: activeBranch?.id ?? null,
+        online: isOnline,
+        coupons,
+        validateOnline: async (params) => {
+          const res = await couponsAPI.validate(params);
+          return res as { status?: string; data?: { coupon?: Coupon; discount?: number } | null; message?: string };
+        },
+      });
+      if (cancelled) return;
+      if (!next) {
+        setAppliedCoupon(null);
+        setCouponMessage('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.');
+      } else if (next.discount !== appliedCoupon.discount) {
+        setAppliedCoupon(next);
+        setCouponMessage(`تم تحديث خصم الكوبون: ${money(next.discount)}`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [totals.total, manualDiscountAmount, checkoutTotals.gross, checkoutTotals.promotionDiscount, isOnline, selectedCustomer?.id, activeBranch?.id, coupons, appliedCoupon?.coupon.code]);
+
   const removeCoupon = () => {
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponMessage(null);
   };
 
-  const salePaymentType = useMemo((): 'cash' | 'card' | 'credit' | 'split' | 'wallet' => {
+  const salePaymentType = useMemo((): 'cash' | 'card' | 'credit' | 'split' | 'wallet' | 'layaway' => {
     if (paymentType === 'gift_card') {
       const remainder = appliedGiftCard ? Math.max(0, effectiveTotal - appliedGiftCard.amount) : effectiveTotal;
       return remainder > 0.01 ? 'cash' : 'cash';
     }
     if (paymentType === 'split') return 'split';
+    if (paymentType === 'layaway') return 'layaway';
     return paymentType as 'cash' | 'card' | 'credit' | 'wallet';
   }, [paymentType, appliedGiftCard, effectiveTotal]);
+
+  const buildLayawayTerms = useCallback((): LayawayTerms | null => {
+    if (paymentType !== 'layaway') return null;
+    const termMonths = parseInt(layawayTermMonths, 10);
+    if (!Number.isFinite(termMonths) || termMonths < 1) return null;
+    if (!layawayFirstDueDate.trim()) return null;
+    return {
+      base_total: checkoutTotals.totalBeforeLoyalty,
+      markup_percent: parseFloat(layawayMarkupPercent) || 0,
+      term_months: termMonths,
+      down_payment_amount: Number(paid) || 0,
+      first_due_date: layawayFirstDueDate.trim(),
+    };
+  }, [paymentType, layawayTermMonths, layawayMarkupPercent, layawayFirstDueDate, paid, checkoutTotals.totalBeforeLoyalty]);
 
   const validateGiftCard = async () => {
     if (!isOnline) {
@@ -387,9 +523,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
   };
 
   const handleCheckout = async () => {
+    if (submitting) return;
     setCheckoutMessage(null);
     if (!shift) {
       setCheckoutMessage('يجب فتح وردية قبل إتمام البيع.');
+      return;
+    }
+    if (!isOnline && selectedTable) {
+      setCheckoutMessage('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.');
       return;
     }
     if (!isOnline && loyaltyPointsNum > 0) {
@@ -410,11 +551,28 @@ export function POSScreen({ navigation }: { navigation: any }) {
         return;
       }
     }
+    if (paymentType === 'layaway') {
+      if (!selectedCustomer) {
+        setCheckoutMessage('التقسيط يتطلب اختيار عميل.');
+        return;
+      }
+      if (!isOnline) {
+        setCheckoutMessage('بيع التقسيط يحتاج اتصالاً بالخادم.');
+        return;
+      }
+      const terms = buildLayawayTerms();
+      if (!terms) {
+        setCheckoutMessage('أكمل شروط التقسيط (الأقساط، التاريخ، الدفعة المقدمة).');
+        return;
+      }
+    }
     setSubmitting(true);
     const giftAmount = paymentType === 'gift_card' && appliedGiftCard ? appliedGiftCard.amount : 0;
     const cashDue = Math.max(0, effectiveTotal - giftAmount);
     const paidAmount =
-      paymentType === 'gift_card'
+      paymentType === 'layaway'
+        ? Number(paid) || 0
+        : paymentType === 'gift_card'
         ? cashDue > 0.01
           ? Number(paid || cashDue)
           : 0
@@ -433,6 +591,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
           paymentType === 'gift_card' && appliedGiftCard
             ? { id: appliedGiftCard.id, code: appliedGiftCard.code, amount: appliedGiftCard.amount }
             : undefined,
+        layawayTerms: buildLayawayTerms(),
+        orderType,
+        deliveryFee: needsDelivery ? deliveryFee : 0,
+        deliveryAddress: needsDelivery ? deliveryAddress.trim() : undefined,
+        deliveryPhone: needsDelivery ? deliveryPhone.trim() : undefined,
+        deliveryZoneId: needsDelivery ? deliveryZoneId || null : null,
+        diningTableId: selectedTable?.id ?? null,
       },
     );
     setSubmitting(false);
@@ -447,6 +612,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setManualDiscount('');
       setAppliedCoupon(null);
       setCouponMessage(null);
+      setLayawayTermMonths('');
+      setLayawayMarkupPercent('0');
+      setLayawayFirstDueDate('');
+      setNeedsDelivery(false);
+      setSelectedTable(null);
+      setDeliveryZoneId('');
+      setDeliveryAddress('');
+      setDeliveryPhone('');
       setSplitLines([]);
       setLoyaltyPointsInput('');
       setGiftCardCode('');
@@ -457,7 +630,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
   };
 
   const openCheckout = () => {
-    if (!shift) return;
+    if (!shift) {
+      setPosNotice('يجب فتح وردية قبل إتمام البيع.');
+      return;
+    }
     setPaid(String(effectiveTotal));
     setCheckoutOpen(true);
   };
@@ -476,58 +652,199 @@ export function POSScreen({ navigation }: { navigation: any }) {
     setHoldCartsOpen(true);
   };
 
+  const handleExitCategory = useCallback(() => {
+    setShowCategoryCards(true);
+    setCategoryId('all');
+    setQuery('');
+  }, []);
+
+  const handleCategoryChange = useCallback((id: string) => {
+    setCategoryId(id);
+    setShowCategoryCards(false);
+  }, []);
+
+  const activeCategoryName = useMemo(() => {
+    if (showCategoryCards || categoryId === 'all') return null;
+    return categoryItems.find((cat) => cat.id === categoryId)?.name ?? null;
+  }, [showCategoryCards, categoryId, categoryItems]);
+
+  const handleExitPos = useCallback(() => {
+    const hasCartItems = cart.length > 0;
+    const title = 'خروج من نقطة البيع';
+    const message = hasCartItems
+      ? 'توجد منتجات في السلة. هل تريد الخروج من نقطة البيع؟'
+      : 'هل تريد الخروج من شاشة نقطة البيع؟';
+
+    Alert.alert(title, message, [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'خروج',
+        style: 'destructive',
+        onPress: () => {
+          const parent = navigation.getParent?.();
+          if (parent?.navigate) {
+            parent.navigate('DashboardTab');
+            return;
+          }
+          if (navigation.canGoBack?.()) {
+            navigation.goBack();
+          }
+        },
+      },
+    ]);
+  }, [cart.length, navigation]);
+
   const showCatalog = isTablet || mobileTab === 'catalog';
   const showCart = isTablet || mobileTab === 'cart';
+  const kitchenPrintEnabled = useMemo(() => isKitchenPrintEnabled(catalogSettings), [catalogSettings]);
+  const splitPaid = useMemo(() => splitLines.reduce((sum, line) => sum + (parseFloat(line.amount) || 0), 0), [splitLines]);
+  const splitRemaining = Math.max(0, effectiveTotal - splitPaid);
+
+  const handlePrintKitchen = useCallback(async () => {
+    if (!activeBranch?.id) {
+      setPosNotice('اختر فرعاً أولاً.');
+      return;
+    }
+    try {
+      const result = await printKitchenFromCart({
+        cart,
+        products,
+        branchId: activeBranch.id,
+        tableName: selectedTableName,
+      });
+      setPosNotice(result.message);
+    } catch (err) {
+      setPosNotice(normalizeApiError(err).message);
+    }
+  }, [activeBranch?.id, cart, products, selectedTableName]);
+
+  const cartPanelProps = {
+    cart,
+    effectiveTotal,
+    subtotal: totals.subtotal,
+    branchName: activeBranch?.name ?? null,
+    orderTypeLabel,
+    shiftError,
+    hasShift: !!shift,
+    pendingCount: pendingOrders.length,
+    selectedCustomerName: selectedCustomer?.name ?? null,
+    selectedTableName,
+    walletText,
+    couponLabel,
+    manualDiscountLabel: manualDiscountAmount > 0 ? `خصم يدوي: -${money(manualDiscountAmount)}` : null,
+    promotionLabel,
+    taxLabel,
+    serviceChargeLabel,
+    deliveryFeeLabel,
+    loyaltyLabel: loyaltyDiscount > 0 ? `نقاط ولاء: -${money(loyaltyDiscount)}` : null,
+    giftCardLabel: appliedGiftCard ? `بطاقة هدايا: -${money(appliedGiftCard.amount)}` : null,
+    splitPaid: paymentType === 'split' && splitLines.length > 0 ? splitPaid : null,
+    splitRemaining: paymentType === 'split' && splitLines.length > 0 ? splitRemaining : null,
+    onSelectCustomer: () => setCustomerOpen(true),
+    onClearCart: clearCart,
+    onCheckout: openCheckout,
+    onSaveHoldCart: openSaveHoldCart,
+    onOpenHoldCarts: openHoldCartsList,
+    onCashMovement: () => setCashMovementOpen(true),
+    onOpenTables: () => setTablesOpen(true),
+    onUpdateQty: updateQuantity,
+    onRemoveLine: removeLine,
+    onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
+    kitchenPrintEnabled,
+  };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: c.background }, rootRtl]} edges={['top', 'left', 'right']}>
-      <PosTopBar
-        mobileTab={mobileTab}
-        onMobileTabChange={setMobileTab}
-        cartCount={cartItemCount}
-        cartPulse={cartPulse}
-        shiftLabel={shiftLabel}
-        cashierName={user?.name}
-        lastSyncedLabel={lastSyncedLabel}
-        showMobileTabs={!isTablet}
-      />
-
-      <OfflinePrintIndicators compact />
-      {posNotice ? <Text style={[styles.noticeText, { color: c.info, backgroundColor: c.softInfo }]}>{posNotice}</Text> : null}
-
-      {!activeBranch ? (
-        <View style={styles.centered}>
-          <AppEmptyState title="اختر فرعاً أولاً" message="نقطة البيع تحتاج فرعاً نشطاً." />
-        </View>
-      ) : loading && products.length === 0 ? (
-        <View style={styles.centered}>
-          <AppLoadingState variant="skeleton" skeletonRows={6} />
-        </View>
-      ) : error && products.length === 0 ? (
-        <View style={styles.centered}>
-          <AppErrorState message={error} onRetry={loadCatalog} />
-        </View>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: isTablet ? c.surfaceMuted : c.background }, rootRtl]}
+      edges={isTablet ? ['top', 'left', 'right', 'bottom'] : ['top', 'left', 'right']}
+    >
+      {isTablet ? (
+        <PosTabletScreen
+          shiftLabel={shiftLabel}
+          cashierName={user?.name}
+          lastSyncedLabel={lastSyncedLabel}
+          onExitPos={handleExitPos}
+          onSaveHoldCart={openSaveHoldCart}
+          onOpenHoldCarts={openHoldCartsList}
+          onCashMovement={() => setCashMovementOpen(true)}
+          onOpenTables={() => setTablesOpen(true)}
+          posNotice={posNotice}
+          activeBranch={activeBranch}
+          loading={loading}
+          products={products}
+          error={error}
+          onRetryCatalog={loadCatalog}
+          query={query}
+          onQueryChange={setQuery}
+          categories={categoryItems}
+          categoryId={categoryId}
+          onCategoryChange={handleCategoryChange}
+          showCategoryCards={showCategoryCards}
+          onShowCategoryCards={handleExitCategory}
+          onShowAllProducts={() => {
+            setCategoryId('all');
+            setShowCategoryCards(false);
+          }}
+          onSelectCategory={(id) => {
+            setCategoryId(id);
+            setShowCategoryCards(false);
+          }}
+          onExitCategory={handleExitCategory}
+          activeCategoryName={activeCategoryName}
+          filteredProducts={filteredProducts}
+          productQuantities={productQuantities}
+          onProductPress={handleProductPress}
+          catalogRefreshing={catalogRefreshing}
+          onRefreshCatalog={refreshCatalog}
+          cartPanelProps={cartPanelProps}
+        />
       ) : (
-        <View
-          style={[
-            styles.workspace,
-            isTablet ? styles.workspaceTablet : undefined,
-            !isTablet ? { paddingBottom: tabBarInset } : undefined,
-          ]}
-        >
+        <>
+          <PosTopBar
+            mobileTab={mobileTab}
+            onMobileTabChange={setMobileTab}
+            cartCount={cartItemCount}
+            cartPulse={cartPulse}
+            shiftLabel={shiftLabel}
+            cashierName={user?.name}
+            lastSyncedLabel={lastSyncedLabel}
+            showMobileTabs
+          />
+          <OfflinePrintIndicators compact />
+          {posNotice ? (
+            <Text style={[styles.noticeText, { color: c.info, backgroundColor: c.softInfo }]}>{posNotice}</Text>
+          ) : null}
+          {!activeBranch ? (
+            <View style={styles.centered}>
+              <AppEmptyState title="اختر فرعاً أولاً" message="نقطة البيع تحتاج فرعاً نشطاً." />
+            </View>
+          ) : loading && products.length === 0 ? (
+            <View style={styles.centered}>
+              <AppLoadingState variant="skeleton" skeletonRows={6} />
+            </View>
+          ) : error && products.length === 0 ? (
+            <View style={styles.centered}>
+              <AppErrorState message={error} onRetry={loadCatalog} />
+            </View>
+          ) : (
+        <View style={[styles.workspace, { paddingBottom: tabBarInset }]}>
+          {showCart ? (
+            <View style={[styles.cartCol, styles.fullCol]}>
+              <PosOrderPanel
+                {...cartPanelProps}
+              />
+            </View>
+          ) : null}
           {showCatalog ? (
-            <View style={[styles.catalogCol, isTablet ? styles.catalogColTablet : styles.fullCol]}>
+            <View style={[styles.catalogCol, styles.fullCol]}>
               <PosCatalogPanel
                 query={query}
                 onQueryChange={setQuery}
                 categories={categoryItems}
                 categoryId={categoryId}
-                onCategoryChange={setCategoryId}
+                onCategoryChange={handleCategoryChange}
                 showCategoryCards={showCategoryCards}
-                onShowCategoryCards={() => {
-                  setShowCategoryCards(true);
-                  setCategoryId('all');
-                }}
+                onShowCategoryCards={handleExitCategory}
                 onShowAllProducts={() => {
                   setCategoryId('all');
                   setShowCategoryCards(false);
@@ -536,39 +853,20 @@ export function POSScreen({ navigation }: { navigation: any }) {
                   setCategoryId(id);
                   setShowCategoryCards(false);
                 }}
+                onExitCategory={handleExitCategory}
+                activeCategoryName={activeCategoryName}
+                onOpenTables={() => setTablesOpen(true)}
                 products={filteredProducts}
+                productQuantities={productQuantities}
                 onProductPress={handleProductPress}
-                loading={loading}
                 refreshing={catalogRefreshing}
                 onRefresh={() => void refreshCatalog()}
               />
             </View>
           ) : null}
-          {showCart ? (
-            <View style={[styles.cartCol, isTablet ? styles.cartColTablet : styles.fullCol]}>
-              <PosOrderPanel
-                cart={cart}
-                effectiveTotal={effectiveTotal}
-                subtotal={totals.subtotal}
-                shiftError={shiftError}
-                hasShift={!!shift}
-                pendingCount={pendingOrders.length}
-                selectedCustomerName={selectedCustomer?.name ?? null}
-                walletText={walletText}
-                couponLabel={couponLabel}
-                onSelectCustomer={() => setCustomerOpen(true)}
-                onClearCart={clearCart}
-                onCheckout={openCheckout}
-                onSaveHoldCart={openSaveHoldCart}
-                onOpenHoldCarts={openHoldCartsList}
-                onCashMovement={() => setCashMovementOpen(true)}
-                onOpenTables={() => setTablesOpen(true)}
-                onUpdateQty={updateQuantity}
-                onRemoveLine={removeLine}
-              />
-            </View>
-          ) : null}
         </View>
+          )}
+        </>
       )}
 
       <PosCheckoutSheet
@@ -585,7 +883,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
         loyaltyBlockedOffline={!isOnline}
         isOnline={isOnline}
         paymentType={paymentType}
-        onPaymentTypeChange={setPaymentType}
+        onPaymentTypeChange={(value) => {
+          setPaymentType(value);
+          if (value === 'layaway') setPaid('0');
+        }}
         paid={paid}
         onPaidChange={setPaid}
         allowManualDiscount={allowManualDiscount}
@@ -611,25 +912,55 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onNotesChange={setNotes}
         checkoutMessage={checkoutMessage}
         hasCustomer={!!selectedCustomer}
+        selectedTableName={selectedTableName}
         vaultsEmpty={vaults.length === 0}
         onOpenSplit={() => setSplitOpen(true)}
         onReview={() => setReviewOpen(true)}
         splitLinesCount={splitLines.length}
+        layawayTermMonths={layawayTermMonths}
+        onLayawayTermMonthsChange={setLayawayTermMonths}
+        layawayMarkupPercent={layawayMarkupPercent}
+        onLayawayMarkupPercentChange={setLayawayMarkupPercent}
+        layawayFirstDueDate={layawayFirstDueDate}
+        onLayawayFirstDueDateChange={setLayawayFirstDueDate}
+        needsDelivery={needsDelivery}
+        onNeedsDeliveryChange={(value) => {
+          if (value) setSelectedTable(null);
+          setNeedsDelivery(value);
+          if (!value) {
+            setDeliveryZoneId('');
+            setDeliveryAddress('');
+            setDeliveryPhone('');
+          }
+        }}
+        deliveryZones={deliveryZones}
+        deliveryZoneId={deliveryZoneId}
+        onDeliveryZoneChange={setDeliveryZoneId}
+        deliveryAddress={deliveryAddress}
+        onDeliveryAddressChange={setDeliveryAddress}
+        deliveryPhone={deliveryPhone}
+        onDeliveryPhoneChange={setDeliveryPhone}
+        deliveryFee={deliveryFee}
       />
 
       <CheckoutReviewSheet
         visible={reviewOpen}
         cart={cart}
-        subtotal={totals.subtotal}
-        discount={totals.discount + manualDiscountAmount}
-        total={Math.max(0, totals.total - manualDiscountAmount)}
+        subtotal={checkoutTotals.gross}
+        discount={checkoutTotals.invoiceDiscount}
+        total={checkoutTotals.totalBeforeLoyalty}
         coupon={appliedCoupon}
+        promotionDiscount={checkoutTotals.promotionDiscount}
+        tax={checkoutTotals.tax}
+        serviceCharge={checkoutTotals.serviceCharge}
+        deliveryFee={checkoutTotals.deliveryFee}
         loyaltyDiscount={loyaltyDiscount}
         loyaltyPointsRedeemed={loyaltyPointsNum}
         giftCard={appliedGiftCard}
         paymentType={paymentType}
         paid={Number(paid || effectiveTotal)}
         customerName={selectedCustomer?.name ?? null}
+        tableName={selectedTableName}
         onClose={() => setReviewOpen(false)}
         onConfirm={handleCheckout}
         loading={submitting}
@@ -739,12 +1070,20 @@ export function POSScreen({ navigation }: { navigation: any }) {
         cart={cart}
         total={effectiveTotal}
         customer={selectedCustomer}
+        selectedTableId={selectedTable?.id ?? null}
         onClose={() => setTablesOpen(false)}
-        onLinked={() => {
+        onSelectTable={(table) => {
+          setSelectedTable(table);
+          setNeedsDelivery(false);
+          setPosNotice(`تم اختيار ${table.name ?? 'الطاولة'} للطلب الحالي.`);
+        }}
+        onLinked={(table) => {
+          setSelectedTable(table);
           clearCart();
           setManualDiscount('');
           setCouponCode('');
           setCouponMessage(null);
+          setNeedsDelivery(false);
           setPosNotice('تم ربط السلة بالطاولة.');
         }}
         onOpenTable={(table) => {
@@ -756,36 +1095,35 @@ export function POSScreen({ navigation }: { navigation: any }) {
 }
 
 function PosCustomerList({ customers, onSelect, onClear }: { customers: Customer[]; onSelect: (c: Customer) => void; onClear: () => void }) {
+  const visibleCustomers = customers.slice(0, 80);
   return (
-    <>
-      <FlatList
-        data={customers.slice(0, 80)}
-        keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<AppEmptyState title="لا يوجد عملاء في الكاش" />}
-        renderItem={({ item }) => (
+    <View style={{ gap: spacing.sm }}>
+      {visibleCustomers.length > 0 ? (
+        visibleCustomers.map((item) => (
           <AppListItem
+            key={String(item.id)}
             title={item.name}
             subtitle={item.phone ?? undefined}
             meta={item.wallet_balance != null ? `محفظة: ${money(item.wallet_balance)}` : undefined}
             onPress={() => onSelect(item)}
           />
-        )}
-      />
+        ))
+      ) : (
+        <AppEmptyState title="لا يوجد عملاء في الكاش" />
+      )}
       <AppButton title="بيع بدون عميل" variant="outline" onPress={onClear} size="sm" fullWidth />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  centered: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
-  workspace: { flex: 1, padding: spacing.md, gap: spacing.md },
-  workspaceTablet: { flexDirection: 'row', alignItems: 'stretch' },
+  safe: { flex: 1, minHeight: 0 },
+  centered: { flex: 1, minHeight: 0, padding: spacing.lg, justifyContent: 'center' },
+  workspace: { flex: 1, minHeight: 0, padding: spacing.md, gap: spacing.md },
   catalogCol: { flex: 1, minWidth: 0 },
-  catalogColTablet: { flex: 1 },
   cartCol: { flex: 1, minWidth: 0 },
-  cartColTablet: { width: 400, maxWidth: 440, flexGrow: 0, flexShrink: 0 },
   fullCol: { flex: 1 },
+  offlineTablet: { paddingHorizontal: spacing.md },
   sheet: { gap: spacing.md },
   walletInfo: { ...textStart, fontSize: 12, fontFamily: fonts.bold, fontWeight: '700' },
   errorText: { ...textStart, fontWeight: '700', fontSize: 13, fontFamily: fonts.bold },

@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import type { AuthSession, User } from '@/types/api';
 import { authAPI } from '@/api/auth';
+import { tenantAPI } from '@/api/tenant';
 import { setUnauthorizedHandler } from '@/api/client';
 import { secureDelete, secureGet, secureSet, storageDelete, storageKeys, storageSet } from '@/services/storage';
 import { normalizeApiError } from '@/utils/errors';
 import { useBranchStore } from './branchStore';
+import { useThemeStore } from './themeStore';
 
 type LoginInput = {
   identifier: string;
@@ -34,6 +36,18 @@ async function persistSession(session: AuthSession): Promise<void> {
   }
 }
 
+async function refreshTenantThemeColor(): Promise<void> {
+  try {
+    const response = await tenantAPI.getTheme();
+    const primary = String((response.data as { primary_hex?: string | null } | undefined)?.primary_hex ?? '').trim();
+    if (/^#([0-9a-fA-F]{6})$/.test(primary)) {
+      useThemeStore.getState().setPrimaryHex(primary);
+    }
+  } catch {
+    // Theme color is cosmetic; auth/bootstrap should never fail because it cannot load.
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => {
   setUnauthorizedHandler(async () => {
     await get().clearLocalSession();
@@ -56,6 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
       set({ token: session.token, user: session.user, tenantSlug: session.tenant_slug ?? null });
       await useBranchStore.getState().bootstrap(session.user);
+      void refreshTenantThemeColor();
       try {
         await get().refreshMe();
       } catch {
@@ -84,6 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         await persistSession(session);
         set({ token, user, tenantSlug: slug || null, loading: false });
         await useBranchStore.getState().bootstrap(user);
+        void refreshTenantThemeColor();
         return true;
       } catch (error) {
         const normalized = normalizeApiError(error);
@@ -121,6 +137,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     clearLocalSession: async () => {
       await secureDelete(storageKeys.authSession);
       await storageDelete(storageKeys.cachedUser);
+      await storageDelete(storageKeys.tenantPrimaryHex);
+      useThemeStore.getState().setPrimaryHex(null);
       set({ token: null, user: null, loading: false, bootstrapping: false, error: null });
       useBranchStore.getState().clear();
     },

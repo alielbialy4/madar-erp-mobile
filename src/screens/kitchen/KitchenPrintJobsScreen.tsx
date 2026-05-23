@@ -7,7 +7,6 @@ import { AppBadge, AppButton, AppListItem, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
-import { extractArray } from '@/utils/data';
 import { asText, dateText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
@@ -77,7 +76,7 @@ export function KitchenPrintJobsScreen({ navigation }: { navigation: any }) {
         renderItem={({ item }) => (
           <AppListItem
             title={asText(item.printer_name, 'طابعة')}
-            subtitle={`${asText((item.kitchen_station as Record<string, unknown>)?.name, 'عام')} • ${dateText(asText(item.created_at, ''))}`}
+            subtitle={`${asText((item.kitchen_station as Record<string, unknown>)?.name, 'عام')} • ${dateText(asText(item.created_at, ''))}${item.sale_id ? ' • اضغط لمعاينة التذكرة' : ''}`}
             meta={asText(item.last_error, '')}
             badge={
               <AppBadge
@@ -85,7 +84,13 @@ export function KitchenPrintJobsScreen({ navigation }: { navigation: any }) {
                 tone={item.status === 'failed' ? 'danger' : item.status === 'printed' ? 'success' : 'warning'}
               />
             }
-            onPress={item.status === 'failed' ? () => setRetryId(String(item.id)) : undefined}
+            onPress={
+              item.sale_id
+                ? () => navigation.navigate('KitchenTicketPreview', { id: Number(item.sale_id) })
+                : item.status === 'failed'
+                  ? () => setRetryId(String(item.id))
+                  : undefined
+            }
           />
         )}
       />

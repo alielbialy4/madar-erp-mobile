@@ -26,7 +26,8 @@ type LegacyTab =
   | 'employees'
   | 'payments'
   | 'profit-loss'
-  | 'inventory';
+  | 'inventory'
+  | 'comprehensive';
 
 const TABS: { id: LegacyTab; label: string; apiMethod: keyof typeof reportsAPI }[] = [
   { id: 'comprehensive-sales', label: 'مبيعات شاملة', apiMethod: 'comprehensiveSales' },
@@ -38,6 +39,7 @@ const TABS: { id: LegacyTab; label: string; apiMethod: keyof typeof reportsAPI }
   { id: 'payments', label: 'المدفوعات', apiMethod: 'payments' },
   { id: 'profit-loss', label: 'الأرباح والخسائر', apiMethod: 'profitLoss' },
   { id: 'inventory', label: 'المخزون', apiMethod: 'inventory' },
+  { id: 'comprehensive', label: 'التقرير الشامل', apiMethod: 'comprehensive' },
 ];
 
 const ROW_KEYS: Record<LegacyTab, string[]> = {
@@ -50,6 +52,7 @@ const ROW_KEYS: Record<LegacyTab, string[]> = {
   payments: ['payments', 'data'],
   'profit-loss': ['lines', 'items', 'data'],
   inventory: ['products', 'items', 'data'],
+  comprehensive: ['rows', 'items', 'data'],
 };
 
 function legacyDefinition(tab: LegacyTab): ReportDefinition {
@@ -71,6 +74,12 @@ function legacyDefinition(tab: LegacyTab): ReportDefinition {
               { key: 'total_expenses', label: 'المصروفات', format: 'money', tone: 'danger' },
               { key: 'net_profit', label: 'صافي الربح', format: 'money', tone: 'primary' },
             ]
+          : tab === 'comprehensive'
+            ? [
+                { key: 'sales.total', label: 'المبيعات', format: 'money', tone: 'primary' },
+                { key: 'purchases.total', label: 'المشتريات', format: 'money', tone: 'warning' },
+                { key: 'profit.amount', label: 'الربح', format: 'money', tone: 'success' },
+              ]
           : [{ key: 'total', label: 'الإجمالي', format: 'money', tone: 'primary' }];
 
   return {

@@ -38,3 +38,13 @@ Static audit comparing **`front/`** (source of truth) to **`madar-erp-mobile/`**
 | Placeholder | Generic fallback UI |
 | Wrong API / Wrong UX | Incorrect endpoint or navigation |
 | Needs Verification | Could not confirm in static read |
+
+## Lockdown Pass Update
+
+The active full route tracker now lives in `../full-web-mobile-parity/`. The original audit remains useful history, but the current source of truth for route-by-route status is:
+
+- `../full-web-mobile-parity/00_MASTER_TRACKER.md`
+- `../full-web-mobile-parity/04_REMAINING_BLOCKERS.md`
+- `../full-web-mobile-parity/05_FINAL_PARITY_REPORT.md`
+
+2026-05-23 update: several former core fallback routes now have dedicated mobile screens (`/sales/products`, `/sales/layaway`, `/supplier-payments`, `/payments`, `/vaults/transactions`, `/barcode-print`, and `/delivery-finance/drivers/:driverId`). Current final status remains **NO-GO for full parity acceptance** because core Partial / Needs Device QA rows remain.

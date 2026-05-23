@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { settingsAPI } from '@/api/settings';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useAuthStore } from '@/store/authStore';
@@ -34,10 +34,10 @@ export function RolesScreen({ navigation }: { navigation: any }) {
   return (
     <AppScreen title="الأدوار والصلاحيات" onBack={navigation.goBack}>
       <AppCard>
-        <AppSectionHeader title="ملاحظة" />
+        <AppSectionHeader title="قرار التعديل" />
         <Text style={{ color: c.textMuted, lineHeight: 20 }}>
           {canEdit
-            ? 'تعيين الأدوار يتم من شاشة تعديل المستخدم. تعديل تعريف الأدوار نفسها غير متاح على الجوال — استخدم الويب.'
+            ? 'تعيين الأدوار للمستخدمين متاح من شاشة تعديل المستخدم. تعديل تعريف الأدوار والصلاحيات نفسها يبقى من الويب فقط لأن API الجوال المتاح يعرض /mcp/roles ويزامن أدوار المستخدم فقط، ولا توجد عقود create/update/delete لتعريف الدور.'
             : 'عرض الأدوار فقط. تعيين الأدوار يتطلب صلاحية manage_users.'}
         </Text>
       </AppCard>
@@ -49,7 +49,21 @@ export function RolesScreen({ navigation }: { navigation: any }) {
             <AppEmptyState title="لا أدوار" />
           ) : (
             roles.map((r, i) => (
-              <AppListItem key={String(r.id ?? r.name ?? i)} title={String(r.name ?? r.slug ?? '—')} subtitle={String(r.description ?? '')} />
+              <AppCard key={String(r.id ?? r.name ?? i)} style={{ gap: spacing.sm }}>
+                <AppListItem
+                  title={String(r.label ?? r.name ?? r.slug ?? '—')}
+                  subtitle={Array.isArray(r.permissions) ? `${r.permissions.length} صلاحية` : String(r.description ?? '')}
+                  badge={<AppBadge label="قراءة فقط" tone="neutral" />}
+                />
+                {Array.isArray(r.permissions) && r.permissions.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                    {r.permissions.slice(0, 12).map((permission) => (
+                      <AppBadge key={String(permission)} label={String(permission)} tone="outline" />
+                    ))}
+                    {r.permissions.length > 12 ? <AppBadge label={`+${r.permissions.length - 12}`} tone="info" /> : null}
+                  </View>
+                ) : null}
+              </AppCard>
             ))
           )}
         </View>

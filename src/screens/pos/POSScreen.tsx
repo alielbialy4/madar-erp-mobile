@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/layout';
@@ -31,8 +31,22 @@ import { SplitPaymentSheet, SplitLine } from './SplitPaymentSheet';
 import { CheckoutReviewSheet } from './CheckoutReviewSheet';
 import { PosCheckoutSheet } from './PosCheckoutSheet';
 import { HoldCartsSheet } from './HoldCartsSheet';
+import { VariantPickerSheet } from './VariantPickerSheet';
+import { QuickCustomerSheet } from './QuickCustomerSheet';
+import { CashMovementSheet } from './CashMovementSheet';
+import { PosTablesSheet } from './PosTablesSheet';
 
-export function POSScreen() {
+type ProductVariantSelection = { id: string; name?: string | null };
+
+function productHasOptions(product: Product | null): boolean {
+  return Boolean(product?.option_groups?.some((g) => g.options && g.options.length > 0));
+}
+
+function productHasVariants(product: Product | null): boolean {
+  return Boolean(product?.variants?.length);
+}
+
+export function POSScreen({ navigation }: { navigation: any }) {
   const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= responsive.tabletMinSplit;
@@ -90,7 +104,13 @@ export function POSScreen() {
   const [shift, setShift] = useState<ActiveShift | null>(null);
   const [shiftError, setShiftError] = useState<string | null>(null);
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
+  const [modifierVariant, setModifierVariant] = useState<ProductVariantSelection | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  const [variantOpen, setVariantOpen] = useState(false);
+  const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
+  const [cashMovementOpen, setCashMovementOpen] = useState(false);
+  const [tablesOpen, setTablesOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
@@ -137,28 +157,29 @@ export function POSScreen() {
     void loadCatalog();
   }, [activeBranch?.id, loadCatalog]);
 
+  const refreshShift = useCallback(async () => {
+    if (!activeBranch?.id) {
+      setShift(null);
+      return;
+    }
+    try {
+      const response = await shiftsAPI.current(activeBranch.id);
+      setShift((response.data as ActiveShift | null) ?? null);
+      setShiftError(null);
+    } catch (err) {
+      setShiftError(normalizeApiError(err).message);
+    }
+  }, [activeBranch?.id]);
+
   useEffect(() => {
     let mounted = true;
-    async function loadShift() {
-      if (!activeBranch?.id) {
-        setShift(null);
-        return;
-      }
-      try {
-        const response = await shiftsAPI.current(activeBranch.id);
-        if (mounted) {
-          setShift((response.data as ActiveShift | null) ?? null);
-          setShiftError(null);
-        }
-      } catch (err) {
-        if (mounted) setShiftError(normalizeApiError(err).message);
-      }
-    }
-    void loadShift();
+    void refreshShift().finally(() => {
+      if (!mounted) return;
+    });
     return () => {
       mounted = false;
     };
-  }, [activeBranch?.id]);
+  }, [refreshShift]);
 
   useEffect(() => {
     let mounted = true;
@@ -253,18 +274,39 @@ export function POSScreen() {
     : null;
 
   const handleProductPress = (product: Product) => {
-    if (product.option_groups?.some((g) => g.options && g.options.length > 0)) {
+    if (productHasVariants(product)) {
+      setVariantProduct(product);
+      setVariantOpen(true);
+      return;
+    }
+    if (productHasOptions(product)) {
       setModifierProduct(product);
+      setModifierVariant(null);
       setModifierOpen(true);
       return;
     }
     addProduct(product);
   };
 
+  const handleVariantSelect = (variant: ProductVariantSelection) => {
+    if (!variantProduct) return;
+    const product = variantProduct;
+    setVariantOpen(false);
+    setVariantProduct(null);
+    if (productHasOptions(product)) {
+      setModifierProduct(product);
+      setModifierVariant(variant);
+      setModifierOpen(true);
+      return;
+    }
+    addProduct(product, undefined, variant);
+  };
+
   const handleModifierConfirm = (options: CartLineSelectedOption[]) => {
-    if (modifierProduct) addProduct(modifierProduct, options);
+    if (modifierProduct) addProduct(modifierProduct, options, modifierVariant);
     setModifierOpen(false);
     setModifierProduct(null);
+    setModifierVariant(null);
   };
 
   const validateCoupon = async () => {
@@ -519,6 +561,8 @@ export function POSScreen() {
                 onCheckout={openCheckout}
                 onSaveHoldCart={openSaveHoldCart}
                 onOpenHoldCarts={openHoldCartsList}
+                onCashMovement={() => setCashMovementOpen(true)}
+                onOpenTables={() => setTablesOpen(true)}
                 onUpdateQty={updateQuantity}
                 onRemoveLine={removeLine}
               />
@@ -613,8 +657,19 @@ export function POSScreen() {
         onClose={() => {
           setModifierOpen(false);
           setModifierProduct(null);
+          setModifierVariant(null);
         }}
         onConfirm={handleModifierConfirm}
+      />
+
+      <VariantPickerSheet
+        visible={variantOpen}
+        product={variantProduct}
+        onClose={() => {
+          setVariantOpen(false);
+          setVariantProduct(null);
+        }}
+        onSelect={handleVariantSelect}
       />
 
       <SplitPaymentSheet
@@ -632,6 +687,15 @@ export function POSScreen() {
       <AppBottomSheet visible={customerOpen} onClose={() => setCustomerOpen(false)}>
         <View style={styles.sheet}>
           <AppSectionHeader title="اختيار عميل" />
+          <AppButton
+            title="إضافة عميل سريع"
+            variant="secondary"
+            onPress={() => {
+              setCustomerOpen(false);
+              setQuickCustomerOpen(true);
+            }}
+            fullWidth
+          />
           <PosCustomerList
             customers={customers}
             onSelect={(c) => {
@@ -645,6 +709,48 @@ export function POSScreen() {
           />
         </View>
       </AppBottomSheet>
+
+      <QuickCustomerSheet
+        visible={quickCustomerOpen}
+        branchId={activeBranch?.id ?? null}
+        onClose={() => setQuickCustomerOpen(false)}
+        onCreated={(customer) => {
+          setCustomer(customer);
+          setQuickCustomerOpen(false);
+          setPosNotice('تم إضافة العميل واختياره في الطلب.');
+          void loadCatalog();
+        }}
+      />
+
+      <CashMovementSheet
+        visible={cashMovementOpen}
+        shift={shift}
+        onClose={() => setCashMovementOpen(false)}
+        onSuccess={() => {
+          setPosNotice('تم تسجيل الحركة النقدية.');
+          void refreshShift();
+        }}
+      />
+
+      <PosTablesSheet
+        visible={tablesOpen}
+        branchId={activeBranch?.id ?? null}
+        isOnline={isOnline}
+        cart={cart}
+        total={effectiveTotal}
+        customer={selectedCustomer}
+        onClose={() => setTablesOpen(false)}
+        onLinked={() => {
+          clearCart();
+          setManualDiscount('');
+          setCouponCode('');
+          setCouponMessage(null);
+          setPosNotice('تم ربط السلة بالطاولة.');
+        }}
+        onOpenTable={(table) => {
+          navigation.navigate('DiningTableOrder', { tableId: table.id, tableName: table.name });
+        }}
+      />
     </SafeAreaView>
   );
 }

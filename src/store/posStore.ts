@@ -20,6 +20,7 @@ export type CartLine = {
   discount: number;
   unit_id?: number | null;
   variant_id?: string | null;
+  variant_name?: string | null;
   notes?: string;
   selected_options?: CartLineSelectedOption[];
 };
@@ -46,9 +47,13 @@ type PosState = {
   appliedCoupon: { coupon: Coupon; discount: number } | null;
   catalogSettings: Record<string, unknown>;
   loadCatalog: () => Promise<void>;
-  addProduct: (product: Product, selectedOptions?: CartLineSelectedOption[]) => void;
-  updateQuantity: (productId: number, delta: number) => void;
-  removeLine: (productId: number) => void;
+  addProduct: (
+    product: Product,
+    selectedOptions?: CartLineSelectedOption[],
+    variant?: { id: string; name?: string | null } | null,
+  ) => void;
+  updateQuantity: (lineKey: string, delta: number) => void;
+  removeLine: (lineKey: string) => void;
   clearCart: () => void;
   setCustomer: (customer: Customer | null) => void;
   submitSale: (
@@ -78,9 +83,31 @@ export type SubmitSaleExtras = {
   giftCard?: { id: number; code: string; amount: number };
 };
 
-function priceOf(product: Product): number {
-  const value = Number(product.selling_price ?? 0);
+function priceOf(product: Product, variantId?: string | null): number {
+  const base = Number(product.selling_price ?? 0);
+  const variant = variantId ? product.variants?.find((v) => String(v.id) === String(variantId)) : null;
+  const value = base + Number(variant?.additional_price ?? 0);
   return Number.isFinite(value) ? value : 0;
+}
+
+function selectedOptionsSignature(opts?: CartLineSelectedOption[]): string {
+  if (!opts?.length) return '';
+  return opts
+    .map((group) => {
+      const optionIds = group.options.map((option) => option.product_option_id).sort((a, b) => a - b).join(',');
+      return `${group.product_option_group_id}:${optionIds}`;
+    })
+    .sort()
+    .join('|');
+}
+
+export function cartLineKey(line: Pick<CartLine, 'product_id' | 'variant_id' | 'unit_id' | 'selected_options'>): string {
+  return [
+    line.product_id,
+    line.variant_id ?? '',
+    line.unit_id ?? '',
+    selectedOptionsSignature(line.selected_options),
+  ].join('__');
 }
 
 function computeOptionsPrice(opts?: CartLineSelectedOption[]): number {
@@ -179,15 +206,21 @@ export const usePosStore = create<PosState>((set, get) => ({
     }
   },
 
-  addProduct: (product, selectedOptions) => {
+  addProduct: (product, selectedOptions, variant) => {
     const current = get().cart;
+    const variantId = variant?.id ?? null;
+    const unitId = product.units?.find((unit) => unit.is_base)?.id ?? product.units?.[0]?.id ?? null;
+    const newLineKey = cartLineKey({
+      product_id: product.id,
+      variant_id: variantId,
+      unit_id: unitId,
+      selected_options: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,
+    });
 
-    if (!selectedOptions || selectedOptions.length === 0) {
-      const existing = current.find((line) => line.product_id === product.id && !line.selected_options?.length);
-      if (existing) {
-        set({ cart: current.map((line) => line.product_id === product.id && !line.selected_options?.length ? { ...line, quantity: line.quantity + 1 } : line) });
-        return;
-      }
+    const existing = current.find((line) => cartLineKey(line) === newLineKey);
+    if (existing) {
+      set({ cart: current.map((line) => (cartLineKey(line) === newLineKey ? { ...line, quantity: line.quantity + 1 } : line)) });
+      return;
     }
 
     set({
@@ -197,24 +230,26 @@ export const usePosStore = create<PosState>((set, get) => ({
           product_id: product.id,
           product_name: product.name,
           quantity: 1,
-          unit_price: priceOf(product),
+          unit_price: priceOf(product, variantId),
           discount: 0,
-          unit_id: product.units?.find((unit) => unit.is_base)?.id ?? product.units?.[0]?.id ?? null,
+          unit_id: unitId,
+          variant_id: variantId,
+          variant_name: variant?.name ?? null,
           selected_options: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,
         },
       ],
     });
   },
 
-  updateQuantity: (productId, delta) => {
+  updateQuantity: (lineKey, delta) => {
     set((state) => ({
       cart: state.cart
-        .map((line) => line.product_id === productId ? { ...line, quantity: Math.max(0, line.quantity + delta) } : line)
+        .map((line) => (cartLineKey(line) === lineKey ? { ...line, quantity: Math.max(0, line.quantity + delta) } : line))
         .filter((line) => line.quantity > 0),
     }));
   },
 
-  removeLine: (productId) => set((state) => ({ cart: state.cart.filter((line) => line.product_id !== productId) })),
+  removeLine: (lineKey) => set((state) => ({ cart: state.cart.filter((line) => cartLineKey(line) !== lineKey) })),
   clearCart: () => set({ cart: [], selectedCustomer: null, appliedCoupon: null }),
   setCustomer: (customer) => set({ selectedCustomer: customer }),
   setWalletBalance: (balance) => set({ walletBalance: balance }),

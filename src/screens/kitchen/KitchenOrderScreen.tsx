@@ -97,6 +97,7 @@ function KitchenOrderInner({ id, navigation }: { id: number; navigation: any }) 
               <AppSectionHeader title="حالة الطلب" />
               {message ? <Text style={{ ...textStart, marginBottom: 8 }}>{message}</Text> : null}
               <View style={{ gap: 12 }}>
+                <AppButton title="معاينة / طباعة التذكرة" variant="outline" onPress={() => navigation.navigate('KitchenTicketPreview', { id })} />
                 <AppButton title="قيد التحضير" variant="secondary" onPress={() => setPendingStatus('preparing')} />
                 <AppButton title="جاهز" onPress={() => setPendingStatus('ready')} />
                 <AppButton title="تم التقديم" variant="secondary" onPress={() => setPendingStatus('served')} />

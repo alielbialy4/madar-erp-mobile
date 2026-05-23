@@ -20,10 +20,11 @@ import { ReportExportActions } from './ReportExportActions';
 
 type Props = {
   reportId: ReportId;
+  initialFilters?: Record<string, string | number | boolean | undefined>;
   navigation: { goBack: () => void };
 };
 
-export function BaseReportScreen({ reportId, navigation }: Props) {
+export function BaseReportScreen({ reportId, initialFilters, navigation }: Props) {
   const definition = getReportDefinition(reportId);
   if (!definition) {
     return (
@@ -32,14 +33,16 @@ export function BaseReportScreen({ reportId, navigation }: Props) {
       </AppScreen>
     );
   }
-  return <BaseReportScreenContent definition={definition} navigation={navigation} />;
+  return <BaseReportScreenContent definition={definition} initialFilters={initialFilters} navigation={navigation} />;
 }
 
 function BaseReportScreenContent({
   definition,
+  initialFilters: routeFilters,
   navigation,
 }: {
   definition: ReportDefinition;
+  initialFilters?: Record<string, string | number | boolean | undefined>;
   navigation: { goBack: () => void };
 }) {
   const c = useColors();
@@ -49,13 +52,13 @@ function BaseReportScreenContent({
   const activeBranch = useBranchStore((s) => s.activeBranch);
   const viewMode = useBranchStore((s) => s.viewMode);
 
-  const initialFilters = useMemo(() => {
+  const initialReportFilters = useMemo(() => {
     const f = defaultReportFilters();
     if (viewMode === 'branch' && activeBranch?.id) f.branch_id = activeBranch.id;
-    return f;
-  }, [activeBranch?.id, viewMode]);
+    return { ...f, ...(routeFilters ?? {}) };
+  }, [activeBranch?.id, viewMode, routeFilters]);
 
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(initialReportFilters);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const allowed = can(definition.permission) && (!definition.feature || hasFeature(definition.feature));

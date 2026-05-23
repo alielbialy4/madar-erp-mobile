@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { deliveryFinanceAPI } from '@/api/deliveryFinance';
 import { AppScreen } from '@/components/layout';
-import { AppListItem, AppSectionHeader } from '@/components/ui';
-import { AppCard } from '@/components/ui';
+import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { asText, money } from '@/utils/format';
@@ -43,6 +42,7 @@ export function DeliveryFinanceLiabilitiesScreen({ navigation }: { navigation: a
             title={asText(row.driver_name, 'سائق')}
             subtitle={`${row.deliveries_count ?? 0} طلب`}
             meta={money(row.net_due_from_driver ?? row.remaining_to_collect ?? 0)}
+            onPress={() => row.driver_id ? navigation.navigate('DeliveryFinanceDriverDetail', { driverId: String(row.driver_id), name: asText(row.driver_name, 'سائق') }) : undefined}
           />
         ))}
       </AppCard>

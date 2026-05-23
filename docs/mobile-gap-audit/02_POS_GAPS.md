@@ -48,3 +48,12 @@ Web: `front/src/pages/POS/` · Mobile: `madar-erp-mobile/src/screens/pos/`, `sto
 
 - Web: `front/src/api/sync.ts`, `front/src/pages/POS/hooks/useCartPayment.ts`
 - Mobile: `madar-erp-mobile/src/api/pos.ts`, `madar-erp-mobile/src/store/posStore.ts`
+
+## Lockdown Pass 2 Update — 2026-05-23
+
+- Implemented quick customer create in `QuickCustomerSheet` with real POS customer API and selection after create.
+- Implemented variant picker in `VariantPickerSheet`; `posStore` now preserves `variant_id` and variant-aware cart line identity through checkout, held carts, and offline receipts.
+- Implemented in-POS cash movement in `CashMovementSheet` with active-shift gate, confirmation, loading lock, and backend error display.
+- Implemented POS tables bridge in `PosTablesSheet`: loads branch tables, opens table order, and syncs the active POS cart to table draft while online.
+- Implemented failed offline order conflict details in `SyncStatusScreen`, including coupon snapshot/server reason, retry, and guarded clear.
+- Remaining POS status: code complete for Pass 2 blockers; physical checkout/offline/printer QA is **NOT TESTED**.

@@ -9,7 +9,7 @@ import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import type { CartLine } from '@/store/posStore';
+import { cartLineKey, type CartLine } from '@/store/posStore';
 import { money, numberText } from '@/utils/format';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -28,8 +28,10 @@ type Props = {
   onCheckout: () => void;
   onSaveHoldCart?: () => void;
   onOpenHoldCarts?: () => void;
-  onUpdateQty: (productId: number, delta: number) => void;
-  onRemoveLine: (productId: number) => void;
+  onCashMovement?: () => void;
+  onOpenTables?: () => void;
+  onUpdateQty: (lineKey: string, delta: number) => void;
+  onRemoveLine: (lineKey: string) => void;
 };
 
 export function PosOrderPanel({
@@ -47,6 +49,8 @@ export function PosOrderPanel({
   onCheckout,
   onSaveHoldCart,
   onOpenHoldCarts,
+  onCashMovement,
+  onOpenTables,
   onUpdateQty,
   onRemoveLine,
 }: Props) {
@@ -84,13 +88,16 @@ export function PosOrderPanel({
       ) : (
         <FlatList
           data={cart}
-          keyExtractor={(item, i) => `${item.product_id}-${i}`}
+          keyExtractor={(item, i) => `${cartLineKey(item)}-${i}`}
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const key = cartLineKey(item);
+            return (
             <View style={styles.line}>
               <View style={styles.lineInfo}>
                 <Text style={styles.lineTitle}>{item.product_name}</Text>
+                {item.variant_name ? <Text style={styles.lineOption}>الاختيار: {item.variant_name}</Text> : null}
                 {item.selected_options?.map((opt, j) => (
                   <Text key={j} style={styles.lineOption}>
                     {opt.group_title}: {opt.options.map((o) => o.name).join(', ')}
@@ -99,19 +106,20 @@ export function PosOrderPanel({
                 <Text style={styles.lineMeta}>{money(item.unit_price)} × {numberText(item.quantity)}</Text>
               </View>
               <View style={styles.qtyRow}>
-                <Pressable onPress={() => onUpdateQty(item.product_id, 1)} style={styles.qtyBtn}>
+                <Pressable onPress={() => onUpdateQty(key, 1)} style={styles.qtyBtn}>
                   <MaterialIcons name="add" size={18} color={c.accent} />
                 </Pressable>
                 <Text style={styles.qtyValue}>{numberText(item.quantity)}</Text>
-                <Pressable onPress={() => onUpdateQty(item.product_id, -1)} style={styles.qtyBtn}>
+                <Pressable onPress={() => onUpdateQty(key, -1)} style={styles.qtyBtn}>
                   <MaterialIcons name="remove" size={18} color={c.textMuted} />
                 </Pressable>
-                <Pressable onPress={() => onRemoveLine(item.product_id)} style={styles.removeBtn}>
+                <Pressable onPress={() => onRemoveLine(key)} style={styles.removeBtn}>
                   <MaterialIcons name="delete-outline" size={18} color={c.danger} />
                 </Pressable>
               </View>
             </View>
-          )}
+            );
+          }}
         />
       )}
 
@@ -143,6 +151,16 @@ export function PosOrderPanel({
             ) : null}
             {onOpenHoldCarts ? (
               <AppButton title="السلات المحفوظة" variant="outline" onPress={onOpenHoldCarts} style={styles.half} size="sm" />
+            ) : null}
+          </View>
+        ) : null}
+        {onCashMovement || onOpenTables ? (
+          <View style={styles.actions}>
+            {onCashMovement ? (
+              <AppButton title="حركة نقدية" variant="outline" onPress={onCashMovement} style={styles.half} size="sm" />
+            ) : null}
+            {onOpenTables ? (
+              <AppButton title="الطاولات" variant="secondary" onPress={onOpenTables} style={styles.half} size="sm" />
             ) : null}
           </View>
         ) : null}

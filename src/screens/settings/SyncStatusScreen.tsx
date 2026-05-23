@@ -7,13 +7,14 @@ import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/c
 import { ConfirmDialog } from '@/components/feedback';
 import { syncAll } from '@/services/sync/syncService';
 import { countByStatus, getPendingOrders, removePendingOrders, retryFailedOrders } from '@/services/offline/posOrders';
+import type { OfflinePosOrderRecord } from '@/types/offline';
 import { usePrintStore } from '@/store/printStore';
 import { usePosStore } from '@/store/posStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
-import { numberText } from '@/utils/format';
+import { dateText, money, numberText } from '@/utils/format';
 
 export function SyncStatusScreen() {
   const c = useColors();
@@ -22,6 +23,8 @@ export function SyncStatusScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearOrderId, setClearOrderId] = useState<string | null>(null);
+  const [orders, setOrders] = useState<OfflinePosOrderRecord[]>([]);
   const [clearing, setClearing] = useState(false);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const refreshPendingOrders = usePosStore((s) => s.refreshPendingOrders);
@@ -31,6 +34,11 @@ export function SyncStatusScreen() {
     statText: { color: c.text, fontSize: typography.body, fontWeight: '800', ...textStart },
     resultText: { color: c.info, fontSize: typography.small, ...textStart, fontWeight: '700' },
     actions: { gap: spacing.md },
+    failedCard: { gap: spacing.sm, marginTop: spacing.sm, borderWidth: 1, borderColor: c.borderSubtle, borderRadius: 12, padding: spacing.md },
+    failedTitle: { color: c.text, fontSize: typography.small, fontWeight: '800', ...textStart },
+    failedMeta: { color: c.textMuted, fontSize: typography.tiny, ...textStart },
+    failedReason: { color: c.danger, fontSize: typography.small, fontWeight: '700', ...textStart },
+    failedActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   }), [c]);
 
   const printPending = usePrintStore((s) => s.pendingCount);
@@ -40,6 +48,7 @@ export function SyncStatusScreen() {
   const loadPending = useCallback(async () => {
     const orders = await getPendingOrders();
     const counts = countByStatus(orders);
+    setOrders(orders);
     setPendingCount(counts.pending);
     setFailedCount(counts.failed);
     await refreshPrint();
@@ -83,6 +92,20 @@ export function SyncStatusScreen() {
     }
   };
 
+  const handleClearOneFailed = async () => {
+    if (!clearOrderId) return;
+    setClearing(true);
+    try {
+      await removePendingOrders(new Set([clearOrderId]));
+      await refreshPendingOrders();
+      await loadPending();
+      setResult('تم حذف الطلب الفاشل بعد التأكيد');
+    } finally {
+      setClearing(false);
+      setClearOrderId(null);
+    }
+  };
+
   const handleRetryFailed = async () => {
     if (!isOnline) {
       setResult('لا يوجد اتصال بالإنترنت');
@@ -108,6 +131,33 @@ export function SyncStatusScreen() {
       setSyncing(false);
     }
   };
+
+  const handleRetryOne = async (order: OfflinePosOrderRecord) => {
+    if (!isOnline) {
+      setResult('لا يوجد اتصال بالإنترنت');
+      return;
+    }
+    setSyncing(true);
+    setResult(null);
+    try {
+      const retried = await retryFailedOrders(new Set([order.client_order_id]));
+      await refreshPendingOrders();
+      const res = await syncAll();
+      setResult(
+        retried > 0
+          ? `تمت إعادة محاولة الطلب ${order.local_order_id.slice(0, 8)}. تمت مزامنة ${numberText(res.pushed)} طلب.${res.errors.length > 0 ? ` أخطاء: ${res.errors.join(' | ')}` : ''}`
+          : 'لا يمكن إعادة محاولة هذا الطلب حالياً',
+      );
+      await refreshPendingOrders();
+      await loadPending();
+    } catch {
+      setResult('فشلت إعادة المحاولة');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const failedOrders = orders.filter((order) => order.status === 'failed');
 
   return (
     <AppScreen title="حالة المزامنة">
@@ -135,6 +185,45 @@ export function SyncStatusScreen() {
           <AppButton title="حذف الطلبات الفاشلة" variant="danger" onPress={() => setClearConfirm(true)} disabled={failedCount === 0} />
         </View>
       </AppCard>
+      {failedOrders.length > 0 ? (
+        <AppCard>
+          <AppSectionHeader title="تفاصيل التعارضات والفشل" />
+          {failedOrders.map((order) => (
+            <View key={order.client_order_id} style={styles.failedCard}>
+              <Text style={styles.failedTitle}>
+                طلب محلي {order.local_order_id.slice(0, 8)} • {money(order.totals_snapshot.total)}
+              </Text>
+              <Text style={styles.failedMeta}>
+                {dateText(order.created_at)} • {numberText(order.items.length)} أصناف
+              </Text>
+              {order.coupon_snapshot ? (
+                <Text style={styles.failedMeta}>
+                  كوبون بانتظار التحقق: {order.coupon_snapshot.coupon_code ?? order.coupon_snapshot.coupon_id ?? '—'} • خصم {money(order.coupon_snapshot.coupon_discount)}
+                </Text>
+              ) : null}
+              <Text style={styles.failedReason}>
+                سبب الخادم: {order.error_message ?? 'لم يرجع الخادم سبباً محدداً.'}
+              </Text>
+              <View style={styles.failedActions}>
+                <AppButton
+                  title="إعادة المحاولة"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => void handleRetryOne(order)}
+                  disabled={!isOnline || syncing}
+                />
+                <AppButton
+                  title="حذف هذا الطلب"
+                  variant="danger"
+                  size="sm"
+                  onPress={() => setClearOrderId(order.client_order_id)}
+                  disabled={syncing || clearing}
+                />
+              </View>
+            </View>
+          ))}
+        </AppCard>
+      ) : null}
       <ConfirmDialog
         visible={clearConfirm}
         title="حذف الطلبات الفاشلة"
@@ -142,6 +231,15 @@ export function SyncStatusScreen() {
         confirmLabel="حذف"
         onConfirm={handleClearFailed}
         onCancel={() => setClearConfirm(false)}
+        loading={clearing}
+      />
+      <ConfirmDialog
+        visible={clearOrderId !== null}
+        title="حذف طلب فاشل"
+        message="سيتم حذف هذا الطلب المحلي الفاشل نهائياً. استخدم هذا فقط بعد معالجة سبب الرفض أو إعادة إدخال البيع يدوياً."
+        confirmLabel="حذف"
+        onConfirm={handleClearOneFailed}
+        onCancel={() => setClearOrderId(null)}
         loading={clearing}
       />
     </AppScreen>

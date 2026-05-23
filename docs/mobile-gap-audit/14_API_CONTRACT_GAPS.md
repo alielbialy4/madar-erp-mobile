@@ -67,3 +67,18 @@ Compares `front/src/api/*.ts` (58 modules) vs `madar-erp-mobile/src/api/*.ts` (3
 
 - Web: `front/src/api/`
 - Mobile: `madar-erp-mobile/src/api/`, `madar-erp-mobile/src/api/index.ts`
+
+---
+
+## Lockdown Pass Update — 2026-05-23
+
+Added or tightened mobile clients:
+
+- `layaway.ts`
+- `payments.ts`
+- wallet transactions in `wallet.ts`
+- typed `vaults.ts` transactions
+- typed `supplierPayments.ts` rows
+- typed `deliveryFinance.ts` driver detail
+
+Remaining notable non-ports: `backup.ts` (web-only), `billSplit.ts`, `tableReservations.ts`, `commissions.ts`, and full kitchen printer/routing admin clients.

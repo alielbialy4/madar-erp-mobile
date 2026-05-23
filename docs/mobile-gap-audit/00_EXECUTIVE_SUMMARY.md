@@ -131,3 +131,18 @@ See `16_PRIORITY_ROADMAP.md` for acceptance criteria.
 - No changes to `back/`, `front/`, or `super_dash/`
 - No mobile implementation edits (screens, API, stores)
 - Documentation written only under `madar-erp-mobile/docs/mobile-gap-audit/`
+
+---
+
+## Full Parity Lockdown Update — 2026-05-23
+
+This executive summary is historical. A later implementation pass added the mandatory full tracker under `docs/full-web-mobile-parity/` and implemented dedicated mobile routes for `/sales/products`, `/sales/layaway`, `/supplier-payments`, `/payments`, `/vaults/transactions`, `/vaults/transactions/:id`, `/delivery-finance/drivers/:driverId`, `/barcode-print`, and customer detail wallet/edit actions.
+
+Validation after that pass:
+
+- `npm run typecheck`: PASS
+- `npm run lint`: PASS with warnings only
+- `npx expo export --platform web`: PASS
+- `npm run web -- --port 19006`: PASS short smoke
+
+Current acceptance status is **NO-GO for full parity acceptance** until the remaining blockers in `docs/full-web-mobile-parity/04_REMAINING_BLOCKERS.md` are resolved or explicitly accepted.

@@ -40,8 +40,8 @@ Mobile: `reportDefinitions.ts`, `BaseReportScreen.tsx`, `ReportsScreen.tsx`, `ap
 | Dining report | `/reports/dining` | Complete (data) | — | P3 |
 | Delivery report | `/reports/delivery` | Complete (data) | Driver filter (optional API) | P2 |
 | Shift performance | `/reports/shifts` | Complete (data) | Charts | P2 |
-| Saved reports | `/reports/saved` | Partial | Create/edit/delete/run | P2 |
-| Legacy reports hub | `/reports/legacy` | Partial | 9 tabs; web has more (comprehensive, etc.) | P2 |
+| Saved reports | `/reports/saved` | Complete for current web page | Create/edit editor remains web/admin scope | P2 |
+| Legacy reports hub | `/reports/legacy` | Complete for endpoints | Charts/export remain lighter than web | P2 |
 | Partner reports | `/reports/partner` | Complete (data) | Charts | P2 |
 | Reports hub index | `/reports` | Complete | — | — |
 
@@ -52,7 +52,7 @@ Mobile: `reportDefinitions.ts`, `BaseReportScreen.tsx`, `ReportsScreen.tsx`, `ap
 | Web Feature | Mobile Status | Notes |
 |-------------|---------------|-------|
 | Filter sheet | Complete | `ReportFilterSheet` + chips |
-| Export CSV/PDF | Partial | Web export only; native Arabic blocker |
+| Export CSV/PDF | Blocked on native | Web export works; native app lacks file/share dependency and Arabic filename QA |
 | Pagination | Complete | `useReport` + load more |
 | Branch filter | Complete | Global/branch mode |
 | Charts | Missing | Metrics cards only |
@@ -60,4 +60,11 @@ Mobile: `reportDefinitions.ts`, `BaseReportScreen.tsx`, `ReportsScreen.tsx`, `ap
 
 ## `reportDefinitions.ts` coverage
 
-22 hub definitions + `partner-performance`; all open via `ReportViewer` except legacy hub.
+22 hub definitions + `partner-performance`; saved reports use `SavedReportsScreen`, legacy hub uses `LegacyReportsScreen`.
+
+## Lockdown Pass 2 Update — 2026-05-23
+
+- Added saved reports list/run/delete screen with delete confirmation and stored-filter handoff to mapped report viewer.
+- Added `reportsAPI.savedDelete`.
+- Added legacy `comprehensive` tab so every web legacy tab opens and calls a real endpoint.
+- Native export/share remains disabled with an Arabic reason until `expo-file-system` / `expo-sharing` or equivalent is added and tested.

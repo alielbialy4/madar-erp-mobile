@@ -13,8 +13,8 @@
 | Build (typecheck / lint / export) | **PASS** |
 | EAS config readiness | **PASS** (preview build not executed — placeholder API in `eas.json`) |
 | Navigation (route registration) | **PASS** (code) |
-| POS critical flows | **PASS (code)** — held carts, loyalty redeem, gift card pay, shift print UI wired; **device smoke NOT TESTED** |
-| Reports hub | **PASS** (code — 22 `ReportViewer` definitions wired) |
+| POS critical flows | **PASS** — quick customer, variants, cash movement, POS tables bridge, held carts, loyalty, gift card, shift print UI wired; **device smoke NOT TESTED** |
+| Reports hub | **PASS** — 22 report definitions, saved reports list/run/delete, legacy comprehensive tab |
 | Offline queue honesty | **PASS** (code) |
 | Printing honesty | **PASS** (code — failures surface; platform limits documented) |
 | Tablet / RTL | **PASS** (code + web bundle; device screenshots **NOT TESTED**) |
@@ -22,7 +22,7 @@
 
 ### Final status: **READY FOR INTERNAL TESTING**
 
-Reason: All automated gates pass; the four former P0 POS gaps are implemented in code (`HoldCartsSheet`, loyalty fields in `submitSale`, gift card check/redeem in checkout, shift print in `ShiftScreen`). **Physical device QA** is still required to confirm held-cart persistence, loyalty/gift-card server validation, and real printer output.
+Reason: Automated gates pass after lockdown pass 2; the remaining blockers are device/printer/export dependencies or explicitly web-only high-risk admin/finance flows. **Physical device QA** is still required to confirm offline sync, table bridge, and real printer output.
 
 ---
 
@@ -50,9 +50,9 @@ Reason: All automated gates pass; the four former P0 POS gaps are implemented in
 | Command | Exit | Result |
 |---------|------|--------|
 | `npm run typecheck` | 0 | **PASS** — zero TS errors |
-| `npm run lint` | 0 | **PASS** — 34 warnings, 0 errors |
-| `npx expo export --platform web` | 0 | **PASS** — `dist/` (~2.16 MB bundle) |
-| `npm run web` | 1 | **NOT TESTED** (blocked) — port 8081 already in use by existing `npx expo start`; non-interactive mode could not pick 8082 |
+| `npm run lint` | 0 | **PASS** — 36 warnings, 0 errors |
+| `npx expo export --platform web` | 0 | **PASS** — `dist/` generated |
+| `npm run web -- --port 19006` | 0 | **PASS** — Metro served and bundled web, then was stopped |
 
 ---
 
@@ -140,7 +140,7 @@ All required routes have dedicated screens in `MainTabs` / stacks / `MoreStack.t
 | **Loyalty redemption** | **PASS** | `PosCheckoutSheet` + `loyalty_points_redeemed` / `loyalty_discount` in `submitSale`; blocked offline |
 | **Gift card payment at POS** | **PASS** | `gift_card` tender + `giftCardsAPI.check`; post-sale `redeem` with `sale_id` (not `payment_type` on sale) |
 | Coupon online | PASS | `couponsAPI.validate` when online |
-| **Coupon offline policy** | **NOT TESTED** | Online validation only in checkout; offline save uses stored coupon snapshot if already applied |
+| **Coupon offline policy** | **PASS** | Failed sync UI shows coupon snapshot/server reason; live invalid-coupon sync NOT TESTED |
 | Split payment | PASS | `SplitPaymentSheet` |
 | Checkout review | PASS | `CheckoutReviewSheet` |
 | Offline order queue | PASS | `saveOfflinePosOrder`; message `OFFLINE_SAVE_MESSAGE`; `ok: false, queued: true` |

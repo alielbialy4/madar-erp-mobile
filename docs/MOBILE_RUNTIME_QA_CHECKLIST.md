@@ -1,10 +1,10 @@
 # Madar ERP Mobile — Runtime QA Checklist (Final Lock)
 
-**Version:** 1.3.0  
+**Version:** 1.5.0 — full web/mobile parity lockdown pass 2  
 **Date:** 2026-05-23  
 **Tester:** Engineering validation (static + build)  
 **Device:** NOT TESTED — assign physical device tester  
-**Report:** `docs/FINAL_INTERNAL_TESTING_REPORT.md`
+**Report:** `docs/full-web-mobile-parity/05_FINAL_PARITY_REPORT.md`
 
 Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 
@@ -15,9 +15,9 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 | Check | Status | Notes |
 |-------|--------|-------|
 | `npm run typecheck` | PASS | Exit 0 |
-| `npm run lint` | PASS | Exit 0; 23 warnings, 0 errors |
+| `npm run lint` | PASS | Exit 0; 36 warnings, 0 errors |
 | `npx expo export --platform web` | PASS | `dist/` generated |
-| `npm run web` | NOT TESTED | Port 8081 already used by running Expo; non-interactive prompt blocked |
+| `npm run web -- --port 19006` | PASS | Metro web booted and bundled; dev server stopped after smoke |
 
 ---
 
@@ -65,6 +65,15 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 | Users | PASS | |
 | Branches | PASS | |
 | Notifications | PASS | |
+| Sales by product | PASS | Added to `MoreStack` this pass |
+| Layaway | PASS | Added to `MoreStack` this pass |
+| Supplier payments | PASS | Added to `MoreStack` this pass |
+| Payments ledger | PASS | Added to `MoreStack` this pass |
+| Vault transactions | PASS | Added to `MoreStack` this pass |
+| Delivery finance driver detail | PASS | Added to `MoreStack` this pass |
+| Barcode print state | PASS | Dedicated disabled/read-only screen |
+| Kitchen ticket preview | PASS | Added `KitchenTicketPreviewScreen`; printer hardware NOT TESTED |
+| Saved reports management | PASS | List/run/delete; live API NOT TESTED |
 | Sync Status | PASS | |
 | Printer Profiles | PASS | |
 | Print Queue | PASS | |
@@ -87,14 +96,15 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 | Loyalty redemption | PASS | Checkout + `submitSale` payload; offline blocked |
 | Gift card payment at POS | PASS | Check + post-sale redeem; offline blocked |
 | Coupon online | PASS | |
-| Coupon offline policy | NOT TESTED | Needs offline device test |
+| Coupon offline policy | PASS | Code shows failed coupon/order conflict details; live offline device test NOT TESTED |
 | Split payment | PASS | |
 | Checkout review | PASS | |
 | Offline queue honest | PASS | No fake invoice id |
-| Failed sync UI | PASS | |
+| Failed sync UI | PASS | Failed order details include coupon/server reason |
 | Retry / clear failed | PASS | Confirm on clear |
 | Shift summary print | PASS | `ShiftScreen` → `printShiftSummaryForShift`; hardware NOT TESTED |
 | Tablet POS split | PASS | Code ≥900px |
+| POS pass-2 parity gaps | PASS | Quick customer, variants, cash movement, POS tables bridge, and failed offline conflict UI implemented; device QA NOT TESTED |
 
 ---
 
@@ -104,6 +114,8 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 |-------|--------|-------|
 | Hub opens | PASS | `ReportsScreen` |
 | Each report card → ReportViewer | PASS | 22 definitions |
+| Saved reports list/run/delete | PASS | `SavedReportsScreen`; live API NOT TESTED |
+| Legacy comprehensive tab | PASS | Added to `LegacyReportsScreen` |
 | Filters UI | PASS | `BaseReportScreen` |
 | Loading / empty / error | PASS | `useReport` + feedback components |
 | Pagination where defined | PASS | Code |
@@ -163,6 +175,6 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (reason required)
 |------|--------|------|
 | Engineering build | PASS | 2026-05-23 |
 | Engineering navigation (code) | PASS | |
-| Engineering POS critical | PASS (code) | 4 former FAIL items closed |
+| Engineering POS critical | PASS | Pass 2 core gaps implemented in code; device QA still NOT TESTED |
 | Device QA | NOT TESTED | Held carts / loyalty / gift card / print on hardware |
-| **Release recommendation** | **READY FOR INTERNAL TESTING** | |
+| **Release recommendation** | **NOT TESTED** | Automated gates must be rerun after Pass 2; physical device QA still required |

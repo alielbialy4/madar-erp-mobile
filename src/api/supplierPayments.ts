@@ -1,5 +1,20 @@
 import { get, post } from './client';
 
+export type SupplierPaymentRow = Record<string, unknown> & {
+  id?: string | number;
+  amount?: number | string | null;
+  payment_method?: string | null;
+  payment_type?: string | null;
+  supplier?: { name?: string | null } | null;
+  purchase?: { id?: number | string; invoice_number?: string | null } | null;
+  vault?: { name?: string | null } | null;
+  creator?: { name?: string | null } | null;
+  payment_date?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  notes?: string | null;
+};
+
 export type SupplierPaymentPayload = {
   supplier_id: number;
   purchase_id?: number | null;
@@ -32,7 +47,7 @@ export type MixedSupplierBalanceSettlementPayload = {
 };
 
 export const supplierPaymentsAPI = {
-  getAll: (params?: Record<string, unknown>) => get('/supplier-payments', params),
+  getAll: (params?: Record<string, unknown>) => get<SupplierPaymentRow[]>('/supplier-payments', params),
   create: (data: SupplierPaymentPayload) => post('/supplier-payments', data),
   allocateCredit: (data: CreditAllocationPayload) => post('/supplier-payments/allocate-credit', data),
   getAvailableCredit: (supplierId: number, params?: { branch_id?: string }) =>

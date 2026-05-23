@@ -4,12 +4,15 @@ import { MoreScreen } from '@/screens/settings/MoreScreen';
 import { CustomersScreen } from '@/screens/customers/CustomersScreen';
 import { CustomerDetailScreen } from '@/screens/customers/CustomerDetailScreen';
 import { RefundsScreen } from '@/screens/refunds/RefundsScreen';
+import { SalesByProductScreen } from '@/screens/sales/SalesByProductScreen';
+import { LayawayScreen } from '@/screens/sales/LayawayScreen';
 import { DiningScreen } from '@/screens/dining/DiningScreen';
 import { TableOrderScreen } from '@/screens/dining/TableOrderScreen';
 import { WaiterPosScreen } from '@/screens/dining/WaiterPosScreen';
 import { DiningHallFormScreen } from '@/screens/dining/DiningHallFormScreen';
 import { KitchenScreen } from '@/screens/kitchen/KitchenScreen';
 import { KitchenOrderScreen } from '@/screens/kitchen/KitchenOrderScreen';
+import { KitchenTicketPreviewScreen } from '@/screens/kitchen/KitchenTicketPreviewScreen';
 import { KitchenStationsListScreen } from '@/screens/kitchen/KitchenStationsListScreen';
 import { KitchenStationFormScreen } from '@/screens/kitchen/KitchenStationFormScreen';
 import { KitchenPrintJobsScreen } from '@/screens/kitchen/KitchenPrintJobsScreen';
@@ -45,7 +48,10 @@ import { SuppliersScreen } from '@/screens/suppliers/SuppliersScreen';
 import { SupplierDetailScreen } from '@/screens/suppliers/SupplierDetailScreen';
 import { SupplierReportScreen } from '@/screens/suppliers/SupplierReportScreen';
 import { SupplierStatementScreen } from '@/screens/suppliers/SupplierStatementScreen';
+import { SupplierPaymentsScreen } from '@/screens/suppliers/SupplierPaymentsScreen';
 import { VaultsScreen } from '@/screens/vaults/VaultsScreen';
+import { VaultTransactionsScreen } from '@/screens/vaults/VaultTransactionsScreen';
+import { VaultTransactionDetailScreen } from '@/screens/vaults/VaultTransactionDetailScreen';
 import { ShiftScreen } from '@/screens/vaults/ShiftScreen';
 import { ExpensesScreen } from '@/screens/expenses/ExpensesScreen';
 import { CouponsScreen } from '@/screens/coupons/CouponsScreen';
@@ -67,6 +73,7 @@ import { DeliveryFinanceDashboardScreen } from '@/screens/delivery/DeliveryFinan
 import { DeliveryFinanceLiabilitiesScreen } from '@/screens/delivery/DeliveryFinanceLiabilitiesScreen';
 import { DeliveryFinanceSettlementsScreen } from '@/screens/delivery/DeliveryFinanceSettlementsScreen';
 import { DeliveryFinanceAlertsScreen } from '@/screens/delivery/DeliveryFinanceAlertsScreen';
+import { DeliveryFinanceDriverDetailScreen } from '@/screens/delivery/DeliveryFinanceDriverDetailScreen';
 import { PromotionsScreen } from '@/screens/settings/PromotionsScreen';
 import { PromotionFormScreen } from '@/screens/settings/PromotionFormScreen';
 import { GiftCardsScreen } from '@/screens/settings/GiftCardsScreen';
@@ -74,6 +81,7 @@ import { GiftCardDetailScreen } from '@/screens/settings/GiftCardDetailScreen';
 import { UsersScreen } from '@/screens/settings/UsersScreen';
 import { UserFormScreen } from '@/screens/settings/UserFormScreen';
 import { RolesScreen } from '@/screens/settings/RolesScreen';
+import { PaymentsLedgerScreen } from '@/screens/settings/PaymentsLedgerScreen';
 import { BranchesListScreen } from '@/screens/settings/BranchesListScreen';
 import { BranchDetailScreen } from '@/screens/settings/BranchDetailScreen';
 import { BranchFormScreen } from '@/screens/settings/branches/BranchFormScreen';
@@ -87,6 +95,7 @@ import { PrinterProfilesScreen } from '@/screens/settings/PrinterProfilesScreen'
 import { PrinterProfileFormScreen } from '@/screens/settings/PrinterProfileFormScreen';
 import { PrinterDiagnosticsScreen } from '@/screens/settings/PrinterDiagnosticsScreen';
 import { PrintQueueScreen } from '@/screens/settings/PrintQueueScreen';
+import { BarcodePrintInfoScreen } from '@/screens/products/BarcodePrintInfoScreen';
 import { ParityModuleScreen } from '@/screens/shared/ParityModuleScreen';
 import type { MoreStackParamList } from '@/types/navigation';
 import { rtlStackScreenOptions } from './rtlScreenOptions';
@@ -100,12 +109,15 @@ export function MoreStack() {
       <Stack.Screen name="Customers" component={CustomersScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="Refunds" component={RefundsScreen} />
+      <Stack.Screen name="SalesByProduct" component={SalesByProductScreen} />
+      <Stack.Screen name="Layaway" component={LayawayScreen} />
       <Stack.Screen name="Dining" component={DiningScreen} />
       <Stack.Screen name="DiningTableOrder" component={TableOrderScreen} />
       <Stack.Screen name="WaiterPos" component={WaiterPosScreen} />
       <Stack.Screen name="DiningHallForm" component={DiningHallFormScreen} />
       <Stack.Screen name="Kitchen" component={KitchenScreen} />
       <Stack.Screen name="KitchenOrder" component={KitchenOrderScreen} />
+      <Stack.Screen name="KitchenTicketPreview" component={KitchenTicketPreviewScreen} />
       <Stack.Screen name="KitchenStationsList" component={KitchenStationsListScreen} />
       <Stack.Screen name="KitchenStationForm" component={KitchenStationFormScreen} />
       <Stack.Screen name="KitchenPrintJobs" component={KitchenPrintJobsScreen} />
@@ -141,7 +153,10 @@ export function MoreStack() {
       <Stack.Screen name="SupplierDetail" component={SupplierDetailScreen} />
       <Stack.Screen name="SupplierReport" component={SupplierReportScreen} />
       <Stack.Screen name="SupplierStatement" component={SupplierStatementScreen} />
+      <Stack.Screen name="SupplierPayments" component={SupplierPaymentsScreen} />
       <Stack.Screen name="Vaults" component={VaultsScreen} />
+      <Stack.Screen name="VaultTransactions" component={VaultTransactionsScreen} />
+      <Stack.Screen name="VaultTransactionDetail" component={VaultTransactionDetailScreen} />
       <Stack.Screen name="ShiftManagement" component={ShiftScreen} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} />
       <Stack.Screen name="Coupons" component={CouponsScreen} />
@@ -157,6 +172,7 @@ export function MoreStack() {
       <Stack.Screen name="DeliveryFinanceLiabilities" component={DeliveryFinanceLiabilitiesScreen} />
       <Stack.Screen name="DeliveryFinanceSettlements" component={DeliveryFinanceSettlementsScreen} />
       <Stack.Screen name="DeliveryFinanceAlerts" component={DeliveryFinanceAlertsScreen} />
+      <Stack.Screen name="DeliveryFinanceDriverDetail" component={DeliveryFinanceDriverDetailScreen} />
       <Stack.Screen name="Promotions" component={PromotionsScreen} />
       <Stack.Screen name="PromotionForm" component={PromotionFormScreen} />
       <Stack.Screen name="GiftCards" component={GiftCardsScreen} />
@@ -164,6 +180,7 @@ export function MoreStack() {
       <Stack.Screen name="Users" component={UsersScreen} />
       <Stack.Screen name="UserForm" component={UserFormScreen} />
       <Stack.Screen name="Roles" component={RolesScreen} />
+      <Stack.Screen name="PaymentsLedger" component={PaymentsLedgerScreen} />
       <Stack.Screen name="BranchesList" component={BranchesListScreen} />
       <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
       <Stack.Screen name="BranchForm" component={BranchFormScreen} />
@@ -172,6 +189,7 @@ export function MoreStack() {
       <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
       <Stack.Screen name="ActivityLogDetail" component={ActivityLogDetailScreen} />
       <Stack.Screen name="BackupInfo" component={BackupInfoScreen} />
+      <Stack.Screen name="BarcodePrintInfo" component={BarcodePrintInfoScreen} />
       <Stack.Screen name="Reports" component={ReportsScreen} />
       <Stack.Screen name="ReportViewer" component={ReportViewerScreen} />
       <Stack.Screen name="LegacyReports" component={LegacyReportsScreen} />

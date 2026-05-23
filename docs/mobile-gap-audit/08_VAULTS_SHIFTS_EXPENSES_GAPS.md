@@ -43,3 +43,12 @@
 
 - Web: `front/src/pages/Vaults/`, `Shifts/`, `Expenses/`
 - Mobile: `madar-erp-mobile/src/screens/vaults/`, `expenses/`
+
+---
+
+## Lockdown Pass Update — 2026-05-23
+
+- Added dedicated `VaultTransactionsScreen` for `/vaults/transactions`.
+- Added dedicated `VaultTransactionDetailScreen` for `/vaults/transactions/:id`.
+- Added typed vault transaction list/detail API.
+- Remaining: verify vault transfer/reconcile parity and shift cash movement/in-POS modal parity; physical print QA still required.

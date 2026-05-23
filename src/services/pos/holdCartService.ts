@@ -54,6 +54,9 @@ function buildCartItemsPayload(cart: CartLine[]) {
       unit_price: line.unit_price,
       discount: line.discount ?? 0,
       subtotal: Math.max(0, lineSub - (line.discount ?? 0)),
+      unit_id: line.unit_id ?? null,
+      variant_id: line.variant_id ?? null,
+      variant_name: line.variant_name ?? null,
       ...optionsExtra,
     };
   });
@@ -206,6 +209,7 @@ export async function restoreHeldCart(item: HeldCartListItem): Promise<RestoredH
     discount: Number(item.discount) || 0,
     unit_id: item.unit_id != null ? Number(item.unit_id) : null,
     variant_id: item.variant_id != null ? String(item.variant_id) : null,
+    variant_name: item.variant_name != null ? String(item.variant_name) : null,
     notes: item.notes != null ? String(item.notes) : undefined,
     selected_options: item.selected_options as CartLine['selected_options'],
   }));

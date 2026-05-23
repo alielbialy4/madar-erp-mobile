@@ -109,3 +109,20 @@ Compares `front/src/Layouts/buildSidebarMenu.ts` + `front/src/Routes` vs `madar-
 - Web routes: `front/src/Routes/index.tsx`
 - Mobile map: `madar-erp-mobile/src/navigation/sidebarNavMap.ts`
 - Mobile stacks: `madar-erp-mobile/src/navigation/MoreStack.tsx`, `MainTabs.tsx`
+
+---
+
+## Lockdown Pass Update — 2026-05-23
+
+The current authoritative route matrix is `docs/full-web-mobile-parity/00_MASTER_TRACKER.md`.
+
+Changes since this audit:
+
+- `/sales/products` now maps to `SalesByProduct`.
+- `/sales/layaway` now maps to `Layaway`.
+- `/supplier-payments` now maps to `SupplierPayments`.
+- `/payments` now maps to `PaymentsLedger`.
+- `/vaults/transactions` now maps to `VaultTransactions`.
+- `/barcode-print` now maps to `BarcodePrintInfo`.
+- `/delivery-finance/drivers/:driverId` has `DeliveryFinanceDriverDetail`.
+- Current sidebar leaves have direct mobile targets; explicit stale `PARITY_FALLBACKS` were cleared.

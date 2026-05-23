@@ -5,14 +5,14 @@
 | Web Feature | Web File/Route | Web API | Mobile Status | Mobile File/Route | Gap Type | Severity | Notes |
 |-------------|----------------|---------|---------------|-------------------|----------|----------|-------|
 | Catalog cache | `offlineBootstrap` | catalog sync | Partial | `catalogCache.ts` | — | P2 | Mobile pull via `posAPI` |
-| Pending orders queue | POS payment | `/sync/offline-orders` | Partial | `posOrders.ts`, `posStore` | Missing conflict UI | P1 | Status: pending/syncing/synced/failed |
-| Failed sync visibility | POS UI | — | Partial | `SyncStatusScreen` | Weak UI/UX | P2 | |
+| Pending orders queue | POS payment | `/sync/offline-orders` | Complete | `posOrders.ts`, `posStore` | Device QA | P1 | Status: pending/syncing/synced/failed |
+| Failed sync visibility | POS UI | — | Complete | `SyncStatusScreen` | Device QA | P2 | Failed details include coupon/server reason |
 | Retry failed orders | sync | retry | Partial | retry in posOrders | — | P2 | |
 | Reconnect auto-sync | network listener | `syncAll` | Partial | `syncEngine`, 60s interval | — | P2 | |
 | Active shift offline | POS rules | — | NEEDS VERIFICATION | — | — | P2 | |
 | Local stock reservation | web POS | — | Missing | — | Missing offline support | P2 | |
 | Duplicate prevention | `client_order_id` | payload | Partial | `OfflinePosOrderRecord` | — | P2 | |
-| Conflict handling UI | sync results | push results | Missing | — | Missing modal | P1 | Web shows per-order errors |
+| Conflict handling UI | sync results | push results | Complete | `SyncStatusScreen` | Device QA | P1 | Per-order retry/clear with confirmation |
 | Held carts offline | HoldCartModal | local | Complete | `heldCartsLocal.ts` | — | P3 | Server hold requires online; local survives restart |
 | Coupon offline validation | `coupons.ts` | local rules | Missing | — | Missing offline support | P1 | |
 | Dining tables offline cache | `TablesView` | cache | Missing | — | Missing offline support | P2 | |
@@ -23,7 +23,7 @@
 | Web Feature | Web File/Route | Web API | Mobile Status | Mobile File/Route | Gap Type | Severity | Notes |
 |-------------|----------------|---------|---------------|-------------------|----------|----------|-------|
 | Receipt print after sale | print service | print sale | Partial | `printEngine`, `receiptTemplates` | Missing silent print | P1 | |
-| Kitchen ticket print | `/kitchen/ticket/:id` | kitchen print | Partial | queue + routing | Missing print support | P1 | |
+| Kitchen ticket print | `/kitchen/ticket/:id` | kitchen print | Complete | `KitchenTicketPreviewScreen`, queue + routing | Device QA | P1 | Preview + queued print; hardware NOT TESTED |
 | Shift summary print | `ShiftSummaryModal` | shift print | Complete | `shiftSummaryPrint.ts`, `ShiftScreen` | — | P3 | Hardware NOT TESTED |
 | Refund receipt | refund flow | — | Missing | — | Missing print support | P2 | |
 | Silent / auto print | web desktop | — | Partial | NEEDS VERIFICATION | Missing print support | P2 | |
@@ -41,3 +41,9 @@
 - `madar-erp-mobile/src/services/offline/`
 - `madar-erp-mobile/src/services/printing/`
 - `madar-erp-mobile/src/services/sync/`
+
+## Lockdown Pass 2 Update — 2026-05-23
+
+- Failed offline POS orders now show exact server reason, coupon snapshot, retry, and clear-with-confirmation.
+- Kitchen ticket preview route now exists and uses local print queue without pretending hardware success.
+- Native export/share remains blocked by missing file/share dependency and needs Arabic filename QA.

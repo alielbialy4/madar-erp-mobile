@@ -45,3 +45,12 @@
 
 - Web: `front/src/pages/Customers/`, `Sales/`, `front/src/Routes/customers.tsx`, `sales.tsx`
 - Mobile: `madar-erp-mobile/src/screens/customers/`, `sales/`, `refunds/`
+
+---
+
+## Lockdown Pass Update — 2026-05-23
+
+- Added dedicated `SalesByProductScreen` for `/sales/products` with date filter, search, sale-detail jump, and confirmed full refund.
+- Added dedicated `LayawayScreen` plus `layawayAPI` for `/sales/layaway` list, schedule, plan payment, and installment payment.
+- Customer detail now supports basic edit and wallet ledger/deposit/withdraw with shift gate and confirmation.
+- Remaining: standalone sales return create lookup flow, customer phone CRUD, advanced address CRUD, customer sales/delivery tabs, and loyalty ledger.

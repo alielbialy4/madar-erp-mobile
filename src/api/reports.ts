@@ -1,4 +1,4 @@
-import { get, postBlob } from './client';
+import { del, get, postBlob } from './client';
 
 export type ReportQueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -30,6 +30,7 @@ export const reportsAPI = {
   expensesSummary: (params?: ReportQueryParams) => get('/reports/expenses/summary', params),
   shiftPerformance: (params?: ReportQueryParams) => get('/reports/shifts/performance', params),
   savedList: (params?: ReportQueryParams) => get('/reports/saved', params),
+  savedDelete: (id: string) => del(`/reports/saved/${id}`),
   refunds: (params?: ReportQueryParams) => get('/reports/refunds', params),
   salesReturnsByProduct: (params?: ReportQueryParams) => get('/reports/sales-returns-by-product', params),
   purchaseReturnsByProduct: (params?: ReportQueryParams) => get('/reports/purchase-returns-by-product', params),

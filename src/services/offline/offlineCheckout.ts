@@ -31,9 +31,10 @@ export function buildReceiptPayloadFromOrder(
     local_order_id: order.local_order_id,
     is_offline_unsynced: true,
     items: order.items.map((item) => {
-      const line = cartLines?.find((l) => l.product_id === item.product_id);
+      const line = cartLines?.find((l) => l.product_id === item.product_id && (l.variant_id ?? null) === (item.variant_id ?? null))
+        ?? cartLines?.find((l) => l.product_id === item.product_id);
       return {
-      name: line?.product_name ?? `منتج #${item.product_id}`,
+      name: line?.variant_name ? `${line.product_name} - ${line.variant_name}` : line?.product_name ?? `منتج #${item.product_id}`,
       quantity: item.quantity,
       unit_price: Number(item.unit_price),
       discount: Number(item.discount ?? 0),

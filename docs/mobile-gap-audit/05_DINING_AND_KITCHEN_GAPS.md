@@ -28,3 +28,9 @@
 
 - Web: `front/src/pages/DiningHalls/`, `Kitchen/`, `Waiter/`
 - Mobile: `madar-erp-mobile/src/screens/dining/`, `kitchen/`, `src/api/*.ts`
+
+## Lockdown Pass 2 Update — 2026-05-23
+
+- Added `KitchenTicketPreviewScreen` for `/kitchen/ticket/:id`.
+- Linked kitchen order detail and kitchen print jobs to the native ticket preview.
+- Print/reprint uses local kitchen printer profiles and print queue; physical printer success remains **NOT TESTED** and is not faked.

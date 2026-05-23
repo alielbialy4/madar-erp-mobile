@@ -41,7 +41,7 @@ Phased plan derived from module audits (`00`–`15`). **No implementation in thi
 
 **Delivered:** See `docs/phase-2-reports-parity.md` — status **REPORTS READY WITH RISKS**.
 
-**Remaining gaps:** Charts (Apex), native export/share, saved-report CRUD, full legacy tab parity, async product pickers.
+**Remaining gaps:** Charts (Apex), native export/share, async product pickers. Saved reports list/run/delete and legacy comprehensive tab were closed in lockdown pass 2.
 
 **Acceptance criteria:**
 - ~~Each web sidebar report route opens on mobile~~ ✅
@@ -72,7 +72,7 @@ Phased plan derived from module audits (`00`–`15`). **No implementation in thi
 
 **Delivered:** See `docs/phase-4-dining-kitchen-delivery.md` — status **PASS WITH RISKS**.
 
-**Remaining:** Full waiter modifiers; driver settlement create on mobile; native kitchen ticket route; offline dining.
+**Remaining:** Full waiter modifiers; driver settlement create remains intentionally web-only; offline dining. Native kitchen ticket route was added in lockdown pass 2 and needs printer device QA.
 
 **Acceptance criteria:**
 - ~~Waiter can open table order and send to kitchen from one flow~~ ✅
@@ -89,7 +89,7 @@ Phased plan derived from module audits (`00`–`15`). **No implementation in thi
 
 **Status:** PASS WITH RISKS — see `docs/phase-5-admin-settings-marketing.md`
 
-**Remaining gaps:** Role definition edit (web), tenant theme edit (web), backup (web-only), promotion complex conditions
+**Remaining gaps:** Role definition edit (web/API missing for role CRUD), backup (web-only), promotion complex conditions. Tenant primary theme color edit was added in lockdown pass 2.
 
 **Acceptance criteria:**
 - ~~Create user with role on mobile~~ ✅ `UserForm`

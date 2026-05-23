@@ -21,3 +21,17 @@
 
 - Web: `front/src/pages/Delivery/`, `Drivers/`, `DeliveryZones/`, `DeliveryFinance/`
 - Mobile: `madar-erp-mobile/src/screens/delivery/`
+
+---
+
+## Lockdown Pass Update — 2026-05-23
+
+- Added `DeliveryFinanceDriverDetailScreen` for `/delivery-finance/drivers/:driverId`.
+- Delivery finance liabilities rows now navigate to the driver finance detail screen.
+- Remaining: driver settlement create remains disabled due multi-order + vault risk.
+
+## Lockdown Pass 2 Update — 2026-05-23
+
+- Replaced the weak driver settlement create placeholder with a rich read-only blocked state.
+- Exact mobile reason shown: "تسوية السائقين تتطلب ربط مالي متعدد الطلبات والخزنة، وتبقى حالياً من الويب فقط."
+- List/read settlement behavior remains available; create remains intentionally web-only until a safe multi-delivery + vault reconciliation UI is approved.

@@ -224,6 +224,13 @@ export function buildSidebarMenu(
  perm: 'manage_products',
  },
  {
+ id: 'nav-raw-materials',
+ label: 'الخامات / المواد الخام',
+ icon: 'ri-flask-line',
+ link: '/raw-materials',
+ perm: 'manage_products',
+ },
+ {
  id: 'nav-categories',
  label: 'التصنيفات',
  icon: 'ri-folder-line',
@@ -503,6 +510,7 @@ export function buildSidebarMenu(
  { id: 'nav-rep-inv-val', label: 'تقييم المخزون', icon: 'las la-boxes', link: '/reports/inventory/valuation', perm: 'view_reports' },
  { id: 'nav-rep-inv-mov', label: 'حركات المخزون', icon: 'ri-clipboard-fill', link: '/reports/inventory/movements', perm: 'view_reports' },
  { id: 'nav-rep-inv-expiry', label: 'تقرير الصلاحية', icon: 'las la-boxes', link: '/reports/inventory/expiry', perm: 'view_reports' },
+ { id: 'nav-rep-raw-materials', label: 'تقارير الخامات', icon: 'ri-flask-line', link: '/reports/inventory/raw-materials', perm: 'view_reports' },
  { id: 'nav-rep-cust-aging', label: 'أعمار ديون العملاء', icon: 'ri-user-line', link: '/reports/customers/aging', perm: 'view_reports' },
  { id: 'nav-rep-sup-aging', label: 'أعمار الموردين', icon: 'ri-truck-line', link: '/reports/suppliers/aging', perm: 'view_reports' },
  { id: 'nav-rep-mkt-coupons', label: 'تقرير الكوبونات', icon: 'ri-file-list-line', link: '/reports/marketing/coupons', perm: 'view_reports' },

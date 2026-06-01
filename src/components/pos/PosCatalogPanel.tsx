@@ -46,6 +46,8 @@ function CatalogCardOverlay() {
 }
 
 function availableQty(product: Product): number | null {
+  const mode = product.inventory_mode ?? (product.track_inventory === false ? 'non_stock' : 'stock_product');
+  if (mode !== 'stock_product') return null;
   const raw = product.branch_available_quantity ?? product.available_quantity ?? product.stock_quantity;
   if (raw === undefined || raw === null) return null;
   const value = Number(raw);
@@ -639,9 +641,11 @@ export function PosCatalogPanel({
           />
         }
         renderItem={({ item }) => {
+          const mode = item.inventory_mode ?? (item.track_inventory === false ? 'non_stock' : 'stock_product');
           const qty = availableQty(item);
           const low = qty !== null && qty <= Number(item.min_stock_alert ?? 0);
           const hasOptions = item.option_groups?.some((g) => g.options && g.options.length > 0);
+          const isRecipe = mode === 'recipe_product';
           const thumb = resolveMediaUrl(item.image);
           const inCart = productQuantities[item.id] ?? 0;
           return (
@@ -665,8 +669,9 @@ export function PosCatalogPanel({
 
                   <CatalogCardOverlay />
 
-                  {(low || hasOptions) ? (
+                  {(low || hasOptions || isRecipe) ? (
                     <View style={styles.productBadgesOverlay}>
+                      {isRecipe ? <AppBadge label="وصفة" tone="warning" /> : null}
                       {low ? <AppBadge label="منخفض" tone="warning" /> : null}
                       {hasOptions ? <AppBadge label="خيارات" tone="info" /> : null}
                     </View>

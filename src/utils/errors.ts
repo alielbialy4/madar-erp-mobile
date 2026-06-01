@@ -42,7 +42,12 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
       return { status, message: data?.message || 'ليس لديك صلاحية لتنفيذ هذه العملية.', validation, code: data?.code };
     }
     if (status === 422) {
-      return { status, message: validationMessage || data?.message || 'بيانات النموذج غير صحيحة', validation };
+      return {
+        status,
+        message: validationMessage || data?.message || 'بيانات النموذج غير صحيحة',
+        validation,
+        code: data?.code,
+      };
     }
     if (status === 401) {
       return { status, message: data?.message || 'انتهت الجلسة. سجّل الدخول مرة أخرى.' };

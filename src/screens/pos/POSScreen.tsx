@@ -134,6 +134,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
   const [locallyOccupiedIds, setLocallyOccupiedIds] = useState<string[]>([]);
+  const tableDraftSyncGenerationRef = useRef(0);
+  const selectedTableIdRef = useRef<string | null>(null);
   const [splitOpen, setSplitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
@@ -183,6 +185,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
     setDiningTable,
     updateTableMeta,
     releaseLocalTable,
+    transferDiningTable,
+    mergeDiningTable,
   } = usePosDiningTable({
     online: isOnline,
     lines: cart,
@@ -317,8 +321,17 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const effectiveTotal = checkoutTotals.total;
 
   useEffect(() => {
+    selectedTableIdRef.current = selectedTable?.id ?? null;
+  }, [selectedTable?.id]);
+
+  const cancelPendingTableDraftSync = useCallback(() => {
+    tableDraftSyncGenerationRef.current += 1;
+  }, []);
+
+  useEffect(() => {
     if (!selectedTable?.id || !isOnline || cart.length === 0) return;
     const tableId = selectedTable.id;
+    const syncGen = tableDraftSyncGenerationRef.current;
 
     const timer = setTimeout(() => {
       void diningAPI
@@ -328,6 +341,12 @@ export function POSScreen({ navigation }: { navigation: any }) {
           customer_id: selectedCustomer?.id ?? null,
         })
         .then((response) => {
+          if (
+            syncGen !== tableDraftSyncGenerationRef.current ||
+            tableId !== selectedTableIdRef.current
+          ) {
+            return;
+          }
           void markTableLocallyOccupied(tableId).then(setLocallyOccupiedIds);
           const data = response.data as { id?: number | string } | undefined;
           if (data?.id != null) {
@@ -379,6 +398,60 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setPosNotice(`تم اختيار ${table.name ?? 'الطاولة'}.`);
     },
     [setDiningTable],
+  );
+
+  const handleTransferTableFromSheet = useCallback(
+    async (
+      sourceId: string,
+      table: {
+        id: string;
+        name?: string | null;
+        number?: string | null;
+        hallName?: string | null;
+        activeOrderId?: number | string | null;
+      },
+    ) => {
+      cancelPendingTableDraftSync();
+      await diningAPI.transferOrder(sourceId, table.id);
+      await transferDiningTable(sourceId, {
+        id: table.id,
+        name: table.name,
+        number: table.number,
+        hallName: table.hallName,
+      });
+      setLocallyOccupiedIds((prev) => {
+        const withoutSource = prev.filter((id) => id !== sourceId);
+        return withoutSource.includes(table.id) ? withoutSource : [...withoutSource, table.id];
+      });
+    },
+    [cancelPendingTableDraftSync, transferDiningTable],
+  );
+
+  const handleMergeTableFromSheet = useCallback(
+    async (
+      sourceId: string,
+      table: {
+        id: string;
+        name?: string | null;
+        number?: string | null;
+        hallName?: string | null;
+        activeOrderId?: number | string | null;
+      },
+    ) => {
+      cancelPendingTableDraftSync();
+      await diningAPI.mergeOrder(sourceId, table.id);
+      await mergeDiningTable(sourceId, {
+        id: table.id,
+        name: table.name,
+        number: table.number,
+        hallName: table.hallName,
+      });
+      setLocallyOccupiedIds((prev) => {
+        const withoutSource = prev.filter((id) => id !== sourceId);
+        return withoutSource.includes(table.id) ? withoutSource : [...withoutSource, table.id];
+      });
+    },
+    [cancelPendingTableDraftSync, mergeDiningTable],
   );
 
   const cartItemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -1245,6 +1318,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onSelectTable={(table) => {
           void handleSelectTableFromSheet(table);
         }}
+        onTransferTable={handleTransferTableFromSheet}
+        onMergeTable={handleMergeTableFromSheet}
       />
     </SafeAreaView>
   );

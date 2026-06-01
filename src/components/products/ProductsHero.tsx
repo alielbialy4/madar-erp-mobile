@@ -28,6 +28,17 @@ type Props = {
   onReorder?: () => void;
   onCategories?: () => void;
   categoryHint?: string | null;
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  addLabel?: string;
+  statLabels?: {
+    total?: string;
+    low?: string;
+    out?: string;
+    promo?: string;
+    metaSuffix?: string;
+  };
   /** Flatter header for phone list — less vertical padding */
   compact?: boolean;
 };
@@ -44,6 +55,11 @@ export function ProductsHero({
   onReorder,
   onCategories,
   categoryHint,
+  eyebrow = 'الكتالوج',
+  title = 'المنتجات',
+  subtitle,
+  addLabel = 'منتج جديد',
+  statLabels,
   compact: compactProp,
 }: Props) {
   const c = useColors();
@@ -78,7 +94,7 @@ export function ProductsHero({
           style={({ pressed }) => [ds.actionChip, ds.actionChipPrimary, pressed && { opacity: 0.9 }]}
         >
           <MaterialIcons name="add" size={18} color={c.primaryForeground} />
-          <Text style={[ds.actionChipText, { color: c.primaryForeground }]}>منتج جديد</Text>
+          <Text style={[ds.actionChipText, { color: c.primaryForeground }]}>{addLabel}</Text>
         </Pressable>
       ) : null}
     </>
@@ -98,7 +114,7 @@ export function ProductsHero({
                 color: c.text,
               }}
             >
-              المنتجات
+              {title}
             </Text>
             {categoryHint ? (
               <Text style={{ ...textStart, fontSize: typography.tiny, color: c.textMuted }} numberOfLines={1}>
@@ -133,19 +149,19 @@ export function ProductsHero({
         <View style={cs.statsRow}>
           <View style={[cs.statBox, cs.statBoxCompact]}>
             <Text style={[cs.statValue, cs.statValueCompact]}>{totalCount}</Text>
-            <Text style={cs.statLabel}>محمّل</Text>
+            <Text style={cs.statLabel}>{statLabels?.total ?? 'محمّل'}</Text>
           </View>
           <View style={[cs.statBox, cs.statBoxCompact]}>
             <Text style={[cs.statValue, cs.statValueCompact, { color: c.warning }]}>{lowStockCount}</Text>
-            <Text style={cs.statLabel}>منخفض</Text>
+            <Text style={cs.statLabel}>{statLabels?.low ?? 'منخفض'}</Text>
           </View>
           <View style={[cs.statBox, cs.statBoxCompact]}>
             <Text style={[cs.statValue, cs.statValueCompact, { color: c.danger }]}>{outOfStockCount}</Text>
-            <Text style={cs.statLabel}>نفد</Text>
+            <Text style={cs.statLabel}>{statLabels?.out ?? 'نفد'}</Text>
           </View>
           <View style={[cs.statBox, cs.statBoxCompact]}>
             <Text style={[cs.statValue, cs.statValueCompact, { color: c.success }]}>{promoCount}</Text>
-            <Text style={cs.statLabel}>عروض</Text>
+            <Text style={cs.statLabel}>{statLabels?.promo ?? 'عروض'}</Text>
           </View>
         </View>
 
@@ -160,12 +176,13 @@ export function ProductsHero({
     <View style={ds.heroOuter}>
       <View style={ds.heroAccent} />
       <View style={ds.heroBody}>
-        <Text style={ds.heroEyebrow}>الكتالوج</Text>
-        <Text style={ds.heroTitle}>المنتجات</Text>
+        <Text style={ds.heroEyebrow}>{eyebrow}</Text>
+        <Text style={ds.heroTitle}>{title}</Text>
         <Text style={ds.heroSubtitle}>
-          {categoryHint
+          {subtitle ??
+          (categoryHint
             ? `عرض منتجات تصنيف «${categoryHint}» — الأسعار والمخزون حسب الفرع الحالي.`
-            : 'إدارة الأسعار والباركود والمخزون — الترتيب يظهر في نقطة البيع.'}
+            : 'إدارة الأسعار والباركود والمخزون — الترتيب يظهر في نقطة البيع.')}
         </Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ds.chipScroll}>
@@ -175,26 +192,26 @@ export function ProductsHero({
         <View style={cs.statsRow}>
           <View style={cs.statBox}>
             <Text style={cs.statValue}>{totalCount}</Text>
-            <Text style={cs.statLabel}>محمّل</Text>
+            <Text style={cs.statLabel}>{statLabels?.total ?? 'محمّل'}</Text>
           </View>
           <View style={cs.statBox}>
             <Text style={[cs.statValue, { color: c.warning }]}>{lowStockCount}</Text>
-            <Text style={cs.statLabel}>منخفض</Text>
+            <Text style={cs.statLabel}>{statLabels?.low ?? 'منخفض'}</Text>
           </View>
           <View style={cs.statBox}>
             <Text style={[cs.statValue, { color: c.danger }]}>{outOfStockCount}</Text>
-            <Text style={cs.statLabel}>نفد</Text>
+            <Text style={cs.statLabel}>{statLabels?.out ?? 'نفد'}</Text>
           </View>
           <View style={cs.statBox}>
             <Text style={[cs.statValue, { color: c.success }]}>{promoCount}</Text>
-            <Text style={cs.statLabel}>عروض</Text>
+            <Text style={cs.statLabel}>{statLabels?.promo ?? 'عروض'}</Text>
           </View>
         </View>
 
         <View style={ds.heroMetaRow}>
           <View style={[ds.refreshPill, flexRow]}>
             <MaterialIcons name="inventory-2" size={14} color={c.textCaption} />
-            <Text style={ds.refreshText}>{totalCount} منتج في القائمة</Text>
+            <Text style={ds.refreshText}>{totalCount} {statLabels?.metaSuffix ?? 'منتج في القائمة'}</Text>
           </View>
           <Pressable
             onPress={onRefresh}

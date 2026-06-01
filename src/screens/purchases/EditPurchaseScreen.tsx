@@ -21,6 +21,7 @@ type Line = {
   product_name: string;
   quantity: number;
   cost_price: number;
+  production_date?: string;
   expiry_date?: string;
   batch_number?: string;
 };
@@ -61,6 +62,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
             product_name: asText((it.product as Record<string, unknown>)?.name ?? it.product_name, 'صنف'),
             quantity: Number(it.quantity ?? 0),
             cost_price: Number(it.cost_price ?? it.unit_price ?? 0),
+            production_date: it.production_date || it.manufacturing_date ? String(it.production_date ?? it.manufacturing_date) : undefined,
             expiry_date: it.expiry_date ? String(it.expiry_date) : undefined,
             batch_number: it.batch_number ? String(it.batch_number) : undefined,
           })),
@@ -76,20 +78,10 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
     setConfirmVisible(false);
     setSubmitting(true);
     try {
-      const payload: PurchasePayload = {
+      const payload: Partial<PurchasePayload> = {
         supplier_id: supplierId,
         purchase_date: purchaseDate,
-        items: lines.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          cost_price: l.cost_price,
-          ...(l.expiry_date ? { expiry_date: l.expiry_date } : {}),
-          ...(l.batch_number ? { batch_number: l.batch_number } : {}),
-        })),
-        subtotal,
-        paid: Number(paid) || 0,
         notes: notes.trim() || undefined,
-        warehouse_id: warehouseId,
         invoice_number: undefined,
       };
       await purchasesAPI.update(purchaseId, payload);
@@ -121,7 +113,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
   return (
     <AppScreen title={`تعديل — ${supplierName}`} onBack={navigation.goBack}>
       <AppInput label="تاريخ الشراء" value={purchaseDate} onChangeText={setPurchaseDate} />
-      <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={setPaid} />
+      <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={setPaid} editable={false} />
       <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
       <AppCard style={{ gap: spacing.sm }}>
         <AppSectionHeader title="الأصناف" />
@@ -132,6 +124,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
               label="الكمية"
               keyboardType="numeric"
               value={String(line.quantity)}
+              editable={false}
               onChangeText={(v) => {
                 const next = [...lines];
                 next[index] = { ...line, quantity: Number(v) || 0 };
@@ -142,6 +135,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
               label="سعر التكلفة"
               keyboardType="numeric"
               value={String(line.cost_price)}
+              editable={false}
               onChangeText={(v) => {
                 const next = [...lines];
                 next[index] = { ...line, cost_price: Number(v) || 0 };
@@ -149,9 +143,17 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
               }}
             />
             {line.expiry_date != null || line.batch_number ? (
+              <>
+              <AppInput
+                label="تاريخ الإنتاج"
+                value={line.production_date ?? ''}
+                editable={false}
+                placeholder="YYYY-MM-DD"
+              />
               <AppInput
                 label="تاريخ الصلاحية"
                 value={line.expiry_date ?? ''}
+                editable={false}
                 onChangeText={(v) => {
                   const next = [...lines];
                   next[index] = { ...line, expiry_date: v };
@@ -159,6 +161,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
                 }}
                 placeholder="YYYY-MM-DD"
               />
+              </>
             ) : null}
           </View>
         ))}

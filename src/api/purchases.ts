@@ -4,7 +4,7 @@ import { del, get, post, put } from './client';
 export type PurchasePayload = {
   supplier_id: number;
   purchase_date: string;
-  items: { product_id: number; quantity: number; cost_price: number; unit_id?: number; expiry_date?: string; batch_number?: string; variant_id?: string | null }[];
+  items: { product_id: number; quantity: number; cost_price: number; unit_id?: number; production_date?: string; expiry_date?: string; batch_number?: string; variant_id?: string | null }[];
   subtotal: number;
   tax?: number;
   discount?: number;
@@ -19,7 +19,7 @@ export const purchasesAPI = {
   getAll: (params?: ListParams) => get<Record<string, unknown>[]>('/purchases', params),
   getById: (id: number) => get<Record<string, unknown>>(`/purchases/${id}`),
   create: (data: PurchasePayload) => post('/purchases', data),
-  update: (id: number, data: PurchasePayload) => put(`/purchases/${id}`, data),
+  update: (id: number, data: Partial<PurchasePayload>) => put(`/purchases/${id}`, data),
   delete: (id: number) => del(`/purchases/${id}`),
   getPayments: (purchaseId: number) => get(`/purchases/${purchaseId}/payments`),
   addPayment: (purchaseId: number, payload: { amount: number; payment_date: string; vault_id?: string; notes?: string }) =>

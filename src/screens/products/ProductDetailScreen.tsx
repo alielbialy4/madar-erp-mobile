@@ -100,17 +100,25 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
 
   const bc = ((product.barcodes ?? []).filter(Boolean).join('، ') || product.barcode) ?? '—';
   const sku = (product as Product & { sku?: string; code?: string }).sku ?? (product as Product & { code?: string }).code ?? '—';
+  const isRawMaterial = route.params?.mode === 'raw_material'
+    || ['raw_material', 'packaging_material', 'semi_finished'].includes(String(product.product_role ?? ''));
 
   const pricingCard = (
     <DetailInfoCard
-      title="التسعير"
+      title={isRawMaterial ? 'التكلفة' : 'التسعير'}
       icon="sell"
-      fields={[
-        { label: 'سعر البيع', value: money(product.selling_price ?? 0) },
-        { label: 'سعر ترويجي', value: product.is_promotional ? money(product.promotional_price ?? 0) : '—' },
-        { label: 'التكلفة', value: money(product.cost_price ?? 0) },
-        { label: 'هامش تقريبي', value: money(Math.max(0, Number(product.selling_price ?? 0) - Number(product.cost_price ?? 0))) },
-      ]}
+      fields={isRawMaterial
+        ? [
+            { label: 'تكلفة الشراء', value: money(product.cost_price ?? 0) },
+            { label: 'قابل للشراء', value: product.is_purchasable === false ? 'لا' : 'نعم' },
+            { label: 'مكون وصفة', value: product.is_recipe_ingredient === false ? 'لا' : 'نعم' },
+          ]
+        : [
+            { label: 'سعر البيع', value: money(product.selling_price ?? 0) },
+            { label: 'سعر ترويجي', value: product.is_promotional ? money(product.promotional_price ?? 0) : '—' },
+            { label: 'التكلفة', value: money(product.cost_price ?? 0) },
+            { label: 'هامش تقريبي', value: money(Math.max(0, Number(product.selling_price ?? 0) - Number(product.cost_price ?? 0))) },
+          ]}
     />
   );
 
@@ -138,7 +146,15 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
       title="المخزون والحالة"
       icon="inventory"
       fields={[
-        { label: 'تتبع المخزون', value: product.track_inventory === false ? 'لا (خدمة)' : 'نعم' },
+        {
+          label: 'نوع المخزون',
+          value:
+            product.inventory_mode === 'recipe_product'
+              ? 'منتج بوصفة'
+              : product.inventory_mode === 'non_stock' || product.track_inventory === false
+                ? 'غير مخزني'
+                : 'منتج مخزني',
+        },
         { label: 'تتبع الصلاحية', value: product.track_expiry ? 'نعم' : 'لا' },
         { label: 'حد التنبيه', value: numberText(product.min_stock_alert ?? 0) },
         {
@@ -180,7 +196,7 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
 
   return (
     <>
-      <AppScreen title="تفاصيل المنتج" onBack={navigation.goBack} scroll contentStyle={{ padding: 0, gap: 0 }}>
+      <AppScreen title={isRawMaterial ? 'تفاصيل الخامة' : 'تفاصيل المنتج'} onBack={navigation.goBack} scroll contentStyle={{ padding: 0, gap: 0 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: spacing.xxxl, backgroundColor: c.background }}
@@ -190,7 +206,7 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
               product={product}
               canManage={canManage}
               onInsights={() => navigation.navigate('ProductInsights', { id, name: product.name })}
-              onEdit={canManage ? () => navigation.navigate('ProductForm', { id }) : undefined}
+              onEdit={canManage ? () => navigation.navigate('ProductForm', { id, mode: isRawMaterial ? 'raw_material' : 'product' }) : undefined}
               onDelete={canManage ? () => setDeleteOpen(true) : undefined}
               large={isTablet}
             />
@@ -224,7 +240,7 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
       </AppScreen>
       <ConfirmDialog
         visible={deleteOpen}
-        title="حذف المنتج"
+        title={isRawMaterial ? 'حذف الخامة' : 'حذف المنتج'}
         message={`هل أنت متأكد من حذف «${product.name}»؟`}
         loading={deleting}
         onConfirm={() => void remove()}

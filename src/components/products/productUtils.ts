@@ -12,6 +12,8 @@ export function getProductQuantity(item: Product): number {
 export function getProductBadge(item: Product): ProductBadge {
   const qty = getProductQuantity(item);
   const min = Number(item.min_stock_alert ?? 0);
+  if (item.inventory_mode === 'recipe_product') return { label: 'وصفة', tone: 'warning' };
+  if (item.inventory_mode === 'non_stock') return { label: 'غير مخزني', tone: 'info' };
   if (item.track_inventory === false) return { label: 'خدمة', tone: 'info' };
   if (qty <= 0) return { label: 'نفد', tone: 'danger' };
   if (min > 0 && qty <= min) return { label: 'منخفض', tone: 'warning' };
@@ -36,7 +38,7 @@ export function productListStats(items: Product[]) {
   for (const item of items) {
     const qty = getProductQuantity(item);
     const min = Number(item.min_stock_alert ?? 0);
-    if (item.track_inventory !== false) {
+    if ((item.inventory_mode ?? (item.track_inventory === false ? 'non_stock' : 'stock_product')) === 'stock_product') {
       if (qty <= 0) out += 1;
       else if (min > 0 && qty <= min) low += 1;
     }

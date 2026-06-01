@@ -24,9 +24,28 @@ type PurchaseItem = {
   quantity: number;
   cost_price: number;
   unit_id?: number;
+  production_date?: string;
   expiry_date?: string;
   batch_number?: string;
   variant_id?: string;
+  track_expiry?: boolean;
+};
+
+const itemRoleLabel = (role: unknown): string => {
+  switch (String(role ?? '')) {
+    case 'raw_material':
+      return 'خامة';
+    case 'packaging_material':
+      return 'خامة تعبئة';
+    case 'semi_finished':
+      return 'نصف مصنع';
+    case 'service':
+      return 'خدمة';
+    case 'sellable_product':
+      return 'منتج';
+    default:
+      return '';
+  }
 };
 
 export function CreatePurchaseScreen({ navigation }: { route: any; navigation: any }) {
@@ -97,7 +116,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
     if (!productQuery.trim()) { setProductResults([]); return; }
     setProductSearching(true);
     try {
-      const res = await productsAPI.search(productQuery.trim());
+      const res = await productsAPI.search(productQuery.trim(), { context: 'purchase' });
       setProductResults(extractArray(res));
     } catch {
       setProductResults([]);
@@ -121,6 +140,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         product_name: String(product.name ?? ''),
         quantity: 1,
         cost_price: Number(product.cost_price ?? 0),
+        track_expiry: product.track_expiry === true,
       }]);
     }
     setProductQuery('');
@@ -153,6 +173,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
           quantity: item.quantity,
           cost_price: item.cost_price,
           ...(item.unit_id ? { unit_id: item.unit_id } : {}),
+          ...(item.production_date ? { production_date: item.production_date } : {}),
           ...(item.expiry_date ? { expiry_date: item.expiry_date } : {}),
           ...(item.batch_number ? { batch_number: item.batch_number } : {}),
           ...(item.variant_id ? { variant_id: item.variant_id } : {}),
@@ -198,7 +219,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
               />
             ) : null}
 
-            <AppButton title="إضافة صنف" variant="secondary" onPress={() => setProductSearchOpen(true)} />
+          <AppButton title="إضافة منتج أو خامة" variant="secondary" onPress={() => setProductSearchOpen(true)} />
           </View>
         }
         renderItem={({ item, index }) => (
@@ -222,6 +243,27 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
                 />
               </View>
               <Text style={styles.itemTotal}>{money(item.quantity * item.cost_price)}</Text>
+              {item.track_expiry ? (
+                <>
+                  <AppInput
+                    label="رقم الدفعة"
+                    value={item.batch_number ?? ''}
+                    onChangeText={(v) => updateItem(index, 'batch_number', v)}
+                  />
+                  <AppInput
+                    label="تاريخ الإنتاج"
+                    value={item.production_date ?? ''}
+                    onChangeText={(v) => updateItem(index, 'production_date', v)}
+                    placeholder="YYYY-MM-DD"
+                  />
+                  <AppInput
+                    label="تاريخ الصلاحية"
+                    value={item.expiry_date ?? ''}
+                    onChangeText={(v) => updateItem(index, 'expiry_date', v)}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </>
+              ) : null}
             </View>
             <AppButton title="حذف" variant="ghost" onPress={() => removeItem(index)} style={styles.removeBtn} />
           </View>
@@ -271,7 +313,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
 
       <AppBottomSheet visible={productSearchOpen} onClose={() => { setProductSearchOpen(false); setProductQuery(''); setProductResults([]); }}>
         <View style={styles.sheetContent}>
-          <AppSectionHeader title="بحث منتج" />
+          <AppSectionHeader title="بحث منتج أو خامة" />
           <AppInput value={productQuery} onChangeText={setProductQuery} placeholder="اسم أو باركود..." />
           {productSearching ? <Text style={styles.hintText}>جاري البحث...</Text> : null}
           <FlatList
@@ -281,7 +323,9 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
             renderItem={({ item }) => (
               <AppListItem
                 title={String(item.name ?? '')}
-                subtitle={item.barcode ? String(item.barcode) : undefined}
+                subtitle={[itemRoleLabel(item.product_role), item.barcode ? String(item.barcode) : '']
+                  .filter(Boolean)
+                  .join(' - ') || undefined}
                 meta={money(item.cost_price ?? 0)}
                 onPress={() => addItem(item)}
               />

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,13 +14,15 @@ import { AppBottomSheet } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppEmptyState } from '@/components/feedback';
+import { TablePosCard, type MergedTableSource } from '@/components/pos/TablePosCard';
 import { diningAPI } from '@/api/dining';
+import { useTableCardDragDrop } from '@/hooks/useTableCardDragDrop';
+import { isValidDropTarget, type TableDragMode } from '@/utils/tableDropRules';
 import type { DiningTable } from '@/types/api';
 import { getTableCartsRecord, type TableCartSnapshot, type TableCartsRecord } from '@/services/pos/tableCarts';
 import { cartTotals } from '@/store/posStore';
 import { normalizeApiError } from '@/utils/errors';
 import { numberText, money } from '@/utils/format';
-import { tableStatusLabel } from '@/utils/diningTableStatus';
 import { flexRow, rtlDirection, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -28,7 +31,14 @@ import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 
 type TableRow = DiningTable & {
-  current_order?: { id?: number; total?: number | string; items?: unknown[] } | null;
+  grouped_into_table_id?: string | null;
+  linked_table_sources?: MergedTableSource[];
+  current_order?: {
+    id?: number;
+    total?: number | string;
+    items?: unknown[];
+    merged_table_sources?: MergedTableSource[];
+  } | null;
   dining_hall?: { name?: string | null } | null;
 };
 
@@ -50,6 +60,14 @@ type Props = {
   locallyOccupiedIds?: string[];
   onClose: () => void;
   onSelectTable: (table: TableSelection) => void;
+  onTransferTable: (
+    sourceId: string,
+    target: TableSelection,
+  ) => Promise<void>;
+  onMergeTable: (
+    sourceId: string,
+    target: TableSelection,
+  ) => Promise<void>;
 };
 
 const STATUS_KEYS: StatusKey[] = ['all', 'available', 'occupied', 'reserved', 'closed'];
@@ -118,10 +136,14 @@ function resolveEffectiveStatus(
   table: TableRow,
   locallyOccupiedIds: string[],
   cachedTableIds: string[],
+  isOnline: boolean,
 ): string {
   if (table.status === 'closed') return 'closed';
   if (hasServerOrder(table)) return 'occupied';
   const tableId = String(table.id);
+  if (isOnline && table.status === 'available' && !hasServerOrder(table)) {
+    return 'available';
+  }
   if (locallyOccupiedIds.some((id) => String(id) === tableId)) return 'occupied';
   if (cachedTableIds.some((id) => String(id) === tableId)) return 'occupied';
   return String(table.status ?? 'available');
@@ -167,87 +189,6 @@ function FilterChip({
   );
 }
 
-function TableCard({
-  table,
-  isSelected,
-  disabled,
-  isOnline,
-  effectiveStatusKey,
-  orderPreview,
-  onSelect,
-}: {
-  table: TableRow;
-  isSelected: boolean;
-  disabled: boolean;
-  isOnline: boolean;
-  effectiveStatusKey: string;
-  orderPreview: ReturnType<typeof resolveOrderPreview>;
-  onSelect: () => void;
-}) {
-  const c = useColors();
-  const s = useMemo(() => createStyles(c), [c]);
-  const status = effectiveStatusKey;
-  const theme = statusTheme(c, status);
-  const name = table.name || `طاولة ${table.number ?? table.id}`;
-  const hallLine = [table.dining_hall?.name ?? null, table.capacity ? `${numberText(table.capacity)} مقعد` : null]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <Pressable
-      onPress={onSelect}
-      disabled={disabled || table.status === 'closed' || !isOnline}
-      style={[
-        s.tableCard,
-        { borderColor: isSelected ? c.primary : theme.border, backgroundColor: isSelected ? c.primarySoftMuted : c.surface },
-        (disabled || table.status === 'closed' || !isOnline) && s.tableCardDisabled,
-      ]}
-    >
-      <View style={[s.tableStripe, { backgroundColor: theme.stripe }]} />
-      {isSelected ? (
-        <View style={s.selectedMark}>
-          <MaterialIcons name="check" size={11} color={c.primaryForeground} />
-        </View>
-      ) : null}
-
-      <View style={s.tableCardBody}>
-        <View style={s.tableCardHead}>
-          <View style={[s.statusDot, { backgroundColor: theme.stripe }, status === 'occupied' && s.statusDotPulse]} />
-          <Text style={s.tableName} numberOfLines={1}>
-            {name}
-          </Text>
-        </View>
-
-        {hallLine ? (
-          <Text style={s.tableHall} numberOfLines={1}>
-            {hallLine}
-          </Text>
-        ) : null}
-
-        <View style={[s.statusPill, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-          <Text style={[s.statusPillText, { color: theme.text }]} numberOfLines={1}>
-            {tableStatusLabel(status)}
-          </Text>
-        </View>
-
-        {orderPreview ? (
-          <Text style={s.orderCompact} numberOfLines={1}>
-            {money(orderPreview.total)}
-            {orderPreview.itemCount > 0 ? ` · ${numberText(orderPreview.itemCount)} ص` : ''}
-            {orderPreview.isLocalOnly ? ' · محلي' : ''}
-          </Text>
-        ) : null}
-
-        {!isOnline ? (
-          <Text style={s.offlineHint} numberOfLines={1}>
-            بدون اتصال
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 export function PosTablesSheet({
   visible,
   branchId,
@@ -256,6 +197,8 @@ export function PosTablesSheet({
   locallyOccupiedIds = [],
   onClose,
   onSelectTable,
+  onTransferTable,
+  onMergeTable,
 }: Props) {
   const c = useColors();
   const s = useMemo(() => createStyles(c), [c]);
@@ -267,6 +210,8 @@ export function PosTablesSheet({
   const [message, setMessage] = useState<string | null>(null);
   const [tableCartsMap, setTableCartsMap] = useState<TableCartsRecord>({});
   const [gridWidth, setGridWidth] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [optimisticMerged, setOptimisticMerged] = useState<Record<string, MergedTableSource[]>>({});
 
   const { width: windowWidth } = useWindowDimensions();
   const sheetOuterWidth =
@@ -312,19 +257,24 @@ export function PosTablesSheet({
   );
 
   const tableEffectiveStatus = useCallback(
-    (table: TableRow) => resolveEffectiveStatus(table, locallyOccupiedIds, cachedTableIds),
-    [locallyOccupiedIds, cachedTableIds],
+    (table: TableRow) => resolveEffectiveStatus(table, locallyOccupiedIds, cachedTableIds, isOnline),
+    [locallyOccupiedIds, cachedTableIds, isOnline],
+  );
+
+  const rootTables = useMemo(
+    () => tables.filter((table) => !table.grouped_into_table_id),
+    [tables],
   );
 
   const counts = useMemo(
     () => ({
-      all: tables.length,
-      available: tables.filter((t) => tableEffectiveStatus(t) === 'available').length,
-      occupied: tables.filter((t) => tableEffectiveStatus(t) === 'occupied').length,
-      reserved: tables.filter((t) => tableEffectiveStatus(t) === 'reserved').length,
-      closed: tables.filter((t) => tableEffectiveStatus(t) === 'closed').length,
+      all: rootTables.length,
+      available: rootTables.filter((t) => tableEffectiveStatus(t) === 'available').length,
+      occupied: rootTables.filter((t) => tableEffectiveStatus(t) === 'occupied').length,
+      reserved: rootTables.filter((t) => tableEffectiveStatus(t) === 'reserved').length,
+      closed: rootTables.filter((t) => tableEffectiveStatus(t) === 'closed').length,
     }),
-    [tables, tableEffectiveStatus],
+    [rootTables, tableEffectiveStatus],
   );
 
   const halls = useMemo(() => {
@@ -335,12 +285,12 @@ export function PosTablesSheet({
 
   const visibleTables = useMemo(
     () =>
-      tables.filter((table) => {
+      rootTables.filter((table) => {
         const hallOk = hallFilter === 'all' || (table.dining_hall?.name || 'غير مصنفة') === hallFilter;
         const statusOk = status === 'all' || tableEffectiveStatus(table) === status;
         return hallOk && statusOk;
       }),
-    [hallFilter, status, tables, tableEffectiveStatus],
+    [hallFilter, status, rootTables, tableEffectiveStatus],
   );
 
   const selectionFromTable = (table: TableRow): TableSelection => ({
@@ -360,6 +310,78 @@ export function PosTablesSheet({
     onSelectTable(selectionFromTable(table));
   };
 
+  const dropParticipants = useMemo(
+    () =>
+      visibleTables.map((table) => ({
+        id: String(table.id),
+        effectiveStatus: tableEffectiveStatus(table) as 'available' | 'occupied' | 'reserved' | 'closed',
+        hasServerOrder: hasServerOrder(table),
+        groupedIntoTableId: table.grouped_into_table_id ?? null,
+      })),
+    [visibleTables, tableEffectiveStatus],
+  );
+
+  const handleDrop = useCallback(
+    async ({ mode, sourceId, targetId }: { mode: TableDragMode; sourceId: string; targetId: string }) => {
+      if (!isOnline) {
+        setMessage('طلبات الطاولات تحتاج اتصالاً بالخادم.');
+        return;
+      }
+      const source = visibleTables.find((t) => String(t.id) === sourceId);
+      const target = visibleTables.find((t) => String(t.id) === targetId);
+      if (!source || !target) return;
+
+      const sourceP = {
+        id: sourceId,
+        effectiveStatus: tableEffectiveStatus(source) as 'available' | 'occupied' | 'reserved' | 'closed',
+        hasServerOrder: hasServerOrder(source),
+        groupedIntoTableId: source.grouped_into_table_id ?? null,
+      };
+      const targetP = {
+        id: targetId,
+        effectiveStatus: tableEffectiveStatus(target) as 'available' | 'occupied' | 'reserved' | 'closed',
+        hasServerOrder: hasServerOrder(target),
+        groupedIntoTableId: target.grouped_into_table_id ?? null,
+      };
+      if (!isValidDropTarget(mode, sourceP, targetP)) {
+        setMessage(
+          mode === 'transfer'
+            ? 'النقل يتطلب طاولة هدف فارغة ومتاحة'
+            : 'لا يمكن الدمج على هذه الطاولة (مغلقة أو مدمجة مسبقاً)',
+        );
+        return;
+      }
+
+      const targetSelection = selectionFromTable(target);
+      setActionLoading(true);
+      setMessage(null);
+      try {
+        if (mode === 'transfer') {
+          await onTransferTable(sourceId, targetSelection);
+          setMessage('تم نقل الطلب بنجاح');
+        } else {
+          await onMergeTable(sourceId, targetSelection);
+          setMessage('تم دمج الطاولات بنجاح');
+        }
+        await load();
+        setOptimisticMerged({});
+      } catch (err) {
+        setMessage(normalizeApiError(err).message);
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [isOnline, visibleTables, tableEffectiveStatus, onTransferTable, onMergeTable, load],
+  );
+
+  const { session, hoverTargetId, startDrag, registerLayout, panHandlers } = useTableCardDragDrop(
+    dropParticipants,
+    handleDrop,
+  );
+
+  const dragMode = session?.mode ?? null;
+  const dragSourceId = session?.sourceId ?? null;
+
   return (
     <AppBottomSheet visible={visible} onClose={onClose} size="wide">
       <View style={s.root}>
@@ -369,7 +391,7 @@ export function PosTablesSheet({
           </View>
           <View style={s.headerText}>
             <Text style={s.headerTitle}>الطاولات</Text>
-            <Text style={s.headerSubtitle}>اضغط على الطاولة لتحميل طلبها في السلة</Text>
+            <Text style={s.headerSubtitle}>اضغط للاختيار · اسحب أيقونة النقل أو الدمج</Text>
           </View>
           <Pressable onPress={() => void load()} style={s.refreshBtn} accessibilityLabel="تحديث الطاولات">
             {loading ? (
@@ -478,27 +500,115 @@ export function PosTablesSheet({
           }}
         >
           {visibleTables.map((table) => {
-            const isSelected = selectedTableId != null && String(selectedTableId) === String(table.id);
+            const tableId = String(table.id);
+            const isSelected = selectedTableId != null && String(selectedTableId) === tableId;
             const effectiveStatusKey = tableEffectiveStatus(table);
-            const orderPreview = resolveOrderPreview(table, tableCartsMap[String(table.id)]);
+            const orderPreview = resolveOrderPreview(table, tableCartsMap[tableId]);
+            const name = table.name || `طاولة ${table.number ?? table.id}`;
+            const hallLine = [table.dining_hall?.name ?? null, table.capacity ? `${numberText(table.capacity)} مقعد` : null]
+              .filter(Boolean)
+              .join(' · ');
+            const apiMerged = [
+              ...(Array.isArray(table.linked_table_sources) ? table.linked_table_sources : []),
+              ...(Array.isArray(table.current_order?.merged_table_sources)
+                ? table.current_order.merged_table_sources
+                : []),
+            ];
+            const mergedSources = optimisticMerged[tableId]?.length
+              ? optimisticMerged[tableId]
+              : apiMerged;
+            const participant = {
+              id: tableId,
+              effectiveStatus: effectiveStatusKey as 'available' | 'occupied' | 'reserved' | 'closed',
+              hasServerOrder: hasServerOrder(table),
+              groupedIntoTableId: table.grouped_into_table_id ?? null,
+            };
+            const source = dragSourceId
+              ? dropParticipants.find((t) => t.id === dragSourceId)
+              : null;
+            const validDrop =
+              dragMode && source ? isValidDropTarget(dragMode, source, participant) : false;
+            const isDimmed = Boolean(dragMode && dragSourceId && tableId !== dragSourceId && !validDrop);
+
             return (
               <View key={table.id} style={[s.gridItem, { width: cardWidth }]}>
-                <TableCard
-                  table={table}
+                <TablePosCard
+                  tableId={tableId}
+                  name={name}
+                  hallLine={hallLine}
+                  effectiveStatus={effectiveStatusKey}
+                  hasServerOrder={hasServerOrder(table)}
+                  linkedTableSources={table.linked_table_sources}
                   isSelected={isSelected}
-                  disabled={false}
+                  disabled={actionLoading}
                   isOnline={isOnline}
-                  effectiveStatusKey={effectiveStatusKey}
                   orderPreview={orderPreview}
+                  mergedSources={mergedSources}
+                  dragMode={dragMode}
+                  isValidDrop={validDrop && hoverTargetId === tableId}
+                  isDimmed={isDimmed}
                   onSelect={() => selectTableContext(table)}
+                  onRegisterLayout={registerLayout}
+                  onStartDrag={startDrag}
+                  onRelease={
+                    hasServerOrder(table) || (table.linked_table_sources?.length ?? 0) > 0
+                      ? () => {
+                          if (!isOnline) {
+                            setMessage('يتطلب اتصالاً بالخادم');
+                            return;
+                          }
+                          void diningAPI
+                            .releaseForPos(tableId)
+                            .then(() => {
+                              setMessage('تم فك دمج الطاولات');
+                              void load();
+                            })
+                            .catch((err: unknown) => {
+                              const msg =
+                                (err as { response?: { data?: { message?: string } } })?.response
+                                  ?.data?.message ?? 'تعذر تحرير الطاولة';
+                              setMessage(msg);
+                            });
+                        }
+                      : undefined
+                  }
                 />
               </View>
             );
           })}
         </View>
 
-        <AppButton title="تحديث الطاولات" variant="secondary" onPress={() => void load()} loading={loading} fullWidth />
+        <AppButton
+          title="تحديث الطاولات"
+          variant="secondary"
+          onPress={() => void load()}
+          loading={loading || actionLoading}
+          fullWidth
+        />
       </View>
+
+      {session ? (
+        <Modal transparent visible animationType="none">
+          <View style={s.dragOverlay} {...panHandlers}>
+            <View
+              style={[
+                s.dragGhost,
+                {
+                  left: Math.max(8, session.x - 60),
+                  top: Math.max(8, session.y - 28),
+                },
+              ]}
+            >
+              <MaterialIcons
+                name={session.mode === 'transfer' ? 'swap-horiz' : 'link'}
+                size={18}
+                color={c.primary}
+              />
+              <Text style={s.dragGhostText}>{session.sourceName}</Text>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </AppBottomSheet>
   );
 }
@@ -643,42 +753,20 @@ function createStyles(c: AppColors) {
     },
     grid: { ...flexRow, ...rtlDirection, flexWrap: 'wrap', gap: spacing.xs, alignItems: 'flex-start' },
     gridItem: { flexGrow: 0, flexShrink: 0 },
-    tableCard: {
+    dragOverlay: { flex: 1, backgroundColor: 'transparent' },
+    dragGhost: {
+      position: 'absolute',
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       borderRadius: radius.lg,
-      borderWidth: 1,
-      overflow: 'hidden',
-      position: 'relative',
+      backgroundColor: c.surface,
+      borderWidth: 2,
+      borderColor: c.primary,
       ...cardShadow,
     },
-    tableCardDisabled: { opacity: 0.55 },
-    tableStripe: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-    selectedMark: {
-      position: 'absolute',
-      top: 4,
-      end: 4,
-      width: 16,
-      height: 16,
-      borderRadius: radius.pill,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2,
-    },
-    tableCardBody: { padding: spacing.sm, paddingTop: spacing.sm + 2, gap: 3 },
-    tableCardHead: { ...flexRow, alignItems: 'center', gap: 4 },
-    statusDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
-    statusDotPulse: { opacity: 0.9 },
-    tableName: { ...textStart, flex: 1, fontSize: typography.small, fontFamily: fonts.bold, fontWeight: '700', color: c.text },
-    tableHall: { ...textStart, fontSize: 9, fontFamily: fonts.medium, color: c.textMuted, lineHeight: 12 },
-    statusPill: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 6,
-      paddingVertical: 1,
-      borderRadius: radius.sm,
-      borderWidth: 1,
-    },
-    statusPillText: { fontSize: 9, fontFamily: fonts.bold, fontWeight: '700', writingDirection: 'rtl' },
-    orderCompact: { ...textStart, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', color: c.text },
-    offlineHint: { ...textStart, fontSize: 9, fontFamily: fonts.bold, color: c.warning },
+    dragGhostText: { fontSize: typography.small, fontFamily: fonts.bold, color: c.text },
   });
 }

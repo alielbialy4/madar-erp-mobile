@@ -1,4 +1,4 @@
-import type { ProductOptionGroupInput, ProductPayload, PickedImage } from '@/types/api';
+import type { ProductOptionGroupInput, ProductPayload, PickedImage, ProductRecipeInput } from '@/types/api';
 
 export function appendPickedImage(formData: FormData, field: string, image?: PickedImage | null) {
   if (!image?.uri) return;
@@ -34,6 +34,21 @@ export function appendOptionGroupsToFormData(formData: FormData, groups?: Produc
   });
 }
 
+export function appendRecipesToFormData(formData: FormData, recipes?: ProductRecipeInput[]) {
+  if (!Array.isArray(recipes)) return;
+  recipes.forEach((r, idx) => {
+    if (r.id != null) formData.append(`recipes[${idx}][id]`, String(r.id));
+    if (r.variant_id) formData.append(`recipes[${idx}][variant_id]`, String(r.variant_id));
+    if (r.modifier_option_id != null) formData.append(`recipes[${idx}][modifier_option_id]`, String(r.modifier_option_id));
+    formData.append(`recipes[${idx}][ingredient_product_id]`, String(r.ingredient_product_id));
+    formData.append(`recipes[${idx}][quantity]`, String(r.quantity));
+    formData.append(`recipes[${idx}][unit_id]`, String(r.unit_id));
+    formData.append(`recipes[${idx}][waste_percentage]`, String(r.waste_percentage ?? 0));
+    if (r.warehouse_id) formData.append(`recipes[${idx}][warehouse_id]`, String(r.warehouse_id));
+    formData.append(`recipes[${idx}][is_active]`, r.is_active === false ? '0' : '1');
+  });
+}
+
 export function buildProductFormData(data: ProductPayload, forUpdate = false): FormData {
   const formData = new FormData();
   if (forUpdate) formData.append('_method', 'PUT');
@@ -46,12 +61,33 @@ export function buildProductFormData(data: ProductPayload, forUpdate = false): F
     formData.append('barcode', data.barcode);
   }
   if (data.description) formData.append('description', data.description);
-  if (data.category_id) formData.append('category_id', String(data.category_id));
+  if (data.category_id !== undefined) formData.append('category_id', data.category_id == null ? '' : String(data.category_id));
   formData.append('cost_price', String(data.cost_price));
   formData.append('selling_price', String(data.selling_price));
-  const tracks = data.track_inventory !== false;
+  const mode = data.inventory_mode ?? (data.track_inventory === false ? 'non_stock' : 'stock_product');
+  const tracks = mode === 'stock_product';
+  formData.append('inventory_mode', mode);
+  formData.append('product_role', data.product_role ?? (mode === 'non_stock' ? 'service' : 'sellable_product'));
+  if (data.is_sellable !== undefined) formData.append('is_sellable', data.is_sellable ? '1' : '0');
+  if (data.is_purchasable !== undefined) formData.append('is_purchasable', data.is_purchasable ? '1' : '0');
+  if (data.is_recipe_ingredient !== undefined) formData.append('is_recipe_ingredient', data.is_recipe_ingredient ? '1' : '0');
   formData.append('track_inventory', tracks ? '1' : '0');
-  formData.append('track_expiry', data.track_expiry === true ? '1' : '0');
+  formData.append('track_expiry', tracks && data.track_expiry === true ? '1' : '0');
+  if (data.track_batch !== undefined) formData.append('track_batch', data.track_batch ? '1' : '0');
+  if (data.preferred_supplier_id !== undefined) {
+    formData.append('preferred_supplier_id', data.preferred_supplier_id == null ? '' : String(data.preferred_supplier_id));
+  }
+  if (data.default_warehouse_id !== undefined) {
+    formData.append('default_warehouse_id', data.default_warehouse_id == null ? '' : data.default_warehouse_id);
+  }
+  if (data.storage_type) formData.append('storage_type', data.storage_type);
+  if (data.default_shelf_life_days != null) formData.append('default_shelf_life_days', String(data.default_shelf_life_days));
+  if (data.specs) {
+    Object.entries(data.specs).forEach(([key, value]) => {
+      if (!key || value === null || value === undefined || String(value).trim() === '') return;
+      formData.append(`specs[${key}]`, String(value));
+    });
+  }
   formData.append('min_stock_alert', String(tracks ? data.min_stock_alert : 0));
   formData.append('active', data.active === true ? '1' : '0');
   formData.append('featured', data.featured === true ? '1' : '0');
@@ -83,6 +119,10 @@ export function buildProductFormData(data: ProductPayload, forUpdate = false): F
     });
   }
   appendOptionGroupsToFormData(formData, data.option_groups);
+  if (mode === 'recipe_product') {
+    if (Array.isArray(data.recipes) && data.recipes.length > 0) appendRecipesToFormData(formData, data.recipes);
+    else formData.append('recipes_clear', '1');
+  }
   return formData;
 }
 

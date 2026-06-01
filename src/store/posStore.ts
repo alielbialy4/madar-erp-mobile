@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
+import { unitMeta, unitSellingPrice } from '@/utils/posUnitPrice';
 import { giftCardsAPI } from '@/api/giftCards';
 import { diningAPI } from '@/api/dining';
 import { posAPI } from '@/api/pos';
@@ -55,6 +56,7 @@ type PosState = {
     product: Product,
     selectedOptions?: CartLineSelectedOption[],
     variant?: { id: string; name?: string | null } | null,
+    unitId?: number | null,
   ) => void;
   updateQuantity: (lineKey: string, delta: number) => void;
   removeLine: (lineKey: string) => void;
@@ -96,13 +98,6 @@ export type SubmitSaleExtras = {
   /** When set, settle an existing table order instead of creating a new sale. */
   settleTable?: { tableId: string; orderId?: number | string | null };
 };
-
-function priceOf(product: Product, variantId?: string | null): number {
-  const base = Number(product.selling_price ?? 0);
-  const variant = variantId ? product.variants?.find((v) => String(v.id) === String(variantId)) : null;
-  const value = base + Number(variant?.additional_price ?? 0);
-  return Number.isFinite(value) ? value : 0;
-}
 
 function selectedOptionsSignature(opts?: CartLineSelectedOption[]): string {
   if (!opts?.length) return '';
@@ -228,14 +223,15 @@ export const usePosStore = create<PosState>((set, get) => ({
     }
   },
 
-  addProduct: (product, selectedOptions, variant) => {
+  addProduct: (product, selectedOptions, variant, unitId) => {
     const current = get().cart;
     const variantId = variant?.id ?? null;
-    const unitId = product.units?.find((unit) => unit.is_base)?.id ?? product.units?.[0]?.id ?? null;
+    const uMeta = unitMeta(product, unitId);
+    const resolvedUnitId = uMeta?.id ?? null;
     const newLineKey = cartLineKey({
       product_id: product.id,
       variant_id: variantId,
-      unit_id: unitId,
+      unit_id: resolvedUnitId,
       selected_options: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,
     });
 
@@ -252,9 +248,9 @@ export const usePosStore = create<PosState>((set, get) => ({
           product_id: product.id,
           product_name: product.name,
           quantity: 1,
-          unit_price: priceOf(product, variantId),
+          unit_price: unitSellingPrice(product, variantId, resolvedUnitId),
           discount: 0,
-          unit_id: unitId,
+          unit_id: resolvedUnitId,
           variant_id: variantId,
           variant_name: variant?.name ?? null,
           selected_options: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,

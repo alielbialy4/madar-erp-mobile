@@ -20,9 +20,9 @@ export type POSStackParamList = {
 };
 
 export type ProductsStackParamList = {
-  ProductsHome: { category_id?: number } | undefined;
-  ProductDetail: { id: number; name?: string };
-  ProductForm: { id?: number };
+  ProductsHome: { category_id?: number; scope?: 'raw_materials' } | undefined;
+  ProductDetail: { id: number; name?: string; mode?: 'product' | 'raw_material' };
+  ProductForm: { id?: number; mode?: 'product' | 'raw_material' };
   ProductInsights: { id: number; name?: string };
   Categories: undefined;
   CategoryForm: { id?: number };

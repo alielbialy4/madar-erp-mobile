@@ -78,6 +78,51 @@ export type PickedImage = {
   mimeType?: string;
 };
 
+export type InventoryMode = 'stock_product' | 'recipe_product' | 'non_stock';
+export type ProductRole = 'sellable_product' | 'raw_material' | 'packaging_material' | 'semi_finished' | 'service';
+
+export type ProductUnit = {
+  id: number;
+  name: string;
+  factor_to_base?: number | string;
+  is_base?: boolean;
+  barcode?: string | null;
+};
+
+export type ProductRecipe = {
+  id: number;
+  variant_id?: string | null;
+  modifier_option_id?: number | null;
+  ingredient_product_id: number;
+  ingredient_product?: {
+    id: number;
+    name: string;
+    avg_cost?: number | string | null;
+    cost_price?: number | string | null;
+    units?: ProductUnit[];
+  } | null;
+  quantity: number | string;
+  unit_id: number;
+  unit?: ProductUnit | null;
+  waste_percentage?: number | string | null;
+  warehouse_id?: string | null;
+  is_active?: boolean;
+};
+
+export type ProductRecipeInput = {
+  id?: number;
+  variant_id?: string | null;
+  modifier_option_id?: number | null;
+  ingredient_product_id: number;
+  ingredient_product?: ProductRecipe['ingredient_product'];
+  quantity: number;
+  unit_id: number;
+  unit?: ProductUnit | null;
+  waste_percentage?: number;
+  warehouse_id?: string | null;
+  is_active?: boolean;
+};
+
 export type Product = {
   id: number;
   name: string;
@@ -94,9 +139,20 @@ export type Product = {
   available_quantity?: number;
   min_stock_alert?: number;
   unit?: string | null;
-  units?: { id: number; name: string; factor_to_base?: number | string; is_base?: boolean; barcode?: string | null }[];
+  units?: ProductUnit[];
+  inventory_mode?: InventoryMode;
+  product_role?: ProductRole;
+  is_sellable?: boolean;
+  is_purchasable?: boolean;
+  is_recipe_ingredient?: boolean;
   track_inventory?: boolean;
   track_expiry?: boolean;
+  track_batch?: boolean;
+  preferred_supplier_id?: number | null;
+  default_warehouse_id?: string | null;
+  storage_type?: string | null;
+  default_shelf_life_days?: number | null;
+  specs?: Record<string, string | number | null>;
   active?: boolean;
   is_active?: boolean;
   featured?: boolean;
@@ -106,6 +162,13 @@ export type Product = {
   promotional_end_date?: string | null;
   option_groups?: ProductOptionGroup[];
   variants?: { id: string; name?: string; sku?: string | null; additional_price?: number | string | null }[];
+  recipes?: ProductRecipe[];
+  recipe_costing?: {
+    recipe_cost?: number;
+    sale_price?: number;
+    gross_margin?: number;
+    margin_percentage?: number | null;
+  };
 };
 
 export type ProductOptionGroup = {
@@ -164,12 +227,23 @@ export type ProductPayload = {
   barcode?: string;
   barcodes?: string[];
   description?: string;
-  category_id?: number;
+  category_id?: number | null;
   cost_price: number;
   selling_price: number;
   min_stock_alert: number;
+  inventory_mode?: InventoryMode;
+  product_role?: ProductRole;
+  is_sellable?: boolean;
+  is_purchasable?: boolean;
+  is_recipe_ingredient?: boolean;
   track_inventory?: boolean;
   track_expiry?: boolean;
+  track_batch?: boolean;
+  preferred_supplier_id?: number | null;
+  default_warehouse_id?: string | null;
+  storage_type?: string | null;
+  default_shelf_life_days?: number | null;
+  specs?: Record<string, string | number | null | undefined>;
   active?: boolean;
   featured?: boolean;
   is_promotional?: boolean;
@@ -180,6 +254,7 @@ export type ProductPayload = {
   units: ProductUnitInput[];
   opening_stock?: OpeningStockInput[];
   option_groups?: ProductOptionGroupInput[];
+  recipes?: ProductRecipeInput[];
 };
 
 export type Category = {

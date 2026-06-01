@@ -95,7 +95,7 @@ export function useReportFilterOptions(activeKeys: ReportFilterKey[]) {
   }, [needs]);
 
   const searchProducts = useCallback(async (query: string) => {
-    const res = await productsAPI.search(query.trim());
+    const res = await productsAPI.search(query.trim(), { context: 'all' });
     const list = extractArray<{ id: number; name: string; barcode?: string }>(res);
     return list.map((p) => ({
       id: String(p.id),

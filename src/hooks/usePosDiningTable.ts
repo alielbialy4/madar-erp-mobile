@@ -12,7 +12,11 @@ import {
   markTableLocallyOccupied,
 } from '@/services/pos/locallyOccupiedTables';
 import type { CartLine } from '@/store/posStore';
-import { diningTableDisplayName, saleToCartLines, type PosDiningTableSelection } from '@/utils/posDining';
+import {
+  diningTableDisplayName,
+  saleToCartLines,
+  type PosDiningTableSelection,
+} from '@/utils/posDining';
 import { extractData } from '@/utils/data';
 
 type AppliedCoupon = { coupon: Coupon; discount: number } | null;
@@ -168,6 +172,124 @@ export function usePosDiningTable({
     setSelectedTableRaw((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
 
+  const transferDiningTable = useCallback(
+    async (sourceId: string, target: PosDiningTableSelection) => {
+      const map = await getTableCartsRecord();
+      delete map[sourceId];
+      delete map[target.id];
+      await setTableCartsRecord(map);
+      await markTableLocallyAvailable(sourceId);
+      await markTableLocallyOccupied(target.id);
+
+      if (selectedTable?.id === sourceId) {
+        let nextTable: PosDiningTableSelection = {
+          id: target.id,
+          name: target.name,
+          number: target.number ?? null,
+          hallName: target.hallName ?? null,
+        };
+        if (online) {
+          try {
+            const response = await diningAPI.getActiveOrder(target.id);
+            const sale = extractData<Record<string, unknown>>(response);
+            const saleItems = Array.isArray(sale?.items) ? sale.items : [];
+            if (saleItems.length > 0) {
+              restoreCart({
+                lines: saleToCartLines(sale),
+                cartDiscount: 0,
+                customer: (sale?.customer as Customer | null) ?? null,
+                appliedCoupon: null,
+              });
+              nextTable = {
+                ...nextTable,
+                activeOrderId: sale?.id as number | string | null,
+                printSequence: (sale?.print_sequence as number | string | null) ?? null,
+                invoiceNumber: sale?.invoice_number != null ? String(sale.invoice_number) : null,
+              };
+              setSelectedTableRaw(nextTable);
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+        }
+        restoreCart({
+          lines: linesRef.current,
+          cartDiscount,
+          customer: selectedCustomer,
+          appliedCoupon,
+        });
+        setSelectedTableRaw({
+          ...nextTable,
+          activeOrderId: selectedTable.activeOrderId ?? null,
+          printSequence: selectedTable.printSequence ?? null,
+          invoiceNumber: selectedTable.invoiceNumber ?? null,
+        });
+      }
+    },
+    [
+      selectedTable,
+      online,
+      restoreCart,
+      cartDiscount,
+      selectedCustomer,
+      appliedCoupon,
+      setSelectedTableRaw,
+    ],
+  );
+
+  const mergeDiningTable = useCallback(
+    async (sourceId: string, target: PosDiningTableSelection) => {
+      const sourceLines = selectedTable?.id === sourceId ? linesRef.current : [];
+      const map = await getTableCartsRecord();
+      const cachedTarget = map[target.id] ?? null;
+      delete map[sourceId];
+      delete map[target.id];
+      await setTableCartsRecord(map);
+
+      let targetLines = cachedTarget?.lines ?? [];
+      let nextTarget: PosDiningTableSelection = {
+        id: target.id,
+        name: target.name,
+        number: target.number ?? null,
+        hallName: target.hallName ?? null,
+      };
+
+      if (online) {
+        try {
+          const response = await diningAPI.getActiveOrder(target.id);
+          const sale = extractData<Record<string, unknown>>(response);
+          const saleItems = Array.isArray(sale?.items) ? sale.items : [];
+          if (saleItems.length > 0) {
+            targetLines = saleToCartLines(sale);
+            nextTarget = {
+              ...nextTarget,
+              activeOrderId: sale?.id as number | string | null,
+              printSequence: (sale?.print_sequence as number | string | null) ?? null,
+              invoiceNumber: sale?.invoice_number != null ? String(sale.invoice_number) : null,
+            };
+          }
+        } catch {
+          /* keep cached */
+        }
+      }
+
+      if (selectedTable?.id === sourceId) {
+        restoreCart({
+          lines: [...targetLines, ...sourceLines],
+          cartDiscount: cachedTarget?.cartDiscount || 0,
+          customer: cachedTarget?.customer ?? null,
+          appliedCoupon: cachedTarget?.appliedCoupon ?? null,
+        });
+        setSelectedTableRaw(nextTarget);
+      }
+
+      await markTableLocallyAvailable(sourceId);
+      await markTableLocallyOccupied(target.id);
+    },
+    [selectedTable?.id, online, restoreCart, setSelectedTableRaw],
+  );
+
   const selectedTableName = selectedTable ? diningTableDisplayName(selectedTable) : null;
 
   return {
@@ -179,5 +301,7 @@ export function usePosDiningTable({
     saveCartForCurrentTable,
     removeCartForTable,
     releaseLocalTable,
+    transferDiningTable,
+    mergeDiningTable,
   };
 }

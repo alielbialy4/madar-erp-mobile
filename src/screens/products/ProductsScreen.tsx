@@ -40,6 +40,7 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_products');
   const initialCategoryId = route.params?.category_id;
+  const isRawMaterials = route.params?.scope === 'raw_materials';
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
@@ -56,9 +57,11 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
       category_id: filters.category_id ? Number(filters.category_id) : undefined,
       stock_status: filters.stock_status ?? undefined,
       featured: filters.featured ?? undefined,
+      scope: isRawMaterials ? 'raw_materials' : undefined,
+      include_raw_materials: isRawMaterials ? 1 : undefined,
       per_page: 50,
     }),
-    [debounced, filters],
+    [debounced, filters, isRawMaterials],
   );
 
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Product & Record<string, unknown>>(
@@ -77,6 +80,13 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
   );
 
   const stats = useMemo(() => productListStats(items as Product[]), [items]);
+  const displayStats = useMemo(() => {
+    if (!isRawMaterials) return stats;
+    return {
+      ...stats,
+      promo: (items as Product[]).filter((p) => p.track_expiry || p.track_batch).length,
+    };
+  }, [isRawMaterials, items, stats]);
   const categoryHint = useMemo(() => {
     if (!filters.category_id) return null;
     return categories.find((cat) => String(cat.id) === filters.category_id)?.name ?? null;
@@ -101,16 +111,19 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
       <ProductsHero
         compact
         totalCount={stats.total}
-        lowStockCount={stats.low}
-        outOfStockCount={stats.out}
-        promoCount={stats.promo}
+        lowStockCount={displayStats.low}
+        outOfStockCount={displayStats.out}
+        promoCount={displayStats.promo}
         isLoading={loading || refreshing}
         onRefresh={() => void refresh()}
         canManage={canManage}
-        onCategories={() => navigation.navigate('Categories')}
-        onReorder={canManage ? () => navigation.navigate('ProductsReorder') : undefined}
-        onAdd={canManage ? () => navigation.navigate('ProductForm', {}) : undefined}
+        onCategories={isRawMaterials ? undefined : () => navigation.navigate('Categories')}
+        onReorder={!isRawMaterials && canManage ? () => navigation.navigate('ProductsReorder') : undefined}
+        onAdd={canManage ? () => navigation.navigate('ProductForm', isRawMaterials ? { mode: 'raw_material' } : {}) : undefined}
         categoryHint={categoryHint}
+        title={isRawMaterials ? 'الخامات / المواد الخام' : undefined}
+        addLabel={isRawMaterials ? 'خامة جديدة' : undefined}
+        statLabels={isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined}
       />
       {searchBar}
       <ProductFiltersPanel categories={categories} filters={filters} onChange={setFilters} resultCount={items.length} />
@@ -121,16 +134,21 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
     <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md }}>
       <ProductsHero
         totalCount={stats.total}
-        lowStockCount={stats.low}
-        outOfStockCount={stats.out}
-        promoCount={stats.promo}
+        lowStockCount={displayStats.low}
+        outOfStockCount={displayStats.out}
+        promoCount={displayStats.promo}
         isLoading={loading || refreshing}
         onRefresh={() => void refresh()}
         canManage={canManage}
-        onCategories={() => navigation.navigate('Categories')}
-        onReorder={canManage ? () => navigation.navigate('ProductsReorder') : undefined}
-        onAdd={canManage ? () => navigation.navigate('ProductForm', {}) : undefined}
+        onCategories={isRawMaterials ? undefined : () => navigation.navigate('Categories')}
+        onReorder={!isRawMaterials && canManage ? () => navigation.navigate('ProductsReorder') : undefined}
+        onAdd={canManage ? () => navigation.navigate('ProductForm', isRawMaterials ? { mode: 'raw_material' } : {}) : undefined}
         categoryHint={categoryHint}
+        eyebrow={isRawMaterials ? 'المخزون' : undefined}
+        title={isRawMaterials ? 'الخامات / المواد الخام' : undefined}
+        subtitle={isRawMaterials ? 'خامات الشراء والوصفات منفصلة عن كتالوج البيع.' : undefined}
+        addLabel={isRawMaterials ? 'خامة جديدة' : undefined}
+        statLabels={isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined}
       />
       {searchBar}
     </View>
@@ -156,16 +174,16 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
         <ProductListCard
           product={item as Product}
           canManage={canManage}
-          onPress={() => navigation.navigate('ProductDetail', { id: item.id, name: item.name })}
+          onPress={() => navigation.navigate('ProductDetail', { id: item.id, name: item.name, mode: isRawMaterials ? 'raw_material' : 'product' })}
           onInsights={() => navigation.navigate('ProductInsights', { id: item.id, name: item.name })}
-          onEdit={canManage ? () => navigation.navigate('ProductForm', { id: item.id }) : undefined}
+          onEdit={canManage ? () => navigation.navigate('ProductForm', { id: item.id, mode: isRawMaterials ? 'raw_material' : 'product' }) : undefined}
         />
       )}
     />
   );
 
   return (
-    <AppScreen title="المنتجات" scroll={false} noHeader contentStyle={{ padding: 0, gap: 0 }}>
+    <AppScreen title={isRawMaterials ? 'الخامات / المواد الخام' : 'المنتجات'} scroll={false} noHeader contentStyle={{ padding: 0, gap: 0 }}>
       {loading && items.length === 0 ? (
         <AppLoadingState variant="skeleton" skeletonRows={8} />
       ) : error && items.length === 0 ? (

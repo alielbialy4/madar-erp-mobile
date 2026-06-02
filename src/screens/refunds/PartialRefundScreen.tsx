@@ -42,6 +42,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState<'cash' | 'wallet'>('cash');
+  const [cashRefundSource, setCashRefundSource] = useState<'drawer' | 'vault'>('drawer');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
@@ -131,6 +132,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         reason: reason || undefined,
         notes: notes || undefined,
         refund_method: refundMethod,
+        ...(refundMethod === 'cash' ? { cash_refund_source: cashRefundSource } : {}),
       });
       setSubmitMessage(response.message || 'تم تسجيل الاسترداد الجزئي بنجاح');
       setConfirmOpen(false);
@@ -225,6 +227,17 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
           options={methodOptions}
           onChange={(v) => setRefundMethod(v as 'cash' | 'wallet')}
         />
+        {refundMethod === 'cash' ? (
+          <AppSelect
+            label="مصدر رد النقد"
+            value={cashRefundSource}
+            options={[
+              { label: 'من درج الوردية', value: 'drawer' },
+              { label: 'من الخزنة', value: 'vault' },
+            ]}
+            onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
+          />
+        ) : null}
       </AppCard>
 
       <AppCard>

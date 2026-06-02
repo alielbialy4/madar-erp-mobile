@@ -173,19 +173,29 @@ export function PosCheckoutSheet({
   }, [loyaltyPointsInput]);
 
   const paymentOptions = useMemo((): { key: string; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] => {
-    const base: { key: string; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+    const base: {
+      key: string;
+      label: string;
+      icon?: keyof typeof MaterialIcons.glyphMap;
+      brandTile?: { backgroundColor: string; textColor: string; title: string };
+    }[] = [
       { key: 'cash', label: 'نقدي', icon: 'payments' },
       { key: 'card', label: 'بطاقة', icon: 'credit-card' },
+      {
+        key: 'electronic_wallet',
+        label: 'محافظ إلكترونية',
+        brandTile: { backgroundColor: '#0D47A1', textColor: '#FFFFFF', title: 'محافظ\nإلكترونية' },
+      },
+      {
+        key: 'instapay',
+        label: 'إنستا باي',
+        brandTile: { backgroundColor: '#7B2FF7', textColor: '#FFFFFF', title: 'InstaPay' },
+      },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
     ];
-    if (hasCustomer) {
-      base.push({ key: 'wallet', label: 'محفظة', icon: 'account-balance-wallet' });
-      base.push({ key: 'layaway', label: 'تقسيط', icon: 'shopping-cart' });
-    }
     base.push({ key: 'gift_card', label: 'بطاقة هدايا', icon: 'card-giftcard' });
-    base.push({ key: 'split', label: 'مقسم', icon: 'call-split' });
     return base;
-  }, [hasCustomer]);
+  }, []);
 
   const cashDue = useMemo(() => {
     if (paymentType === 'gift_card' && appliedGiftCard) {
@@ -205,6 +215,7 @@ export function PosCheckoutSheet({
   const reviewDisabled =
     (paymentType === 'split' && splitLinesCount === 0) ||
     (paymentType === 'wallet' && (walletBalance == null || walletBalance < cashDue)) ||
+    ((paymentType === 'electronic_wallet' || paymentType === 'instapay') && !isOnline) ||
     (paymentType === 'gift_card' && !isOnline) ||
     (paymentType === 'gift_card' && !appliedGiftCard) ||
     (paymentType === 'gift_card' &&

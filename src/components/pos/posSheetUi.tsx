@@ -219,7 +219,12 @@ export function PosPaymentMethodGrid({
   onChange,
 }: {
   value: PaymentKey;
-  options: { key: PaymentKey; label: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }[];
+  options: {
+    key: PaymentKey;
+    label: string;
+    icon?: React.ComponentProps<typeof MaterialIcons>['name'];
+    brandTile?: { backgroundColor: string; textColor: string; title: string };
+  }[];
   onChange: (key: PaymentKey) => void;
 }) {
   const c = useColors();
@@ -236,7 +241,33 @@ export function PosPaymentMethodGrid({
               onPress={() => onChange(opt.key)}
               style={[s.paymentCard, active && s.paymentCardActive]}
             >
-              <MaterialIcons name={opt.icon} size={20} color={active ? c.primary : c.textMuted} />
+              {opt.brandTile ? (
+                <View
+                  style={{
+                    minWidth: 72,
+                    height: 36,
+                    borderRadius: 8,
+                    backgroundColor: opt.brandTile.backgroundColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: opt.brandTile.textColor,
+                      fontSize: 9,
+                      fontWeight: '800',
+                      textAlign: 'center',
+                      lineHeight: 12,
+                    }}
+                  >
+                    {opt.brandTile.title}
+                  </Text>
+                </View>
+              ) : opt.icon ? (
+                <MaterialIcons name={opt.icon} size={20} color={active ? c.primary : c.textMuted} />
+              ) : null}
               <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]} numberOfLines={1}>
                 {opt.label}
               </Text>

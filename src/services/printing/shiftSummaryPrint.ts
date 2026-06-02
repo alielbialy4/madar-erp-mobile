@@ -40,10 +40,16 @@ export async function printShiftSummaryForShift(shiftId: string): Promise<ShiftP
     opened_at: shift.opened_at ? dateText(String(shift.opened_at)) : undefined,
     closed_at: shift.closed_at ? dateText(String(shift.closed_at)) : undefined,
     totals: [
-      { label: 'إجمالي المبيعات', value: money(totals.total_sales ?? totals.sales_total ?? 0) },
+      { label: 'إجمالي المبيعات', value: money(totals.gross_sales ?? totals.total_sales ?? totals.sales_total ?? 0) },
+      { label: 'مبيعات نقدية', value: money(totals.cash_sales ?? 0) },
+      ...(Number(totals.card_payments ?? 0) > 0
+        ? [{ label: 'بطاقات', value: money(totals.card_payments ?? 0) }]
+        : []),
+      { label: 'إنستا باي', value: money(totals.instapay_payments ?? 0) },
+      { label: 'محافظ إلكترونية', value: money(totals.electronic_wallet_payments ?? 0) },
       { label: 'المصروفات', value: money(totals.total_expenses ?? 0) },
       { label: 'المرتجعات', value: money(totals.total_refunds ?? totals.refunds_total ?? 0) },
-      { label: 'النقدية المتوقعة', value: money(totals.expected_cash ?? shift.expected_cash ?? 0) },
+      { label: 'النقدية المتوقعة (الدرج)', value: money(totals.expected_cash ?? shift.expected_cash ?? 0) },
       { label: 'النقدية الفعلية', value: money(totals.actual_cash ?? shift.actual_cash ?? '—') },
       { label: 'الفرق', value: money(totals.discrepancy ?? shift.discrepancy ?? 0) },
       { label: 'عدد العمليات', value: numberText(totals.total_transactions ?? totals.sales_count ?? 0) },

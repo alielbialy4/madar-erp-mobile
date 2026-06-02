@@ -29,7 +29,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { cartTotals, usePosStore } from '@/store/posStore';
-import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, Vault, LayawayTerms } from '@/types/api';
+import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, SalePayload, Vault, LayawayTerms } from '@/types/api';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, type PosOrderType } from '@/utils/posTotals';
 import { money } from '@/utils/format';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
@@ -822,14 +822,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
     setCouponMessage(null);
   };
 
-  const salePaymentType = useMemo((): 'cash' | 'card' | 'credit' | 'split' | 'wallet' | 'layaway' => {
+  const salePaymentType = useMemo((): SalePayload['payment_type'] => {
     if (paymentType === 'gift_card') {
       const remainder = appliedGiftCard ? Math.max(0, effectiveTotal - appliedGiftCard.amount) : effectiveTotal;
       return remainder > 0.01 ? 'cash' : 'cash';
     }
     if (paymentType === 'split') return 'split';
     if (paymentType === 'layaway') return 'layaway';
-    return paymentType as 'cash' | 'card' | 'credit' | 'wallet';
+    return paymentType as SalePayload['payment_type'];
   }, [paymentType, appliedGiftCard, effectiveTotal]);
 
   const buildLayawayTerms = useCallback((): LayawayTerms | null => {
@@ -1024,6 +1024,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setPosNotice('يجب فتح وردية قبل إتمام البيع.');
       return;
     }
+    setPaymentType((current) =>
+      current === 'layaway' || current === 'split' || current === 'wallet' ? 'cash' : current,
+    );
     setPaid(String(effectiveTotal));
     setCheckoutOpen(true);
   };

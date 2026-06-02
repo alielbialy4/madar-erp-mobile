@@ -14,6 +14,7 @@ import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ShiftDetailedSummary } from '@/types/shifts';
+import { ShiftClosingAmountBanner } from './ShiftClosingAmountBanner';
 
 const BRANCH_REQUIRED_AR = 'تعذر تحديد فرع الوردية';
 
@@ -154,6 +155,15 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             <KpiRow label="صافي الإيراد" value={fmt(data.totals.net_revenue)} tone="success" />
             <KpiRow label="مبيعات نقدية" value={fmt(data.totals.cash_sales)} />
             <KpiRow label="مبيعات غير نقدية" value={fmt(data.totals.non_cash_sales)} />
+            {Number(data.totals.card_payments ?? 0) > 0 ? (
+              <KpiRow label="بطاقات" value={fmt(data.totals.card_payments ?? 0)} />
+            ) : null}
+            {Number(data.totals.instapay_payments ?? 0) > 0 ? (
+              <KpiRow label="إنستا باي" value={fmt(data.totals.instapay_payments ?? 0)} />
+            ) : null}
+            {Number(data.totals.electronic_wallet_payments ?? 0) > 0 ? (
+              <KpiRow label="محافظ إلكترونية" value={fmt(data.totals.electronic_wallet_payments ?? 0)} />
+            ) : null}
             <KpiRow label="عدد الفواتير" value={numberText(data.totals.invoice_count)} />
           </AppCard>
 
@@ -242,13 +252,39 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             <KpiRow label="- مرتجعات نقدية" value={fmt(data.totals.cash_refunds)} tone="warning" />
             <KpiRow label="- مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
             <KpiRow label="- مسحوبات" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
-            <View style={styles.calcTotal}>
-              <AppText style={{ ...textStart, fontWeight: '800' }}>النقد المتوقع</AppText>
-              <AppText style={{ fontWeight: '900', fontSize: typography.h3 }}>{fmt(data.totals.expected_cash)}</AppText>
-            </View>
+            {Number(data.totals.card_payments ?? 0) > 0 ? (
+              <KpiRow label="بطاقات (معلوماتي)" value={fmt(data.totals.card_payments ?? 0)} />
+            ) : null}
+            <ShiftClosingAmountBanner label="إنستا باي" value={fmt(data.totals.instapay_payments ?? 0)} variant="instapay" />
+            <ShiftClosingAmountBanner
+              label="محافظ إلكترونية"
+              value={fmt(data.totals.electronic_wallet_payments ?? 0)}
+              variant="ewallet"
+              style={{ marginTop: spacing.sm }}
+            />
+            <ShiftClosingAmountBanner
+              label="النقد المتوقع"
+              value={fmt(data.totals.expected_cash)}
+              variant="cash"
+              style={{ marginTop: spacing.sm }}
+            />
+            <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12, marginTop: 4 }}>
+              نقد الدرج فقط — لا يشمل البطاقات أو المحافظ الإلكترونية أو إنستاباي
+            </AppText>
             {data.totals.actual_cash != null ? (
               <>
                 <KpiRow label="النقد الفعلي" value={fmt(data.totals.actual_cash)} />
+                {Number(data.totals.deposit_amount ?? 0) > 0 ? (
+                  <KpiRow
+                    label={
+                      data.totals.closing_vault_settlement_direction === 'withdraw'
+                        ? 'سحب إغلاق من الخزنة'
+                        : 'إيداع إغلاق إلى الخزنة'
+                    }
+                    value={fmt(data.totals.deposit_amount ?? 0)}
+                    tone={data.totals.closing_vault_settlement_direction === 'withdraw' ? 'success' : 'warning'}
+                  />
+                ) : null}
                 <KpiRow
                   label="الفرق"
                   value={fmt(data.totals.variance)}

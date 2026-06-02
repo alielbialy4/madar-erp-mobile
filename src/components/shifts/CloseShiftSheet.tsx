@@ -1,15 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppChip, AppInput, AppText } from '@/components/ui';
+import { AppButton, AppChip, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
+import { vaultsAPI } from '@/api/vaults';
+import { extractArray, extractData } from '@/utils/data';
 import { printShiftSummaryForShift } from '@/services/printing/shiftSummaryPrint';
-import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
-import type { ActiveShiftExtended, ClosePreview } from '@/types/shifts';
+import type { ActiveShiftExtended, ClosePreview, ShiftDetailedSummary } from '@/types/shifts';
+import { ShiftClosingAmountBanner } from './ShiftClosingAmountBanner';
+
+function closingPaymentBanners(
+  totals: {
+    card_payments?: string;
+    instapay_payments?: string;
+    electronic_wallet_payments?: string;
+  } | null,
+  expectedCash: string | number | null | undefined,
+  showExpected: boolean,
+) {
+  if (!totals) return null;
+  const card = Number(totals.card_payments ?? 0);
+  return (
+    <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+      {card > 0 ? (
+        <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+          <AppText style={textStart}>بطاقات</AppText>
+          <AppText style={{ fontWeight: '800' }}>{money(card)}</AppText>
+        </View>
+      ) : null}
+      <ShiftClosingAmountBanner label="إنستا باي" value={money(totals.instapay_payments ?? 0)} variant="instapay" />
+      <ShiftClosingAmountBanner
+        label="محافظ إلكترونية"
+        value={money(totals.electronic_wallet_payments ?? 0)}
+        variant="ewallet"
+      />
+      {showExpected ? (
+        <ShiftClosingAmountBanner label="النقد المتوقع" value={money(expectedCash ?? 0)} variant="cash" />
+      ) : null}
+    </View>
+  );
+}
 type Props = {
   visible: boolean;
   shift: ActiveShiftExtended | null;
@@ -20,10 +54,16 @@ type Props = {
 
 export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }: Props) {
   const [actualCash, setActualCash] = useState('');
+  const [vaultSettlementDirection, setVaultSettlementDirection] = useState<'deposit' | 'withdraw'>('withdraw');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositFollowsActual, setDepositFollowsActual] = useState(true);
+  const [depositVaultId, setDepositVaultId] = useState<string | null>(null);
+  const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [notes, setNotes] = useState('');
   const [openNextShift, setOpenNextShift] = useState(false);
   const [nextStartingCash, setNextStartingCash] = useState('');
   const [preview, setPreview] = useState<ClosePreview | null>(null);
+  const [summary, setSummary] = useState<ShiftDetailedSummary | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [closedShiftId, setClosedShiftId] = useState<string | null>(null);
@@ -33,7 +73,13 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
   useEffect(() => {
     if (!visible || !shift?.id) {
       setPreview(null);
+      setSummary(null);
       setActualCash('');
+      setVaultSettlementDirection('withdraw');
+      setDepositAmount('');
+      setDepositFollowsActual(false);
+      setDepositVaultId(null);
+      setVaults([]);
       setNotes('');
       setOpenNextShift(false);
       setNextStartingCash('');
@@ -42,33 +88,86 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
       setErrorMsg(null);
       return;
     }
-    if (!isAdmin) {
-      setPreview(null);
-      return;
-    }
     let cancelled = false;
     setLoadingPreview(true);
-    shiftsAPI
-      .previewClose(shift.id)
-      .then((res) => {
-        const data = extractData<ClosePreview>(res);
-        if (!cancelled) setPreview(data ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setPreview(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingPreview(false);
-      });
+    const summaryParams = shift.branch_id ? { branch_id: shift.branch_id } : undefined;
+    const tasks: Promise<void>[] = [
+      shiftsAPI
+        .getSummary(shift.id, summaryParams)
+        .then((res) => {
+          const data = extractData<ShiftDetailedSummary>(res);
+          if (!cancelled) setSummary(data ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setSummary(null);
+        }),
+    ];
+    if (isAdmin) {
+      tasks.push(
+        shiftsAPI
+          .previewClose(shift.id)
+          .then((res) => {
+            const data = extractData<ClosePreview>(res);
+            if (!cancelled) setPreview(data ?? null);
+          })
+          .catch(() => {
+            if (!cancelled) setPreview(null);
+          }),
+      );
+    } else {
+      setPreview(null);
+    }
+    Promise.all(tasks).finally(() => {
+      if (!cancelled) setLoadingPreview(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [visible, shift?.id, isAdmin]);
+  }, [visible, shift?.id, shift?.branch_id, isAdmin]);
+
+  useEffect(() => {
+    if (!visible || !shift?.drawer_ledger_enabled) return;
+    vaultsAPI
+      .list({ active_only: true })
+      .then((res) => {
+        const list = extractArray<Record<string, unknown>>(res);
+        setVaults(list);
+        const preferred = shift.vault_id ? String(shift.vault_id) : null;
+        setDepositVaultId((prev) => {
+          if (prev && list.some((v) => String(v.id) === prev)) return prev;
+          if (preferred && list.some((v) => String(v.id) === preferred)) return preferred;
+          return list[0]?.id ? String(list[0].id) : null;
+        });
+      })
+      .catch(() => setVaults([]));
+  }, [visible, shift?.drawer_ledger_enabled, shift?.vault_id]);
+
+  const closeTotals = summary?.totals;
+  const paymentInfo = closeTotals ?? preview;
+  const closeBlockers = summary?.close_blockers?.length
+    ? summary.close_blockers
+    : preview?.close_blockers?.length
+      ? preview.close_blockers
+      : [];
+  const canCloseShift = summary?.can_close ?? preview?.can_close ?? closeBlockers.length === 0;
+  const closeBlockerMessage = closeBlockers.map((b) => b.message).join(' ');
+
+  const parseNonNegativeMoney = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (trimmed === '') return 0;
+    const n = Number(trimmed.replace(',', '.'));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  };
 
   const handleClose = async () => {
     if (!shift?.id) return;
-    const amount = Number(actualCash);
-    if (!Number.isFinite(amount) || amount < 0) {
+    if (!canCloseShift) {
+      setErrorMsg(closeBlockerMessage || 'لا يمكن إغلاق الوردية حالياً');
+      return;
+    }
+    const amount = parseNonNegativeMoney(actualCash);
+    if (amount === null) {
       setErrorMsg('أدخل النقدية الفعلية بشكل صحيح');
       return;
     }
@@ -79,11 +178,28 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
     }
     let nextStart = 0;
     if (openNextShift) {
-      nextStart = nextStartingCash.trim() === '' ? 0 : Number(nextStartingCash);
-      if (!Number.isFinite(nextStart) || nextStart < 0) {
+      const parsedNext = parseNonNegativeMoney(nextStartingCash);
+      if (parsedNext === null) {
         setErrorMsg('مبلغ افتتاح الوردية التالية غير صالح');
         return;
       }
+      nextStart = parsedNext;
+    }
+
+    const depositParsed = parseNonNegativeMoney(depositAmount);
+    if (depositParsed === null) {
+      setErrorMsg(vaultSettlementDirection === 'withdraw' ? 'مبلغ السحب غير صالح' : 'مبلغ الإيداع غير صالح');
+      return;
+    }
+    const deposit = depositParsed;
+    const drawerLedger = Boolean(shift.drawer_ledger_enabled);
+    if (drawerLedger && vaultSettlementDirection === 'deposit' && deposit > amount) {
+      setErrorMsg('مبلغ الإيداع لا يمكن أن يتجاوز النقد المعدود');
+      return;
+    }
+    if (drawerLedger && deposit > 0 && !depositVaultId) {
+      setErrorMsg(vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع');
+      return;
     }
 
     setSubmitting(true);
@@ -91,6 +207,13 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
     try {
       await shiftsAPI.close(shift.id, {
         actual_cash: amount,
+        ...(drawerLedger
+          ? {
+              deposit_amount: deposit,
+              vault_settlement_direction: vaultSettlementDirection,
+              ...(deposit > 0 && depositVaultId ? { deposit_vault_id: depositVaultId } : {}),
+            }
+          : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       });
 
@@ -142,23 +265,62 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
   return (
     <AppBottomSheet visible={visible} onClose={onClose} title="إغلاق الوردية">
       <View style={{ gap: spacing.md, paddingBottom: spacing.md }}>
+        {(errorMsg || (!canCloseShift && closeBlockerMessage)) ? (
+          <View
+            style={{
+              padding: spacing.md,
+              borderRadius: 12,
+              backgroundColor: '#fef2f2',
+              borderWidth: 1,
+              borderColor: '#fecaca',
+            }}
+          >
+            <AppText style={{ ...textStart, color: '#b91c1c', fontWeight: '700' }}>
+              {errorMsg || closeBlockerMessage}
+            </AppText>
+          </View>
+        ) : null}
         {shift?.vault?.name ? (
           <AppText style={textStart}>
-            الخزنة: <AppText style={{ fontWeight: '800' }}>{shift.vault.name}</AppText>
+            {shift.drawer_ledger_enabled ? 'خزنة إيداع الإغلاق' : 'الخزنة'}:{' '}
+            <AppText style={{ fontWeight: '800' }}>{shift.vault.name}</AppText>
+          </AppText>
+        ) : null}
+        {shift?.drawer_ledger_enabled ? (
+          <AppText style={{ ...textStart, opacity: 0.8, fontSize: 12 }}>
+            النقد يُعدّ في الدرج؛ الإيداع إلى الخزنة يتم عند الإغلاق.
           </AppText>
         ) : null}
 
         {isAdmin && loadingPreview ? <AppText style={textStart}>جاري حساب النقد المتوقع…</AppText> : null}
-        {isAdmin && preview && !loadingPreview ? (
+        {(isAdmin || closeTotals) && paymentInfo && !loadingPreview ? (
           <View style={{ gap: spacing.sm, padding: spacing.md, borderRadius: 12, backgroundColor: '#eff6ff' }}>
             <View style={{ ...flexRow, justifyContent: 'space-between' }}>
               <AppText style={textStart}>نقدية الافتتاح</AppText>
-              <AppText style={{ fontWeight: '800' }}>{money(preview.starting_cash)}</AppText>
+              <AppText style={{ fontWeight: '800' }}>
+                {money(closeTotals ? summary?.shift.starting_cash : preview?.starting_cash ?? 0)}
+              </AppText>
             </View>
-            <View style={{ ...flexRow, justifyContent: 'space-between' }}>
-              <AppText style={textStart}>النقد المتوقع</AppText>
-              <AppText style={{ fontWeight: '800' }}>{money(preview.expected_cash)}</AppText>
-            </View>
+            {closeTotals ? (
+              <>
+                <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+                  <AppText style={textStart}>مبيعات نقدية (الدرج)</AppText>
+                  <AppText style={{ fontWeight: '800' }}>{money(closeTotals.cash_sales)}</AppText>
+                </View>
+                {closingPaymentBanners(
+                  closeTotals,
+                  closeTotals?.expected_cash ?? preview?.expected_cash,
+                  isAdmin,
+                )}
+              </>
+            ) : (
+              closingPaymentBanners(preview, preview?.expected_cash, isAdmin)
+            )}
+            {isAdmin ? (
+              <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>
+                نقد الدرج فقط — لا يشمل البطاقات أو المحافظ الإلكترونية أو إنستاباي
+              </AppText>
+            ) : null}
           </View>
         ) : null}
 
@@ -172,9 +334,72 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
               label="النقدية الفعلية"
               keyboardType="decimal-pad"
               value={actualCash}
-              onChangeText={setActualCash}
+              onChangeText={(v) => {
+                setActualCash(v);
+                if (
+                  shift?.drawer_ledger_enabled &&
+                  depositFollowsActual &&
+                  vaultSettlementDirection === 'deposit'
+                ) {
+                  setDepositAmount(v);
+                }
+              }}
               placeholder="0.00"
             />
+            {shift?.drawer_ledger_enabled ? (
+              <>
+                <AppText style={{ ...textStart, fontWeight: '700' }}>التسوية مع الخزنة</AppText>
+                <View style={{ ...flexRow, gap: spacing.sm, flexWrap: 'wrap' }}>
+                  <AppChip
+                    label="إغلاق مع السحب"
+                    active={vaultSettlementDirection === 'withdraw'}
+                    onPress={() => {
+                      setVaultSettlementDirection('withdraw');
+                      setDepositFollowsActual(false);
+                    }}
+                  />
+                  <AppChip
+                    label="إيداع في الخزنة"
+                    active={vaultSettlementDirection === 'deposit'}
+                    onPress={() => {
+                      setVaultSettlementDirection('deposit');
+                      setDepositFollowsActual(true);
+                    }}
+                  />
+                </View>
+                <AppInput
+                  label={
+                    vaultSettlementDirection === 'withdraw'
+                      ? 'مبلغ السحب من الخزنة'
+                      : 'مبلغ الإيداع إلى الخزنة'
+                  }
+                  keyboardType="decimal-pad"
+                  value={depositAmount}
+                  onChangeText={(v) => {
+                    setDepositFollowsActual(false);
+                    setDepositAmount(v);
+                  }}
+                  placeholder="0.00"
+                />
+                <AppSelect
+                  label={vaultSettlementDirection === 'withdraw' ? 'خزنة السحب' : 'خزنة الإيداع'}
+                  value={depositVaultId}
+                  onChange={setDepositVaultId}
+                  options={vaults.map((v) => ({
+                    value: String(v.id),
+                    label: String(v.name ?? v.id),
+                  }))}
+                  placeholder={
+                    vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع'
+                  }
+                />
+                {vaultSettlementDirection === 'withdraw' ? (
+                  <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>
+                    يُسجَّل السحب على هذه الوردية دفعة واحدة دون إيداع ثم سحب منفصل.
+                  </AppText>
+                ) : null}
+              </>
+            ) : null}
             <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
             <View style={{ gap: spacing.sm }}>
               <AppText style={{ ...textStart, fontWeight: '700' }}>فتح وردية تالية بعد الإغلاق</AppText>
@@ -208,10 +433,14 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
           </View>
         ) : null}
 
-        {errorMsg ? <AppText style={{ ...textStart, color: '#dc2626', fontWeight: '700' }}>{errorMsg}</AppText> : null}
-
         {!closedShiftId ? (
-          <AppButton title="إغلاق الوردية" variant="danger" loading={submitting} onPress={() => void handleClose()} />
+          <AppButton
+            title="إغلاق الوردية"
+            variant="danger"
+            loading={submitting}
+            disabled={!canCloseShift}
+            onPress={() => void handleClose()}
+          />
         ) : (
           <AppButton title="إغلاق" variant="secondary" onPress={onClose} />
         )}

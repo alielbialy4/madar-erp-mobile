@@ -5,8 +5,10 @@ import { ConfirmDialog } from '@/components/feedback';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { PosSheetHeader, usePosSheetStyles } from '@/components/pos/posSheetUi';
-import { cashMovementsAPI } from '@/api/cashMovements';
-import type { ActiveShift } from '@/types/api';
+import { cashMovementsAPI, type CashMovementSource } from '@/api/cashMovements';
+import { vaultsAPI } from '@/api/vaults';
+import type { ActiveShift, Vault } from '@/types/api';
+import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
@@ -22,7 +24,11 @@ type Props = {
 
 export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props) {
   const s = usePosSheetStyles();
+  const drawerLedger = Boolean(shift?.drawer_ledger_enabled);
   const [type, setType] = useState<MovementType>('cash_in');
+  const [source, setSource] = useState<CashMovementSource>('drawer');
+  const [vaultId, setVaultId] = useState<string | null>(null);
+  const [vaults, setVaults] = useState<Vault[]>([]);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,18 +38,70 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
   useEffect(() => {
     if (!visible) {
       setType('cash_in');
+      setSource('drawer');
+      setVaultId(null);
       setAmount('');
       setReason('');
       setError(null);
       setSaving(false);
       setConfirm(false);
+      return;
     }
-  }, [visible]);
+    if (!drawerLedger) {
+      setSource('vault');
+    }
+  }, [visible, drawerLedger]);
+
+  useEffect(() => {
+    if (!visible || (source !== 'vault' && source !== 'drop_to_vault')) return;
+    let cancelled = false;
+    vaultsAPI
+      .list({ active_only: true })
+      .then((res) => {
+        if (cancelled) return;
+        const rows = extractArray<Vault>(res);
+        setVaults(rows);
+        const fallback = shift?.vault_id ?? rows[0]?.id ?? null;
+        setVaultId((prev) => (prev && rows.some((v) => v.id === prev) ? prev : fallback));
+      })
+      .catch(() => {
+        if (!cancelled) setVaults([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, source, shift?.vault_id]);
+
+  useEffect(() => {
+    if (type === 'cash_in' && source === 'drop_to_vault') {
+      setSource(drawerLedger ? 'drawer' : 'vault');
+    }
+  }, [type, source, drawerLedger]);
 
   const parsedAmount = useMemo(() => {
     const value = Number(amount);
     return Number.isFinite(value) && value > 0 ? value : null;
   }, [amount]);
+
+  const sourceOptions = useMemo(() => {
+    if (!drawerLedger) {
+      return [{ label: 'الخزنة', value: 'vault' as CashMovementSource }];
+    }
+    const opts: { label: string; value: CashMovementSource }[] = [
+      {
+        label: type === 'cash_in' ? 'إلى درج الوردية' : 'من درج الوردية',
+        value: 'drawer',
+      },
+      {
+        label: type === 'cash_in' ? 'إلى الخزنة' : 'من الخزنة',
+        value: 'vault',
+      },
+    ];
+    if (type === 'cash_out') {
+      opts.push({ label: 'إيداع من الدرج إلى الخزنة', value: 'drop_to_vault' });
+    }
+    return opts;
+  }, [drawerLedger, type]);
 
   const requestConfirm = () => {
     if (!shift?.id) {
@@ -56,6 +114,10 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
     }
     if (!reason.trim()) {
       setError('سبب الحركة مطلوب.');
+      return;
+    }
+    if ((source === 'vault' || source === 'drop_to_vault') && !vaultId) {
+      setError('اختر الخزنة.');
       return;
     }
     setError(null);
@@ -71,6 +133,8 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
         type,
         amount: parsedAmount,
         reason: reason.trim(),
+        source: drawerLedger ? source : 'vault',
+        ...((source === 'vault' || source === 'drop_to_vault') && vaultId ? { vault_id: vaultId } : {}),
       });
       setConfirm(false);
       onSuccess?.();
@@ -88,8 +152,19 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
         <View style={{ gap: spacing.md }}>
           <PosSheetHeader
             title="حركة نقدية"
-            subtitle="تسجيل إيداع أو سحب نقدي على الوردية النشطة، بنفس عقد الويب."
+            subtitle={
+              drawerLedger
+                ? 'إيداع أو سحب على درج الوردية، أو تحريك بين الدرج والخزنة.'
+                : 'تسجيل إيداع أو سحب على خزنة الوردية.'
+            }
           />
+          {shift?.drawer_ledger_enabled && shift.expected_cash != null ? (
+            <View style={s.warningBanner}>
+              <Text style={s.warningText}>
+                نقد متوقع في الدرج: {money(shift.expected_cash)}
+              </Text>
+            </View>
+          ) : null}
           {!shift ? (
             <View style={s.warningBanner}>
               <Text style={s.warningText}>افتح وردية أولاً قبل تسجيل حركة نقدية.</Text>
@@ -109,6 +184,22 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
               { label: 'سحب نقدي', value: 'cash_out' },
             ]}
           />
+          {drawerLedger ? (
+            <AppSelect
+              label="المصدر / الوجهة"
+              value={source}
+              onChange={(value) => setSource(value as CashMovementSource)}
+              options={sourceOptions}
+            />
+          ) : null}
+          {(source === 'vault' || source === 'drop_to_vault') && vaults.length > 0 ? (
+            <AppSelect
+              label="الخزنة"
+              value={vaultId}
+              options={vaults.map((v) => ({ label: String(v.name ?? v.id), value: String(v.id) }))}
+              onChange={setVaultId}
+            />
+          ) : null}
           <AppInput
             label="المبلغ"
             required
@@ -118,21 +209,18 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
             placeholder="0.00"
           />
           <AppInput label="السبب" required value={reason} onChangeText={setReason} placeholder="سبب الحركة" />
-          <View style={s.stickyFooter}>
-            <AppButton title="تسجيل الحركة" onPress={requestConfirm} disabled={!shift || saving} fullWidth />
-            <AppButton title="إلغاء" variant="outline" onPress={onClose} disabled={saving} fullWidth />
-          </View>
+          <AppButton title="تسجيل الحركة" onPress={requestConfirm} disabled={!shift || saving} />
         </View>
       </AppBottomSheet>
+
       <ConfirmDialog
         visible={confirm}
         title="تأكيد الحركة النقدية"
-        message={`${type === 'cash_in' ? 'إيداع' : 'سحب'} ${money(parsedAmount ?? 0)} على الوردية الحالية؟`}
+        message={`${type === 'cash_in' ? 'إيداع' : 'سحب'} ${money(parsedAmount ?? 0)}`}
         confirmLabel="تأكيد"
-        variant="primary"
+        loading={saving}
         onConfirm={() => void submit()}
         onCancel={() => setConfirm(false)}
-        loading={saving}
       />
     </>
   );

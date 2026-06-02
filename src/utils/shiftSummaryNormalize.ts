@@ -6,6 +6,7 @@ export function normalizeShiftSummary(raw: Record<string, unknown>): ShiftDetail
   }
 
   const shift = (raw.shift ?? {}) as Record<string, unknown>;
+  const totalsRaw = (raw.totals ?? raw) as Record<string, unknown>;
   const byMethod = (raw.by_payment_method ?? raw.payment_breakdown ?? {}) as Record<string, number>;
   const cashSales = byMethod.cash ?? 0;
   const nonCash = Object.entries(byMethod).reduce(
@@ -43,6 +44,24 @@ export function normalizeShiftSummary(raw: Record<string, unknown>): ShiftDetail
       total_expenses: '0',
       cash_sales: String(cashSales),
       non_cash_sales: String(nonCash),
+      card_payments:
+        totalsRaw.card_payments != null
+          ? String(totalsRaw.card_payments)
+          : byMethod.card != null
+            ? String(byMethod.card)
+            : undefined,
+      instapay_payments:
+        totalsRaw.instapay_payments != null
+          ? String(totalsRaw.instapay_payments)
+          : byMethod.instapay != null
+            ? String(byMethod.instapay)
+            : undefined,
+      electronic_wallet_payments:
+        totalsRaw.electronic_wallet_payments != null
+          ? String(totalsRaw.electronic_wallet_payments)
+          : byMethod.electronic_wallet != null
+            ? String(byMethod.electronic_wallet)
+            : undefined,
       cash_refunds: String(totalRefunds),
       cash_deposits: String(cashIn),
       cash_withdrawals: String(cashOut),

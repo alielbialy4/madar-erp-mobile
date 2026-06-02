@@ -22,7 +22,13 @@ export const posAPI = {
   getSales: (params?: Record<string, unknown>) => get<Sale[]>('/pos/sales', params),
   getSale: (id: number) => get<Sale>(`/pos/sales/${id}`),
   refundSale: (id: number) => post(`/pos/sales/${id}/refund`),
-  partialRefund: (saleId: number, data: { items: { sale_item_id: number; quantity: number; restock?: boolean }[]; reason?: string; notes?: string; refund_method?: 'cash' | 'wallet' }) => post(`/pos/sales/${saleId}/partial-refund`, data),
+  partialRefund: (saleId: number, data: {
+    items: { sale_item_id: number; quantity: number; restock?: boolean }[];
+    reason?: string;
+    notes?: string;
+    refund_method?: 'cash' | 'wallet';
+    cash_refund_source?: 'drawer' | 'vault';
+  }) => post(`/pos/sales/${saleId}/partial-refund`, data),
   printSale: (id: number) => post(`/pos/sales/${id}/print`),
   holdCart: (data: unknown) => post('/pos/hold-cart', data),
   getHoldCarts: () => get('/pos/hold-carts'),

@@ -30,12 +30,27 @@ export type CurrentMeta = {
   can_close_shift: boolean;
 };
 
+export type ShiftCloseBlocker = {
+  code: string;
+  message: string;
+};
+
 export type ClosePreview = {
   starting_cash: string;
   expected_cash: string;
+  close_blockers?: ShiftCloseBlocker[];
+  can_close?: boolean;
+  card_payments?: string;
+  instapay_payments?: string;
+  electronic_wallet_payments?: string;
+  wallet_payments?: string;
+  credit_payments?: string;
+  layaway_payments?: string;
 };
 
 export type ShiftDetailedSummary = {
+  close_blockers?: ShiftCloseBlocker[];
+  can_close?: boolean;
   shift: {
     id: string;
     shift_no: number | null;
@@ -57,6 +72,12 @@ export type ShiftDetailedSummary = {
     total_expenses: string;
     cash_sales: string;
     non_cash_sales: string;
+    card_payments?: string;
+    instapay_payments?: string;
+    electronic_wallet_payments?: string;
+    wallet_payments?: string;
+    credit_payments?: string;
+    layaway_payments?: string;
     cash_refunds: string;
     cash_deposits: string;
     cash_withdrawals: string;
@@ -64,6 +85,9 @@ export type ShiftDetailedSummary = {
     expected_cash: string;
     actual_cash: string | null;
     variance: string | null;
+    deposit_amount?: string | null;
+    deposit_vault_id?: string | null;
+    closing_vault_settlement_direction?: 'deposit' | 'withdraw' | null;
   };
   invoices: Array<{
     id: number;
@@ -132,6 +156,8 @@ export type ActiveShiftExtended = {
   starting_cash?: string | number;
   expected_cash?: string | number | null;
   actual_cash?: string | number | null;
+  drawer_ledger_enabled?: boolean;
+  accounting_model?: 'shift_drawer_ledger' | 'legacy_vault_shift';
   status?: string;
   notes?: string | null;
 };

@@ -323,7 +323,7 @@ export type SalePayload = {
   discount?: number;
   total: number;
   paid: number;
-  payment_type: 'cash' | 'card' | 'credit' | 'layaway' | 'split' | 'wallet';
+  payment_type: 'cash' | 'card' | 'credit' | 'layaway' | 'split' | 'wallet' | 'electronic_wallet' | 'instapay';
   notes?: string;
   warehouse_id?: string | null;
   order_type?: 'dine_in' | 'takeaway' | 'delivery';
@@ -461,6 +461,8 @@ export type ActiveShift = {
   opened_at?: string;
   starting_cash?: string | number;
   expected_cash?: string | number | null;
+  drawer_ledger_enabled?: boolean;
+  accounting_model?: 'shift_drawer_ledger' | 'legacy_vault_shift';
   status?: string;
   vault?: Vault | null;
 };

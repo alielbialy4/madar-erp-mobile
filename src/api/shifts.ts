@@ -15,8 +15,22 @@ export const shiftsAPI = {
     user_id?: number;
     branch_id?: string;
   }) => get<ShiftListRow[]>('/shifts', params),
-  open: (payload: { vault_id: string; starting_cash: number | string; for_user_id?: number }) => post<ActiveShift>('/shifts/open', payload),
+  open: (payload: {
+    vault_id: string;
+    starting_cash: number | string;
+    opening_cash_source?: 'vault' | 'manual';
+    for_user_id?: number;
+  }) => post<ActiveShift>('/shifts/open', payload),
   previewClose: (shiftId: string) => get<ClosePreview>(`/shifts/${shiftId}/preview-close`),
-  close: (shiftId: string, payload: { actual_cash: number | string; notes?: string }) => post(`/shifts/${shiftId}/close`, payload),
+  close: (
+    shiftId: string,
+    payload: {
+      actual_cash: number | string;
+      deposit_amount?: number | string;
+      deposit_vault_id?: string;
+      vault_settlement_direction?: 'deposit' | 'withdraw';
+      notes?: string;
+    },
+  ) => post(`/shifts/${shiftId}/close`, payload),
   getSummary: (shiftId: string, params?: { branch_id?: string }) => get<ShiftDetailedSummary>(`/shifts/${shiftId}/summary`, params),
 };

@@ -3,6 +3,7 @@ import { textStart } from '@/constants/layout';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { expensesAPI } from '@/api/expenses';
+import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppInput, AppSectionHeader, AppSelect } from '@/components/ui';
@@ -22,6 +23,8 @@ export function ExpensesScreen() {
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedVault, setSelectedVault] = useState<string | null>(null);
+  const [cashSource, setCashSource] = useState<'drawer' | 'vault'>('drawer');
+  const [drawerLedgerOpen, setDrawerLedgerOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
@@ -49,6 +52,18 @@ export function ExpensesScreen() {
     vaultsAPI.list({ active_only: true })
       .then((res) => setVaults(extractArray(res)))
       .catch(() => {});
+    shiftsAPI
+      .current()
+      .then((res) => {
+        const open = res.data;
+        const usesDrawer = Boolean(open?.drawer_ledger_enabled);
+        setDrawerLedgerOpen(usesDrawer);
+        setCashSource(usesDrawer ? 'drawer' : 'vault');
+      })
+      .catch(() => {
+        setDrawerLedgerOpen(false);
+        setCashSource('vault');
+      });
   }, [createOpen]);
 
   const handleSubmit = async () => {
@@ -64,6 +79,7 @@ export function ExpensesScreen() {
         description,
         expense_date: expenseDate,
         vault_id: selectedVault,
+        cash_source: cashSource,
       });
       setCreateOpen(false);
       setAmount('');
@@ -113,6 +129,17 @@ export function ExpensesScreen() {
           <AppInput label="المبلغ" keyboardType="numeric" value={amount} onChangeText={setAmount} placeholder="أدخل المبلغ" />
           <AppInput label="الوصف" value={description} onChangeText={setDescription} placeholder="وصف المصروف" />
           <AppInput label="التاريخ" value={expenseDate} onChangeText={setExpenseDate} placeholder="YYYY-MM-DD" />
+          {drawerLedgerOpen ? (
+            <AppSelect
+              label="مصدر الصرف النقدي"
+              value={cashSource}
+              options={[
+                { label: 'من درج الوردية', value: 'drawer' },
+                { label: 'من الخزنة', value: 'vault' },
+              ]}
+              onChange={(v) => setCashSource(v as 'drawer' | 'vault')}
+            />
+          ) : null}
           {vaults.length > 0 ? (
             <AppSelect
               label="الخزنة"

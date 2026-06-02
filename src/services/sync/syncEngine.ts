@@ -1,17 +1,22 @@
 import { posAPI } from '@/api/pos';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
+import { usePosStore } from '@/store/posStore';
+import { coercePendingOrderForSync } from '@/services/offline/coercePendingOrder';
 import {
   failPendingOrder,
-  getPendingOrders,
+  getOrdersForSync,
   markOrderSynced,
-  markOrderSyncing,
+  markOrdersSyncing,
   removePendingOrders,
+  resetOrdersToPending,
+  resetSyncingOrdersToPending,
   toApiOfflineOrder,
 } from '@/services/offline/posOrders';
 import { getOfflineQueue, markOfflineMutationFailed, removeOfflineMutations } from '@/services/offline/queue';
 import { apiClient } from '@/api/client';
 import { printEngine } from '@/services/printing/printEngine';
+import type { OfflinePosOrderRecord } from '@/types/offline';
 
 let syncing = false;
 let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -54,27 +59,67 @@ export async function syncPendingPosOrders(): Promise<SyncResult> {
   const guard = canSync();
   if (!guard.ok) return { pushed: 0, errors: [], skipped: true };
 
-  const orders = (await getPendingOrders()).filter((o) => o.status === 'pending');
-  if (!orders.length) return { pushed: 0, errors: [] };
+  await resetSyncingOrdersToPending();
+
+  const rawOrders = (await getOrdersForSync()).filter((o) => o.status === 'pending' || o.status === 'failed');
+  if (!rawOrders.length) return { pushed: 0, errors: [] };
 
   const errors: string[] = [];
   let pushed = 0;
-  const byBranch = new Map<string, typeof orders>();
-  for (const order of orders) {
+  const dropBroken = new Set<string>();
+  const toSend: OfflinePosOrderRecord[] = [];
+
+  for (const raw of rawOrders) {
+    const fixed = coercePendingOrderForSync(raw);
+    if (!fixed) {
+      const id = raw.client_uuid || raw.client_order_id;
+      if (id) dropBroken.add(id);
+      errors.push(`${id || '—'}: طلب بدون بنود — تُزال من المزامنة المحلية`);
+      continue;
+    }
+    const branchId = String(fixed.branch_id || '').trim();
+    if (!branchId) {
+      errors.push(`${fixed.client_uuid}: طلب بدون فرع — لا يمكن مزامنته بأمان`);
+      await failPendingOrder(fixed.client_order_id, 'Missing branch_id');
+      continue;
+    }
+    toSend.push(fixed);
+  }
+
+  if (dropBroken.size > 0) {
+    await removePendingOrders(dropBroken);
+  }
+
+  if (!toSend.length) {
+    return { pushed: 0, errors };
+  }
+
+  const byBranch = new Map<string, OfflinePosOrderRecord[]>();
+  for (const order of toSend) {
     const group = byBranch.get(order.branch_id) ?? [];
     group.push(order);
     byBranch.set(order.branch_id, group);
   }
 
   for (const [branchId, branchOrders] of byBranch.entries()) {
-    for (const order of branchOrders) {
-      await markOrderSyncing(order.client_order_id);
-    }
+    const clientIds = branchOrders.map((o) => o.client_order_id);
+    await markOrdersSyncing(clientIds);
+
     try {
       const apiOrders = branchOrders.map(toApiOfflineOrder);
       const response = await posAPI.pushOfflineOrders(apiOrders, branchId);
-      const rows = Array.isArray(response.data) ? response.data : [];
+
+      if (response.status !== 'success' || !Array.isArray(response.data)) {
+        const msg = response.message || `فشل مزامنة الفرع ${branchId}: استجابة غير صالحة من الخادم`;
+        errors.push(msg);
+        await resetOrdersToPending(clientIds, msg);
+        continue;
+      }
+
+      const rows = response.data;
       const done = new Set<string>();
+      const failed = new Set<string>();
+
       for (const row of rows) {
         if (row.status === 'created' || row.status === 'duplicate') {
           done.add(row.client_uuid);
@@ -83,18 +128,35 @@ export async function syncPendingPosOrders(): Promise<SyncResult> {
         } else if (row.status === 'error') {
           const msg = row.message ?? 'فشل مزامنة الطلب';
           errors.push(`${row.client_uuid}: ${msg}`);
+          failed.add(row.client_uuid);
+          await failPendingOrder(row.client_uuid, msg);
+        } else if (row.client_uuid) {
+          const msg = `استجابة غير متوقعة من الخادم (${row.status ?? 'unknown'})`;
+          errors.push(`${row.client_uuid}: ${msg}`);
+          failed.add(row.client_uuid);
           await failPendingOrder(row.client_uuid, msg);
         }
       }
+
+      const unhandled = clientIds.filter((id) => !done.has(id) && !failed.has(id));
+      if (unhandled.length > 0) {
+        const msg = 'لم يُرجع الخادم نتيجة لهذا الطلب';
+        errors.push(...unhandled.map((id) => `${id}: ${msg}`));
+        await resetOrdersToPending(unhandled, msg);
+      }
+
       await removePendingOrders(done);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'فشل مزامنة طلبات نقطة البيع';
       errors.push(message);
-      for (const order of branchOrders) {
-        await failPendingOrder(order.client_order_id, message);
-      }
+      await resetOrdersToPending(clientIds, message);
     }
   }
+
+  if (pushed > 0) {
+    void usePosStore.getState().loadCatalog();
+  }
+
   return { pushed, errors };
 }
 

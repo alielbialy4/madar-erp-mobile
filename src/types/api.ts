@@ -313,6 +313,9 @@ export type SaleItemPayload = {
 };
 
 export type SalePayload = {
+  /** Idempotency key for online create / offline sync. */
+  client_uuid?: string;
+  shift_id?: string | null;
   customer_id?: number | null;
   items: SaleItemPayload[];
   subtotal: number;
@@ -346,6 +349,7 @@ export type Sale = {
   id: number;
   invoice_number?: string | null;
   print_sequence?: number | null;
+  dining_table_id?: string | null;
   total?: number | string;
   subtotal?: number | string;
   paid?: number | string;
@@ -362,6 +366,9 @@ export type PosCatalog = {
   version?: number;
   branch_id?: string;
   branch?: Branch | null;
+  pagination?: {
+    products?: { current_page: number; last_page: number; per_page?: number; total?: number };
+  };
   products: Product[];
   categories: Category[];
   customers: Customer[];

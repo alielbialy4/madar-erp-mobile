@@ -9,5 +9,6 @@
     "noEmit": true,
     "types": ["react"]
   },
-  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "src/types/**/*.d.ts"]
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "src/types/**/*.d.ts"],
+  "exclude": ["src/**/*.spec.ts"]
 }

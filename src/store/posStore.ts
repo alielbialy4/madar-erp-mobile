@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
+import { cartLineKey, type CartLine } from '@/utils/cartLine';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
 import { unitMeta, unitSellingPrice } from '@/utils/posUnitPrice';
 import { giftCardsAPI } from '@/api/giftCards';
 import { diningAPI } from '@/api/dining';
+import { pullFullPosCatalog } from '@/api/sync';
 import { posAPI } from '@/api/pos';
+import { createUuid } from '@/utils/uuid';
 import { loadPosCatalog, savePosCatalog } from '@/services/offline/catalogCache';
 import { getPendingOrders } from '@/services/offline/posOrders';
 import type { OfflinePosOrderRecord } from '@/types/offline';
@@ -15,18 +18,8 @@ import { useAuthStore } from './authStore';
 import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
 
-export type CartLine = {
-  product_id: number;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  discount: number;
-  unit_id?: number | null;
-  variant_id?: string | null;
-  variant_name?: string | null;
-  notes?: string;
-  selected_options?: CartLineSelectedOption[];
-};
+export type { CartLine } from '@/utils/cartLine';
+export { cartLineKey } from '@/utils/cartLine';
 
 type SplitLine = {
   vault_id: string;
@@ -51,6 +44,8 @@ type PosState = {
   pointsBalance: number | null;
   appliedCoupon: { coupon: Coupon; discount: number } | null;
   catalogSettings: Record<string, unknown>;
+  openShiftId: string | null;
+  defaultWarehouseId: string | null;
   loadCatalog: () => Promise<void>;
   addProduct: (
     product: Product,
@@ -95,28 +90,36 @@ export type SubmitSaleExtras = {
   deliveryPhone?: string;
   deliveryZoneId?: string | null;
   diningTableId?: string | null;
+  shiftId?: string | null;
+  warehouseId?: string | null;
   /** When set, settle an existing table order instead of creating a new sale. */
   settleTable?: { tableId: string; orderId?: number | string | null };
 };
 
-function selectedOptionsSignature(opts?: CartLineSelectedOption[]): string {
-  if (!opts?.length) return '';
-  return opts
-    .map((group) => {
-      const optionIds = group.options.map((option) => option.product_option_id).sort((a, b) => a - b).join(',');
-      return `${group.product_option_group_id}:${optionIds}`;
-    })
-    .sort()
-    .join('|');
+function resolveDefaultWarehouseId(catalog: import('@/types/api').PosCatalog): string | null {
+  const settings = catalog.settings as Record<string, unknown> | undefined;
+  if (settings?.default_warehouse_id != null && String(settings.default_warehouse_id).trim() !== '') {
+    return String(settings.default_warehouse_id);
+  }
+  const first = catalog.warehouses?.[0]?.id;
+  return first != null ? String(first) : null;
 }
 
-export function cartLineKey(line: Pick<CartLine, 'product_id' | 'variant_id' | 'unit_id' | 'selected_options'>): string {
-  return [
-    line.product_id,
-    line.variant_id ?? '',
-    line.unit_id ?? '',
-    selectedOptionsSignature(line.selected_options),
-  ].join('__');
+function applyCatalogToState(catalog: import('@/types/api').PosCatalog, lastSyncedAt: string) {
+  return {
+    products: catalog.products ?? [],
+    categories: catalog.categories ?? [],
+    customers: catalog.customers ?? [],
+    coupons: catalog.coupons ?? [],
+    promotions: (catalog.promotions ?? []) as CatalogPromotion[],
+    deliveryZones: catalog.delivery_zones ?? [],
+    catalogSettings: resolvePosCatalogSettings(catalog),
+    openShiftId: catalog.open_shift?.id ? String(catalog.open_shift.id) : null,
+    defaultWarehouseId: resolveDefaultWarehouseId(catalog),
+    lastSyncedAt,
+    loading: false,
+    error: null,
+  };
 }
 
 function computeOptionsPrice(opts?: CartLineSelectedOption[]): number {
@@ -158,6 +161,8 @@ export const usePosStore = create<PosState>((set, get) => ({
   pointsBalance: null,
   appliedCoupon: null,
   catalogSettings: {},
+  openShiftId: null,
+  defaultWarehouseId: null,
 
   loadCatalog: async () => {
     set({ loading: true, error: null });
@@ -165,37 +170,24 @@ export const usePosStore = create<PosState>((set, get) => ({
     const online = useNetworkStore.getState().isOnline;
     try {
       if (online && branchId) {
-        const response = await posAPI.pullCatalog(branchId);
+        const response = await pullFullPosCatalog(branchId);
         const catalog = response.data;
-        if (catalog) {
+        if (catalog && response.status === 'success') {
           await savePosCatalog(catalog, branchId);
-          set({
-            products: catalog.products ?? [],
-            categories: catalog.categories ?? [],
-            customers: catalog.customers ?? [],
-            coupons: catalog.coupons ?? [],
-            promotions: (catalog.promotions ?? []) as CatalogPromotion[],
-            deliveryZones: catalog.delivery_zones ?? [],
-            catalogSettings: resolvePosCatalogSettings(catalog),
-            lastSyncedAt: response.data?.generated_at ?? new Date().toISOString(),
-            loading: false,
-          });
+          set(applyCatalogToState(catalog, catalog.generated_at ?? new Date().toISOString()));
           await get().refreshPendingOrders();
           return;
         }
       }
       const cached = await loadPosCatalog();
-      if (cached?.catalog) {
+      if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
         set({
-          products: cached.catalog.products ?? [],
-          categories: cached.catalog.categories ?? [],
-          customers: cached.catalog.customers ?? [],
-          coupons: cached.catalog.coupons ?? [],
-          promotions: (cached.catalog.promotions ?? []) as CatalogPromotion[],
-          deliveryZones: cached.catalog.delivery_zones ?? [],
-          catalogSettings: resolvePosCatalogSettings(cached.catalog),
-          lastSyncedAt: cached.saved_at,
+          ...applyCatalogToState(cached.catalog, cached.saved_at),
+        });
+      } else if (cached?.catalog && branchId && cached.branch_id && cached.branch_id !== branchId) {
+        set({
           loading: false,
+          error: 'الكتالوج المخزّن لفرع آخر. اتصل بالشبكة لتحميل فرعك الحالي.',
         });
       } else {
         set({ loading: false, error: branchId ? 'لا توجد بيانات مخزنة لنقطة البيع' : 'اختر فرعاً أولاً' });
@@ -203,18 +195,9 @@ export const usePosStore = create<PosState>((set, get) => ({
       await get().refreshPendingOrders();
     } catch (error) {
       const cached = await loadPosCatalog();
-      if (cached?.catalog) {
+      if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
         set({
-          products: cached.catalog.products ?? [],
-          categories: cached.catalog.categories ?? [],
-          customers: cached.catalog.customers ?? [],
-          coupons: cached.catalog.coupons ?? [],
-          promotions: (cached.catalog.promotions ?? []) as CatalogPromotion[],
-          deliveryZones: cached.catalog.delivery_zones ?? [],
-          catalogSettings: resolvePosCatalogSettings(cached.catalog),
-          lastSyncedAt: cached.saved_at,
-          loading: false,
-          error: null,
+          ...applyCatalogToState(cached.catalog, cached.saved_at),
         });
       } else {
         set({ loading: false, error: normalizeApiError(error).message });
@@ -349,7 +332,14 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
     }
 
+    const clientUuid = createUuid();
+    const shiftId = extras?.shiftId ?? get().openShiftId;
+    const warehouseId = extras?.warehouseId ?? get().defaultWarehouseId;
+
     const payload: SalePayload = {
+      client_uuid: clientUuid,
+      shift_id: shiftId,
+      warehouse_id: warehouseId,
       customer_id: get().selectedCustomer?.id ?? null,
       items: cart.map((line) => ({
         product_id: line.product_id,
@@ -394,6 +384,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         await saveOfflinePosOrder({
           payload,
           branchId,
+          shiftId,
           cashierId: user?.id ?? null,
           coupon: get().appliedCoupon?.coupon ?? null,
           couponDiscount: get().appliedCoupon?.discount,
@@ -401,6 +392,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           products: get().products.map((p) => ({ id: p.id, name: p.name, category_id: p.category_id ?? null })),
           branchName: branch?.name,
           cashierName: user?.name,
+          catalogSettings: get().catalogSettings,
         });
         await get().refreshPendingOrders();
         get().clearCart();
@@ -519,5 +511,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       pointsBalance: null,
       appliedCoupon: null,
       catalogSettings: {},
+      openShiftId: null,
+      defaultWarehouseId: null,
     }),
 }));

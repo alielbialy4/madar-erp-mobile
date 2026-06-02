@@ -7,7 +7,7 @@ export function RefundsScreen() {
   return (
     <CrudListScreen<Record<string, unknown>>
       title="المرتجعات"
-      subtitle="مرتجعات المبيعات"
+      subtitle="لإنشاء مرتجع جزئي، افتح تفاصيل البيع من قائمة المبيعات ثم اختر «مرتجع جزئي»."
       loader={refundsAPI.getAll}
       itemTitle={(item) => `مرتجع ${item.invoice_number ?? item.id}`}
       itemSubtitle={(item) => dateText(String(item.created_at ?? ''))}

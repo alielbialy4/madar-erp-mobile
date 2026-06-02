@@ -30,6 +30,21 @@ function networkMessage(error: AxiosError): string {
   return `تعذر الاتصال بالخادم (${host}). تحقق من الإنترنت ومن EXPO_PUBLIC_API_URL في madar-erp-mobile/.env`;
 }
 
+export function isTableOrderConflictError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'isAxiosError' in error) {
+    const axiosError = error as AxiosError<{ code?: string }>;
+    return axiosError.response?.status === 409 && axiosError.response?.data?.code === 'table_order_conflict';
+  }
+  return false;
+}
+
+export function getTableOrderConflictSale(error: unknown): Record<string, unknown> | null {
+  if (!isTableOrderConflictError(error)) return null;
+  const axiosError = error as AxiosError<{ data?: Record<string, unknown> }>;
+  const sale = axiosError.response?.data?.data;
+  return sale && typeof sale === 'object' ? sale : null;
+}
+
 export function normalizeApiError(error: unknown): NormalizedApiError {
   const fallback = 'تعذر الاتصال بالخادم';
   if (error && typeof error === 'object' && 'isAxiosError' in error) {

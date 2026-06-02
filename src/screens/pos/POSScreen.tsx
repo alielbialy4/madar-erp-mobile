@@ -32,7 +32,6 @@ import { cartTotals, usePosStore } from '@/store/posStore';
 import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, Vault, LayawayTerms } from '@/types/api';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, type PosOrderType } from '@/utils/posTotals';
 import { money } from '@/utils/format';
-import { normalizeApiError } from '@/utils/errors';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
 import { SplitPaymentSheet, SplitLine } from './SplitPaymentSheet';
 import { CheckoutReviewSheet } from './CheckoutReviewSheet';
@@ -44,7 +43,12 @@ import { PosTablesSheet } from './PosTablesSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { usePosDiningTable } from '@/hooks/usePosDiningTable';
 import { diningAPI } from '@/api/dining';
-import { saleItemsFromCart } from '@/utils/posDining';
+import { buildTableOrderDraftPayload, cartContextFromSale, saleMetaFromServer } from '@/utils/posDining';
+import {
+  getTableOrderConflictSale,
+  isTableOrderConflictError,
+  normalizeApiError,
+} from '@/utils/errors';
 import { getLocallyOccupiedTables, markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
 
@@ -136,6 +140,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [locallyOccupiedIds, setLocallyOccupiedIds] = useState<string[]>([]);
   const tableDraftSyncGenerationRef = useRef(0);
   const selectedTableIdRef = useRef<string | null>(null);
+  const lastDraftErrorRef = useRef<string | null>(null);
   const [splitOpen, setSplitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
@@ -196,6 +201,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     clearCartContext,
     restoreCart: restoreCartContext,
     onLocallyOccupiedChange: setLocallyOccupiedIds,
+    onError: setPosNotice,
   });
 
   const orderType: PosOrderType = selectedTable ? 'dine_in' : needsDelivery ? 'delivery' : 'takeaway';
@@ -331,15 +337,27 @@ export function POSScreen({ navigation }: { navigation: any }) {
   useEffect(() => {
     if (!selectedTable?.id || !isOnline || cart.length === 0) return;
     const tableId = selectedTable.id;
+    const tableSnapshot = selectedTable;
     const syncGen = tableDraftSyncGenerationRef.current;
 
     const timer = setTimeout(() => {
+      const payload = buildTableOrderDraftPayload({
+        cart,
+        table: tableSnapshot,
+        subtotal: checkoutTotals.gross,
+        tax: checkoutTotals.tax,
+        invoiceDiscount: checkoutTotals.invoiceDiscount,
+        promotionDiscount: checkoutTotals.promotionDiscount,
+        couponId: allowCoupons ? appliedCoupon?.coupon?.id ?? null : null,
+        couponDiscount: checkoutTotals.couponDiscount,
+        total: effectiveTotal,
+        customerId: selectedCustomer?.id ?? null,
+        notes: notes.trim() || null,
+        allowDiscount: allowManualDiscount,
+      });
+
       void diningAPI
-        .syncOrderDraft(tableId, {
-          items: saleItemsFromCart(cart),
-          total: effectiveTotal,
-          customer_id: selectedCustomer?.id ?? null,
-        })
+        .syncOrderDraft(tableId, payload)
         .then((response) => {
           if (
             syncGen !== tableDraftSyncGenerationRef.current ||
@@ -347,16 +365,64 @@ export function POSScreen({ navigation }: { navigation: any }) {
           ) {
             return;
           }
+          lastDraftErrorRef.current = null;
           void markTableLocallyOccupied(tableId).then(setLocallyOccupiedIds);
-          const data = response.data as { id?: number | string } | undefined;
-          if (data?.id != null) {
-            updateTableMeta({ activeOrderId: data.id });
+          const data = response.data as Record<string, unknown> | undefined;
+          if (data) {
+            updateTableMeta({
+              activeOrderId: data.id as number | string | null,
+              ...saleMetaFromServer(data),
+            });
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          if (
+            syncGen !== tableDraftSyncGenerationRef.current ||
+            tableId !== selectedTableIdRef.current
+          ) {
+            return;
+          }
+          if (isTableOrderConflictError(err)) {
+            const sale = getTableOrderConflictSale(err);
+            if (sale) {
+              restoreCartContext(cartContextFromSale(sale));
+              updateTableMeta({
+                activeOrderId: sale.id as number | string | null,
+                ...saleMetaFromServer(sale),
+              });
+            }
+            const msg =
+              (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
+              'تم تعديل الطلب من جهاز آخر. تمت مزامنة السلة من السيرفر.';
+            if (lastDraftErrorRef.current !== 'table-order-conflict') {
+              lastDraftErrorRef.current = 'table-order-conflict';
+              setPosNotice(msg);
+            }
+            return;
+          }
+          const normalized = normalizeApiError(err);
+          const signature = `${tableId}:${normalized.message}`;
+          if (lastDraftErrorRef.current !== signature) {
+            lastDraftErrorRef.current = signature;
+            setPosNotice(normalized.message || 'تعذر حفظ طلب الطاولة.');
+          }
+        });
     }, 600);
     return () => clearTimeout(timer);
-  }, [selectedTable?.id, cart, effectiveTotal, selectedCustomer?.id, isOnline, updateTableMeta]);
+  }, [
+    selectedTable,
+    cart,
+    effectiveTotal,
+    checkoutTotals,
+    selectedCustomer?.id,
+    isOnline,
+    updateTableMeta,
+    appliedCoupon,
+    allowCoupons,
+    allowManualDiscount,
+    notes,
+    restoreCartContext,
+  ]);
 
   const handleSelectTakeaway = useCallback(() => {
     if (!selectedTable) return;
@@ -413,12 +479,22 @@ export function POSScreen({ navigation }: { navigation: any }) {
     ) => {
       cancelPendingTableDraftSync();
       await diningAPI.transferOrder(sourceId, table.id);
-      await transferDiningTable(sourceId, {
-        id: table.id,
-        name: table.name,
-        number: table.number,
-        hallName: table.hallName,
-      });
+      try {
+        await transferDiningTable(sourceId, {
+          id: table.id,
+          name: table.name,
+          number: table.number,
+          hallName: table.hallName,
+        });
+      } catch (e) {
+        try {
+          await diningAPI.transferOrder(table.id, sourceId);
+        } catch {
+          /* best-effort rollback */
+        }
+        setPosNotice(normalizeApiError(e).message);
+        throw e;
+      }
       setLocallyOccupiedIds((prev) => {
         const withoutSource = prev.filter((id) => id !== sourceId);
         return withoutSource.includes(table.id) ? withoutSource : [...withoutSource, table.id];
@@ -440,18 +516,44 @@ export function POSScreen({ navigation }: { navigation: any }) {
     ) => {
       cancelPendingTableDraftSync();
       await diningAPI.mergeOrder(sourceId, table.id);
-      await mergeDiningTable(sourceId, {
-        id: table.id,
-        name: table.name,
-        number: table.number,
-        hallName: table.hallName,
-      });
+      try {
+        await mergeDiningTable(sourceId, {
+          id: table.id,
+          name: table.name,
+          number: table.number,
+          hallName: table.hallName,
+        });
+        setPosNotice('تم دمج الطاولات بنجاح.');
+      } catch {
+        let recovered = false;
+        try {
+          await diningAPI.unmergeOrder(table.id, sourceId);
+        } catch {
+          /* server merge may predate unmerge metadata */
+        }
+        try {
+          await setDiningTable({
+            id: table.id,
+            name: table.name,
+            number: table.number,
+            hallName: table.hallName,
+          });
+          recovered = true;
+        } catch {
+          /* recovery best-effort */
+        }
+        setPosNotice(
+          recovered
+            ? 'تم الدمج على السيرفر وتمت مزامنة السلة من الطاولة الهدف.'
+            : 'تم الدمج على السيرفر لكن تعذر مزامنة السلة. حدّث عرض الطاولات.',
+        );
+      }
       setLocallyOccupiedIds((prev) => {
         const withoutSource = prev.filter((id) => id !== sourceId);
         return withoutSource.includes(table.id) ? withoutSource : [...withoutSource, table.id];
       });
     },
-    [cancelPendingTableDraftSync, mergeDiningTable],
+    [cancelPendingTableDraftSync, mergeDiningTable, setDiningTable],
   );
 
   const cartItemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -823,6 +925,28 @@ export function POSScreen({ navigation }: { navigation: any }) {
         return;
       }
     }
+    if (appliedCoupon && allowCoupons) {
+      const cartTotal = Math.max(0, checkoutTotals.gross - checkoutTotals.promotionDiscount - manualDiscountAmount);
+      const next = await revalidateAppliedCoupon(appliedCoupon, {
+        cartTotal,
+        customerId: selectedCustomer?.id ?? null,
+        branchId: activeBranch?.id ?? null,
+        online: isOnline,
+        coupons,
+        validateOnline: async (params) => {
+          const res = await couponsAPI.validate(params);
+          return res as { status?: string; data?: { coupon?: Coupon; discount?: number } | null; message?: string };
+        },
+      });
+      if (!next) {
+        setAppliedCoupon(null);
+        setCheckoutMessage('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.');
+        return;
+      }
+      if (next.discount !== appliedCoupon.discount) {
+        setAppliedCoupon(next);
+      }
+    }
     setSubmitting(true);
     const giftAmount = paymentType === 'gift_card' && appliedGiftCard ? appliedGiftCard.amount : 0;
     const cashDue = Math.max(0, effectiveTotal - giftAmount);
@@ -855,6 +979,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         deliveryPhone: needsDelivery ? deliveryPhone.trim() : undefined,
         deliveryZoneId: needsDelivery ? deliveryZoneId || null : null,
         diningTableId: selectedTable?.id ?? null,
+        shiftId: shift?.id ?? null,
         settleTable:
           selectedTable && orderType === 'dine_in'
             ? { tableId: selectedTable.id, orderId: selectedTable.activeOrderId ?? null }
@@ -962,12 +1087,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
         products,
         branchId: activeBranch.id,
         tableName: selectedTableName,
+        catalogSettings,
       });
       setPosNotice(result.message);
     } catch (err) {
       setPosNotice(normalizeApiError(err).message);
     }
-  }, [activeBranch?.id, cart, products, selectedTableName]);
+  }, [activeBranch?.id, cart, products, selectedTableName, catalogSettings]);
 
   const cartPanelProps = {
     cart,

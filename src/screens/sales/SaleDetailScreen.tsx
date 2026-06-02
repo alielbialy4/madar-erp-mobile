@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BillSplitSheet } from './BillSplitSheet';
 import { textStart } from '@/constants/layout';
 import { View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -23,8 +24,15 @@ export function SaleDetailScreen({ route, navigation }: { route: any; navigation
   return <SaleDetail id={Number(rawId)} route={route} navigation={navigation} />;
 }
 
+function canSplitSale(sale: Sale & Record<string, unknown>): boolean {
+  const status = String(sale.status ?? '').toLowerCase();
+  if (status === 'completed' || status === 'refunded' || status === 'cancelled') return false;
+  return Boolean(sale.dining_table_id) || status === 'pending' || status === 'open';
+}
+
 function SaleDetail({ id, route, navigation }: { id: number; route: any; navigation: any }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -76,6 +84,9 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
               {message ? <Text style={{ ...textStart }}>{message}</Text> : null}
               <View style={{ gap: 12 }}>
                 <AppButton title="طباعة / إعادة إرسال للطباعة" variant="secondary" onPress={() => salesAPI.print(id).catch(() => undefined)} />
+                {canSplitSale(sale) ? (
+                  <AppButton title="تقسيم الفاتورة" variant="secondary" onPress={() => setSplitOpen(true)} />
+                ) : null}
                 <AppButton title="استرداد جزئي" variant="secondary" onPress={() => navigation.navigate('PartialRefund', { saleId: id })} />
                 <AppButton title="استرداد كامل" variant="danger" onPress={() => setConfirmOpen(true)} loading={busy} />
               </View>
@@ -83,6 +94,12 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
           </>
         )}
       </DetailScreen>
+      <BillSplitSheet
+        visible={splitOpen}
+        saleId={id}
+        onClose={() => setSplitOpen(false)}
+        onSuccess={(msg) => setMessage(msg)}
+      />
       <ConfirmDialog
         visible={confirmOpen}
         title="تأكيد الاسترداد"

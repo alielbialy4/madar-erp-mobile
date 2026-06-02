@@ -16,7 +16,11 @@ registerAutoSyncCallback(async () => {
   if (!token || !branch?.id) return;
   try {
     await syncAll();
-  } catch {}
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[sync] auto-sync on reconnect failed', err);
+    }
+  }
 });
 
 export function RootNavigator() {

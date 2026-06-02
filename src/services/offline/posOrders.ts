@@ -63,6 +63,56 @@ export async function getPendingOrders(): Promise<OfflinePosOrderRecord[]> {
   return normalizeRows(raw).filter((o) => o.status !== 'synced');
 }
 
+/** Orders eligible for push: pending, failed (retry), and stuck syncing from a prior crash. */
+export async function getOrdersForSync(): Promise<OfflinePosOrderRecord[]> {
+  const orders = await getPendingOrders();
+  return orders.filter((o) => o.status === 'pending' || o.status === 'failed' || o.status === 'syncing');
+}
+
+/** Recover orders left in `syncing` after app kill or partial API response. */
+export async function resetSyncingOrdersToPending(): Promise<number> {
+  const orders = await getAllOfflineOrders();
+  let count = 0;
+  await persistOrders(
+    orders.map((item) => {
+      if (item.status !== 'syncing') return item;
+      count += 1;
+      return { ...item, status: 'pending' as OfflineOrderSyncStatus, error_message: item.error_message ?? null };
+    }),
+  );
+  return count;
+}
+
+export async function markOrdersSyncing(clientOrderIds: string[]): Promise<void> {
+  if (!clientOrderIds.length) return;
+  const idSet = new Set(clientOrderIds);
+  const orders = await getAllOfflineOrders();
+  await persistOrders(
+    orders.map((item) =>
+      idSet.has(item.client_order_id)
+        ? { ...item, status: 'syncing' as OfflineOrderSyncStatus, error_message: null }
+        : item,
+    ),
+  );
+}
+
+export async function resetOrdersToPending(clientOrderIds: string[], message?: string): Promise<void> {
+  if (!clientOrderIds.length) return;
+  const idSet = new Set(clientOrderIds);
+  const orders = await getAllOfflineOrders();
+  await persistOrders(
+    orders.map((item) =>
+      idSet.has(item.client_order_id)
+        ? {
+            ...item,
+            status: 'pending' as OfflineOrderSyncStatus,
+            error_message: message ?? item.error_message ?? null,
+          }
+        : item,
+    ),
+  );
+}
+
 export async function getAllOfflineOrders(): Promise<OfflinePosOrderRecord[]> {
   const raw = await storageGet<unknown[]>(storageKeys.posPendingOrders);
   if (!raw?.length) return [];
@@ -200,6 +250,8 @@ export function toApiOfflineOrder(order: OfflinePosOrderRecord): LegacyPendingOf
     ...order.payload,
     client_uuid: order.client_uuid,
     branch_id: order.branch_id,
+    shift_id: order.shift_id ?? order.payload.shift_id ?? undefined,
+    warehouse_id: order.payload.warehouse_id ?? undefined,
     created_at_local: order.created_at,
     status: order.status === 'failed' ? 'failed' : 'pending',
     last_error: order.error_message,

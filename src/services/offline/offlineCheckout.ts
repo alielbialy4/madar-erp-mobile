@@ -6,6 +6,7 @@ import { addPendingOrder } from '@/services/offline/posOrders';
 import { getKitchenRoutingRules, resolveKitchenProfilesForCart } from '@/services/offline/kitchenRouting';
 import { getEnabledProfilesByRole, getPrinterProfile } from '@/services/printing/printerProfiles';
 import { printEngine } from '@/services/printing/printEngine';
+import { useServerKitchenPrintQueue } from '@/services/pos/posKitchenPrint';
 import type { CartLine } from '@/store/posStore';
 
 export const OFFLINE_SAVE_MESSAGE =
@@ -55,7 +56,7 @@ export async function enqueueOfflinePrintJobs(
   order: OfflinePosOrderRecord,
   cartLines: CartLine[],
   products: { id: number; name: string; category_id?: number | null }[],
-  meta: { branchName?: string; cashierName?: string },
+  meta: { branchName?: string; cashierName?: string; catalogSettings?: Record<string, unknown> | null },
 ): Promise<void> {
   const cashierProfiles = await getEnabledProfilesByRole('cashier');
   const receiptPayload = buildReceiptPayloadFromOrder(order, meta, cartLines);
@@ -67,6 +68,7 @@ export async function enqueueOfflinePrintJobs(
     }
   }
 
+  if (!useServerKitchenPrintQueue(meta.catalogSettings)) {
   const rules = await getKitchenRoutingRules(order.branch_id);
   const groups = resolveKitchenProfilesForCart(cartLines, products, rules);
   for (const group of groups) {
@@ -86,6 +88,7 @@ export async function enqueueOfflinePrintJobs(
       profile,
     );
   }
+  }
 }
 
 export async function saveOfflinePosOrder(input: {
@@ -99,6 +102,7 @@ export async function saveOfflinePosOrder(input: {
   products: { id: number; name: string; category_id?: number | null }[];
   branchName?: string;
   cashierName?: string;
+  catalogSettings?: Record<string, unknown> | null;
 }): Promise<{ order: OfflinePosOrderRecord; message: string }> {
   const check = await canCheckoutOffline(input.branchId);
   if (!check.ok) throw new Error(check.message);
@@ -115,6 +119,7 @@ export async function saveOfflinePosOrder(input: {
   await enqueueOfflinePrintJobs(order, input.cartLines, input.products, {
     branchName: input.branchName,
     cashierName: input.cashierName,
+    catalogSettings: input.catalogSettings,
   });
 
   return { order, message: OFFLINE_SAVE_MESSAGE };

@@ -5,15 +5,28 @@ import { printEngine } from '@/services/printing/printEngine';
 
 type ProductRef = { id: number; name: string; category_id?: number | null };
 
+export function useServerKitchenPrintQueue(settings: Record<string, unknown> | null | undefined): boolean {
+  const v = settings?.use_server_kitchen_print_queue;
+  return v === true || v === 1 || v === '1';
+}
+
 export async function printKitchenFromCart(input: {
   cart: CartLine[];
   products: ProductRef[];
   branchId: string;
   tableName?: string | null;
+  catalogSettings?: Record<string, unknown> | null;
 }): Promise<{ ok: boolean; message: string }> {
-  const { cart, products, branchId, tableName } = input;
+  const { cart, products, branchId, tableName, catalogSettings } = input;
   if (cart.length === 0) {
     return { ok: false, message: 'السلة فارغة.' };
+  }
+
+  if (useServerKitchenPrintQueue(catalogSettings)) {
+    return {
+      ok: true,
+      message: 'طباعة المطبخ مفعّلة عبر طابور السيرفر — لن تُرسل نسخة محلية من الجهاز.',
+    };
   }
 
   const rules = await getKitchenRoutingRules(branchId);

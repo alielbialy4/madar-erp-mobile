@@ -66,6 +66,9 @@ export const useBranchStore = create<BranchState>((set, get) => ({
       if (branch) await storageSet(storageKeys.activeBranch, branch);
       await storageSet(storageKeys.branchViewMode, 'branch');
       set({ activeBranch: branch, viewMode: 'branch', loading: false });
+      void import('./authStore').then(({ useAuthStore }) => {
+        void useAuthStore.getState().refreshMe();
+      });
     } catch (error) {
       set({ loading: false });
       throw error;

@@ -14,6 +14,8 @@ import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { money, numberText } from '@/utils/format';
+import { removeTableCartEntry } from '@/services/pos/tableCarts';
+import { markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { normalizeApiError } from '@/utils/errors';
 
 type TableItem = {
@@ -146,12 +148,39 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
 
   const executeAction = async () => {
     if (!selectedTable || !actionMode) return;
+    const targetId = String(selectedTable.id);
     setActionLoading(true);
     try {
       if (actionMode === 'merge') {
-        await diningAPI.mergeOrder(tableId, String(selectedTable.id));
+        await diningAPI.mergeOrder(tableId, targetId);
+        try {
+          await removeTableCartEntry(tableId);
+          await removeTableCartEntry(targetId);
+          await markTableLocallyAvailable(tableId);
+          await markTableLocallyOccupied(targetId);
+        } catch (localErr) {
+          try {
+            await diningAPI.unmergeOrder(targetId, tableId);
+          } catch {
+            /* best-effort */
+          }
+          throw localErr;
+        }
       } else {
-        await diningAPI.transferOrder(tableId, String(selectedTable.id));
+        await diningAPI.transferOrder(tableId, targetId);
+        try {
+          await removeTableCartEntry(tableId);
+          await removeTableCartEntry(targetId);
+          await markTableLocallyAvailable(tableId);
+          await markTableLocallyOccupied(targetId);
+        } catch (localErr) {
+          try {
+            await diningAPI.transferOrder(targetId, tableId);
+          } catch {
+            /* best-effort */
+          }
+          throw localErr;
+        }
       }
       setMessage(actionMode === 'merge' ? 'تم دمج الطاولات بنجاح' : 'تم نقل الطلب بنجاح');
       setConfirmVisible(false);

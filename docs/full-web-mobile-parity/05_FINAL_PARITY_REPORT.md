@@ -1,7 +1,26 @@
 # Final Parity Report — Pass 2
 
-Date: 2026-05-24
+Date: 2026-05-24 (updated 2026-06-02 for deep parity code pass)
 Scope: `madar-erp-mobile/` only
+
+## 2026-06-02 — Deep parity implementation (code)
+
+Aligned mobile with recent web/backend fixes. **Device QA rows remain NOT TESTED** until [`06_DEVICE_QA_SCRIPT.md`](06_DEVICE_QA_SCRIPT.md) is executed.
+
+| Area | Change |
+|------|--------|
+| Offline sync | `syncEngine` envelope check, `coercePendingOrderForSync`, recover `syncing` → `pending`, per-order errors |
+| Dining draft | Full `TableOrderDraftPayload`, `saleUpdatedAt`, 409 conflict → server cart |
+| Merge/transfer | `unmergeOrder`, API rollback on local failure (POS, waiter, table order) |
+| Catalog | `pullFullPosCatalog` pagination; branch mismatch blocks wrong cache |
+| Checkout | `client_uuid`, `shift_id`, `warehouse_id`; coupon revalidate before pay |
+| Kitchen print | Skip local print when `use_server_kitchen_print_queue` (POS + offline queue) |
+| Platform | `extractData` errors on `status:error`, permissions header refresh, `putMultipart` + `_method=PUT`, sidebar raw-materials + driver detail |
+| Bill split | `billSplitAPI` + equal split sheet on sale detail |
+| Table reservations | `tableReservationsAPI` client (UI still web-first) |
+| Unit specs | `npm run test:unit` — coerce + draft payload |
+
+Backend deploy: [`07_BACKEND_DEPLOY_CHECKLIST.md`](07_BACKEND_DEPLOY_CHECKLIST.md).
 
 ## Current Result
 

@@ -2,8 +2,20 @@ import type { ApiEnvelope, PaginationMeta } from '@/types/api';
 
 export function extractData<T>(response: ApiEnvelope<T> | T | undefined | null): T | undefined {
   if (!response) return undefined;
+  if (typeof response === 'object' && 'status' in response && (response as ApiEnvelope<T>).status === 'error') {
+    const envelope = response as ApiEnvelope<T>;
+    throw new Error(envelope.message || 'تعذر تنفيذ العملية');
+  }
   if (typeof response === 'object' && 'data' in response) return (response as ApiEnvelope<T>).data;
   return response as T;
+}
+
+/** Throws when API returns HTTP 200 with `status: 'error'`. */
+export function assertEnvelopeSuccess<T>(envelope: ApiEnvelope<T>): T {
+  if (envelope.status === 'error') {
+    throw new Error(envelope.message || 'تعذر تنفيذ العملية');
+  }
+  return envelope.data as T;
 }
 
 /** Merge list rows; later rows win. Uses `id` when present, otherwise index in batch. */

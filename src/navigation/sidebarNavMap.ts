@@ -96,7 +96,7 @@ export const WEB_LINK_TO_MOBILE_NAV: Record<string, SidebarNavAction | undefined
   '/delivery-finance/liabilities': { kind: 'more', screen: 'DeliveryFinanceLiabilities' },
   '/delivery-finance/settlements': { kind: 'more', screen: 'DeliveryFinanceSettlements' },
   '/delivery-finance/alerts': { kind: 'more', screen: 'DeliveryFinanceAlerts' },
-  '/delivery-finance/drivers/:driverId': { kind: 'more', screen: 'DeliveryFinanceDashboard' },
+  '/delivery-finance/drivers/:driverId': { kind: 'more', screen: 'DeliveryFinanceDriverDetail' },
   '/inventory': { kind: 'more', screen: 'Inventory' },
   '/inventory/balances': { kind: 'more', screen: 'InventoryList', params: { preset: 'balances' } },
   '/inventory/warehouses': { kind: 'more', screen: 'Warehouses' },
@@ -118,6 +118,7 @@ export const WEB_LINK_TO_MOBILE_NAV: Record<string, SidebarNavAction | undefined
   '/reports/sales/hourly': reportNav('/reports/sales/hourly')!,
   '/reports/treasury': reportNav('/reports/treasury')!,
   '/reports/expenses': reportNav('/reports/expenses')!,
+  '/reports/inventory/raw-materials': reportNav('/reports/inventory/raw-materials')!,
   '/reports/inventory/valuation': reportNav('/reports/inventory/valuation')!,
   '/reports/inventory/movements': reportNav('/reports/inventory/movements')!,
   '/reports/customers/aging': reportNav('/reports/customers/aging')!,
@@ -153,9 +154,26 @@ export const WEB_LINK_TO_MOBILE_NAV: Record<string, SidebarNavAction | undefined
   '/notifications': { kind: 'more', screen: 'Notifications' },
 };
 
+function resolveDynamicWebLink(link: string, label?: string): SidebarNavAction | undefined {
+  const driverMatch = link.match(/^\/delivery-finance\/drivers\/([^/]+)$/);
+  if (driverMatch) {
+    return {
+      kind: 'more',
+      screen: 'DeliveryFinanceDriverDetail',
+      params: { driverId: driverMatch[1], name: label },
+    };
+  }
+  for (const [webRoute, reportId] of Object.entries(WEB_REPORT_TO_ID)) {
+    if (link === webRoute) {
+      return { kind: 'more', screen: 'ReportViewer', params: { reportId } };
+    }
+  }
+  return undefined;
+}
+
 export function webLinkToNav(link?: string, label?: string): SidebarNavAction | undefined {
   if (!link) return undefined;
-  return WEB_LINK_TO_MOBILE_NAV[link] ?? parityFallback(link, label, PARITY_FALLBACKS[link]);
+  return WEB_LINK_TO_MOBILE_NAV[link] ?? resolveDynamicWebLink(link, label) ?? parityFallback(link, label, PARITY_FALLBACKS[link]);
 }
 
 export function sidebarActionKey(action: SidebarNavAction): string {

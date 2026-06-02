@@ -48,8 +48,34 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+let permissionsRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const reqUrl = String(response.config?.url ?? '');
+    if (reqUrl.includes('/auth/me') || reqUrl.includes('/auth/login')) {
+      return response;
+    }
+    const headerV = response.headers?.['x-permissions-version'];
+    if (headerV !== undefined && headerV !== null && String(headerV) !== '') {
+      void (async () => {
+        const { secureGet } = await import('@/services/storage');
+        const { storageKeys } = await import('@/services/storage');
+        const session = await secureGet<{ user?: { permissions_version?: number } }>(storageKeys.authSession);
+        const local = session?.user?.permissions_version;
+        if (local !== undefined && String(headerV) !== String(local)) {
+          if (permissionsRefreshTimer) clearTimeout(permissionsRefreshTimer);
+          permissionsRefreshTimer = setTimeout(() => {
+            permissionsRefreshTimer = null;
+            void import('@/store/authStore').then(({ useAuthStore }) => {
+              void useAuthStore.getState().refreshMe();
+            });
+          }, 400);
+        }
+      })();
+    }
+    return response;
+  },
   async (error: AxiosError<ApiEnvelope>) => {
     if (error.response?.status === 401 && unauthorizedHandler) {
       await unauthorizedHandler();
@@ -93,6 +119,9 @@ export async function postMultipart<T = unknown>(url: string, formData: FormData
 }
 
 export async function putMultipart<T = unknown>(url: string, formData: FormData): Promise<ApiEnvelope<T>> {
+  if (!formData.has('_method')) {
+    formData.append('_method', 'PUT');
+  }
   const response = await apiClient.post<ApiEnvelope<T>>(url, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

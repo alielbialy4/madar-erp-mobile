@@ -17,6 +17,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useTableCardDragDrop } from '@/hooks/useTableCardDragDrop';
 import { useNetworkStore } from '@/store/networkStore';
 import { isValidDropTarget, type TableDragMode } from '@/utils/tableDropRules';
+import { removeTableCartEntry } from '@/services/pos/tableCarts';
+import { markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { normalizeApiError } from '@/utils/errors';
 import { numberText } from '@/utils/format';
 import { flexRow } from '@/constants/layout';
@@ -228,6 +230,19 @@ export function WaiterTablesGrid({
       try {
         if (mode === 'transfer') {
           await diningAPI.transferOrder(sourceId, targetId);
+          try {
+            await removeTableCartEntry(sourceId);
+            await removeTableCartEntry(targetId);
+            await markTableLocallyAvailable(sourceId);
+            await markTableLocallyOccupied(targetId);
+          } catch (localErr) {
+            try {
+              await diningAPI.transferOrder(targetId, sourceId);
+            } catch {
+              /* best-effort rollback */
+            }
+            throw localErr;
+          }
           notify('تم نقل الطلب بنجاح');
         } else {
           setOptimisticMerged((prev) => {
@@ -239,6 +254,19 @@ export function WaiterTablesGrid({
             };
           });
           await diningAPI.mergeOrder(sourceId, targetId);
+          try {
+            await removeTableCartEntry(sourceId);
+            await removeTableCartEntry(targetId);
+            await markTableLocallyAvailable(sourceId);
+            await markTableLocallyOccupied(targetId);
+          } catch (localErr) {
+            try {
+              await diningAPI.unmergeOrder(targetId, sourceId);
+            } catch {
+              /* server merge may predate unmerge metadata */
+            }
+            throw localErr;
+          }
           notify('تم دمج الطاولات بنجاح');
         }
         setOptimisticMerged({});

@@ -110,6 +110,12 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
             <AppButton title="إدارة الورديات" variant="secondary" onPress={() => navigation.navigate('ShiftManagement')} />
           </AppCard>
           <AppCard style={styles.card}>
+            <AppSectionHeader title="تحويل بين الخزن" />
+            <Text style={styles.vaultName}>
+              تحويل الأرصدة بين الخزن وتسوية الحسابات متاح من الويب فقط لمراجعة مزدوجة. يمكنك الإيداع والسحب من هنا.
+            </Text>
+          </AppCard>
+          <AppCard style={styles.card}>
             <AppSectionHeader title="الخزن" />
             {vaults.length === 0 ? <AppEmptyState title="لا توجد خزن" /> : vaults.map((vault) => (
               <View key={String(vault.id)} style={styles.vaultRow}>

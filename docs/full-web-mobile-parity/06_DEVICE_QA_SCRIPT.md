@@ -11,6 +11,10 @@ All rows start as **NOT TESTED** until a tester runs them on a real device. Use 
 | POS table bridge | Add cart items, open POS tables, link to available table, verify table order opens with items. | NOT TESTED | Device + dining data required. |
 | Offline order | Disable network, checkout cached catalog order, re-enable network, sync, verify server sale or exact failure reason. | NOT TESTED | Must confirm no duplicate order. |
 | Offline coupon conflict | Apply coupon online, go offline, queue order, force invalid/expired coupon server-side, sync and confirm failed-order reason/retry/clear UI. | NOT TESTED | Backend fixture required. |
+| Offline sync stuck recovery | Queue order, kill app during sync, reopen — order must be pending or failed, never stuck syncing forever. | NOT TESTED | Code fix 2026-06-02. |
+| Table draft 409 | Two devices edit same table; second device shows conflict message and cart replaces from server. | NOT TESTED | Requires two devices. |
+| Merge rollback | Merge tables on device A; force local failure (if possible) or verify unmerge API on server error path. | NOT TESTED | |
+| Catalog >300 products | Branch with >300 products: full catalog after pull; offline checkout uses correct prices. | NOT TESTED | |
 | Printing | Configure Android network/Bluetooth printer, print receipt, kitchen ticket, refund receipt, and shift summary. | NOT TESTED | Physical printer required. |
 | Dining/waiter | Open waiter mode, create order, add item, send kitchen, settle table. | NOT TESTED | Backend dining data required. |
 | Delivery | Open delivery orders, driver detail, finance dashboard, settlements read-only state. | NOT TESTED | Delivery data required. |

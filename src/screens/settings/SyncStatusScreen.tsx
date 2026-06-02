@@ -162,6 +162,12 @@ export function SyncStatusScreen() {
   return (
     <AppScreen title="حالة المزامنة">
       <AppCard>
+        <AppSectionHeader title="نطاق المزامنة الأوفلاين" />
+        <Text style={styles.failedMeta}>
+          المزامنة المحلية الحالية تغطي مبيعات نقطة البيع والطباعة فقط. تعديل المشتريات أو العملاء أو المصروفات يتطلب اتصالاً مباشراً (مثل الويب).
+        </Text>
+      </AppCard>
+      <AppCard>
         <AppSectionHeader title="حالة الاتصال" />
         <AppListItem
           title="الاتصال"

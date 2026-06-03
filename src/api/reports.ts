@@ -49,6 +49,11 @@ export const reportsAPI = {
   giftCards: (params?: ReportQueryParams) => get('/reports/gift-cards', params),
   dining: (params?: ReportQueryParams) => get('/reports/dining', params),
   delivery: (params?: ReportQueryParams) => get('/reports/delivery', params),
+  recipeConsumption: (params?: ReportQueryParams) => get('/reports/recipes/consumption', params),
+  recipeCosts: (params?: ReportQueryParams) => get('/reports/recipes/costs', params),
+  recipeMissing: (params?: ReportQueryParams) => get('/reports/recipes/missing', params),
+  recipeNegativeIngredients: (params?: ReportQueryParams) => get('/reports/recipes/negative-ingredients', params),
+  recipeVariance: (params?: ReportQueryParams) => get('/reports/recipes/variance', params),
   exportReport: (type: string, format: 'pdf' | 'excel', filters?: ReportQueryParams) => {
     const payload: Record<string, unknown> = { type, format, ...filters };
     if (type === 'products' || type === 'inventory') payload.export_on_hand = 1;

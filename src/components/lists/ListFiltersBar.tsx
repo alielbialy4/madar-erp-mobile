@@ -7,6 +7,10 @@ export type ProductListFilters = {
   category_id?: string | null;
   stock_status?: 'low' | 'out' | null;
   featured?: '0' | '1' | null;
+  /** Raw materials list: filter by product_role */
+  product_role?: string | null;
+  /** Raw materials list: all | low | expiry | inactive */
+  raw_status?: 'low' | 'expiry' | 'inactive' | null;
 };
 
 type CategoryOption = { id: number; name: string };

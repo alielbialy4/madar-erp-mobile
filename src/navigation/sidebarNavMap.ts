@@ -130,6 +130,7 @@ export const WEB_LINK_TO_MOBILE_NAV: Record<string, SidebarNavAction | undefined
   '/reports/delivery': reportNav('/reports/delivery')!,
   '/reports/shifts': reportNav('/reports/shifts')!,
   '/reports/saved': reportNav('/reports/saved')!,
+  '/reports/recipes': { kind: 'more', screen: 'RecipeReports' },
   '/reports/legacy': { kind: 'more', screen: 'LegacyReports' },
   '/reports/partner': reportNav('/reports/partner')!,
   '/inventory/adjustments': { kind: 'more', screen: 'StockAdjustmentsList' },

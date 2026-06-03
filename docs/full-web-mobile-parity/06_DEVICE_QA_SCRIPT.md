@@ -2,6 +2,17 @@
 
 All rows start as **NOT TESTED** until a tester runs them on a real device. Use **PASS** or **FAIL** only after recording the observed result.
 
+## Engineering verification — 2026-06-03
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| `npm run typecheck` | PASS | After review-plan fixes |
+| `npm run test:unit` | PASS | `coercePendingOrder` + `posDining` |
+| Code paths for recipe reports, held carts (phone), lot picker, report export/charts | Implemented | See `05_FINAL_PARITY_REPORT.md` § 2026-06-03 |
+| Physical device execution | **NOT RUN** | No Android/iPhone/iPad in CI; tables below unchanged |
+
+**Release gate:** Android phone smoke + iPhone smoke must be **PASS** before store submission.
+
 ## Android Phone
 
 | Area | Steps | Status | Notes |
@@ -19,6 +30,12 @@ All rows start as **NOT TESTED** until a tester runs them on a real device. Use 
 | Dining/waiter | Open waiter mode, create order, add item, send kitchen, settle table. | NOT TESTED | Backend dining data required. |
 | Delivery | Open delivery orders, driver detail, finance dashboard, settlements read-only state. | NOT TESTED | Delivery data required. |
 | Admin/settings | Open users, roles, tenant settings; change theme hex and verify refresh. | NOT TESTED | Admin permission required. |
+| Recipe reports | More → Reports → تقارير تكلفة الوصفات; open all 5 tabs with branch/date filters. | NOT TESTED | Added 2026-06-03 parity pass. |
+| POS held carts | Phone + tablet POS → السلات / حفظ; save cart, restore, delete; relaunch app and verify local hold persists. | NOT TESTED | Phone: `PosOrderPanel.checkoutIcons`; tablet: `PosTabletTopBar`. |
+| Raw materials filters | Products tab raw materials scope: role tabs, low/expiry/inactive filters, create/edit with batch/supplier/warehouse. | NOT TESTED | |
+| Stock count batch/variant | Stock count draft → تحميل أرصدة المخزن → اختر من الرصيد per line → save/post. | NOT TESTED | `BatchPickerSheet` + adjustment/transfer lot picker. |
+| Report export native | Open report with export → PDF/Excel → share sheet on device. | NOT TESTED | expo-file-system + expo-sharing. |
+| Report charts | Sales dashboard / hourly / treasury → bar chart section visible. | NOT TESTED | |
 
 ## iPhone
 

@@ -17,6 +17,7 @@ import { ReportSummaryCards } from './ReportSummaryCards';
 import { ReportListCards } from './ReportListCards';
 import { ReportFilterChips } from './ReportFilterChips';
 import { ReportExportActions } from './ReportExportActions';
+import { ReportBarChart } from './ReportBarChart';
 
 type Props = {
   reportId: ReportId;
@@ -118,6 +119,21 @@ function BaseReportScreenContent({
           <ReportFilterChips definition={definition} filters={filters} />
           <ReportSummaryCards definition={definition} metrics={metrics} />
           <ReportExportActions definition={definition} filters={filters} />
+          {definition.chart && payload
+            ? (() => {
+                const chartSection = sectionsContent.find((s) => s.section.id === definition.chart!.sectionId);
+                if (!chartSection?.rows.length) return null;
+                return (
+                  <ReportBarChart
+                    title="مخطط ملخص"
+                    rows={chartSection.rows}
+                    labelKey={definition.chart.labelKey}
+                    valueKey={definition.chart.valueKey}
+                    valueFormat={definition.chart.valueFormat}
+                  />
+                );
+              })()
+            : null}
           {sectionsContent.map(({ section, rows }) =>
             rows.length ? <ReportListCards key={section.id} section={section} rows={rows} /> : null,
           )}

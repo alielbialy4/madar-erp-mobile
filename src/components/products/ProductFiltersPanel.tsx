@@ -15,9 +15,24 @@ type Props = {
   onChange: (next: ProductListFilters) => void;
   resultCount: number;
   layout?: 'inline' | 'sidebar';
+  rawMaterialMode?: boolean;
 };
 
-export function ProductFiltersPanel({ categories, filters, onChange, resultCount, layout = 'inline' }: Props) {
+const RAW_ROLE_PILLS: { key: string | null; label: string }[] = [
+  { key: null, label: 'كل الخامات' },
+  { key: 'raw_material', label: 'خامات' },
+  { key: 'packaging_material', label: 'تعبئة' },
+  { key: 'semi_finished', label: 'نصف مُصنّع' },
+];
+
+const RAW_STATUS_PILLS: { key: ProductListFilters['raw_status'] | 'all'; label: string }[] = [
+  { key: 'all', label: 'الكل' },
+  { key: 'low', label: 'منخفض' },
+  { key: 'expiry', label: 'صلاحية/دفعات' },
+  { key: 'inactive', label: 'غير نشط' },
+];
+
+export function ProductFiltersPanel({ categories, filters, onChange, resultCount, layout = 'inline', rawMaterialMode = false }: Props) {
   const c = useColors();
   const cs = useMemo(() => createCategoryStyles(c), [c]);
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
@@ -68,12 +83,47 @@ export function ProductFiltersPanel({ categories, filters, onChange, resultCount
 
   return (
     <View style={{ gap: spacing.sm, ...(isSidebar ? { flex: 1 } : {}) }}>
-      {isSidebar ? (
+      {rawMaterialMode ? (
+        <>
+          {isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>نوع الخامة</Text> : null}
+          <View style={isSidebar ? { gap: spacing.sm } : ui.chipsWrap}>
+            {RAW_ROLE_PILLS.map((p) => {
+              const active = (p.key == null && !filters.product_role) || filters.product_role === p.key;
+              return (
+                <Pressable
+                  key={p.label}
+                  onPress={() => onChange({ ...filters, product_role: p.key })}
+                  style={[cs.filterPill, active && cs.filterPillActive]}
+                >
+                  <Text style={[cs.filterText, active && cs.filterTextActive]}>{p.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>الحالة</Text> : null}
+          <View style={isSidebar ? { gap: spacing.sm } : ui.chipsWrap}>
+            {RAW_STATUS_PILLS.map((p) => {
+              const active = (p.key === 'all' && !filters.raw_status) || filters.raw_status === p.key;
+              return (
+                <Pressable
+                  key={p.label}
+                  onPress={() => onChange({ ...filters, raw_status: p.key === 'all' ? null : p.key })}
+                  style={[cs.filterPill, active && cs.filterPillActive]}
+                >
+                  <Text style={[cs.filterText, active && cs.filterTextActive]}>{p.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+      {!rawMaterialMode && isSidebar ? (
         <Text style={[cs.sectionLabel, { fontSize: 14, marginBottom: spacing.xs }]}>التصنيفات</Text>
       ) : null}
-      {categoryBlock}
+      {!rawMaterialMode ? categoryBlock : null}
 
-      {isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>المخزون</Text> : null}
+      {!rawMaterialMode && isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>المخزون</Text> : null}
+      {!rawMaterialMode ? (
       <View style={isSidebar ? { gap: spacing.sm } : ui.chipsWrap}>
         {stockPills.map((p) => {
           const active = (p.key === 'all' && !filters.stock_status) || filters.stock_status === p.key;
@@ -88,8 +138,10 @@ export function ProductFiltersPanel({ categories, filters, onChange, resultCount
           );
         })}
       </View>
+      ) : null}
 
-      {isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>التمييز</Text> : null}
+      {!rawMaterialMode && isSidebar ? <Text style={[cs.sectionLabel, { fontSize: 14 }]}>التمييز</Text> : null}
+      {!rawMaterialMode ? (
       <View style={isSidebar ? { gap: spacing.sm } : ui.chipsWrap}>
         {featuredPills.map((p) => {
           const active = (p.key === 'all' && !filters.featured) || filters.featured === p.key;
@@ -104,6 +156,7 @@ export function ProductFiltersPanel({ categories, filters, onChange, resultCount
           );
         })}
       </View>
+      ) : null}
 
       <View
         style={{
@@ -115,7 +168,9 @@ export function ProductFiltersPanel({ categories, filters, onChange, resultCount
           borderColor: c.primarySoftBorder,
         }}
       >
-        <Text style={[cs.sectionLabel, { color: c.primary, textAlign: 'center' }]}>{resultCount} منتج</Text>
+        <Text style={[cs.sectionLabel, { color: c.primary, textAlign: 'center' }]}>
+          {resultCount} {rawMaterialMode ? 'خامة' : 'منتج'}
+        </Text>
       </View>
     </View>
   );

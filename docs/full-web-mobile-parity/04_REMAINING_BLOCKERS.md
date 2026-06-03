@@ -16,7 +16,22 @@
 | Direct kitchen ticket print hardware | `/kitchen/ticket/:id` | Needs Device QA | Native ticket preview route now exists and sends jobs through local print profiles. Actual output depends on configured network/Bluetooth/AirPrint printer and device build. | Preview loads real ticket data; print result is not faked and errors surface via message/queue. |
 | Barcode label print | `/barcode-print` | Implemented This Pass | Exact label layout needs mobile print template and physical printer QA. | Dedicated disabled state added. |
 | Saved report create/edit | `/reports/saved` | Intentionally Web-only | Current web page exposes list/delete; create/update APIs exist but no current mobile-safe editor or web page flow was required for this route. Mobile implements list/run/delete. | Saved report rows can run mapped report with stored filters or delete with confirmation. |
-| Native export/share parity | reports, statements | Blocked By Missing API/Dependency | Web uses browser blob/download. Mobile project does not include a file save/share dependency (`expo-file-system` / `expo-sharing`) for native PDF/XLSX handoff, and Arabic filename QA is still required. | Export buttons are disabled on native with Arabic reason; web export still downloads. |
+| Native export/share parity | reports (`exportSupported`) | Needs Device QA | **Implemented 2026-06-03:** `expo-file-system/legacy` + `expo-sharing` in `ReportExportActions.tsx`; `exportType` wired for `inventory`, `sales`, `coupons`. Physical share-sheet and Arabic filename QA still required on Android/iPhone. | Export enabled on supported hub reports; failures surface via alert. |
+
+## Post-2026-06-03 review pass (code)
+
+| Item | Status |
+|------|--------|
+| Held carts on phone (`PosOrderPanel.checkoutIcons`) | **Closed** — same callbacks as tablet top bar |
+| `/reports/recipes` in `buildSidebarMenu` (mobile + web) | **Closed** |
+| Stock count / adjustment / transfer lot picker (`BatchPickerSheet`) | **Closed** — balances API `product_id` + warehouse |
+| Report charts: treasury (`vaults`), expenses (`by-category`) | **Closed** |
+| Report export: sales dashboard, coupons + inventory | **Closed** (backend legacy types) |
+| `npm run typecheck` | **PASS** |
+| `localPromotionEngine.ts` | **Present** — gap audit line on “missing engine” is stale |
+| Device QA (`06_DEVICE_QA_SCRIPT.md`) | **NOT TESTED** — requires physical Android/iPhone/iPad |
+
+**Store release:** NO-GO until Android + iPhone smoke PASS per device script.
 
 ## Accepted Mobile Scope Differences
 

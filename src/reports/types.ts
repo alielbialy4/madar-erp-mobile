@@ -116,6 +116,8 @@ export type ReportDefinition = {
   metrics: ReportMetric[];
   sections: ReportRowSection[];
   paginated?: boolean;
+  /** Optional bar chart for a report section (matches web ApexCharts summaries). */
+  chart?: { sectionId: string; labelKey: string; valueKey: string; valueFormat?: 'money' | 'number' };
   exportSupported?: boolean;
   /** POST /reports/export `type` when exportSupported */
   exportType?: string;

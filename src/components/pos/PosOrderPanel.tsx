@@ -321,6 +321,23 @@ export function PosOrderPanel({
           />
           <View style={styles.checkoutIcons}>
             <PosCartIconBtn size="lg" icon="person-outline" accessibilityLabel="اختيار عميل" onPress={onSelectCustomer} />
+            {onOpenHoldCarts ? (
+              <PosCartIconBtn
+                size="lg"
+                icon="inventory-2"
+                accessibilityLabel="السلات المحفوظة"
+                onPress={onOpenHoldCarts}
+              />
+            ) : null}
+            {onSaveHoldCart ? (
+              <PosCartIconBtn
+                size="lg"
+                icon="pause-circle-outline"
+                accessibilityLabel="حفظ السلة"
+                onPress={onSaveHoldCart}
+                disabled={cart.length === 0}
+              />
+            ) : null}
             <PosCartIconBtn
               size="lg"
               icon="delete-outline"

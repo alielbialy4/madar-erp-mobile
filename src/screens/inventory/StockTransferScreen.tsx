@@ -5,7 +5,10 @@ import { inventoryAPI } from '@/api/inventory';
 import { AppScreen } from '@/components/layout';
 import { InventoryHero } from '@/components/inventory/InventoryHero';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
+import { BatchPickerSheet } from '@/components/inventory/BatchPickerSheet';
 import { InventoryLineItemCard } from '@/components/inventory/InventoryLineItemCard';
+import { stockCountLineKey } from '@/services/inventory/stockCountLines';
+import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
 import { ProductFormSection } from '@/components/products/ProductFormSection';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
@@ -21,9 +24,14 @@ import { Text } from '@/components/ui/AppText';
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockTransfer'>;
 
 type TransferItem = {
+  key: string;
   product_id: number;
   product_name: string;
   quantity: string;
+  variant_id?: string | null;
+  batch_id?: string | null;
+  variant_sku?: string | null;
+  batch_number?: string | null;
 };
 
 export function StockTransferScreen({ navigation }: { navigation: Nav }) {
@@ -38,6 +46,7 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [lotPickerKey, setLotPickerKey] = useState<string | null>(null);
 
   const filteredToWarehouses = warehouses.filter((w) => w.value !== fromWarehouseId);
   const filteredFromWarehouses = warehouses.filter((w) => w.value !== toWarehouseId);
@@ -66,12 +75,40 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
   }, [loadWarehouses]);
 
   const addProduct = (product: { id: number; name?: string }) => {
-    const exists = items.find((i) => i.product_id === product.id);
+    const key = stockCountLineKey(product.id, null, null);
+    const exists = items.find((i) => i.key === key);
     if (exists) {
-      setItems(items.map((i) => (i.product_id === product.id ? { ...i, quantity: String(Number(i.quantity) + 1) } : i)));
+      setItems(items.map((i) => (i.key === key ? { ...i, quantity: String(Number(i.quantity) + 1) } : i)));
     } else {
-      setItems([...items, { product_id: product.id, product_name: product.name ?? 'منتج', quantity: '1' }]);
+      setItems([
+        ...items,
+        {
+          key,
+          product_id: product.id,
+          product_name: product.name ?? 'منتج',
+          quantity: '1',
+          variant_id: null,
+          batch_id: null,
+        },
+      ]);
     }
+  };
+
+  const applyLotToItem = (itemKey: string, lot: InventoryLotSelection) => {
+    setItems((prev) =>
+      prev.map((row) => {
+        if (row.key !== itemKey) return row;
+        const nextKey = stockCountLineKey(row.product_id, lot.variant_id, lot.batch_id);
+        return {
+          ...row,
+          key: nextKey,
+          variant_id: lot.variant_id,
+          batch_id: lot.batch_id,
+          variant_sku: lot.variant_sku ?? null,
+          batch_number: lot.batch_number ?? null,
+        };
+      }),
+    );
   };
 
   const canSubmit =
@@ -85,7 +122,12 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
         from_warehouse_id: fromWarehouseId,
         to_warehouse_id: toWarehouseId,
         ...(shippingCost ? { shipping_cost: Number(shippingCost) } : {}),
-        items: items.map((i) => ({ product_id: i.product_id, quantity: Number(i.quantity) })),
+        items: items.map((i) => ({
+          product_id: i.product_id,
+          quantity: Number(i.quantity),
+          ...(i.variant_id ? { variant_id: i.variant_id } : {}),
+          ...(i.batch_id ? { batch_id: i.batch_id } : {}),
+        })),
       });
       Alert.alert('تم بنجاح', 'تم إنشاء تحويل المخزون');
       navigation.goBack();
@@ -153,10 +195,23 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
             <ProductFormSection title={`الأصناف (${items.length})`} subtitle="حدّد الكمية لكل صنف" icon="inventory-2">
               {items.map((item, index) => (
                 <InventoryLineItemCard
-                  key={item.product_id}
+                  key={item.key}
                   title={item.product_name}
                   onRemove={() => setItems(items.filter((_, i) => i !== index))}
                 >
+                  {fromWarehouseId ? (
+                    <AppButton
+                      title={
+                        item.variant_sku || item.batch_number
+                          ? [item.variant_sku ? `متغير: ${item.variant_sku}` : null, item.batch_number ? `دفعة: ${item.batch_number}` : null]
+                              .filter(Boolean)
+                              .join(' • ')
+                          : 'اختر دفعة / متغير (اختياري)'
+                      }
+                      variant="secondary"
+                      onPress={() => setLotPickerKey(item.key)}
+                    />
+                  ) : null}
                   <AppInput
                     label="الكمية"
                     value={item.quantity}
@@ -187,6 +242,25 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
         onConfirm={() => void handleSubmit()}
         onCancel={() => setConfirmVisible(false)}
       />
+      {lotPickerKey && fromWarehouseId ? (
+        (() => {
+          const row = items.find((i) => i.key === lotPickerKey);
+          if (!row) return null;
+          return (
+            <BatchPickerSheet
+              visible
+              warehouseId={fromWarehouseId}
+              productId={row.product_id}
+              productName={row.product_name}
+              onClose={() => setLotPickerKey(null)}
+              onSelect={(lot) => {
+                applyLotToItem(lotPickerKey, lot);
+                setLotPickerKey(null);
+              }}
+            />
+          );
+        })()
+      ) : null}
     </AppScreen>
   );
 }

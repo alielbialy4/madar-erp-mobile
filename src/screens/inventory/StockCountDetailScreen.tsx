@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BatchPickerSheet } from '@/components/inventory/BatchPickerSheet';
 import { Alert, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -10,13 +11,19 @@ import { ConfirmDialog } from '@/components/feedback';
 import { dateText, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
+import { textStart } from '@/constants/layout';
 import type { MoreStackParamList } from '@/types/navigation';
 import { asText } from '@/utils/format';
+import {
+  balancesToStockCountLines,
+  fetchAllBalancesForWarehouse,
+  mergeStockCountLines,
+  stockCountLineKey,
+  type StockCountLineDraft,
+} from '@/services/inventory/stockCountLines';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockCountDetail'>;
 type Route = RouteProp<MoreStackParamList, 'StockCountDetail'>;
-
-type CountLine = { product_id: number; product_name: string; counted_quantity: string };
 
 function StockCountBody({
   doc,
@@ -27,28 +34,76 @@ function StockCountBody({
   refresh: () => void;
   id: string;
 }) {
-  const [lines, setLines] = useState<CountLine[]>([]);
+  const [lines, setLines] = useState<StockCountLineDraft[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingBalances, setLoadingBalances] = useState(false);
   const [confirmPost, setConfirmPost] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [lotPickerLineIndex, setLotPickerLineIndex] = useState<number | null>(null);
   const isDraft = doc.status === 'draft';
   const serverItems = Array.isArray(doc.items) ? (doc.items as Record<string, unknown>[]) : [];
+  const warehouseId = String((doc.warehouse as Record<string, unknown>)?.id ?? doc.warehouse_id ?? '');
 
   useEffect(() => {
     if (serverItems.length) {
       setLines(
-        serverItems.map((it) => ({
-          product_id: Number(it.product_id),
-          product_name: asText((it.product as Record<string, unknown>)?.name ?? it.product_name, 'منتج'),
-          counted_quantity: String(it.counted_quantity ?? 0),
-        })),
+        serverItems.map((it) => {
+          const productId = Number(it.product_id);
+          const variantId = it.variant_id != null ? String(it.variant_id) : null;
+          const batchId = it.batch_id != null ? String(it.batch_id) : null;
+          return {
+            key: stockCountLineKey(productId, variantId, batchId),
+            product_id: productId,
+            variant_id: variantId,
+            batch_id: batchId,
+            product_name: asText((it.product as Record<string, unknown>)?.name ?? it.product_name, 'منتج'),
+            system_quantity: Number(it.system_quantity ?? 0),
+            counted_quantity: String(it.counted_quantity ?? 0),
+            variant_sku: (it.variant as Record<string, unknown>)?.sku
+              ? String((it.variant as Record<string, unknown>).sku)
+              : null,
+            batch_number: (it.batch as Record<string, unknown>)?.batch_number
+              ? String((it.batch as Record<string, unknown>).batch_number)
+              : null,
+          };
+        }),
       );
     }
   }, [doc.id, doc.status, serverItems.length]);
 
   const addProduct = (product: { id: number; name?: string }) => {
-    if (lines.some((l) => l.product_id === product.id)) return;
-    setLines([...lines, { product_id: product.id, product_name: product.name ?? 'منتج', counted_quantity: '0' }]);
+    const key = stockCountLineKey(product.id, null, null);
+    if (lines.some((l) => l.key === key)) return;
+    setLines([
+      ...lines,
+      {
+        key,
+        product_id: product.id,
+        variant_id: null,
+        batch_id: null,
+        product_name: product.name ?? 'منتج',
+        system_quantity: 0,
+        counted_quantity: '0',
+      },
+    ]);
+  };
+
+  const loadWarehouseBalances = async () => {
+    if (!warehouseId) {
+      Alert.alert('تنبيه', 'لا يوجد مخزن مرتبط بجلسة الجرد.');
+      return;
+    }
+    setLoadingBalances(true);
+    try {
+      const balances = await fetchAllBalancesForWarehouse(warehouseId);
+      const draft = balancesToStockCountLines(balances);
+      setLines((prev) => mergeStockCountLines(prev, draft));
+      Alert.alert('تم', `تم تحميل ${draft.length} سطر رصيد من المخزن.`);
+    } catch (err) {
+      Alert.alert('خطأ', normalizeApiError(err).message);
+    } finally {
+      setLoadingBalances(false);
+    }
   };
 
   const saveItems = async () => {
@@ -56,7 +111,12 @@ function StockCountBody({
     try {
       await stockCountsAPI.upsertItems(
         id,
-        lines.map((l) => ({ product_id: l.product_id, counted_quantity: Number(l.counted_quantity) || 0 })),
+        lines.map((l) => ({
+          product_id: l.product_id,
+          counted_quantity: Number(l.counted_quantity) || 0,
+          variant_id: l.variant_id,
+          batch_id: l.batch_id,
+        })),
       );
       Alert.alert('تم', 'تم حفظ بنود الجرد');
       refresh();
@@ -86,10 +146,25 @@ function StockCountBody({
       <>
         <AppCard>
           <AppSectionHeader title="إدخال الكميات" />
+          <AppButton
+            title="تحميل أرصدة المخزن"
+            variant="secondary"
+            loading={loadingBalances}
+            onPress={() => void loadWarehouseBalances()}
+          />
           <InventoryProductSearch onSelect={addProduct} />
           {lines.map((line, index) => (
-            <View key={line.product_id} style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-              <AppListItem title={line.product_name} />
+            <View key={line.key} style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              <AppListItem
+                title={line.product_name}
+                subtitle={[
+                  line.variant_sku ? `متغير: ${line.variant_sku}` : null,
+                  line.batch_number ? `دفعة: ${line.batch_number}` : null,
+                  `نظام: ${numberText(line.system_quantity)}`,
+                ]
+                  .filter(Boolean)
+                  .join(' • ')}
+              />
               <AppInput
                 label="الكمية المعدودة"
                 keyboardType="numeric"
@@ -99,6 +174,17 @@ function StockCountBody({
                   next[index] = { ...line, counted_quantity: v };
                   setLines(next);
                 }}
+              />
+              <AppButton
+                title={
+                  line.variant_sku || line.batch_number
+                    ? [line.variant_sku ? `متغير: ${line.variant_sku}` : null, line.batch_number ? `دفعة: ${line.batch_number}` : null]
+                        .filter(Boolean)
+                        .join(' • ')
+                    : 'اختر من الرصيد (دفعة / متغير)'
+                }
+                variant="secondary"
+                onPress={() => setLotPickerLineIndex(index)}
               />
             </View>
           ))}
@@ -114,6 +200,34 @@ function StockCountBody({
           onCancel={() => setConfirmPost(false)}
           onConfirm={() => void postCount()}
         />
+        {lotPickerLineIndex != null && lines[lotPickerLineIndex] ? (
+          <BatchPickerSheet
+            visible
+            warehouseId={warehouseId}
+            productId={lines[lotPickerLineIndex].product_id}
+            productName={lines[lotPickerLineIndex].product_name}
+            onClose={() => setLotPickerLineIndex(null)}
+            onSelect={(lot) => {
+              const idx = lotPickerLineIndex;
+              setLotPickerLineIndex(null);
+              setLines((prev) => {
+                const next = [...prev];
+                const line = next[idx];
+                if (!line) return prev;
+                next[idx] = {
+                  ...line,
+                  variant_id: lot.variant_id,
+                  batch_id: lot.batch_id,
+                  variant_sku: lot.variant_sku ?? null,
+                  batch_number: lot.batch_number ?? null,
+                  system_quantity: lot.system_quantity ?? line.system_quantity,
+                  key: stockCountLineKey(line.product_id, lot.variant_id, lot.batch_id),
+                };
+                return next;
+              });
+            }}
+          />
+        ) : null}
       </>
     );
   }
@@ -125,7 +239,13 @@ function StockCountBody({
         <AppListItem
           key={String(it.id ?? index)}
           title={asText((it.product as Record<string, unknown>)?.name, 'منتج')}
-          subtitle={`نظام: ${numberText(it.system_quantity)}`}
+          subtitle={[
+            it.variant_id ? `متغير: ${String(it.variant_id)}` : null,
+            it.batch_id ? `دفعة: ${String(it.batch_id)}` : null,
+            `نظام: ${numberText(it.system_quantity)}`,
+          ]
+            .filter(Boolean)
+            .join(' • ')}
           meta={`معدود: ${numberText(it.counted_quantity)}`}
         />
       ))}

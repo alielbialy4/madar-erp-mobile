@@ -32,6 +32,9 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'view_reports',
     apiMethod: 'salesDashboard',
     filters: ['dateRange', 'branch'],
+    exportSupported: true,
+    exportType: 'sales',
+    chart: { sectionId: 'daily', labelKey: 'date', valueKey: 'revenue', valueFormat: 'money' },
     metrics: [
       { key: 'orders_count', label: 'عدد الطلبات', format: 'number', tone: 'info' },
       { key: 'total_revenue', label: 'إجمالي الإيراد', format: 'money', tone: 'primary' },
@@ -225,6 +228,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'view_reports',
     apiMethod: 'hourlySales',
     filters: ['dateRange'],
+    chart: { sectionId: 'hourly', labelKey: 'hour', valueKey: 'revenue', valueFormat: 'money' },
     metrics: [
       { key: 'peak_hour', label: 'ساعة الذروة', format: 'text', tone: 'info' },
       { key: 'peak_revenue', label: 'إيراد الذروة', format: 'money', tone: 'primary' },
@@ -513,6 +517,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     filters: ['dateRange', 'couponCode', 'perPage'],
     paginated: true,
     exportSupported: true,
+    exportType: 'coupons',
     metrics: [
       { key: 'total_usages', label: 'عدد الاستخدامات', format: 'number', tone: 'info' },
       { key: 'total_coupon_discount', label: 'إجمالي الخصم', format: 'money', tone: 'warning' },
@@ -611,6 +616,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     feature: 'advanced_reports',
     apiMethod: 'treasurySummary',
     filters: ['dateRange', 'branch'],
+    chart: { sectionId: 'vaults', labelKey: 'name', valueKey: 'balance', valueFormat: 'money' },
     metrics: [
       { key: 'total_cash_in', label: 'إجمالي الوارد', format: 'money', tone: 'success' },
       { key: 'total_cash_out', label: 'إجمالي الصادر', format: 'money', tone: 'danger' },
@@ -641,6 +647,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     feature: 'advanced_reports',
     apiMethod: 'expensesSummary',
     filters: ['dateRange', 'branch'],
+    chart: { sectionId: 'by-category', labelKey: 'category_name', valueKey: 'total', valueFormat: 'money' },
     metrics: [
       { key: 'total_expenses', label: 'إجمالي المصروفات', format: 'money', tone: 'danger' },
     ],

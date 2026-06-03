@@ -1,7 +1,19 @@
 # Final Parity Report — Pass 2
 
-Date: 2026-05-24 (updated 2026-06-02 for deep parity code pass)
+Date: 2026-05-24 (updated 2026-06-03 for post-review wiring pass)
 Scope: `madar-erp-mobile/` only
+
+## 2026-06-03 — Post-review wiring (code)
+
+| Item | Files / notes |
+|------|----------------|
+| Held carts (phone + tablet cart panel) | `PosOrderPanel.tsx` — السلات / حفظ in `checkoutIcons` |
+| Recipe reports sidebar | `buildSidebarMenu.ts` (mobile + `front/Layouts/buildSidebarMenu.ts`) |
+| Inventory lot picker | `BatchPickerSheet.tsx`, `inventoryLots.ts`; stock count, adjustment, transfer |
+| Reports P2 | `reportDefinitions.ts` — treasury/expenses charts; export `sales` + `coupons` |
+| Typecheck | `CloseShiftSheet.tsx`, `PosCheckoutSheet.tsx` |
+| Engineering gates | `npm run typecheck` PASS; `npm run test:unit` PASS |
+| Device QA | All rows **NOT TESTED** — no physical devices in engineering pass |
 
 ## 2026-06-02 — Deep parity implementation (code)
 
@@ -65,7 +77,7 @@ Backend deploy: [`07_BACKEND_DEPLOY_CHECKLIST.md`](07_BACKEND_DEPLOY_CHECKLIST.m
 
 - POS: Quick customer create, variants, cash movement, table bridge, and offline conflict UI implemented. Physical device/offline/printer QA remains NOT TESTED.
 - POS critical rebuild: Tablet POS now uses the real rendered route with fullscreen cart-left/catalog-right workspace, dense catalog grid, visible table/held-cart/print actions, selected table context, `dining_table_id` checkout payload, offline table safety, and exact printer-missing messaging. The 2026-05-24 physical screenshot follow-up additionally fixes hidden cart names, product quantity indicators, tenant primary colors, and nested-list warnings in option/split/customer sheets. Physical authenticated POS screenshot QA remains NOT TESTED.
-- Reports: Saved reports list/run/delete implemented; legacy comprehensive tab added. Native export/share remains blocked by missing file/share dependency.
+- Reports: Saved reports list/run/delete implemented; legacy comprehensive tab added. Native export via `expo-file-system` + `expo-sharing` on supported reports; device share QA pending.
 - Kitchen ticket: Native preview route added; print/reprint uses local printer profiles and queue without fake success.
 - Driver settlements: Create is intentionally web-only with Arabic blocked state because it reconciles multiple deliveries and vault cash.
 - Tenant/roles: Tenant primary theme color edit implemented. Role definition edit is blocked by missing backend role CRUD endpoints; user role assignment remains available.
@@ -87,9 +99,11 @@ Backend deploy: [`07_BACKEND_DEPLOY_CHECKLIST.md`](07_BACKEND_DEPLOY_CHECKLIST.m
 - Printer QA: receipt, kitchen ticket, refund receipt, shift summary, network/Bluetooth/AirPrint.
 - Live POS table checkout QA: draft sync, active table order, and settlement should be verified against a real branch/table dataset.
 - Authenticated POS screenshot QA: browser smoke could not enter POS without valid cashier credentials/session data.
-- Native export/share: missing file/share dependency and Arabic filename QA.
+- Native export/share: implemented in code; needs device share-sheet and Arabic filename QA.
 - Web-only by decision: driver settlement create, vault transfer/reconcile, standalone refund lookup, advanced customer subtabs, barcode label print.
 
 ## Final Status
 
-READY WITH EXTERNAL BLOCKERS ONLY
+**NO-GO for store release** until Device QA (Android + iPhone smoke) per [`06_DEVICE_QA_SCRIPT.md`](06_DEVICE_QA_SCRIPT.md).
+
+Code parity for the 2026-06-03 review plan is **complete**; remaining blockers are physical QA and accepted web-only scope.

@@ -58,6 +58,7 @@ import { CouponsScreen } from '@/screens/coupons/CouponsScreen';
 import { CouponFormScreen } from '@/screens/coupons/CouponFormScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
 import { ReportViewerScreen } from '@/screens/reports/ReportViewerScreen';
+import { RecipeReportsScreen } from '@/screens/reports/RecipeReportsScreen';
 import { LegacyReportsScreen } from '@/screens/reports/LegacyReportsScreen';
 import { NotificationsScreen } from '@/screens/notifications/NotificationsScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
@@ -192,6 +193,7 @@ export function MoreStack() {
       <Stack.Screen name="BarcodePrintInfo" component={BarcodePrintInfoScreen} />
       <Stack.Screen name="Reports" component={ReportsScreen} />
       <Stack.Screen name="ReportViewer" component={ReportViewerScreen} />
+      <Stack.Screen name="RecipeReports" component={RecipeReportsScreen} />
       <Stack.Screen name="LegacyReports" component={LegacyReportsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />

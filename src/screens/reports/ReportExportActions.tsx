@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { AppButton, AppText } from '@/components/ui';
 import { reportsAPI } from '@/api/reports';
 import type { ReportDefinition, ReportFilters } from '@/reports/types';
@@ -12,8 +14,18 @@ type Props = {
   filters: ReportFilters;
 };
 
-const EXPORT_DISABLED_REASON =
-  'تصدير الملفات من تطبيق الموبايل غير متاح على iOS/Android حالياً (يتطلب حفظ الملف ومشاركته). استخدم الويب لتصدير PDF/Excel، أو جرّب نسخة الويب من التطبيق.';
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = String(reader.result ?? '');
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 export function ReportExportActions({ definition, filters }: Props) {
   const [exporting, setExporting] = useState(false);
@@ -34,22 +46,42 @@ export function ReportExportActions({ definition, filters }: Props) {
   };
 
   const runExport = async (format: 'pdf' | 'excel') => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') {
-      Alert.alert('تصدير غير متاح', EXPORT_DISABLED_REASON);
-      return;
-    }
     setExporting(true);
     try {
       const blob = await reportsAPI.exportReport(definition.exportType!, format, buildExportFilters());
-      const url = URL.createObjectURL(blob);
       const ext = format === 'pdf' ? 'pdf' : 'xlsx';
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${definition.id}-${filters.to_date}.${ext}`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
+      const filename = `report-${definition.id}-${filters.to_date}.${ext}`;
+
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      const base64 = await blobToBase64(blob);
+      const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+      if (!dir) {
+        Alert.alert('تصدير', 'تعذر الوصول إلى مجلد الملفات على الجهاز.');
+        return;
+      }
+      const path = `${dir}${filename}`;
+      await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert('تم الحفظ', `تم حفظ الملف في:\n${path}`);
+        return;
+      }
+      await Sharing.shareAsync(path, {
+        mimeType: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: definition.title,
+        UTI: format === 'pdf' ? 'com.adobe.pdf' : 'org.openxmlformats.spreadsheetml.sheet',
+      });
     } catch (err) {
       Alert.alert('فشل التصدير', normalizeApiError(err).message);
     } finally {
@@ -60,27 +92,15 @@ export function ReportExportActions({ definition, filters }: Props) {
   return (
     <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
       <AppText style={{ ...textStart, fontWeight: '700' }}>تصدير</AppText>
-      {Platform.OS === 'web' ? (
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-          <AppButton title="Excel" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('excel')} />
-          <AppButton title="PDF" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('pdf')} />
-        </View>
-      ) : (
-        <AppText style={{ ...textStart, color: '#888', fontSize: 12 }}>{EXPORT_DISABLED_REASON}</AppText>
-      )}
+      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+        <AppButton title="Excel" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('excel')} />
+        <AppButton title="PDF" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('pdf')} />
+      </View>
     </View>
   );
 }
 
 export function ReportExportButton({ supported }: { supported?: boolean }) {
   if (!supported) return null;
-  return (
-    <AppButton
-      title="تصدير"
-      variant="secondary"
-      disabled
-      onPress={() => Alert.alert('تصدير', EXPORT_DISABLED_REASON)}
-      style={{ opacity: 0.85 }}
-    />
-  );
+  return <AppButton title="تصدير" variant="secondary" disabled style={{ opacity: 0.85 }} />;
 }

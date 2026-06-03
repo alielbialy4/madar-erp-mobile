@@ -5,6 +5,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { productsAPI } from '@/api/products';
 import { categoriesAPI } from '@/api/categories';
 import { warehousesAPI } from '@/api/inventory';
+import { suppliersAPI } from '@/api/suppliers';
 import { AppScreen } from '@/components/layout';
 import { ImagePickerField } from '@/components/forms/ImagePickerField';
 import { FormError } from '@/components/forms';
@@ -36,6 +37,7 @@ import type { ProductsStackParamList } from '@/types/navigation';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
+import { money } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductForm'>;
 type Route = RouteProp<ProductsStackParamList, 'ProductForm'>;
@@ -53,6 +55,13 @@ const rawMaterialRoleOptions: Array<{ label: string; value: ProductRole }> = [
   { label: 'خامة', value: 'raw_material' },
   { label: 'مواد تغليف', value: 'packaging_material' },
   { label: 'نصف مصنع', value: 'semi_finished' },
+];
+
+const storageTypeOptions = [
+  { label: 'جاف', value: 'dry' },
+  { label: 'مبرد', value: 'chilled' },
+  { label: 'مجمد', value: 'frozen' },
+  { label: 'عادي', value: 'ambient' },
 ];
 
 function inventoryModeOf(product: Product): InventoryMode {
@@ -114,6 +123,15 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
   const [formError, setFormError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
+  const [trackBatch, setTrackBatch] = useState(false);
+  const [storageType, setStorageType] = useState<string | null>(null);
+  const [preferredSupplierId, setPreferredSupplierId] = useState<string | null>(null);
+  const [defaultWarehouseId, setDefaultWarehouseId] = useState<string | null>(null);
+  const [specBrand, setSpecBrand] = useState('');
+  const [specGrade, setSpecGrade] = useState('');
+  const [specOrigin, setSpecOrigin] = useState('');
+  const [recipeCostPreview, setRecipeCostPreview] = useState<number | null>(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -194,6 +212,9 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
         extractArray<{ id: string; name: string }>(res).map((w) => ({ id: String(w.id), name: String(w.name) })),
       );
     }).catch(() => {});
+    suppliersAPI.getAll({ per_page: 200, active_only: true }).then((res) => {
+      setSuppliers(extractArray<{ id: number; name: string }>(res).map((s) => ({ id: Number(s.id), name: String(s.name) })));
+    }).catch(() => {});
     productsAPI.getAll({ per_page: 200, context: 'recipe' }).then((res) => {
       const list = extractArray<Product>(res)
         .filter((p) => inventoryModeOf(p) === 'stock_product')
@@ -217,7 +238,17 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
         setName(p.name);
         setDescription(p.description ?? '');
         setCategoryId(loadedIsRaw ? null : p.category_id ? String(p.category_id) : null);
-        const specs = p.specs && typeof p.specs === 'object' ? p.specs : {};
+        const specs = p.specs && typeof p.specs === 'object' ? (p.specs as Record<string, unknown>) : {};
+        setTrackBatch(Boolean(p.track_batch));
+        setStorageType(p.storage_type ? String(p.storage_type) : null);
+        setPreferredSupplierId(p.preferred_supplier_id != null ? String(p.preferred_supplier_id) : null);
+        setDefaultWarehouseId(p.default_warehouse_id != null ? String(p.default_warehouse_id) : null);
+        setSpecBrand(specs.brand ? String(specs.brand) : '');
+        setSpecGrade(specs.grade ? String(specs.grade) : '');
+        setSpecOrigin(specs.origin ? String(specs.origin) : '');
+        setRecipeCostPreview(
+          p.recipe_costing?.recipe_cost != null ? Number(p.recipe_costing.recipe_cost) : null,
+        );
         setProductionDate(specs.production_date ? String(specs.production_date) : '');
         setExpiryDate(specs.expiry_date ? String(specs.expiry_date) : '');
         setShelfLifeMonths(
@@ -310,6 +341,21 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
     ].filter((option, index) => index === 0 || option.value),
     [productVariants],
   );
+
+  const estimatedRecipeCost = useMemo(() => {
+    if (rawMaterialMode || inventoryMode !== 'recipe_product') return null;
+    let total = 0;
+    for (const row of recipes) {
+      if (!row.ingredient_product_id || Number(row.quantity) <= 0) continue;
+      const unitCost = Number(
+        row.ingredient_product?.avg_cost ?? row.ingredient_product?.cost_price ?? 0,
+      );
+      const waste = Number(row.waste_percentage ?? 0);
+      const qty = Number(row.quantity) * (1 + waste / 100);
+      total += unitCost * qty;
+    }
+    return total > 0 ? Math.round(total * 100) / 100 : null;
+  }, [rawMaterialMode, inventoryMode, recipes]);
 
   const modifierOptions = useMemo(
     () => [
@@ -413,6 +459,9 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
           ...(productionDate ? { production_date: productionDate } : {}),
           ...(expiryDate ? { expiry_date: expiryDate } : {}),
           ...(shelfMonthsNumber > 0 ? { shelf_life_months: shelfMonthsNumber } : {}),
+          ...(specBrand.trim() ? { brand: specBrand.trim() } : {}),
+          ...(specGrade.trim() ? { grade: specGrade.trim() } : {}),
+          ...(specOrigin.trim() ? { origin: specOrigin.trim() } : {}),
         }
       : undefined;
     return {
@@ -431,8 +480,10 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
       is_recipe_ingredient: rawMaterialMode ? true : undefined,
       track_inventory: isStockMode,
       track_expiry: isStockMode && trackExpiry,
-      preferred_supplier_id: rawMaterialMode ? null : undefined,
-      default_warehouse_id: rawMaterialMode ? null : undefined,
+      track_batch: rawMaterialMode ? trackBatch : undefined,
+      storage_type: rawMaterialMode && storageType ? storageType : undefined,
+      preferred_supplier_id: rawMaterialMode && preferredSupplierId ? Number(preferredSupplierId) : undefined,
+      default_warehouse_id: rawMaterialMode && defaultWarehouseId ? defaultWarehouseId : undefined,
       default_shelf_life_days: rawMaterialMode && shelfMonthsNumber > 0 ? Math.round(shelfMonthsNumber * 30) : undefined,
       specs: rawSpecs,
       active,
@@ -586,6 +637,32 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
               ) : null}
               {rawMaterialMode ? (
                 <>
+                  <SwitchRow label="تتبع الدفعات" value={trackBatch} onValueChange={setTrackBatch} />
+                  <AppSelect
+                    label="نوع التخزين"
+                    value={storageType}
+                    options={[{ label: '—', value: '' }, ...storageTypeOptions]}
+                    onChange={(v) => setStorageType(v || null)}
+                  />
+                  {suppliers.length > 0 ? (
+                    <AppSelect
+                      label="المورد المفضل"
+                      value={preferredSupplierId}
+                      options={[{ label: '—', value: '' }, ...suppliers.map((s) => ({ label: s.name, value: String(s.id) }))]}
+                      onChange={(v) => setPreferredSupplierId(v || null)}
+                    />
+                  ) : null}
+                  {warehouses.length > 0 ? (
+                    <AppSelect
+                      label="المخزن الافتراضي"
+                      value={defaultWarehouseId}
+                      options={[{ label: '—', value: '' }, ...warehouses.map((w) => ({ label: w.name, value: w.id }))]}
+                      onChange={(v) => setDefaultWarehouseId(v || null)}
+                    />
+                  ) : null}
+                  <AppInput label="العلامة التجارية" value={specBrand} onChangeText={setSpecBrand} />
+                  <AppInput label="الدرجة" value={specGrade} onChangeText={setSpecGrade} />
+                  <AppInput label="المنشأ" value={specOrigin} onChangeText={setSpecOrigin} />
                   <AppInput label="تاريخ الإنتاج" value={productionDate} onChangeText={updateProductionDate} placeholder="YYYY-MM-DD" />
                   <AppInput
                     label="مدة الصلاحية بالشهور"
@@ -605,6 +682,14 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
 
             {!rawMaterialMode && inventoryMode === 'recipe_product' ? (
               <ProductFormSection title="الوصفة" subtitle="مكونات الخصم عند البيع" icon="restaurant">
+                {recipeCostPreview != null || estimatedRecipeCost != null ? (
+                  <UiText style={{ color: c.accent, fontWeight: '700' }}>
+                    تكلفة الوصفة التقديرية: {money(recipeCostPreview ?? estimatedRecipeCost ?? 0)}
+                    {recipeCostPreview != null && estimatedRecipeCost != null && Math.abs(recipeCostPreview - estimatedRecipeCost) > 0.01
+                      ? ` (محسوبة: ${money(estimatedRecipeCost)})`
+                      : ''}
+                  </UiText>
+                ) : null}
                 <AppInput
                   label="بحث المكونات"
                   value={ingredientSearch}

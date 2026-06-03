@@ -5,7 +5,10 @@ import { inventoryAPI } from '@/api/inventory';
 import { AppScreen } from '@/components/layout';
 import { InventoryHero } from '@/components/inventory/InventoryHero';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
+import { BatchPickerSheet } from '@/components/inventory/BatchPickerSheet';
 import { InventoryLineItemCard, lineTotal } from '@/components/inventory/InventoryLineItemCard';
+import { stockCountLineKey } from '@/services/inventory/stockCountLines';
+import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
 import { ProductFormSection } from '@/components/products/ProductFormSection';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
@@ -21,10 +24,15 @@ import { Text } from '@/components/ui/AppText';
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockAdjustment'>;
 
 type AdjustmentItem = {
+  key: string;
   product_id: number;
   product_name: string;
   quantity: string;
   unit_cost: string;
+  variant_id?: string | null;
+  batch_id?: string | null;
+  variant_sku?: string | null;
+  batch_number?: string | null;
 };
 
 export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
@@ -41,6 +49,7 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [postConfirmVisible, setPostConfirmVisible] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [lotPickerKey, setLotPickerKey] = useState<string | null>(null);
 
   const typeOptions: SelectOption[] = [
     { label: 'إضافة', value: 'addition' },
@@ -75,20 +84,41 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
   }, [loadWarehouses]);
 
   const addProduct = (product: { id: number; name?: string; cost_price?: number; selling_price?: number }) => {
-    const exists = items.find((i) => i.product_id === product.id);
+    const key = stockCountLineKey(product.id, null, null);
+    const exists = items.find((i) => i.key === key);
     if (exists) {
-      setItems(items.map((i) => (i.product_id === product.id ? { ...i, quantity: String(Number(i.quantity) + 1) } : i)));
+      setItems(items.map((i) => (i.key === key ? { ...i, quantity: String(Number(i.quantity) + 1) } : i)));
     } else {
       setItems([
         ...items,
         {
+          key,
           product_id: product.id,
           product_name: product.name ?? 'منتج',
           quantity: '1',
           unit_cost: String(product.cost_price ?? product.selling_price ?? 0),
+          variant_id: null,
+          batch_id: null,
         },
       ]);
     }
+  };
+
+  const applyLotToItem = (itemKey: string, lot: InventoryLotSelection) => {
+    setItems((prev) =>
+      prev.map((row) => {
+        if (row.key !== itemKey) return row;
+        const nextKey = stockCountLineKey(row.product_id, lot.variant_id, lot.batch_id);
+        return {
+          ...row,
+          key: nextKey,
+          variant_id: lot.variant_id,
+          batch_id: lot.batch_id,
+          variant_sku: lot.variant_sku ?? null,
+          batch_number: lot.batch_number ?? null,
+        };
+      }),
+    );
   };
 
   const canSubmit = warehouseId && items.length > 0 && items.every((i) => Number(i.quantity) > 0 && Number(i.unit_cost) >= 0);
@@ -105,6 +135,8 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
           product_id: i.product_id,
           quantity: Number(i.quantity),
           unit_cost: Number(i.unit_cost),
+          ...(i.variant_id ? { variant_id: i.variant_id } : {}),
+          ...(i.batch_id ? { batch_id: i.batch_id } : {}),
         })),
       });
       const id = (res as { data?: { id?: string | number }; id?: string | number })?.data?.id ?? (res as { id?: string | number })?.id;
@@ -184,11 +216,24 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
             <ProductFormSection title={`الأصناف (${items.length})`} icon="inventory-2">
               {items.map((item, index) => (
                 <InventoryLineItemCard
-                  key={item.product_id}
+                  key={item.key}
                   title={item.product_name}
                   totalHint={lineTotal(item.quantity, item.unit_cost)}
                   onRemove={() => setItems(items.filter((_, i) => i !== index))}
                 >
+                  {warehouseId ? (
+                    <AppButton
+                      title={
+                        item.variant_sku || item.batch_number
+                          ? [item.variant_sku ? `متغير: ${item.variant_sku}` : null, item.batch_number ? `دفعة: ${item.batch_number}` : null]
+                              .filter(Boolean)
+                              .join(' • ')
+                          : 'اختر دفعة / متغير (اختياري)'
+                      }
+                      variant="secondary"
+                      onPress={() => setLotPickerKey(item.key)}
+                    />
+                  ) : null}
                   <View style={ui.dualFieldRow}>
                     <View style={{ flex: 1 }}>
                       <AppInput
@@ -251,6 +296,25 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
         onConfirm={() => void handlePost()}
         onCancel={() => setPostConfirmVisible(false)}
       />
+      {lotPickerKey && warehouseId ? (
+        (() => {
+          const row = items.find((i) => i.key === lotPickerKey);
+          if (!row) return null;
+          return (
+            <BatchPickerSheet
+              visible
+              warehouseId={warehouseId}
+              productId={row.product_id}
+              productName={row.product_name}
+              onClose={() => setLotPickerKey(null)}
+              onSelect={(lot) => {
+                applyLotToItem(lotPickerKey, lot);
+                setLotPickerKey(null);
+              }}
+            />
+          );
+        })()
+      ) : null}
     </AppScreen>
   );
 }

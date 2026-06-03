@@ -194,7 +194,11 @@ export function PosCheckoutSheet({
       { key: 'credit', label: 'آجل', icon: 'schedule' },
     ];
     base.push({ key: 'gift_card', label: 'بطاقة هدايا', icon: 'card-giftcard' });
-    return base;
+    return base.map((opt) => ({
+      key: opt.key,
+      label: opt.label,
+      icon: (opt.icon ?? 'account-balance-wallet') as keyof typeof MaterialIcons.glyphMap,
+    }));
   }, []);
 
   const cashDue = useMemo(() => {

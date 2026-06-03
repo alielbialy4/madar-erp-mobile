@@ -40,6 +40,7 @@ import { VariantPickerSheet } from './VariantPickerSheet';
 import { QuickCustomerSheet } from './QuickCustomerSheet';
 import { CashMovementSheet } from './CashMovementSheet';
 import { PosTablesSheet } from './PosTablesSheet';
+import { HoldCartsSheet } from './HoldCartsSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { usePosDiningTable } from '@/hooks/usePosDiningTable';
 import { diningAPI } from '@/api/dining';
@@ -137,6 +138,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
+  const [holdCartsOpen, setHoldCartsOpen] = useState(false);
+  const [holdCartsMode, setHoldCartsMode] = useState<'list' | 'save'>('list');
   const [locallyOccupiedIds, setLocallyOccupiedIds] = useState<string[]>([]);
   const tableDraftSyncGenerationRef = useRef(0);
   const selectedTableIdRef = useRef<string | null>(null);
@@ -1120,6 +1123,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
     onClearCart: clearCart,
     onCheckout: openCheckout,
     onCashMovement: () => setCashMovementOpen(true),
+    onOpenHoldCarts: () => {
+      setHoldCartsMode('list');
+      setHoldCartsOpen(true);
+    },
+    onSaveHoldCart: () => {
+      setHoldCartsMode('save');
+      setHoldCartsOpen(true);
+    },
     onUpdateQty: updateQuantity,
     onRemoveLine: removeLine,
     onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
@@ -1140,6 +1151,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
           onExitPos={handleExitPos}
           onCashMovement={() => setCashMovementOpen(true)}
           onOpenTables={() => setTablesOpen(true)}
+          onOpenHoldCarts={cartPanelProps.onOpenHoldCarts}
+          onSaveHoldCart={cartPanelProps.onSaveHoldCart}
           posNotice={posNotice}
           activeBranch={activeBranch}
           loading={loading}
@@ -1449,6 +1462,26 @@ export function POSScreen({ navigation }: { navigation: any }) {
         }}
         onTransferTable={handleTransferTableFromSheet}
         onMergeTable={handleMergeTableFromSheet}
+      />
+
+      <HoldCartsSheet
+        visible={holdCartsOpen}
+        initialMode={holdCartsMode}
+        cart={cart}
+        customer={selectedCustomer}
+        manualDiscount={manualDiscountAmount}
+        appliedCoupon={appliedCoupon}
+        cartTotal={effectiveTotal}
+        onClose={() => setHoldCartsOpen(false)}
+        onRestore={(data) => {
+          restoreCartContext({
+            lines: data.lines,
+            cartDiscount: data.manualDiscount,
+            customer: data.customer,
+            appliedCoupon: data.appliedCoupon,
+          });
+          setPosNotice('تم استعادة السلة المحفوظة.');
+        }}
       />
     </SafeAreaView>
   );

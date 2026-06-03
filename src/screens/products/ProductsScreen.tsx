@@ -54,9 +54,15 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
   const listParams = useMemo(
     () => ({
       search: debounced || undefined,
-      category_id: filters.category_id ? Number(filters.category_id) : undefined,
-      stock_status: filters.stock_status ?? undefined,
-      featured: filters.featured ?? undefined,
+      category_id: !isRawMaterials && filters.category_id ? Number(filters.category_id) : undefined,
+      stock_status: isRawMaterials
+        ? filters.raw_status === 'low'
+          ? 'low'
+          : filters.stock_status ?? undefined
+        : filters.stock_status ?? undefined,
+      featured: !isRawMaterials ? filters.featured ?? undefined : undefined,
+      active: isRawMaterials && filters.raw_status === 'inactive' ? 0 : undefined,
+      product_role: isRawMaterials && filters.product_role ? filters.product_role : undefined,
       scope: isRawMaterials ? 'raw_materials' : undefined,
       include_raw_materials: isRawMaterials ? 1 : undefined,
       per_page: 50,
@@ -64,10 +70,15 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
     [debounced, filters, isRawMaterials],
   );
 
-  const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Product & Record<string, unknown>>(
+  const { items: rawItems, loading, refreshing, error, refresh, loadMore } = useListResource<Product & Record<string, unknown>>(
     productsAPI.getAll,
     listParams,
   );
+
+  const items = useMemo(() => {
+    if (!isRawMaterials || filters.raw_status !== 'expiry') return rawItems;
+    return rawItems.filter((p) => p.track_expiry === true || p.track_batch === true);
+  }, [rawItems, isRawMaterials, filters.raw_status]);
 
   useEffect(() => {
     categoriesAPI.getAll({ per_page: 200 }).then((res) => setCategories(extractArray<Category>(res))).catch(() => {});
@@ -126,7 +137,13 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
         statLabels={isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined}
       />
       {searchBar}
-      <ProductFiltersPanel categories={categories} filters={filters} onChange={setFilters} resultCount={items.length} />
+      <ProductFiltersPanel
+        categories={categories}
+        filters={filters}
+        onChange={setFilters}
+        resultCount={items.length}
+        rawMaterialMode={isRawMaterials}
+      />
     </View>
   );
 
@@ -213,6 +230,7 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
               onChange={setFilters}
               resultCount={items.length}
               layout="sidebar"
+              rawMaterialMode={isRawMaterials}
             />
           </View>
         </View>

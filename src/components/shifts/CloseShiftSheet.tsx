@@ -385,13 +385,17 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
                   label={vaultSettlementDirection === 'withdraw' ? 'خزنة السحب' : 'خزنة الإيداع'}
                   value={depositVaultId}
                   onChange={setDepositVaultId}
-                  options={vaults.map((v) => ({
-                    value: String(v.id),
-                    label: String(v.name ?? v.id),
-                  }))}
-                  placeholder={
-                    vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع'
-                  }
+                  options={[
+                    {
+                      value: '',
+                      label:
+                        vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع',
+                    },
+                    ...vaults.map((v) => ({
+                      value: String(v.id),
+                      label: String(v.name ?? v.id),
+                    })),
+                  ]}
                 />
                 {vaultSettlementDirection === 'withdraw' ? (
                   <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>

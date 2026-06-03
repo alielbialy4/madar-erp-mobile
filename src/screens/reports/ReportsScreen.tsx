@@ -96,6 +96,18 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
           </ScrollView>
         </View>
       ) : null}
+      <PressableScale onPress={() => navigation.navigate('RecipeReports')}>
+        <AppCard style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
+          <MaterialIcons name="restaurant" size={28} color={c.accent} />
+          <View style={{ flex: 1 }}>
+            <AppText style={{ fontWeight: '700', ...textStart }}>تقارير تكلفة الوصفات</AppText>
+            <AppText style={{ color: c.textMuted, ...textStart, fontSize: 12 }}>
+              استهلاك الخامات، التكلفة والهامش، الوصفات الناقصة، والفرق المتوقع
+            </AppText>
+          </View>
+          <MaterialIcons name="chevron-left" size={24} color={c.textMuted} />
+        </AppCard>
+      </PressableScale>
       <PressableScale onPress={() => navigation.navigate('LegacyReports')}>
         <AppCard style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
           <MaterialIcons name="history" size={28} color={c.accent} />

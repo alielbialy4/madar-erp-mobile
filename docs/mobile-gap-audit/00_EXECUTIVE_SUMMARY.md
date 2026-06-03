@@ -46,7 +46,7 @@ Classification is per sidebar leaf vs best available mobile implementation (scre
 |---|-----|----------|------------|
 | 1 | Reports hub navigates to `ReportViewer` / `LegacyReports` **not registered** in `MoreStack` | P0 | `11_REPORTS_GAPS.md` |
 | 2 | Dedicated **Waiter POS** (`/waiter`) — mobile only opens dining halls reference | P0 | `05_DINING_AND_KITCHEN_GAPS.md` |
-| 3 | POS **held carts** (save/restore) — web `HoldCartModal`; mobile absent | P0 | `02_POS_GAPS.md` |
+| 3 | POS **held carts** (save/restore) — web `HoldCartModal`; mobile wired (tablet + phone 2026-06-03) | ~~P0~~ Closed | `02_POS_GAPS.md` |
 | 4 | POS **loyalty points redemption** at checkout — web `useCartPayment`; mobile shows balance only | P0 | `02_POS_GAPS.md` |
 | 5 | POS **gift card payment** — web payment modal; mobile no gift card tender | P0 | `02_POS_GAPS.md` |
 | 6 | POS **offline coupon** validate/revalidate — web `validateCouponOffline`; mobile online-only | P1 | `02_POS_GAPS.md`, `13_OFFLINE_AND_PRINTING_GAPS.md` |
@@ -146,3 +146,20 @@ Validation after that pass:
 - `npm run web -- --port 19006`: PASS short smoke
 
 Current acceptance status is **NO-GO for full parity acceptance** until the remaining blockers in `docs/full-web-mobile-parity/04_REMAINING_BLOCKERS.md` are resolved or explicitly accepted.
+
+---
+
+## Post-2026-06-03 status (engineering review)
+
+| Topic | Status |
+|-------|--------|
+| Recipe reports (5 tabs) + sidebar link | Implemented |
+| Raw materials filters + form fields | Implemented |
+| Stock count batch/variant + `BatchPickerSheet` | Implemented |
+| Adjustment/transfer optional `batch_id` / `variant_id` | Implemented |
+| Offline coupon | Already in `POSScreen` |
+| `localPromotionEngine.ts` | Present under `src/services/pos/` (audit “missing” was stale) |
+| Report charts (sales, hourly, treasury, expenses) | Implemented in hub definitions |
+| Native report export | Implemented (`ReportExportActions`); device QA pending |
+| Held carts phone UI | Implemented in `PosOrderPanel` |
+| Device QA | **NOT TESTED** on real hardware |

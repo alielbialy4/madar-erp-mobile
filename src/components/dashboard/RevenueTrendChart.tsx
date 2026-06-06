@@ -22,6 +22,33 @@ export function RevenueTrendChart({
 }: Props) {
   const c = useColors();
   const ds = useMemo(() => createDashboardStyles(c), [c]);
+  const styles = useMemo(
+    () => ({
+      bars: {
+        flexDirection: 'row' as const,
+        alignItems: 'flex-end' as const,
+        justifyContent: 'space-between' as const,
+        gap: 6,
+        minHeight: 148,
+        paddingTop: 8,
+      },
+      barCol: { flex: 1, alignItems: 'center' as const, gap: 8, minWidth: 0 },
+      bar: { width: '76%' as const, maxWidth: 32, borderRadius: 8 },
+      barLabel: { fontSize: 9, color: c.textCaption, textAlign: 'center' as const },
+      footer: {
+        marginTop: 16,
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: c.border,
+      },
+      footerLabel: { fontSize: 12, color: c.textMuted, writingDirection: 'rtl' as const },
+      footerValue: { fontSize: 14, fontWeight: '800' as const, color: c.text, writingDirection: 'ltr' as const },
+    }),
+    [c],
+  );
   const max = Math.max(...revenue.map((n) => Number(n) || 0), 1);
   const labels = days.map((day) => {
     const parts = (day || '').split('-');
@@ -76,27 +103,3 @@ export function RevenueTrendChart({
   );
 }
 
-const styles = {
-  bars: {
-    flexDirection: 'row' as const,
-    alignItems: 'flex-end' as const,
-    justifyContent: 'space-between' as const,
-    gap: 6,
-    minHeight: 148,
-    paddingTop: 8,
-  },
-  barCol: { flex: 1, alignItems: 'center' as const, gap: 8, minWidth: 0 },
-  bar: { width: '76%' as const, maxWidth: 32, borderRadius: 8 },
-  barLabel: { fontSize: 9, color: '#94A3B8', textAlign: 'center' as const },
-  footer: {
-    marginTop: 16,
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E8EDF2',
-  },
-  footerLabel: { fontSize: 12, color: '#64748B', writingDirection: 'rtl' as const },
-  footerValue: { fontSize: 14, fontWeight: '800' as const, color: '#0F172A', writingDirection: 'ltr' as const },
-};

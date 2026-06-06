@@ -9,6 +9,7 @@ export function KitchenStationsListScreen({ navigation }: { navigation: any }) {
     <CrudListScreen
       title="محطات المطبخ"
       subtitle="تصفية KDS وتوجيه الطباعة"
+      moduleIcon="kitchen"
       loader={(p) => kitchenStationsAPI.list(p as Parameters<typeof kitchenStationsAPI.list>[0]) as never}
       onItemPress={(row) => navigation.navigate('KitchenStationForm', { id: String(row.id), name: String(row.name ?? '') })}
       itemTitle={(row) => asText(row.name, 'محطة')}

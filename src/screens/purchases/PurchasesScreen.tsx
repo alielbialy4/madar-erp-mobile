@@ -10,6 +10,7 @@ export function PurchasesScreen({ navigation }: { navigation: any }) {
     <CrudListScreen<Record<string, unknown>>
       title="المشتريات"
       subtitle="فواتير الشراء ومرتجعاتها"
+      moduleIcon="purchases"
       loader={purchasesAPI.getAll}
       onItemPress={(item) => navigation.navigate('PurchaseDetail', { id: Number(item.id) })}
       itemTitle={(item) => String(item.invoice_number ?? item.reference_no ?? `شراء ${item.id}`)}

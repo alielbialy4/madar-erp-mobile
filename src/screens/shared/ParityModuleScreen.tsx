@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppScreen } from '@/components/layout';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppBadge, AppCard, AppInput, AppSectionHeader, AppText as Text } from '@/components/ui';
+import { AppBadge, AppCard, AppResourceRow, AppSearchField, AppSectionHeader, AppText as Text } from '@/components/ui';
 import { get } from '@/api/client';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
@@ -180,7 +180,7 @@ export function ParityModuleScreen({ route, navigation }: Props) {
   return (
     <AppScreen
       title={title}
-      subtitle={`مطابقة مسار الويب: ${params?.webRoute ?? '-'}`}
+      subtitle={note ?? undefined}
       onBack={navigation.goBack}
       refreshing={refreshing}
       onRefresh={endpoint ? () => void load(true) : undefined}
@@ -207,7 +207,7 @@ export function ParityModuleScreen({ route, navigation }: Props) {
         />
       ) : (
         <>
-          <AppInput value={query} onChangeText={setQuery} placeholder="بحث في هذا المسار..." returnKeyType="search" />
+          <AppSearchField value={query} onChangeText={setQuery} placeholder="بحث..." />
           {loading ? <AppLoadingState variant="skeleton" skeletonRows={6} /> : null}
           {error ? <AppErrorState message={error} onRetry={() => void load(false)} /> : null}
           {!loading && !error && rows.length === 0 && metrics.length === 0 ? (
@@ -216,13 +216,13 @@ export function ParityModuleScreen({ route, navigation }: Props) {
           {!loading && !error && rows.length > 0 ? (
             <View style={styles.list}>
               {rows.map((item, index) => (
-                <Pressable key={String(item.id ?? index)} style={({ pressed }) => [styles.rowCard, pressed ? styles.rowPressed : undefined]}>
-                  <View style={styles.rowTop}>
-                    <Text style={styles.rowTitle} numberOfLines={2}>{rowTitle(item)}</Text>
-                    {rowMeta(item) ? <Text style={[styles.rowMeta, textLtr]}>{rowMeta(item)}</Text> : null}
-                  </View>
-                  {rowSubtitle(item) ? <Text style={styles.rowSubtitle}>{rowSubtitle(item)}</Text> : null}
-                </Pressable>
+                <AppResourceRow
+                  key={String(item.id ?? index)}
+                  title={rowTitle(item)}
+                  subtitle={rowSubtitle(item)}
+                  meta={rowMeta(item)}
+                  onPress={undefined}
+                />
               ))}
             </View>
           ) : null}

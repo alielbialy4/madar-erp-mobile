@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { layawayAPI, type LayawayInstallment, type LayawayPlan } from '@/api/layaway';
-import { AppBottomSheet, AppScreen } from '@/components/layout';
+import { AppBottomSheet } from '@/components/layout';
+import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { AppBadge, AppButton, AppCard, AppInput } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
-import { AppEmptyState, ConfirmDialog } from '@/components/feedback';
+import { AppEmptyState, ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
 import { useColors } from '@/hooks/useColors';
@@ -16,6 +17,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
 import { statusTone } from '@/screens/shared/CrudListScreen';
+import { hapticSuccess } from '@/utils/haptics';
 
 function amount(value: unknown): number {
   const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : 0;
@@ -36,6 +38,7 @@ type PaymentTarget =
 
 export function LayawayScreen({ navigation }: { navigation: any }) {
   const c = useColors();
+  const toast = useToast();
   const styles = useMemo(() => createStyles(c), [c]);
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<LayawayPlan & Record<string, unknown>>(
     layawayAPI.list,
@@ -90,6 +93,8 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
       const planToReload = paymentTarget.plan;
       setPaymentTarget(null);
       setPayAmount('');
+      void hapticSuccess();
+      toast.success('تم تسجيل الدفعة');
       await refresh();
       if (detailsPlan?.id === planToReload.id) await openDetails(planToReload);
     } catch (err) {
@@ -106,7 +111,21 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
   }, [installments]);
 
   return (
-    <AppScreen title="البيع الآجل" subtitle="خطط الأقساط وجدولة الدفعات" scroll={false} onBack={navigation.goBack}>
+    <>
+    <ListScreenLayout
+      title="البيع الآجل"
+      subtitle="خطط الأقساط وجدولة الدفعات"
+      onBack={navigation.goBack}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      hero={{
+        eyebrow: 'المبيعات',
+        title: 'البيع الآجل',
+        subtitle: 'خطط الأقساط وجدولة الدفعات',
+        stats: [{ label: 'خطط', value: items.length }],
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -138,6 +157,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
           );
         }}
       />
+    </ListScreenLayout>
 
       <AppBottomSheet
         visible={Boolean(detailsPlan)}
@@ -197,7 +217,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
         onConfirm={() => void submitPayment()}
         onCancel={() => setPaymentConfirmOpen(false)}
       />
-    </AppScreen>
+    </>
   );
 }
 

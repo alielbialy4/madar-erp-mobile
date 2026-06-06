@@ -29,7 +29,7 @@ import {
   buildMobileSidebarMenu,
   type MobileSidebarMenuItem,
 } from '@/navigation/buildSidebarMenu';
-import { sidebarActionKey } from '@/navigation/sidebarNavMap';
+import { isNavItemActive } from '@/navigation/sidebarNavMap';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import type { NavCatalogEntry } from '@/navigation/navCatalog';
 import type { RecentRoute } from '@/services/navigation/recentRoutes';
@@ -55,11 +55,7 @@ function getMenuKey(item: MobileSidebarMenuItem, index: number): string {
 }
 
 function hasActiveDescendant(item: MobileSidebarMenuItem, activeRoute?: string): boolean {
-  if (!activeRoute) return false;
-  if (item.nav) {
-    const key = sidebarActionKey(item.nav);
-    if (key === activeRoute) return true;
-  }
+  if (isNavItemActive(item, activeRoute)) return true;
   return Boolean(item.subItems?.some((sub) => hasActiveDescendant(sub, activeRoute)));
 }
 
@@ -240,7 +236,7 @@ function DrawerTreeItem({ item, menuKey, depth, activeRoute, isOpen, onToggle, o
   }
 
   if (!item.nav) return null;
-  return <DrawerNavItem icon={icon} label={item.label} active={activeRoute === sidebarActionKey(item.nav)} nested={depth > 0} onPress={() => onNavigate(item.nav!)} c={c} fg={fg} muted={muted} border={border} />;
+  return <DrawerNavItem icon={icon} label={item.label} active={isNavItemActive(item, activeRoute)} nested={depth > 0} onPress={() => onNavigate(item.nav!)} c={c} fg={fg} muted={muted} border={border} />;
 }
 
 function DrawerNavItem({ icon, label, active, nested, expandable, expanded, onPress, c, fg, muted, border }: {

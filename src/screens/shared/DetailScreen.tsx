@@ -1,15 +1,6 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { flexRow, textStart } from '@/constants/layout';
-import { AppText as Text } from '@/components/ui/AppText';
+import React from 'react';
 import type { ApiEnvelope } from '@/types/api';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppCard, AppSectionHeader } from '@/components/ui';
-import { AppErrorState, AppLoadingState } from '@/components/feedback';
-import { useAsyncResource } from '@/hooks/useAsyncResource';
-import { useColors } from '@/hooks/useColors';
-import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
+import { DetailScreenLayout } from '@/components/layout/DetailScreenLayout';
 import { asText } from '@/utils/format';
 
 type Field<T> = {
@@ -29,42 +20,17 @@ type Props<T extends Record<string, unknown>> = {
 };
 
 export function DetailScreen<T extends Record<string, unknown>>({ title, loader, fields, onBack, headerRight, badge, children }: Props<T>) {
-  const c = useColors();
-  const { data, loading, error, refresh, refreshing } = useAsyncResource<T>(loader);
-
-  const styles = useMemo(() => StyleSheet.create({
-    headerCard: { gap: spacing.sm },
-    badgeRow: { ...flexRow },
-    mainTitle: { color: c.text, fontSize: typography.h2, fontWeight: '900', ...textStart },
-    card: { gap: spacing.md },
-    fieldRow: { ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md, borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: spacing.sm },
-    label: { color: c.textMuted, fontSize: typography.small, ...textStart, minWidth: 112 },
-    value: { color: c.text, fontSize: typography.body, fontWeight: '700', ...textStart, flex: 1 },
-    ltr: { writingDirection: 'ltr', textAlign: 'left' },
-  }), [c]);
-
   return (
-    <AppScreen title={title} onBack={onBack} headerRight={headerRight} refreshing={refreshing} onRefresh={refresh}>
-      {loading && !data ? <AppLoadingState /> : null}
-      {error && !data ? <AppErrorState message={error} onRetry={refresh} /> : null}
-      {data ? (
-        <>
-          <AppCard style={styles.headerCard}>
-            <View style={styles.badgeRow}>{badge?.(data) ? <AppBadge {...badge(data)!} /> : null}</View>
-            <Text style={styles.mainTitle}>{asText(data.name ?? data.invoice_number ?? data.id)}</Text>
-          </AppCard>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="البيانات" />
-            {fields.map((field) => (
-              <View key={field.label} style={styles.fieldRow}>
-                <Text style={[styles.value, field.ltr ? styles.ltr : undefined]}>{asText(field.value(data))}</Text>
-                <Text style={styles.label}>{field.label}</Text>
-              </View>
-            ))}
-          </AppCard>
-          {children?.(data, { refresh })}
-        </>
-      ) : null}
-    </AppScreen>
+    <DetailScreenLayout
+      title={title}
+      onBack={onBack}
+      headerRight={headerRight}
+      loader={loader}
+      badge={badge}
+      heroTitle={(item) => asText(item.name ?? item.invoice_number ?? item.id)}
+      fields={fields}
+    >
+      {(item, actions) => children?.(item, actions) ?? null}
+    </DetailScreenLayout>
   );
 }

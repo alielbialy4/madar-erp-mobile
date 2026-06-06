@@ -40,6 +40,8 @@ export type AppColors = {
   sidebarForeground: string;
   sidebarAccent: string;
   sidebarBorder: string;
+  sidebarTextMuted: string;
+  sidebarTextHint: string;
   brandAccent: string;
   primarySoftStrong: string;
   primarySoftMuted: string;
@@ -59,6 +61,24 @@ export type AppColors = {
   metricPositive: string;
   metricNegative: string;
   cardGlow: string;
+  ringOffset: string;
+  paymentVisaBg: string;
+  paymentVisaBorder: string;
+  paymentVisaFg: string;
+  paymentInstapayBg: string;
+  paymentInstapayBorder: string;
+  paymentInstapayFg: string;
+  paymentEwalletBg: string;
+  paymentEwalletBorder: string;
+  paymentEwalletFg: string;
+  paymentCashBg: string;
+  paymentCashBorder: string;
+  paymentCashFg: string;
+  onPrimary: string;
+  shiftAlertBg: string;
+  shiftAlertBorder: string;
+  shiftAlertFg: string;
+  shiftInfoBg: string;
 };
 
 export const lightColors: AppColors = {
@@ -110,6 +130,8 @@ export const lightColors: AppColors = {
   sidebarForeground: '#E2E8F0',
   sidebarAccent: '#1E293B',
   sidebarBorder: '#334155',
+  sidebarTextMuted: '#94A3B8',
+  sidebarTextHint: '#64748B',
   brandAccent: '#0F172A',
 
   primarySoftStrong: '#F1F5F9',
@@ -133,6 +155,24 @@ export const lightColors: AppColors = {
   metricPositive: '#10B981',
   metricNegative: '#EF4444',
   cardGlow: 'rgba(15, 23, 42, 0.06)',
+  ringOffset: '#FFFFFF',
+  paymentVisaBg: '#EFF6FF',
+  paymentVisaBorder: '#BFDBFE',
+  paymentVisaFg: '#0D47A1',
+  paymentInstapayBg: '#F3E8FF',
+  paymentInstapayBorder: '#C4B5FD',
+  paymentInstapayFg: '#7B2FF7',
+  paymentEwalletBg: '#EDE9FE',
+  paymentEwalletBorder: '#A78BFA',
+  paymentEwalletFg: '#6D28D9',
+  paymentCashBg: '#ECFDF5',
+  paymentCashBorder: '#A7F3D0',
+  paymentCashFg: '#15803D',
+  onPrimary: '#FFFFFF',
+  shiftAlertBg: '#FEF2F2',
+  shiftAlertBorder: '#FECACA',
+  shiftAlertFg: '#B91C1C',
+  shiftInfoBg: '#EFF6FF',
 };
 
 export const darkColors: AppColors = {
@@ -184,6 +224,8 @@ export const darkColors: AppColors = {
   sidebarForeground: '#E2E8F0',
   sidebarAccent: '#1E293B',
   sidebarBorder: '#1E293B',
+  sidebarTextMuted: '#64748B',
+  sidebarTextHint: '#475569',
   brandAccent: '#475569',
 
   primarySoftStrong: '#1E293B',
@@ -207,6 +249,24 @@ export const darkColors: AppColors = {
   metricPositive: '#10B981',
   metricNegative: '#EF4444',
   cardGlow: 'rgba(241, 245, 249, 0.08)',
+  ringOffset: '#111827',
+  paymentVisaBg: '#152040',
+  paymentVisaBorder: '#1D4ED8',
+  paymentVisaFg: '#93C5FD',
+  paymentInstapayBg: '#2E1065',
+  paymentInstapayBorder: '#6D28D9',
+  paymentInstapayFg: '#C4B5FD',
+  paymentEwalletBg: '#2E1065',
+  paymentEwalletBorder: '#7C3AED',
+  paymentEwalletFg: '#DDD6FE',
+  paymentCashBg: '#0A3A20',
+  paymentCashBorder: '#105830',
+  paymentCashFg: '#86EFAC',
+  onPrimary: '#FFFFFF',
+  shiftAlertBg: '#3A1A1A',
+  shiftAlertBorder: '#7A1A1A',
+  shiftAlertFg: '#FCA5A5',
+  shiftInfoBg: '#152040',
 };
 
 export type ColorScheme = 'light' | 'dark';

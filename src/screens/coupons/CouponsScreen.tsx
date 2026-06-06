@@ -16,6 +16,7 @@ export function CouponsScreen({ navigation }: { navigation: any }) {
     <CrudListScreen<Coupon & Record<string, unknown>>
       title="الكوبونات"
       subtitle="التحقق في POS يتطلب شبكة؛ سياسة الفرع من إعدادات الفرع"
+      moduleIcon="coupons"
       loader={couponsAPI.list}
       onItemPress={(item) => navigation.navigate('CouponForm', { id: String(item.id) })}
       itemTitle={(item) => `${item.name} (${item.code})`}

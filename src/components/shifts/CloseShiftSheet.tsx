@@ -8,6 +8,7 @@ import { extractArray, extractData } from '@/utils/data';
 import { printShiftSummaryForShift } from '@/services/printing/shiftSummaryPrint';
 import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
+import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
 import type { ActiveShiftExtended, ClosePreview, ShiftDetailedSummary } from '@/types/shifts';
@@ -53,6 +54,7 @@ type Props = {
 };
 
 export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }: Props) {
+  const c = useColors();
   const [actualCash, setActualCash] = useState('');
   const [vaultSettlementDirection, setVaultSettlementDirection] = useState<'deposit' | 'withdraw'>('withdraw');
   const [depositAmount, setDepositAmount] = useState('');
@@ -270,12 +272,12 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
             style={{
               padding: spacing.md,
               borderRadius: 12,
-              backgroundColor: '#fef2f2',
+              backgroundColor: c.shiftAlertBg,
               borderWidth: 1,
-              borderColor: '#fecaca',
+              borderColor: c.shiftAlertBorder,
             }}
           >
-            <AppText style={{ ...textStart, color: '#b91c1c', fontWeight: '700' }}>
+            <AppText style={{ ...textStart, color: c.shiftAlertFg, fontWeight: '700' }}>
               {errorMsg || closeBlockerMessage}
             </AppText>
           </View>
@@ -294,7 +296,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
 
         {isAdmin && loadingPreview ? <AppText style={textStart}>جاري حساب النقد المتوقع…</AppText> : null}
         {(isAdmin || closeTotals) && paymentInfo && !loadingPreview ? (
-          <View style={{ gap: spacing.sm, padding: spacing.md, borderRadius: 12, backgroundColor: '#eff6ff' }}>
+          <View style={{ gap: spacing.sm, padding: spacing.md, borderRadius: 12, backgroundColor: c.shiftInfoBg }}>
             <View style={{ ...flexRow, justifyContent: 'space-between' }}>
               <AppText style={textStart}>نقدية الافتتاح</AppText>
               <AppText style={{ fontWeight: '800' }}>
@@ -430,7 +432,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
 
         {closedShiftId && printFailed ? (
           <View style={{ gap: spacing.sm }}>
-            <AppText style={{ ...textStart, color: '#b45309', fontWeight: '700' }}>
+            <AppText style={{ ...textStart, color: c.warning, fontWeight: '700' }}>
               تم إغلاق الوردية، لكن فشلت الطباعة
             </AppText>
             <AppButton title="طباعة تقرير الوردية" variant="secondary" loading={submitting} onPress={() => void handleReprint()} />

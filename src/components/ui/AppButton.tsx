@@ -46,7 +46,7 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
   const fg = variant === 'primary'
     ? c.primaryForeground
     : variant === 'danger' || variant === 'success'
-      ? '#FFFFFF'
+      ? c.onPrimary
     : variant === 'ghost' ? c.primary : c.text;
 
   const borderColor = variant === 'outline' ? c.border

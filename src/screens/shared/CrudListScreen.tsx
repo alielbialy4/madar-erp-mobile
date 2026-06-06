@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import type { ApiEnvelope, ListParams } from '@/types/api';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppInput, AppListItem } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
+import { AppResourceRow } from '@/components/ui/AppResourceRow';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
-import { spacing } from '@/constants/spacing';
-import { asText, dateText, money } from '@/utils/format';
+import { moduleIcons, type ModuleIconKey } from '@/constants/iconMap';
 
 type Props<T extends Record<string, unknown>> = {
   title: string;
@@ -23,8 +21,12 @@ type Props<T extends Record<string, unknown>> = {
   params?: ListParams;
   headerRight?: React.ReactNode;
   noHeader?: boolean;
+  moduleIcon?: ModuleIconKey;
+  heroStats?: Array<{ label: string; value: string | number }>;
+  fab?: { onPress: () => void; label?: string };
 };
 
+/** Thin ListScreenLayout adapter for simple CRUD lists — prefer ListScreenLayout directly in new screens */
 export function CrudListScreen<T extends Record<string, unknown>>({
   title,
   subtitle,
@@ -39,6 +41,9 @@ export function CrudListScreen<T extends Record<string, unknown>>({
   params,
   headerRight,
   noHeader,
+  moduleIcon,
+  heroStats,
+  fab,
 }: Props<T>) {
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query);
@@ -46,10 +51,23 @@ export function CrudListScreen<T extends Record<string, unknown>>({
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<T>(loader, listParams);
 
   return (
-    <AppScreen title={title} subtitle={subtitle} scroll={false} headerRight={headerRight} noHeader={noHeader}>
-      <View style={styles.searchWrap}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث..." returnKeyType="search" />
-      </View>
+    <ListScreenLayout
+      title={title}
+      subtitle={subtitle}
+      noHeader={noHeader}
+      headerRight={headerRight}
+      searchValue={query}
+      onSearchChange={setQuery}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      fab={fab}
+      hero={{
+        eyebrow: subtitle,
+        title,
+        stats: heroStats,
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -65,17 +83,19 @@ export function CrudListScreen<T extends Record<string, unknown>>({
         renderItem={({ item }) => {
           const badge = itemBadge?.(item);
           return (
-            <AppListItem
+            <AppResourceRow
               title={itemTitle(item)}
               subtitle={itemSubtitle?.(item)}
               meta={itemMeta?.(item)}
-              badge={badge ? <AppBadge label={badge.label} tone={badge.tone} /> : undefined}
+              badgeLabel={badge?.label}
+              badgeTone={badge?.tone}
+              leadingIcon={moduleIcon ? moduleIcons[moduleIcon] : undefined}
               onPress={onItemPress ? () => onItemPress(item) : undefined}
             />
           );
         }}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }
 
@@ -87,13 +107,3 @@ export function statusTone(status?: unknown): 'default' | 'success' | 'warning' 
   if (['card', 'cash', 'served'].includes(value)) return 'info';
   return 'default';
 }
-
-export const listFormatters = {
-  title: (item: Record<string, unknown>) => asText(item.name ?? item.invoice_number ?? item.reference_no ?? item.code ?? item.id),
-  total: (item: Record<string, unknown>) => money(item.total ?? item.amount ?? item.balance ?? 0),
-  date: (item: Record<string, unknown>) => dateText(asText(item.created_at ?? item.purchase_date ?? item.expense_date, '')),
-};
-
-const styles = StyleSheet.create({
-  searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
-});

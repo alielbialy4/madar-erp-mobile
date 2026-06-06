@@ -14,7 +14,7 @@ export function AppBadge({ label, tone = 'default' }: { label: string; tone?: To
     default: { bg: c.accentSoft, fg: c.accent, border: c.accentBorder },
     neutral: { bg: c.softNeutral, fg: c.textMuted, border: c.softNeutralBorder },
     success: { bg: c.softSuccess, fg: c.success, border: c.softSuccessBorder },
-    warning: { bg: c.softWarning, fg: '#B45309', border: c.softWarningBorder },
+    warning: { bg: c.softWarning, fg: c.warning, border: c.softWarningBorder },
     danger: { bg: c.softDanger, fg: c.danger, border: c.softDangerBorder },
     info: { bg: c.softInfo, fg: c.info, border: c.softInfoBorder },
     outline: { bg: 'transparent', fg: c.text, border: c.border },

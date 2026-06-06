@@ -19,6 +19,8 @@ type Props = {
   size?: 'default' | 'wide';
 };
 
+const SHEET_KEYBOARD_OFFSET = 12;
+
 export function AppBottomSheet({ visible, onClose, children, title, dismissable = true, size = 'default' }: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -57,6 +59,8 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
     });
   };
 
+  const sheetMaxHeight = isWideSheet ? '92%' : '86%';
+
   return (
     <Modal
       visible={visible}
@@ -84,8 +88,9 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
           />
         </Animated.View>
         <KeyboardAvoidingView
-          style={{ maxHeight: isWideSheet ? '92%' : '86%' }}
+          style={{ maxHeight: sheetMaxHeight }}
           behavior={Platform.select({ ios: 'padding', android: undefined })}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + SHEET_KEYBOARD_OFFSET : 0}
           pointerEvents="box-none"
         >
           <Animated.View
@@ -93,6 +98,7 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
               transform: [{ translateY }],
               width: isWideSheet || isTabletSheet ? sheetMaxWidth : '100%',
               alignSelf: 'center',
+              maxHeight: sheetMaxHeight,
               backgroundColor: c.surface,
               borderTopLeftRadius: radius.xxxl,
               borderTopRightRadius: radius.xxxl,
@@ -124,7 +130,15 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
                 {title}
               </AppText>
             ) : null}
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
+            <ScrollView
+              style={{ flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: spacing.xl, gap: spacing.md }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              nestedScrollEnabled
+            >
               {children}
             </ScrollView>
           </Animated.View>

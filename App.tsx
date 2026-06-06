@@ -11,6 +11,7 @@ import { useNetworkStore } from './src/store/networkStore';
 import { useThemeStore } from './src/store/themeStore';
 import { FontProvider } from './src/providers/FontProvider';
 import { RtlProvider } from './src/components/layout/RtlProvider';
+import { AppToastProvider } from './src/components/feedback/AppToast';
 import { getColors } from './src/constants/colors';
 import { fonts } from './src/constants/fonts';
 
@@ -60,10 +61,12 @@ export default function App() {
       <RtlProvider>
         <FontProvider>
           <SafeAreaProvider>
-            <NavigationContainer direction="rtl" theme={navTheme}>
-              <RootNavigator />
-              <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-            </NavigationContainer>
+            <AppToastProvider>
+              <NavigationContainer direction="rtl" theme={navTheme}>
+                <RootNavigator />
+                <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+              </NavigationContainer>
+            </AppToastProvider>
           </SafeAreaProvider>
         </FontProvider>
       </RtlProvider>

@@ -13,6 +13,7 @@ import { hasPermission } from '@/utils/permissions';
 import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import type { BranchManageRow } from '@/types/branches';
 
@@ -55,6 +56,7 @@ const emptyForm = (): FormState => ({
 });
 
 export function BranchFormScreen({ route, navigation }: { route: any; navigation: any }) {
+  const c = useColors();
   const id = route.params?.id as string | undefined;
   const isEdit = Boolean(id);
   const user = useAuthStore((s) => s.user);
@@ -198,7 +200,7 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
     <AppScreen title={isEdit ? 'تعديل فرع' : 'فرع جديد'} onBack={navigation.goBack}>
       {loading ? <Text>جاري التحميل…</Text> : null}
       <View style={{ gap: spacing.md }}>
-        {error ? <Text style={{ color: '#DC2626' }}>{error}</Text> : null}
+        {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
         <AppInput label="اسم الفرع *" value={form.name} onChangeText={(t) => patch({ name: t })} />
         <AppInput label="كود الفرع *" value={form.code} onChangeText={(t) => patch({ code: t })} editable={!isEdit} />
         <AppInput label="الموقع" value={form.location} onChangeText={(t) => patch({ location: t })} />

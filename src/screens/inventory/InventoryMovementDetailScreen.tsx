@@ -7,12 +7,14 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { dateText, numberText, asText } from '@/utils/format';
 import { textStart, textLtr } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'InventoryMovementDetail'>;
 type Route = RouteProp<MoreStackParamList, 'InventoryMovementDetail'>;
 
 export function InventoryMovementDetailScreen({ navigation, route }: { navigation: Nav; route: Route }) {
+  const c = useColors();
   const m = route.params.movement;
   const rows: { label: string; value: string; ltr?: boolean }[] = [
     { label: 'المنتج', value: asText(m.product_name ?? (m.product as Record<string, unknown>)?.name) },
@@ -30,7 +32,7 @@ export function InventoryMovementDetailScreen({ navigation, route }: { navigatio
         <AppSectionHeader title="البيانات" />
         {rows.map((r) => (
           <Text key={r.label} style={{ ...textStart, marginBottom: spacing.sm }}>
-            <Text style={{ color: '#888' }}>{r.label}: </Text>
+            <Text style={{ color: c.textMuted }}>{r.label}: </Text>
             <Text style={[r.ltr ? textLtr : textStart, { fontWeight: '700' }]}>{r.value}</Text>
           </Text>
         ))}

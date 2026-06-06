@@ -15,7 +15,7 @@ import { navigateSidebarAction } from './sidebarNavigation';
 import { sidebarActionKey } from './sidebarNavMap';
 import type { SidebarNavAction } from './sidebarNavMap';
 import { buildMobileSidebarMenu } from './buildSidebarMenu';
-import { flattenNavCatalog } from './navCatalog';
+import { findCatalogEntry, flattenNavCatalog } from './navCatalog';
 import { NavShellProvider } from './NavShellContext';
 import { isPosFullscreen } from './posFullscreen';
 import { pushRecentRoute, getRecentRoutes, type RecentRoute } from '@/services/navigation/recentRoutes';
@@ -72,8 +72,8 @@ export function MainTabs() {
 
   const recordRecent = React.useCallback(
     (action: SidebarNavAction) => {
-      const id = sidebarActionKey(action);
-      const entry = catalog.find((e) => e.id === id);
+      const entry = findCatalogEntry(catalog, action);
+      const id = entry?.id ?? sidebarActionKey(action);
       const label = entry?.label ?? id;
       void pushRecentRoute(id, label).then(() => loadRecent());
     },
@@ -84,13 +84,14 @@ export function MainTabs() {
     (action: SidebarNavAction) => {
       setSidebarOpen(false);
       setCommandOpen(false);
-      setActiveSidebarRoute(sidebarActionKey(action));
+      const entry = findCatalogEntry(catalog, action);
+      setActiveSidebarRoute(entry?.id ?? sidebarActionKey(action));
       recordRecent(action);
       const navigation = tabNavigationRef.current;
       if (!navigation) return;
       navigateSidebarAction(navigation, action);
     },
-    [recordRecent],
+    [catalog, recordRecent],
   );
 
   const handleCatalogSelect = React.useCallback(

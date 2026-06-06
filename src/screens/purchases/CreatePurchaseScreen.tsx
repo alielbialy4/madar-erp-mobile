@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { purchasesAPI } from '@/api/purchases';
@@ -9,14 +9,19 @@ import { productsAPI } from '@/api/products';
 import { inventoryAPI } from '@/api/inventory';
 import { useBranchStore } from '@/store/branchStore';
 import { AppScreen, AppBottomSheet } from '@/components/layout';
-import { AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { AppButton, AppInput, AppListItem, AppPicker, AppAmountInput, AppDatePicker } from '@/components/ui';
+import { FormSection } from '@/components/forms/FormSection';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { useColors } from '@/hooks/useColors';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
+import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
+import { createModuleStyles } from '@/styles/createModuleStyles';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { extractArray } from '@/utils/data';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 type PurchaseItem = {
   product_id: number;
@@ -50,11 +55,14 @@ const itemRoleLabel = (role: unknown): string => {
 
 export function CreatePurchaseScreen({ navigation }: { route: any; navigation: any }) {
   const c = useColors();
+  const toast = useToast();
+  const moduleStyles = useMemo(() => createModuleStyles(c), [c]);
+  const keyboardHeight = useKeyboardHeight();
+  const tabBarInset = useTabBarBottomInset(spacing.md);
+  const listPaddingBottom = tabBarInset + 96 + (keyboardHeight > 0 ? spacing.xl : spacing.xxl);
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const [suppliers, setSuppliers] = useState<Record<string, unknown>[]>([]);
-  const [selectedSupplier, setSelectedSupplier] = useState<Record<string, unknown> | null>(null);
-  const [supplierQuery, setSupplierQuery] = useState('');
-  const [supplierSheetOpen, setSupplierSheetOpen] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [supplierLoading, setSupplierLoading] = useState(false);
 
   const [warehouses, setWarehouses] = useState<Record<string, unknown>[]>([]);
@@ -78,10 +86,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   const styles = useMemo(() => StyleSheet.create({
     listContent: { paddingBottom: spacing.xxl, gap: spacing.md },
     headerSection: { gap: spacing.md, paddingBottom: spacing.md },
-    selectorButton: { borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: spacing.md, gap: spacing.xs },
-    selectorLabel: { color: c.textMuted, fontSize: typography.small, ...textStart },
-    selectorValue: { color: c.text, fontSize: typography.body, fontWeight: '700', ...textStart },
-    itemRow: { ...flexRow, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: spacing.md, gap: spacing.sm, alignItems: 'flex-start' },
+    itemRow: { ...moduleStyles.listRow, alignItems: 'flex-start' },
     itemInfo: { flex: 1, gap: spacing.sm },
     itemName: { color: c.text, fontWeight: '900', ...textStart },
     itemFields: { ...flexRow, gap: spacing.sm },
@@ -96,15 +101,37 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
     sheetContent: { gap: spacing.md },
     sheetList: { maxHeight: 350 },
     hintText: { color: c.textMuted, fontSize: typography.small, ...textStart },
-  }), [c]);
+    stickyBar: {
+      ...moduleStyles.stickyFooter,
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: tabBarInset,
+    },
+  }), [c, moduleStyles, tabBarInset]);
 
   useEffect(() => {
     setSupplierLoading(true);
-    suppliersAPI.getAll({ search: supplierQuery || undefined })
+    suppliersAPI.getAll({})
       .then((res) => setSuppliers(extractArray(res)))
       .catch(() => {})
       .finally(() => setSupplierLoading(false));
-  }, [supplierQuery]);
+  }, []);
+
+  const supplierOptions = useMemo(
+    () => suppliers.map((s) => ({ label: String(s.name ?? ''), value: String(s.id) })),
+    [suppliers],
+  );
+  const warehouseOptions = useMemo(
+    () => warehouses.map((w) => ({ label: String(w.name ?? ''), value: String(w.id) })),
+    [warehouses],
+  );
+  const selectedSupplier = useMemo(
+    () => suppliers.find((s) => String(s.id) === selectedSupplierId) ?? null,
+    [suppliers, selectedSupplierId],
+  );
 
   useEffect(() => {
     inventoryAPI.warehouses()
@@ -160,8 +187,8 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   const paidAmount = Number(paid) || 0;
 
   const handleSubmit = async () => {
-    if (!selectedSupplier) { setErrorMsg('اختر المورد'); return; }
-    if (items.length === 0) { setErrorMsg('أضف صنفاً واحداً على الأقل'); return; }
+    if (!selectedSupplier) { setErrorMsg('اختر المورد'); void hapticError(); return; }
+    if (items.length === 0) { setErrorMsg('أضف صنفاً واحداً على الأقل'); void hapticError(); return; }
     setSubmitting(true);
     setErrorMsg(null);
     try {
@@ -186,9 +213,13 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         ...(invoiceNumber ? { invoice_number: invoiceNumber } : {}),
       };
       await purchasesAPI.create(payload);
+      void hapticSuccess();
+      toast.success('تم إنشاء الشراء بنجاح');
       navigation.goBack();
     } catch (err) {
       setErrorMsg(normalizeApiError(err).message);
+      void hapticError();
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }
@@ -197,29 +228,34 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   return (
     <AppScreen title="إنشاء شراء" onBack={navigation.goBack} scroll={false}>
       <FlatList
+        style={{ flex: 1 }}
         data={items}
         keyExtractor={(_, i) => String(i)}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: listPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListHeaderComponent={
           <View style={styles.headerSection}>
-            <Pressable onPress={() => setSupplierSheetOpen(true)} style={styles.selectorButton}>
-              <Text style={styles.selectorLabel}>المورد</Text>
-              <Text style={styles.selectorValue}>{selectedSupplier ? String(selectedSupplier.name) : 'اختر المورد'}</Text>
-            </Pressable>
-
-            <AppInput label="تاريخ الشراء" value={purchaseDate} onChangeText={setPurchaseDate} placeholder="YYYY-MM-DD" />
-            <AppInput label="رقم الفاتورة" value={invoiceNumber} onChangeText={setInvoiceNumber} />
-
-            {warehouses.length > 0 ? (
-              <AppSelect
-                label="المخزن"
-                value={selectedWarehouse}
-                options={warehouses.map((w) => ({ label: String(w.name ?? ''), value: String(w.id) }))}
-                onChange={setSelectedWarehouse}
+            <FormSection title="بيانات الشراء" icon="shopping-cart">
+              <AppPicker
+                label="المورد"
+                value={selectedSupplierId}
+                options={supplierOptions}
+                onChange={setSelectedSupplierId}
+                placeholder={supplierLoading ? 'جاري التحميل...' : 'اختر المورد'}
               />
-            ) : null}
-
-          <AppButton title="إضافة منتج أو خامة" variant="secondary" onPress={() => setProductSearchOpen(true)} />
+              <AppDatePicker label="تاريخ الشراء" value={purchaseDate} onChange={setPurchaseDate} />
+              <AppInput label="رقم الفاتورة" value={invoiceNumber} onChangeText={setInvoiceNumber} />
+              {warehouses.length > 0 ? (
+                <AppPicker
+                  label="المخزن"
+                  value={selectedWarehouse}
+                  options={warehouseOptions}
+                  onChange={setSelectedWarehouse}
+                />
+              ) : null}
+              <AppButton title="إضافة منتج أو خامة" variant="secondary" onPress={() => setProductSearchOpen(true)} />
+            </FormSection>
           </View>
         }
         renderItem={({ item, index }) => (
@@ -250,17 +286,15 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
                     value={item.batch_number ?? ''}
                     onChangeText={(v) => updateItem(index, 'batch_number', v)}
                   />
-                  <AppInput
+                  <AppDatePicker
                     label="تاريخ الإنتاج"
                     value={item.production_date ?? ''}
-                    onChangeText={(v) => updateItem(index, 'production_date', v)}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(v) => updateItem(index, 'production_date', v)}
                   />
-                  <AppInput
+                  <AppDatePicker
                     label="تاريخ الصلاحية"
                     value={item.expiry_date ?? ''}
-                    onChangeText={(v) => updateItem(index, 'expiry_date', v)}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(v) => updateItem(index, 'expiry_date', v)}
                   />
                 </>
               ) : null}
@@ -278,42 +312,26 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
               <Text style={styles.totalLabel}>الإجمالي</Text>
               <Text style={styles.totalValue}>{money(total)}</Text>
             </View>
-            <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={setPaid} />
+            <AppAmountInput label="المدفوع" value={paid} onChangeText={setPaid} />
             <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
             {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-            <AppButton
-              title="تأكيد الشراء"
-              disabled={items.length === 0 || !selectedSupplier || submitting}
-              loading={submitting}
-              onPress={() => setConfirmVisible(true)}
-            />
           </View>
         }
       />
 
-      <AppBottomSheet visible={supplierSheetOpen} onClose={() => setSupplierSheetOpen(false)}>
-        <View style={styles.sheetContent}>
-          <AppSectionHeader title="اختيار المورد" />
-          <AppInput value={supplierQuery} onChangeText={setSupplierQuery} placeholder="بحث عن مورد..." />
-          {supplierLoading ? <Text style={styles.hintText}>جاري البحث...</Text> : null}
-          <FlatList
-            data={suppliers.slice(0, 50)}
-            keyExtractor={(item) => String(item.id)}
-            style={styles.sheetList}
-            renderItem={({ item }) => (
-              <AppListItem
-                title={String(item.name ?? '')}
-                subtitle={item.phone ? String(item.phone) : undefined}
-                onPress={() => { setSelectedSupplier(item); setSupplierSheetOpen(false); }}
-              />
-            )}
-          />
-        </View>
-      </AppBottomSheet>
+      <View style={styles.stickyBar}>
+        <AppButton
+          title={`تأكيد الشراء — ${money(total)}`}
+          disabled={items.length === 0 || !selectedSupplier || submitting}
+          loading={submitting}
+          onPress={() => setConfirmVisible(true)}
+          fullWidth
+        />
+      </View>
 
       <AppBottomSheet visible={productSearchOpen} onClose={() => { setProductSearchOpen(false); setProductQuery(''); setProductResults([]); }}>
         <View style={styles.sheetContent}>
-          <AppSectionHeader title="بحث منتج أو خامة" />
+          <Text style={{ fontWeight: '700', fontSize: typography.sectionTitle }}>بحث منتج أو خامة</Text>
           <AppInput value={productQuery} onChangeText={setProductQuery} placeholder="اسم أو باركود..." />
           {productSearching ? <Text style={styles.hintText}>جاري البحث...</Text> : null}
           <FlatList

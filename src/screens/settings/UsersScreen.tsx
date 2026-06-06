@@ -15,6 +15,7 @@ export function UsersScreen({ navigation }: { navigation: any }) {
     <CrudListScreen<Record<string, unknown>>
       title="المستخدمون"
       subtitle={canManage ? 'إنشاء وتعديل وتعيين أدوار' : 'قراءة فقط'}
+      moduleIcon="users"
       loader={(p) => settingsAPI.getUsers(p) as never}
       onItemPress={(item) => navigation.navigate('UserForm', { id: Number(item.id) })}
       itemTitle={(item) => asText(item.name)}

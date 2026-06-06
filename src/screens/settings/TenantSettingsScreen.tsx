@@ -14,7 +14,7 @@ import { useThemeStore } from '@/store/themeStore';
 export function TenantSettingsScreen({ navigation }: { navigation: any }) {
   const c = useColors();
   const [info, setInfo] = useState<Record<string, unknown> | null>(null);
-  const [themeHex, setThemeHex] = useState('#0F172A');
+  const [themeHex, setThemeHex] = useState(c.darkNavy);
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [savingTheme, setSavingTheme] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,7 @@ export function TenantSettingsScreen({ navigation }: { navigation: any }) {
 
   const saveTheme = async () => {
     if (!canSaveTheme) {
-      setThemeMessage('لون غير صالح. اكتب Hex مثل #0F172A.');
+      setThemeMessage(`لون غير صالح. اكتب Hex مثل ${c.darkNavy}.`);
       return;
     }
     setSavingTheme(true);
@@ -88,9 +88,9 @@ export function TenantSettingsScreen({ navigation }: { navigation: any }) {
               يدعم الخادم حالياً تعديل لون الواجهة الأساسي فقط من الجوال. محرر الألوان الكامل ورفع الشعارات يبقيان على الويب.
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm }}>
-              <View style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: canSaveTheme ? themeHex.trim() : '#000', borderWidth: 1, borderColor: c.border }} />
+              <View style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: canSaveTheme ? themeHex.trim() : c.darkNavy, borderWidth: 1, borderColor: c.border }} />
               <View style={{ flex: 1 }}>
-                <AppInput label="لون الواجهة Hex" value={themeHex} onChangeText={setThemeHex} placeholder="#0F172A" autoCapitalize="none" />
+                <AppInput label="لون الواجهة Hex" value={themeHex} onChangeText={setThemeHex} placeholder={c.darkNavy} autoCapitalize="none" />
               </View>
             </View>
             {themeMessage ? <Text style={{ color: c.info, fontSize: 13, marginBottom: spacing.sm }}>{themeMessage}</Text> : null}

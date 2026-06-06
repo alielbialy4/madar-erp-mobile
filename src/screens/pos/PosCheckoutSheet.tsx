@@ -184,12 +184,12 @@ export function PosCheckoutSheet({
       {
         key: 'electronic_wallet',
         label: 'محافظ إلكترونية',
-        brandTile: { backgroundColor: '#0D47A1', textColor: '#FFFFFF', title: 'محافظ\nإلكترونية' },
+        brandTile: { backgroundColor: c.paymentVisaBg, textColor: c.onPrimary, title: 'محافظ\nإلكترونية' },
       },
       {
         key: 'instapay',
         label: 'إنستا باي',
-        brandTile: { backgroundColor: '#7B2FF7', textColor: '#FFFFFF', title: 'InstaPay' },
+        brandTile: { backgroundColor: c.paymentInstapayFg, textColor: c.onPrimary, title: 'InstaPay' },
       },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
     ];
@@ -199,7 +199,7 @@ export function PosCheckoutSheet({
       label: opt.label,
       icon: (opt.icon ?? 'account-balance-wallet') as keyof typeof MaterialIcons.glyphMap,
     }));
-  }, []);
+  }, [c.onPrimary, c.paymentInstapayFg, c.paymentVisaBg]);
 
   const cashDue = useMemo(() => {
     if (paymentType === 'gift_card' && appliedGiftCard) {

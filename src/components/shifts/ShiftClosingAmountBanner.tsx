@@ -2,16 +2,12 @@ import React from 'react';
 import { View, type ViewStyle } from 'react-native';
 import { AppText } from '@/components/ui';
 import { flexRow, textStart } from '@/constants/layout';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import { getPaymentMethodStyle } from '@/constants/statusColors';
+import { useColors } from '@/hooks/useColors';
 
 type Variant = 'cash' | 'instapay' | 'ewallet';
-
-const variantStyle: Record<Variant, { bg: string; border: string; text: string }> = {
-  cash: { bg: '#dcfce7', border: '#86efac', text: '#15803d' },
-  instapay: { bg: '#e0f2fe', border: '#7dd3fc', text: '#0369a1' },
-  ewallet: { bg: '#ede9fe', border: '#a78bfa', text: '#6d28d9' },
-};
 
 export function ShiftClosingAmountBanner({
   label,
@@ -24,7 +20,8 @@ export function ShiftClosingAmountBanner({
   variant: Variant;
   style?: ViewStyle;
 }) {
-  const tone = variantStyle[variant];
+  const c = useColors();
+  const tone = getPaymentMethodStyle(c, variant);
   return (
     <View
       style={{
@@ -33,15 +30,15 @@ export function ShiftClosingAmountBanner({
         alignItems: 'center',
         gap: spacing.sm,
         padding: spacing.md,
-        borderRadius: 12,
+        borderRadius: radius.lg,
         borderWidth: 1,
         borderColor: tone.border,
         backgroundColor: tone.bg,
         ...style,
       }}
     >
-      <AppText style={{ ...textStart, fontWeight: '800', color: tone.text, flex: 1 }}>{label}</AppText>
-      <AppText style={{ fontWeight: '900', fontSize: typography.h3, color: tone.text }}>{value}</AppText>
+      <AppText style={{ ...textStart, fontWeight: '800', color: tone.fg, flex: 1 }}>{label}</AppText>
+      <AppText style={{ fontWeight: '900', fontSize: typography.h3, color: tone.fg }}>{value}</AppText>
     </View>
   );
 }

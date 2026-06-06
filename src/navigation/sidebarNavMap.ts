@@ -177,16 +177,52 @@ export function webLinkToNav(link?: string, label?: string): SidebarNavAction | 
   return WEB_LINK_TO_MOBILE_NAV[link] ?? resolveDynamicWebLink(link, label) ?? parityFallback(link, label, PARITY_FALLBACKS[link]);
 }
 
+function stableParamsKey(params: Record<string, unknown> | undefined): string {
+  if (!params) return '';
+  const keys = Object.keys(params).sort();
+  if (keys.length === 0) return '';
+  return keys.map((k) => `${k}=${String(params[k])}`).join('&');
+}
+
+export function navActionsEqual(a: SidebarNavAction, b: SidebarNavAction): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'tab' && b.kind === 'tab') return a.tab === b.tab;
+  if (a.kind === 'products' && b.kind === 'products') {
+    return a.screen === b.screen && stableParamsKey(a.params as Record<string, unknown>) === stableParamsKey(b.params as Record<string, unknown>);
+  }
+  if (a.kind === 'more' && b.kind === 'more') {
+    return a.screen === b.screen && stableParamsKey(a.params as Record<string, unknown>) === stableParamsKey(b.params as Record<string, unknown>);
+  }
+  return false;
+}
+
 export function sidebarActionKey(action: SidebarNavAction): string {
   if (action.kind === 'tab') return action.tab;
-  if (action.kind === 'products') return `ProductsTab:${action.screen}`;
-  if (action.screen === 'ParityModule') {
-    const params = action.params as MoreStackParamList['ParityModule'] | undefined;
-    return `ParityModule:${params?.webRoute ?? params?.title ?? 'unknown'}`;
+  if (action.kind === 'products') {
+    const scope = (action.params as { scope?: string } | undefined)?.scope;
+    return scope ? `ProductsTab:${action.screen}:${scope}` : `ProductsTab:${action.screen}`;
   }
-  if (action.screen === 'ReportViewer') {
-    const params = action.params as MoreStackParamList['ReportViewer'] | undefined;
-    return `ReportViewer:${params?.reportId ?? 'unknown'}`;
+
+  const { screen, params } = action;
+  if (screen === 'ParityModule') {
+    const p = params as MoreStackParamList['ParityModule'] | undefined;
+    return `ParityModule:${p?.webRoute ?? p?.title ?? 'unknown'}`;
   }
-  return action.screen;
+  if (screen === 'ReportViewer') {
+    const p = params as MoreStackParamList['ReportViewer'] | undefined;
+    return `ReportViewer:${p?.reportId ?? 'unknown'}`;
+  }
+  if (screen === 'InventoryList') {
+    const preset = (params as MoreStackParamList['InventoryList'] | undefined)?.preset;
+    if (preset) return `InventoryList:${preset}`;
+  }
+  const paramKey = stableParamsKey(params as Record<string, unknown> | undefined);
+  if (paramKey) return `${screen}:${paramKey}`;
+  return screen;
+}
+
+export function isNavItemActive(item: { id?: string; nav?: SidebarNavAction }, activeRoute?: string): boolean {
+  if (!activeRoute || !item.nav) return false;
+  if (item.id === activeRoute) return true;
+  return sidebarActionKey(item.nav) === activeRoute;
 }

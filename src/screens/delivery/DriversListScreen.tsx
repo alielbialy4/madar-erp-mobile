@@ -8,6 +8,7 @@ export function DriversListScreen({ navigation }: { navigation: any }) {
   return (
     <CrudListScreen
       title="السائقون"
+      moduleIcon="delivery"
       loader={(p) => driversAPI.getAll(p) as never}
       onItemPress={(row) => navigation.navigate('DriverForm', { id: String(row.id), name: String(row.name ?? '') })}
       itemTitle={(row) => asText(row.name, 'سائق')}

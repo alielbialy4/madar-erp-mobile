@@ -7,15 +7,29 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from '@/components/ui/AppText';
 
+import { AppButton } from '@/components/ui/AppButton';
+
 type Props = {
   title?: string;
   message?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
   action?: React.ReactNode;
+  ctaLabel?: string;
+  onCtaPress?: () => void;
 };
 
-export function AppEmptyState({ title = 'لا توجد بيانات', message, icon = 'inbox', action }: Props) {
+export function AppEmptyState({
+  title = 'لا توجد بيانات',
+  message,
+  icon = 'inbox',
+  action,
+  ctaLabel,
+  onCtaPress,
+}: Props) {
   const c = useColors();
+  const cta = action ?? (ctaLabel && onCtaPress ? (
+    <AppButton title={ctaLabel} onPress={onCtaPress} variant="secondary" />
+  ) : null);
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.huge, gap: spacing.md, paddingHorizontal: spacing.xxl }}>
       <View style={{
@@ -38,7 +52,7 @@ export function AppEmptyState({ title = 'لا توجد بيانات', message, i
           {message}
         </AppText>
       ) : null}
-      {action}
+      {cta}
     </View>
   );
 }

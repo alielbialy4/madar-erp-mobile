@@ -1,23 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import { salesAPI } from '@/api/sales';
-import { AppScreen } from '@/components/layout';
-import { AppInput } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { ResourceList } from '@/components/lists';
 import { SaleInvoiceCard } from '@/components/sales/SaleInvoiceCard';
 import { statusTone } from '@/screens/shared/CrudListScreen';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
-import { spacing } from '@/constants/spacing';
-import { fonts } from '@/constants/fonts';
-import { typography } from '@/constants/typography';
-import { textStart } from '@/constants/layout';
-import { useColors } from '@/hooks/useColors';
 import type { Sale } from '@/types/api';
-import { Text } from '@/components/ui/AppText';
 
 export function SalesScreen({ navigation }: { navigation: { navigate: (a: string, b?: object) => void } }) {
-  const c = useColors();
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query);
   const listParams = useMemo(() => (debounced ? { search: debounced } : {}), [debounced]);
@@ -27,21 +18,23 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
   );
 
   return (
-    <AppScreen title="المبيعات" subtitle="الفواتير والطلبات" scroll={false} noHeader>
-      <View style={[styles.hero, { backgroundColor: c.primarySoftMuted, borderColor: c.primarySoftBorder }]}>
-        <View style={styles.heroInner}>
-          <View style={[styles.heroIcon, { backgroundColor: c.surface }]}>
-            <View style={[styles.heroDot, { backgroundColor: c.primary }]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.heroTitle, { color: c.text }]}>المبيعات</Text>
-            <Text style={[styles.heroSub, { color: c.textMuted }]}>فواتير، حالات الدفع، وتفاصيل العملاء</Text>
-          </View>
-        </View>
-      </View>
-      <View style={styles.searchWrap}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث برقم الفاتورة أو العميل..." returnKeyType="search" />
-      </View>
+    <ListScreenLayout
+      title="المبيعات"
+      subtitle="فواتير، حالات الدفع، وتفاصيل العملاء"
+      noHeader
+      searchValue={query}
+      onSearchChange={setQuery}
+      searchPlaceholder="بحث برقم الفاتورة أو العميل..."
+      onRefresh={refresh}
+      refreshing={refreshing}
+      hero={{
+        eyebrow: 'الإيرادات',
+        title: 'المبيعات',
+        subtitle: 'فواتير، حالات الدفع، وتفاصيل العملاء',
+        stats: [{ label: 'الفواتير', value: items.length }],
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -63,28 +56,6 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
           );
         }}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  hero: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: spacing.lg,
-  },
-  heroInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  heroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroDot: { width: 12, height: 12, borderRadius: 6 },
-  heroTitle: { ...textStart, fontSize: typography.sectionTitle, fontFamily: fonts.extraBold, fontWeight: '800' },
-  heroSub: { ...textStart, fontSize: typography.tiny, fontFamily: fonts.medium, marginTop: 2 },
-  searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
-});

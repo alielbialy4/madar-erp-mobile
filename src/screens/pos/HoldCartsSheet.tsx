@@ -16,6 +16,7 @@ import type { Coupon, Customer } from '@/types/api';
 import { money, dateText } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 import { textStart } from '@/constants/layout';
+import { useColors } from '@/hooks/useColors';
 
 type Props = {
   visible: boolean;
@@ -45,6 +46,7 @@ export function HoldCartsSheet({
   cartTotal,
   onRestore,
 }: Props) {
+  const c = useColors();
   const [mode, setMode] = useState<'list' | 'save'>('list');
   const [items, setItems] = useState<HeldCartListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,7 +137,7 @@ export function HoldCartsSheet({
     <>
       <AppBottomSheet visible={visible} onClose={onClose} title={mode === 'save' ? 'حفظ السلة' : 'السلات المحفوظة'}>
         <View style={{ gap: spacing.md }}>
-          {message ? <Text style={{ ...textStart, color: '#b45309' }}>{message}</Text> : null}
+          {message ? <Text style={{ ...textStart, color: c.warning }}>{message}</Text> : null}
 
           {mode === 'save' ? (
             <>

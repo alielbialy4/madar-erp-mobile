@@ -1,3 +1,5 @@
+import type { AppColors } from '@/constants/colors';
+
 export const TABLE_STATUS_LABELS: Record<string, string> = {
   available: 'متاحة',
   occupied: 'مشغولة',
@@ -18,10 +20,10 @@ export function tableStatusTone(status?: string): 'default' | 'success' | 'warni
   return 'default';
 }
 
-export function tableStatusColor(status?: string): string {
-  if (status === 'available') return '#16a34a';
-  if (status === 'occupied') return '#dc2626';
-  if (status === 'reserved') return '#ca8a04';
-  if (status === 'closed') return '#6b7280';
-  return '#94a3b8';
+export function tableStatusColor(c: AppColors, status?: string): string {
+  if (status === 'available') return c.success;
+  if (status === 'occupied') return c.danger;
+  if (status === 'reserved') return c.warning;
+  if (status === 'closed') return c.textMuted;
+  return c.textCaption;
 }

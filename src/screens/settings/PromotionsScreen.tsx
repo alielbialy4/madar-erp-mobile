@@ -15,6 +15,7 @@ export function PromotionsScreen({ navigation }: { navigation: any }) {
     <CrudListScreen<Record<string, unknown>>
       title="العروض"
       subtitle="تطبيق تلقائي في POS عند استيفاء الشروط"
+      moduleIcon="promotions"
       loader={(p) => promotionsAPI.getAll(p) as never}
       onItemPress={(item) => navigation.navigate('PromotionForm', { id: String(item.id) })}
       itemTitle={(item) => asText(item.name)}

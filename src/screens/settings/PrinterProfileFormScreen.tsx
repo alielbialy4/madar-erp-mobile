@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppInput, AppSectionHeader } from '@/components/ui';
+import { spacing } from '@/constants/spacing';
 import { getPrinterProfile, upsertPrinterProfile } from '@/services/printing/printerProfiles';
 import { getConnectionCapability, recommendedConnectionForPlatform } from '@/services/printing/printerCapabilities';
 import type { PrinterConnectionType, PrinterProfile, PrinterRole, PaperWidth, EscPosEncoding } from '@/types/printing';
@@ -81,7 +82,7 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
 
   return (
     <AppScreen title={id ? 'تعديل طابعة' : 'طابعة جديدة'}>
-      <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+      <View style={{ gap: spacing.md, paddingBottom: spacing.xxl }}>
         <AppCard>
           <AppSectionHeader title="أساسي" />
           <AppInput label="الاسم" value={name} onChangeText={setName} />
@@ -110,7 +111,7 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
         </AppCard>
         {message ? <AppInput label="رسالة" value={message} editable={false} /> : null}
         <AppButton title="حفظ" onPress={save} loading={busy} fullWidth />
-      </ScrollView>
+      </View>
     </AppScreen>
   );
 }

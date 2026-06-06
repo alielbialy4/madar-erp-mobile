@@ -86,7 +86,7 @@ export function DiningScreen({ navigation }: { navigation: any }) {
       <View style={styles.legendRow}>
         {(['available', 'occupied', 'reserved'] as const).map((s) => (
           <View key={s} style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: tableStatusColor(s) }]} />
+            <View style={[styles.dot, { backgroundColor: tableStatusColor(c, s) }]} />
             <Text style={{ fontSize: 12, color: c.text }}>
               {tableStatusLabel(s)} ({counts[s]})
             </Text>
@@ -114,7 +114,7 @@ export function DiningScreen({ navigation }: { navigation: any }) {
                     }
                     style={({ pressed }) => [
                       styles.tableTile,
-                      { borderColor: tableStatusColor(table.status), backgroundColor: c.surface, opacity: pressed ? 0.9 : 1 },
+                      { borderColor: tableStatusColor(c, table.status), backgroundColor: c.surface, opacity: pressed ? 0.9 : 1 },
                     ]}
                   >
                     <Text style={[styles.tableName, { color: c.text }]} numberOfLines={1}>

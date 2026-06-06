@@ -283,7 +283,7 @@ export function PosCatalogPanel({
           justifyContent: 'center',
         },
         categoryPlaceholderLetter: {
-          color: '#FFFFFF',
+          color: c.onPrimary,
           fontSize: 20,
           fontFamily: fonts.extraBold,
           fontWeight: '800',
@@ -304,13 +304,13 @@ export function PosCatalogPanel({
           borderColor: 'rgba(255,255,255,0.55)',
           ...Platform.select({
             ios: {
-              shadowColor: '#0C1222',
+              shadowColor: c.shadow,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.12,
               shadowRadius: 6,
             },
             android: { elevation: 3 },
-            default: { boxShadow: '0 2px 8px rgba(12,18,34,0.12)' } as object,
+            default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
           }),
         },
         categoryCountValue: {
@@ -340,7 +340,7 @@ export function PosCatalogPanel({
           gap: 3,
         },
         categoryOverlayName: {
-          color: '#FFFFFF',
+          color: c.onPrimary,
           fontSize: tablet ? typography.body : typography.small,
           fontFamily: fonts.extraBold,
           fontWeight: '800',
@@ -410,13 +410,13 @@ export function PosCatalogPanel({
           borderColor: 'rgba(255,255,255,0.35)',
           ...Platform.select({
             ios: {
-              shadowColor: '#0C1222',
+              shadowColor: c.shadow,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.18,
               shadowRadius: 6,
             },
             android: { elevation: 3 },
-            default: { boxShadow: '0 2px 8px rgba(12,18,34,0.18)' } as object,
+            default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
           }),
         },
         productInCartValue: {
@@ -448,13 +448,13 @@ export function PosCatalogPanel({
           justifyContent: 'center',
           ...Platform.select({
             ios: {
-              shadowColor: '#0C1222',
+              shadowColor: c.shadow,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.14,
               shadowRadius: 5,
             },
             android: { elevation: 3 },
-            default: { boxShadow: '0 2px 6px rgba(12,18,34,0.14)' } as object,
+            default: { boxShadow: `0 2px 6px ${c.shadow}` } as object,
           }),
         },
       }),
@@ -577,7 +577,7 @@ export function PosCatalogPanel({
                         <View style={styles.categoryAllGlowB} />
                         <View style={styles.categoryPlaceholderIconCenter}>
                           <View style={styles.categoryPlaceholderIconWrap}>
-                            <MaterialIcons name="grid-view" size={24} color="#FFFFFF" />
+                            <MaterialIcons name="grid-view" size={24} color={c.onPrimary} />
                           </View>
                         </View>
                       </>

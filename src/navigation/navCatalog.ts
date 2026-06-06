@@ -1,5 +1,5 @@
 import type { MobileSidebarMenuItem } from './buildSidebarMenu';
-import { sidebarActionKey, type SidebarNavAction } from './sidebarNavMap';
+import { navActionsEqual, sidebarActionKey, type SidebarNavAction } from './sidebarNavMap';
 
 export type NavCatalogEntry = {
   id: string;
@@ -19,9 +19,14 @@ const TAB_LABELS: Record<string, string> = {
   MoreTab: 'المزيد',
 };
 
+function catalogEntryId(item: MobileSidebarMenuItem): string {
+  return item.id ?? item.link ?? `${sidebarActionKey(item.nav!)}:${item.label}`;
+}
+
 /** Leaf screens only — used by command palette and recent routes */
 export function flattenNavCatalog(items: MobileSidebarMenuItem[]): NavCatalogEntry[] {
   const out: NavCatalogEntry[] = [];
+  const seen = new Set<string>();
 
   const walk = (list: MobileSidebarMenuItem[], section: string) => {
     for (const item of list) {
@@ -35,7 +40,11 @@ export function flattenNavCatalog(items: MobileSidebarMenuItem[]): NavCatalogEnt
         continue;
       }
       if (!item.nav) continue;
-      const id = sidebarActionKey(item.nav);
+
+      const id = catalogEntryId(item);
+      if (seen.has(id)) continue;
+      seen.add(id);
+
       const tabLabel = item.nav.kind === 'tab' ? TAB_LABELS[item.nav.tab] : undefined;
       out.push({
         id,
@@ -51,6 +60,10 @@ export function flattenNavCatalog(items: MobileSidebarMenuItem[]): NavCatalogEnt
 
   walk(items, 'القائمة');
   return out;
+}
+
+export function findCatalogEntry(entries: NavCatalogEntry[], action: SidebarNavAction): NavCatalogEntry | undefined {
+  return entries.find((entry) => navActionsEqual(entry.nav, action));
 }
 
 export function filterNavCatalog(entries: NavCatalogEntry[], query: string): NavCatalogEntry[] {

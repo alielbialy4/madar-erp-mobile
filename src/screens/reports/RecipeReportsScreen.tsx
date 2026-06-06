@@ -214,7 +214,7 @@ export function RecipeReportsScreen({ navigation }: { navigation: { goBack: () =
                 backgroundColor: active ? c.accent : c.surfaceMuted,
               }}
             >
-              <AppText style={{ color: active ? '#fff' : c.text, fontWeight: '700' }}>{tab.label}</AppText>
+              <AppText style={{ color: active ? c.onPrimary : c.text, fontWeight: '700' }}>{tab.label}</AppText>
             </Pressable>
           );
         })}

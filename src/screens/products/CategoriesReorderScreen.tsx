@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { categoriesAPI } from '@/api/categories';
@@ -14,16 +14,26 @@ import { useAuthStore } from '@/store/authStore';
 import type { Category } from '@/types/api';
 import type { ProductsStackParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'CategoriesReorder'>;
 
 export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
+  const c = useColors();
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_categories');
   const [items, setItems] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        toolbar: { padding: spacing.lg, gap: spacing.sm },
+        error: { color: c.shiftAlertFg, textAlign: 'center' },
+      }),
+    [c],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,7 +97,3 @@ export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
   );
 }
 
-const styles = StyleSheet.create({
-  toolbar: { padding: spacing.lg, gap: spacing.sm },
-  error: { color: '#b91c1c', textAlign: 'center' },
-});

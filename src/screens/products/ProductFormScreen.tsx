@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { productsAPI } from '@/api/products';
@@ -568,7 +568,7 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
           <ActivityIndicator color={c.accent} />
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+        <View style={{ paddingBottom: spacing.xxl }}>
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>{formHero}</View>
 
           <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: spacing.md }}>
@@ -780,7 +780,7 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
             <FormError message={formError} />
             <AppButton title={isEdit ? 'حفظ التعديلات' : rawMaterialMode ? 'إنشاء الخامة' : 'إنشاء المنتج'} onPress={() => void save()} loading={submitting} />
           </View>
-        </ScrollView>
+        </View>
       )}
     </AppScreen>
   );

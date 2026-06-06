@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { AppScreen } from '@/components/layout';
+import { AppScreen, ReportScreenLayout } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { defaultReportFilters, useReport } from '@/hooks/useReport';
@@ -47,8 +47,6 @@ function BaseReportScreenContent({
   navigation: { goBack: () => void };
 }) {
   const c = useColors();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
   const { can, hasFeature } = usePermissions();
   const activeBranch = useBranchStore((s) => s.activeBranch);
   const viewMode = useBranchStore((s) => s.viewMode);
@@ -103,22 +101,19 @@ function BaseReportScreenContent({
   }
 
   return (
-    <AppScreen
+    <ReportScreenLayout
       title={definition.title}
       subtitle={subtitle}
       onBack={navigation.goBack}
       headerRight={headerRight}
-      refreshing={refreshing}
-      onRefresh={() => void refresh()}
-      contentStyle={{ maxWidth: isTablet ? 1200 : undefined, alignSelf: isTablet ? 'center' : undefined, width: '100%' }}
+      filters={<ReportFilterChips definition={definition} filters={filters} />}
+      exportActions={<ReportExportActions definition={definition} filters={filters} />}
     >
       {loading && !payload ? <AppLoadingState /> : null}
       {error && !payload ? <AppErrorState message={error} onRetry={() => void refresh()} /> : null}
       {payload ? (
         <>
-          <ReportFilterChips definition={definition} filters={filters} />
           <ReportSummaryCards definition={definition} metrics={metrics} />
-          <ReportExportActions definition={definition} filters={filters} />
           {definition.chart && payload
             ? (() => {
                 const chartSection = sectionsContent.find((s) => s.section.id === definition.chart!.sectionId);
@@ -155,6 +150,6 @@ function BaseReportScreenContent({
         onClose={() => setFilterOpen(false)}
         onApply={setFilters}
       />
-    </AppScreen>
+    </ReportScreenLayout>
   );
 }

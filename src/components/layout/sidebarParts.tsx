@@ -7,7 +7,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { resolveSidebarIcon } from '@/constants/sidebarIcons';
 import type { MobileSidebarMenuItem } from '@/navigation/buildSidebarMenu';
-import { sidebarActionKey } from '@/navigation/sidebarNavMap';
+import { isNavItemActive } from '@/navigation/sidebarNavMap';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { chevronForwardIcon } from '@/utils/rtl';
 import { Text } from '@/components/ui/AppText';
@@ -18,11 +18,7 @@ export function getMenuKey(item: MobileSidebarMenuItem, index: number): string {
 }
 
 export function hasActiveDescendant(item: MobileSidebarMenuItem, activeRoute?: string): boolean {
-  if (!activeRoute) return false;
-  if (item.nav) {
-    const key = sidebarActionKey(item.nav);
-    if (key === activeRoute) return true;
-  }
+  if (isNavItemActive(item, activeRoute)) return true;
   return Boolean(item.subItems?.some((sub) => hasActiveDescendant(sub, activeRoute)));
 }
 
@@ -193,7 +189,7 @@ export function SidebarTree({
     <SidebarNavItem
       icon={icon}
       label={item.label}
-      active={activeRoute === sidebarActionKey(item.nav)}
+      active={isNavItemActive(item, activeRoute)}
       nested={depth > 0}
       onPress={() => onNavigate(item.nav!)}
       fg={fg}

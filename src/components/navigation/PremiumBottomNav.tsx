@@ -247,9 +247,9 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
   const bottomOffset = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET) + TAB_BAR_FLOAT_GAP;
 
   const dockShadow = Platform.select({
-    ios: { shadowColor: '#0A1020', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 24 },
+    ios: { shadowColor: c.shadowMd, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 24 },
     android: { elevation: 12 },
-    default: { boxShadow: '0 10px 32px rgba(10, 16, 32, 0.14)' } as object,
+    default: { boxShadow: `0 10px 32px ${c.shadowMd}` } as object,
   });
 
   const routeByName = useMemo(() => {

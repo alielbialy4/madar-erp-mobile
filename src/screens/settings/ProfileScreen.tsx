@@ -33,11 +33,11 @@ export function ProfileScreen() {
           width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)',
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <AppText style={{ color: '#FFFFFF', fontSize: 28, fontFamily: fonts.extraBold, fontWeight: '800' }}>
+          <AppText style={{ color: c.onPrimary, fontSize: 28, fontFamily: fonts.extraBold, fontWeight: '800' }}>
             {user?.name?.charAt(0) ?? 'U'}
           </AppText>
         </View>
-        <AppText style={{ color: '#FFFFFF', fontSize: typography.h2, fontFamily: fonts.bold, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' }}>
+        <AppText style={{ color: c.onPrimary, fontSize: typography.h2, fontFamily: fonts.bold, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' }}>
           {user?.name ?? 'مستخدم'}
         </AppText>
         <AppText style={{ color: 'rgba(255,255,255,0.8)', fontSize: typography.body, textAlign: 'center', writingDirection: 'rtl' }}>

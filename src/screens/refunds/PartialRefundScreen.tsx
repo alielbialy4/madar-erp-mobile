@@ -61,7 +61,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     qtyBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
     qtyBtnDisabled: { backgroundColor: c.disabled },
-    qtyBtnText: { color: '#fff', fontSize: typography.h3, fontWeight: '900' },
+    qtyBtnText: { color: c.onPrimary, fontSize: typography.h3, fontWeight: '900' },
     qtyInput: {
       width: 56,
       height: 36,

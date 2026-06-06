@@ -20,6 +20,8 @@ type OrderItem = {
   product?: { name?: string };
 };
 
+import { getOrderStatusStyle } from '@/constants/statusColors';
+
 const STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
   preparing: 'قيد التحضير',
@@ -27,15 +29,6 @@ const STATUS_LABELS: Record<string, string> = {
   served: 'تم التقديم',
   completed: 'مكتمل',
   cancelled: 'ملغى',
-};
-
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  pending: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
-  preparing: { bg: '#DBEAFE', text: '#1E40AF', border: '#BFDBFE' },
-  ready: { bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0' },
-  served: { bg: '#CCFBF1', text: '#0F766E', border: '#99F6E4' },
-  completed: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
-  cancelled: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
 };
 
 type Props = {
@@ -64,7 +57,7 @@ export function WaiterOrderViewSheet({
   const c = useColors();
   const items = (order.items as OrderItem[] | undefined) ?? [];
   const status = String(order.status ?? 'pending');
-  const statusTheme = STATUS_COLORS[status] ?? STATUS_COLORS.pending;
+  const statusTheme = getOrderStatusStyle(c, status);
   const itemCount = useMemo(
     () => items.reduce((sum, it) => sum + Number(it.quantity ?? 0), 0),
     [items],
@@ -94,7 +87,7 @@ export function WaiterOrderViewSheet({
         <View style={[styles.metaRow, { borderTopColor: c.borderSubtle }]}>
           <Text style={[styles.orderId, { color: c.textMuted }]}>#{numberText(order.id)}</Text>
           <View style={[styles.statusPill, { backgroundColor: statusTheme.bg, borderColor: statusTheme.border }]}>
-            <Text style={[styles.statusText, { color: statusTheme.text }]}>
+            <Text style={[styles.statusText, { color: statusTheme.fg }]}>
               {STATUS_LABELS[status] ?? status}
             </Text>
           </View>

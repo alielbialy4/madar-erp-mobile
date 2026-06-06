@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "com.madar.erp.mobile",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"

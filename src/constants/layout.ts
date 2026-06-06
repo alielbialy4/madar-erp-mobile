@@ -56,6 +56,12 @@ export const justifyCenter: ViewStyle = { justifyContent: 'center' };
 
 export const edgeHorizontal = ['left', 'right'] as const;
 
+/** Approximate AppHeader height for KeyboardAvoidingView offset on iOS. */
+export const APP_HEADER_HEIGHT = 68;
+
+/** Approximate OfflineBanner height when visible. */
+export const OFFLINE_BANNER_HEIGHT = 36;
+
 export const insetHorizontal: ViewStyle = {
   start: 0,
   end: 0,

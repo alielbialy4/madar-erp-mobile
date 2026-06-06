@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { backArrowIcon } from '@/utils/rtl';
@@ -20,6 +20,8 @@ type Props = {
 
 export function AppHeader({ title, subtitle, onBack, right }: Props) {
   const c = useColors();
+  const { width } = useWindowDimensions();
+  const showBranchPill = width >= 360;
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const viewMode = useBranchStore((state) => state.viewMode);
   const isOnline = useNetworkStore((state) => state.isOnline);
@@ -57,6 +59,7 @@ export function AppHeader({ title, subtitle, onBack, right }: Props) {
           }} numberOfLines={1}>{title}</Text>
           {subtitle ? <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.micro, fontFamily: fonts.medium, marginTop: 2 }} numberOfLines={1}>{subtitle}</Text> : null}
         </View>
+        {showBranchPill ? (
         <View style={{
           ...flexRow, alignItems: 'center', gap: spacing.xs,
           borderRadius: radius.pill, borderWidth: 1, borderColor: c.border,
@@ -67,6 +70,7 @@ export function AppHeader({ title, subtitle, onBack, right }: Props) {
             {viewMode === 'global' ? 'عرض عام' : activeBranch?.name || ''}
           </Text>
         </View>
+        ) : null}
         {right ? <View>{right}</View> : null}
       </View>
     </View>

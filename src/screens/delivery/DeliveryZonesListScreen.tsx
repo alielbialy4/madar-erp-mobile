@@ -8,6 +8,7 @@ export function DeliveryZonesListScreen({ navigation }: { navigation: any }) {
   return (
     <CrudListScreen
       title="مناطق التوصيل"
+      moduleIcon="delivery"
       loader={(p) => deliveryZonesAPI.getAll(p) as never}
       onItemPress={(row) => navigation.navigate('DeliveryZoneForm', { id: String(row.id) })}
       itemTitle={(row) => asText(row.name, 'منطقة')}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
 import { AppScreen } from '@/components/layout';
@@ -156,7 +156,7 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
 
   return (
     <AppScreen title="تحويل مخزون" onBack={navigation.goBack} scroll contentStyle={{ padding: 0 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+      <View style={{ paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
           <InventoryHero
             eyebrow="عملية مخزون"
@@ -232,7 +232,7 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
             loading={submitting}
           />
         </View>
-      </ScrollView>
+      </View>
 
       <ConfirmDialog
         visible={confirmVisible}

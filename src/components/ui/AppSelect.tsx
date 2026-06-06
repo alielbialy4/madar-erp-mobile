@@ -6,8 +6,9 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from './AppText';
+import { AppPicker, type PickerOption } from './AppPicker';
 
-export type SelectOption = { label: string; value: string };
+export type SelectOption = PickerOption;
 
 type Props = {
   label?: string;
@@ -15,10 +16,26 @@ type Props = {
   options: SelectOption[];
   onChange: (value: string) => void;
   variant?: 'soft' | 'solid';
+  required?: boolean;
+  error?: string;
 };
 
-export function AppSelect({ label, value, options, onChange, variant = 'soft' }: Props) {
+export function AppSelect({ label, value, options, onChange, variant = 'soft', required, error }: Props) {
   const c = useColors();
+
+  if (options.length > 5) {
+    return (
+      <AppPicker
+        label={label}
+        value={value ?? null}
+        options={options}
+        onChange={(v) => onChange(v ?? '')}
+        required={required}
+        error={error}
+      />
+    );
+  }
+
   return (
     <View style={{ gap: spacing.sm }}>
       {label ? (

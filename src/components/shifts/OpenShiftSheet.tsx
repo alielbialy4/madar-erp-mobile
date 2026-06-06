@@ -10,6 +10,7 @@ import { normalizeApiError } from '@/utils/errors';
 import { hasPermission, hasRole } from '@/utils/permissions';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 import type { ShiftFilterUser } from '@/types/shifts';
 
 type Props = {
@@ -30,6 +31,7 @@ export function OpenShiftSheet({
   mode = 'default',
   onExitPos,
 }: Props) {
+  const c = useColors();
   const isRequired = mode === 'required';
   const user = useAuthStore((s) => s.user);
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
@@ -143,7 +145,7 @@ export function OpenShiftSheet({
         <AppText style={textStart}>{sheetDescription}</AppText>
 
         {!branchId ? (
-          <AppText style={{ ...textStart, color: '#b45309' }}>اختر فرعاً لعرض الخزائن المتاحة.</AppText>
+          <AppText style={{ ...textStart, color: c.warning }}>اختر فرعاً لعرض الخزائن المتاحة.</AppText>
         ) : null}
 
         {canAssignShiftOwner && assignableUsers.length > 0 ? (
@@ -158,7 +160,7 @@ export function OpenShiftSheet({
         {loadingVaults ? (
           <AppText style={textStart}>جاري تحميل الخزائن…</AppText>
         ) : vaults.length === 0 ? (
-          <AppText style={{ ...textStart, color: '#dc2626' }}>لا توجد خزائن نقدية نشطة لهذا الفرع.</AppText>
+          <AppText style={{ ...textStart, color: c.danger }}>لا توجد خزائن نقدية نشطة لهذا الفرع.</AppText>
         ) : (
           <AppSelect
             label="الخزنة"
@@ -176,7 +178,7 @@ export function OpenShiftSheet({
           placeholder="0.00"
         />
 
-        {errorMsg ? <AppText style={{ ...textStart, color: '#dc2626', fontWeight: '700' }}>{errorMsg}</AppText> : null}
+        {errorMsg ? <AppText style={{ ...textStart, color: c.danger, fontWeight: '700' }}>{errorMsg}</AppText> : null}
 
         {isRequired ? (
           <View style={{ ...flexRow, gap: spacing.sm, marginTop: spacing.xs }}>

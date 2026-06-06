@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { warehousesAPI } from '@/api/inventory';
@@ -104,7 +104,7 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
           <ActivityIndicator />
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+        <View style={{ paddingBottom: spacing.xxl }}>
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <InventoryHero
               eyebrow={isEdit ? 'تعديل' : 'إنشاء'}
@@ -128,7 +128,7 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
             <FormError message={formError} />
             <AppButton title={isEdit ? 'حفظ التعديلات' : 'إنشاء المخزن'} onPress={() => void save()} loading={submitting} />
           </View>
-        </ScrollView>
+        </View>
       )}
     </AppScreen>
   );

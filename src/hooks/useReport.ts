@@ -31,6 +31,7 @@ function buildQueryParams(definition: ReportDefinition, filters: ReportFilters, 
   if (definition.filters.includes('couponCode') && filters.coupon_code) params.coupon_code = filters.coupon_code;
   if (definition.filters.includes('status') && filters.status) params.status = filters.status;
   if (definition.filters.includes('paymentMethod') && filters.payment_method) params.payment_method = filters.payment_method;
+  if (definition.filters.includes('type') && filters.type) params.type = filters.type;
   if (definition.filters.includes('expiryOptions')) {
     params.days_threshold = filters.days_threshold;
     if (filters.expired_only) params.expired_only = true;
@@ -217,7 +218,12 @@ function mergePaginatedPayload(prev: unknown, next: unknown): unknown {
   if (!prev) return next;
   const prevData = extractData<Record<string, unknown>>(prev as never) ?? (prev as Record<string, unknown>);
   const nextData = extractData<Record<string, unknown>>(next as never) ?? (next as Record<string, unknown>);
-  const keys = ['usages', 'data', 'rows', 'products', 'items', 'batches'];
+  const keys = [
+    'usages', 'data', 'rows', 'products', 'items', 'batches',
+    'counts', 'adjustments', 'transfers', 'warehouses', 'variants',
+    'transactions', 'payments', 'requisitions', 'reservations',
+    'settlements', 'orders', 'top_items', 'expenses',
+  ];
   for (const key of keys) {
     const a = prevData[key];
     const b = nextData[key];
@@ -250,6 +256,7 @@ export function defaultReportFilters(): ReportFilters {
     coupon_code: '',
     status: '',
     payment_method: '',
+    type: '',
     page: 1,
     per_page: 50,
     days_threshold: 30,

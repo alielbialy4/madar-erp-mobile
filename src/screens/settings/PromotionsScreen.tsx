@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { promotionsAPI } from '@/api/promotions';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { ListScreenTemplate } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
@@ -12,7 +12,7 @@ export function PromotionsScreen({ navigation }: { navigation: any }) {
   const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
 
   return (
-    <CrudListScreen<Record<string, unknown>>
+    <ListScreenTemplate<Record<string, unknown>>
       title="العروض"
       subtitle="تطبيق تلقائي في POS عند استيفاء الشروط"
       moduleIcon="promotions"

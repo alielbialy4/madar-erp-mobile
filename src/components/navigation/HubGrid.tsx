@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView } from 'moti';
 import { AppBadge, AppText as Text } from '@/components/ui';
+import { AppIcon } from '@/components/ui/AppIcon';
 import { resolveSidebarIcon } from '@/constants/sidebarIcons';
 import type { MoreHubItem } from '@/navigation/moreModuleHub';
 import type { AppColors } from '@/constants/colors';
@@ -10,8 +12,6 @@ import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { chevronForwardIcon } from '@/utils/rtl';
-import { getStatusStyle } from '@/constants/statusColors';
 
 type Props = {
   items: MoreHubItem[];
@@ -19,50 +19,78 @@ type Props = {
   onItemPress: (item: MoreHubItem) => void;
 };
 
+type IconName = Parameters<typeof AppIcon>[0]['name'];
+
+const GRADIENT_PRESETS: [string, string][] = [
+  ['#3B82F6', '#8B5CF6'],
+  ['#10B981', '#06B6D4'],
+  ['#F59E0B', '#EF4444'],
+  ['#8B5CF6', '#EC4899'],
+  ['#06B6D4', '#3B82F6'],
+  ['#EC4899', '#F59E0B'],
+  ['#14B8A6', '#10B981'],
+  ['#6366F1', '#8B5CF6'],
+];
+
 export function HubGrid({ items, columns, onItemPress }: Props) {
   const c = useColors();
   const styles = useMemo(() => createStyles(c), [c]);
 
   return (
     <View style={styles.grid}>
-      {items.map((item) => {
+      {items.map((item, index) => {
         const icon = resolveSidebarIcon(item.icon);
         const disabled = !item.nav || item.disabled;
-        const tone = getStatusStyle(c, disabled ? 'cancelled' : 'active');
+        const gradColors = GRADIENT_PRESETS[index % GRADIENT_PRESETS.length];
 
         return (
-          <Pressable
+          <MotiView
             key={item.id}
-            onPress={disabled ? undefined : () => onItemPress(item)}
-            style={({ pressed }) => [
-              styles.card,
+            from={{ opacity: 0, scale: 0.92, translateY: 10 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            transition={{ delay: index * 40, type: 'spring', damping: 18, stiffness: 120 }}
+            style={[
               columns >= 4 ? styles.cardQuarter : columns >= 3 ? styles.cardThird : styles.cardHalf,
-              disabled ? styles.cardDisabled : undefined,
-              pressed && !disabled ? styles.cardPressed : undefined,
             ]}
-            accessibilityState={{ disabled }}
           >
-            <View style={[styles.cardIcon, { backgroundColor: tone.bg }, disabled && styles.cardIconDisabled]}>
-              <MaterialIcons name={icon} size={22} color={disabled ? c.textCaption : tone.fg} />
-            </View>
-            <Text style={[styles.cardTitle, disabled && styles.cardTitleDisabled]} numberOfLines={2}>
-              {item.label}
-            </Text>
-            {item.description ? (
-              <Text style={styles.cardDesc} numberOfLines={2}>
-                {item.description}
+            <Pressable
+              onPress={disabled ? undefined : () => onItemPress(item)}
+              style={({ pressed }) => [
+                styles.card,
+                disabled ? styles.cardDisabled : undefined,
+                pressed && !disabled ? { transform: [{ scale: 0.97 }] } : undefined,
+              ]}
+              accessibilityState={{ disabled }}
+            >
+              <View style={styles.cardHeader}>
+                <LinearGradient
+                  colors={disabled ? ['#94A3B8', '#CBD5E1'] : gradColors}
+                  style={styles.iconBadge}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <AppIcon name={icon as IconName} size={22} weight="duotone" color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <Text style={[styles.cardTitle, disabled && styles.cardTitleDisabled]} numberOfLines={2}>
+                {item.label}
               </Text>
-            ) : null}
-            <View style={styles.cardFooter}>
-              {item.badge ? <AppBadge label={item.badge} tone="info" /> : <View />}
-              {!disabled ? <MaterialIcons name={chevronForwardIcon()} size={18} color={c.textCaption} /> : null}
-            </View>
-            {item.disabledReason ? (
-              <Text style={styles.cardLock} numberOfLines={2}>
-                {item.disabledReason}
-              </Text>
-            ) : null}
-          </Pressable>
+              {item.description ? (
+                <Text style={styles.cardDesc} numberOfLines={2}>
+                  {item.description}
+                </Text>
+              ) : null}
+              <View style={styles.cardFooter}>
+                {item.badge ? <AppBadge label={item.badge} tone="info" /> : <View />}
+                {!disabled ? <AppIcon name="arrow-right" size={16} color={c.textCaption} /> : null}
+              </View>
+              {item.disabledReason ? (
+                <Text style={styles.cardLock} numberOfLines={2}>
+                  {item.disabledReason}
+                </Text>
+              ) : null}
+            </Pressable>
+          </MotiView>
         );
       })}
     </View>
@@ -81,26 +109,37 @@ function createStyles(c: AppColors) {
     card: {
       backgroundColor: c.surface,
       borderRadius: radius.xxl,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
       padding: spacing.md,
-      minHeight: 128,
+      minHeight: 140,
       gap: spacing.xs,
       alignItems: 'flex-start',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 3,
     },
     cardHalf: { width: '48%', maxWidth: '48%' },
     cardThird: { width: '31.5%', maxWidth: '31.5%' },
     cardQuarter: { width: '23.5%', maxWidth: '23.5%' },
-    cardPressed: { backgroundColor: c.surfaceMuted },
-    cardDisabled: { opacity: 0.55 },
-    cardIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.xl,
+    cardDisabled: { opacity: 0.5 },
+    cardHeader: {
+      marginBottom: spacing.xs,
+    },
+    iconBadge: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 4,
     },
-    cardIconDisabled: { backgroundColor: c.surfaceMuted },
     cardTitle: {
       ...textStart,
       fontSize: typography.body,

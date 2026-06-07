@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Animated,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { MotiView } from 'moti';
 import { AppScreen } from '@/components/layout';
 import { ModuleHero } from '@/components/layout/ModuleHero';
 import { AppButton, AppSearchField, AppText as Text } from '@/components/ui';
@@ -24,7 +24,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavShell } from '@/navigation/NavShellContext';
-import { fadeIn } from '@/utils/animations';
 
 function navigateFromMore(
   navigation: {
@@ -42,33 +41,6 @@ function navigateFromMore(
     return;
   }
   navigation.navigate(action.screen, action.params);
-}
-
-function SectionBlock({
-  title,
-  subtitle,
-  children,
-  opacity,
-  styles,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-  opacity: Animated.Value;
-  styles: ReturnType<typeof createStyles>;
-}) {
-  return (
-    <Animated.View style={[styles.section, { opacity }]}>
-      <View style={[styles.sectionHeader, flexRow]}>
-        <View style={styles.sectionAccent} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-        </View>
-      </View>
-      {children}
-    </Animated.View>
-  );
 }
 
 export function MoreScreen({
@@ -89,13 +61,6 @@ export function MoreScreen({
   const viewMode = useBranchStore((state) => state.viewMode);
   const { can, hasFeature } = usePermissions();
   const [query, setQuery] = useState('');
-
-  const sectionOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    sectionOpacity.setValue(0);
-    fadeIn(sectionOpacity, 320);
-  }, [sectionOpacity]);
 
   const groups = useMemo(() => {
     const menu = buildMobileSidebarMenu(
@@ -155,20 +120,27 @@ export function MoreScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {groups.map((group) => (
-          <SectionBlock
+        {groups.map((group, gIdx) => (
+          <MotiView
             key={group.id}
-            title={group.title}
-            subtitle={group.subtitle}
-            opacity={sectionOpacity}
-            styles={styles}
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ delay: gIdx * 80, type: 'spring', damping: 20, stiffness: 100 }}
+            style={styles.section}
           >
+            <View style={[styles.sectionHeader, flexRow]}>
+              <View style={styles.sectionAccent} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.sectionTitle}>{group.title}</Text>
+                <Text style={styles.sectionSubtitle}>{group.subtitle}</Text>
+              </View>
+            </View>
             <HubGrid
               items={group.items}
               columns={columns}
               onItemPress={handleItemPress}
             />
-          </SectionBlock>
+          </MotiView>
         ))}
 
         {groups.length === 0 ? (

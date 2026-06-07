@@ -19,7 +19,7 @@ import { flexRow } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
-import { statusTone } from '@/screens/shared/CrudListScreen';
+import { statusTone } from '@/utils/statusTone';
 import { AppBadge } from '@/components/ui';
 
 type SheetMode = 'vault' | 'purchase_pay' | 'credit' | 'balance' | null;

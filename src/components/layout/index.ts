@@ -3,6 +3,7 @@ export * from './AppHeader';
 export * from './AppScreen';
 export * from './ModuleHero';
 export * from './ListScreenLayout';
+export * from './ListScreenTemplate';
 export * from './FormScreenLayout';
 export * from './DetailScreenLayout';
 export * from './ReportScreenLayout';

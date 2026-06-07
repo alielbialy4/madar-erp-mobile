@@ -1,15 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import type { ListParams } from '@/types/api';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppInput, AppListItem, AppSelect } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppSelect } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { deliveriesAPI } from '@/api/deliveries';
 import { deliveryStatusLabel, deliveryStatusTone } from '@/utils/deliveryStatus';
+import { moduleIcons } from '@/constants/iconMap';
 import { asText, dateText, money } from '@/utils/format';
-import { spacing } from '@/constants/spacing';
 
 export function DeliveryScreen({ navigation }: { navigation: any }) {
   const [query, setQuery] = useState('');
@@ -25,15 +24,14 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
   );
 
   return (
-    <AppScreen title="التوصيل" subtitle="طلبات وسائقون ومناطق ومالية" scroll={false}>
-      <View style={styles.hub}>
-        <AppButton title="السائقون" variant="secondary" onPress={() => navigation.navigate('DriversList')} />
-        <AppButton title="المناطق" variant="secondary" onPress={() => navigation.navigate('DeliveryZonesList')} />
-        <AppButton title="تسويات السائقين" variant="secondary" onPress={() => navigation.navigate('DriverSettlements')} />
-        <AppButton title="مالية التوصيل" variant="secondary" onPress={() => navigation.navigate('DeliveryFinanceDashboard')} />
-      </View>
-      <View style={styles.filters}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث..." returnKeyType="search" />
+    <ListScreenLayout
+      title="التوصيل"
+      subtitle="طلبات وسائقون ومناطق ومالية"
+      searchValue={query}
+      onSearchChange={setQuery}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      filters={
         <AppSelect
           label="الحالة"
           value={status || null}
@@ -47,7 +45,23 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
             { label: 'فشل', value: 'failed' },
           ]}
         />
-      </View>
+      }
+      hero={{
+        eyebrow: 'العمليات',
+        title: 'التوصيل',
+        subtitle: 'طلبات وسائقون ومناطق ومالية',
+        stats: [{ label: 'الطلبات', value: items.length }],
+        actions: (
+          <>
+            <AppButton title="السائقون" variant="secondary" onPress={() => navigation.navigate('DriversList')} />
+            <AppButton title="المناطق" variant="secondary" onPress={() => navigation.navigate('DeliveryZonesList')} />
+            <AppButton title="تسويات السائقين" variant="secondary" onPress={() => navigation.navigate('DriverSettlements')} />
+            <AppButton title="مالية التوصيل" variant="secondary" onPress={() => navigation.navigate('DeliveryFinanceDashboard')} />
+          </>
+        ),
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -60,21 +74,18 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
         renderItem={({ item }) => {
           const st = String(item.status ?? '');
           return (
-            <AppListItem
+            <AppDomainCard
               title={asText((item.order as Record<string, unknown>)?.invoice_number ?? item.id)}
               subtitle={`${dateText(asText(item.created_at, ''))} • ${asText((item.driver as Record<string, unknown>)?.name, 'بدون سائق')}`}
-              meta={item.delivery_fee ? money(item.delivery_fee) : undefined}
-              badge={<AppBadge label={deliveryStatusLabel(st)} tone={deliveryStatusTone(st)} />}
+              metric={item.delivery_fee ? money(item.delivery_fee) : undefined}
+              badgeLabel={deliveryStatusLabel(st)}
+              badgeTone={deliveryStatusTone(st)}
+              leadingIcon={moduleIcons.delivery}
               onPress={() => navigation.navigate('DeliveryDetail', { id: String(item.id) })}
             />
           );
         }}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  hub: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  filters: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
-});

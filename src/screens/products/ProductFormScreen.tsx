@@ -6,7 +6,7 @@ import { productsAPI } from '@/api/products';
 import { categoriesAPI } from '@/api/categories';
 import { warehousesAPI } from '@/api/inventory';
 import { suppliersAPI } from '@/api/suppliers';
-import { AppScreen } from '@/components/layout';
+import { FormScreenLayout } from '@/components/layout';
 import { ImagePickerField } from '@/components/forms/ImagePickerField';
 import { FormError } from '@/components/forms';
 import { BarcodesEditor } from '@/components/products/BarcodesEditor';
@@ -540,9 +540,9 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
 
   if (!canManage) {
     return (
-      <AppScreen title="المنتج" onBack={navigation.goBack}>
+      <FormScreenLayout title="المنتج" onBack={navigation.goBack}>
         <UiText style={{ color: c.textMuted, textAlign: 'center' }}>ليس لديك صلاحية إدارة المنتجات</UiText>
-      </AppScreen>
+      </FormScreenLayout>
     );
   }
 
@@ -562,7 +562,13 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
   );
 
   return (
-    <AppScreen title={rawMaterialMode ? (isEdit ? 'تعديل خامة' : 'إضافة خامة') : isEdit ? 'تعديل منتج' : 'إضافة منتج'} onBack={navigation.goBack} scroll contentStyle={{ padding: 0 }}>
+    <FormScreenLayout
+      title={rawMaterialMode ? (isEdit ? 'تعديل خامة' : 'إضافة خامة') : isEdit ? 'تعديل منتج' : 'إضافة منتج'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={submitting}
+      saveLabel={isEdit ? 'حفظ التعديلات' : rawMaterialMode ? 'إنشاء الخامة' : 'إنشاء المنتج'}
+    >
       {loading ? (
         <View style={{ padding: spacing.xxl, alignItems: 'center' }}>
           <ActivityIndicator color={c.accent} />
@@ -778,10 +784,9 @@ export function ProductFormScreen({ navigation, route }: { navigation: Nav; rout
             </ProductFormSection>
 
             <FormError message={formError} />
-            <AppButton title={isEdit ? 'حفظ التعديلات' : rawMaterialMode ? 'إنشاء الخامة' : 'إنشاء المنتج'} onPress={() => void save()} loading={submitting} />
           </View>
         </View>
       )}
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

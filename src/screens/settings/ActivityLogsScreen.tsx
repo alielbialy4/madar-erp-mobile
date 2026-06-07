@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { activityLogsAPI } from '@/api/activityLogs';
-import { AppScreen } from '@/components/layout';
-import { AppInput, AppListItem, AppSelect } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout';
+import { AppDomainCard, AppInput, AppSelect } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
@@ -29,22 +29,37 @@ export function ActivityLogsScreen({ navigation }: { navigation: any }) {
   );
 
   return (
-    <AppScreen title="سجل النشاط" subtitle="قراءة فقط — الحذف من الويب" scroll={false}>
-      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-        <AppInput value={search} onChangeText={setSearch} placeholder="بحث..." />
-        <AppInput label="الإجراء" value={action} onChangeText={setAction} placeholder="created, updated..." />
-        <AppSelect
-          label="النموذج"
-          value={modelType || null}
-          onChange={(v) => setModelType(v ?? '')}
-          options={[
-            { label: 'الكل', value: '' },
-            { label: 'Sale', value: 'Sale' },
-            { label: 'Product', value: 'Product' },
-            { label: 'User', value: 'User' },
-          ]}
-        />
-      </View>
+    <ListScreenLayout
+      title="سجل النشاط"
+      subtitle="قراءة فقط — الحذف من الويب"
+      searchValue={search}
+      onSearchChange={setSearch}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      filters={
+        <View style={{ gap: spacing.sm }}>
+          <AppInput label="الإجراء" value={action} onChangeText={setAction} placeholder="created, updated..." />
+          <AppSelect
+            label="النموذج"
+            value={modelType || null}
+            onChange={(v) => setModelType(v ?? '')}
+            options={[
+              { label: 'الكل', value: '' },
+              { label: 'Sale', value: 'Sale' },
+              { label: 'Product', value: 'Product' },
+              { label: 'User', value: 'User' },
+            ]}
+          />
+        </View>
+      }
+      hero={{
+        eyebrow: 'الإدارة',
+        title: 'سجل النشاط',
+        subtitle: 'قراءة فقط — الحذف من الويب',
+        stats: [{ label: 'السجلات', value: items.length }],
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -55,14 +70,15 @@ export function ActivityLogsScreen({ navigation }: { navigation: any }) {
         emptyTitle="لا سجلات"
         keyExtractor={(item, i) => String(item.id ?? i)}
         renderItem={({ item }) => (
-          <AppListItem
+          <AppDomainCard
             title={asText(item.description ?? item.action, '—')}
             subtitle={`${asText(item.user_name ?? (item.user as Record<string, unknown>)?.name, '—')} • ${dateText(asText(item.created_at, ''))}`}
             meta={asText(item.model_type, '')}
+            leadingIcon="history"
             onPress={() => item.id != null && navigation.navigate('ActivityLogDetail', { id: Number(item.id) })}
           />
         )}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { suppliersAPI } from '@/api/suppliers';
-import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppInput, AppSectionHeader, AppSwipeRow } from '@/components/ui';
 import { FormError } from '@/components/forms';
 import { ConfirmDialog } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -15,8 +15,8 @@ import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { getCurrentBalanceInterpretation, currentBalanceColorKey } from '@/utils/supplierBalanceLabels';
-import { flexRow } from '@/constants/layout';
+import { getCurrentBalanceInterpretation } from '@/utils/supplierBalanceLabels';
+import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 
@@ -140,28 +140,27 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
   const balanceMeta = (item: Record<string, unknown>) => {
     const signed = Number(item.current_balance ?? item.balance ?? item.opening_balance ?? 0);
     const info = getCurrentBalanceInterpretation(signed, item.current_balance_interpretation as never);
-    const toneKey = currentBalanceColorKey(signed);
-    const tone = toneKey === 'danger' ? c.danger : toneKey === 'success' ? c.success : c.textMuted;
-    return { signed, info, tone };
+    return { signed, info };
   };
 
-  const styles = useMemo(() => StyleSheet.create({
-    searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
-    actions: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-    balanceHint: { color: c.textMuted, fontSize: 11 },
-  }), [c]);
-
   return (
-    <AppScreen
+    <ListScreenLayout
       title="الموردين"
       subtitle="متابعة الموردين والأرصدة وروابط التقارير"
-      scroll={false}
-      headerRight={canManage ? <AppButton title="إضافة جديد" onPress={() => { setFormError(null); setCreateOpen(true); }} /> : undefined}
+      searchValue={query}
+      onSearchChange={setQuery}
+      searchPlaceholder="بحث عن الموردين..."
+      onRefresh={refresh}
+      refreshing={refreshing}
+      fab={canManage ? { onPress: () => { setFormError(null); setCreateOpen(true); }, label: 'إضافة مورد' } : undefined}
+      hero={{
+        eyebrow: 'المشتريات',
+        title: 'الموردين',
+        subtitle: 'متابعة الموردين والأرصدة وروابط التقارير',
+        stats: [{ label: 'الموردين', value: items.length }],
+        compact: true,
+      }}
     >
-      <View style={styles.searchWrap}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث عن الموردين..." returnKeyType="search" />
-      </View>
-
       <ResourceList
         data={items}
         loading={loading}
@@ -170,38 +169,32 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
         onRefresh={refresh}
         onEndReached={loadMore}
         emptyTitle="لا توجد موردين"
+        emptyCtaLabel={canManage ? 'إضافة مورد' : undefined}
+        onEmptyCta={canManage ? () => { setFormError(null); setCreateOpen(true); } : undefined}
         keyExtractor={(item, index) => String(item.id ?? index)}
         renderItem={({ item }) => {
           const { signed, info } = balanceMeta(item);
-          return (
-            <View>
-              <AppListItem
-                title={String(item.name ?? 'مورد')}
-                subtitle={String(item.phone ?? '—')}
-                meta={`${truncateNotes(item.notes)} • ${money(signed)} — ${info.label_ar}`}
-                metaLtr
-                badge={<AppBadge label={`${item.purchases_count ?? 0} فاتورة`} tone="info" />}
-                onPress={() => openEdit(item)}
-              />
-              <View style={styles.actions}>
-                <AppButton
-                  title="التقرير"
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => navigation.navigate('SupplierReport', { id: item.id, name: item.name })}
-                />
-                <AppButton
-                  title="كشف حساب"
-                  size="sm"
-                  variant="outline"
-                  onPress={() => navigation.navigate('SupplierStatement', { id: item.id, name: item.name })}
-                />
-                {canManage ? (
-                  <AppButton title="حذف" size="sm" variant="danger" onPress={() => setDeleteTarget(item)} />
-                ) : null}
-              </View>
-            </View>
+          const card = (
+            <AppDomainCard
+              title={String(item.name ?? 'مورد')}
+              subtitle={String(item.phone ?? '—')}
+              meta={`${truncateNotes(item.notes)} • ${money(signed)} — ${info.label_ar}`}
+              metric={money(signed)}
+              badgeLabel={`${item.purchases_count ?? 0} فاتورة`}
+              badgeTone="info"
+              leadingIcon={moduleIcons.suppliers}
+              onPress={() => openEdit(item)}
+            />
           );
+          const swipeActions = [
+            { label: 'تقرير', icon: 'assessment' as const, onPress: () => navigation.navigate('SupplierReport', { id: item.id, name: item.name }) },
+            { label: 'كشف', icon: 'receipt-long' as const, onPress: () => navigation.navigate('SupplierStatement', { id: item.id, name: item.name }) },
+            ...(canManage ? [
+              { label: 'تعديل', icon: 'edit' as const, onPress: () => openEdit(item) },
+              { label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: () => setDeleteTarget(item) },
+            ] : []),
+          ];
+          return swipeActions.length > 0 ? <AppSwipeRow rightActions={swipeActions}>{card}</AppSwipeRow> : card;
         }}
       />
 
@@ -270,6 +263,6 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

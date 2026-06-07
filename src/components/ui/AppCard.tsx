@@ -1,7 +1,8 @@
 import React, { PropsWithChildren, useRef, useCallback } from 'react';
-import { Animated, Pressable, Platform, View, ViewStyle } from 'react-native';
+import { Animated, Pressable, Platform, View, ViewStyle, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
+import { glassTokens } from '@/constants/glass';
 
 type Props = PropsWithChildren<{
   style?: ViewStyle;
@@ -17,7 +18,7 @@ export function AppCard({ children, style, padded = true, onPress, elevated = tr
 
   const handlePressIn = useCallback(() => {
     if (onPress) {
-      Animated.spring(scaleRef, { toValue: 0.98, friction: 5, tension: 200, useNativeDriver: true }).start();
+      Animated.spring(scaleRef, { toValue: 0.97, friction: 5, tension: 300, useNativeDriver: true }).start();
     }
   }, [onPress, scaleRef]);
 
@@ -26,8 +27,8 @@ export function AppCard({ children, style, padded = true, onPress, elevated = tr
   }, [scaleRef]);
 
   const bg = variant === 'glass' ? c.glass : variant === 'flat' ? c.surfaceMuted : c.surface;
-  const borderWidth = variant === 'glass' ? 0 : 1;
-  const borderColor = variant === 'glass' ? 'transparent' : c.borderSubtle;
+  const borderWidth = variant === 'glass' ? StyleSheet.hairlineWidth : 1;
+  const borderColor = variant === 'glass' ? c.glassBorder : c.borderSubtle;
 
   const cardStyle = {
     backgroundColor: bg,
@@ -37,11 +38,13 @@ export function AppCard({ children, style, padded = true, onPress, elevated = tr
     padding: padded ? spacing.cardPadding : 0,
     overflow: 'hidden' as const,
     ...(elevated && variant !== 'flat'
-      ? Platform.select({
-          ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8 },
-          android: { elevation: 2 },
-          default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
-        })
+      ? variant === 'glass'
+        ? glassTokens.shadow.md
+        : Platform.select({
+            ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.8, shadowRadius: 12 },
+            android: { elevation: 3 },
+            default: { boxShadow: `0 4px 12px ${c.shadowMd}` } as object,
+          })
       : {}),
   };
 

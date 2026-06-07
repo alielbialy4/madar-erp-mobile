@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import { branchesManageAPI } from '@/api/branchesManage';
 import { warehousesAPI } from '@/api/inventory';
 import { vaultsAPI } from '@/api/vaults';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +15,7 @@ import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import type { BranchManageRow } from '@/types/branches';
 
@@ -57,6 +59,7 @@ const emptyForm = (): FormState => ({
 
 export function BranchFormScreen({ route, navigation }: { route: any; navigation: any }) {
   const c = useColors();
+  const toast = useToast();
   const id = route.params?.id as string | undefined;
   const isEdit = Boolean(id);
   const user = useAuthStore((s) => s.user);
@@ -165,9 +168,14 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
         await branchesManageAPI.create(payload);
       }
       await loadBranches();
+      toast.success(isEdit ? 'تم تحديث الفرع' : 'تم إنشاء الفرع');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
@@ -179,9 +187,14 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
     try {
       await branchesManageAPI.delete(id);
       await loadBranches();
+      toast.success('تم حذف الفرع');
+      void hapticSuccess();
       navigation.navigate('BranchesList');
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
       setDeleteConfirm(false);
@@ -190,16 +203,22 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
 
   if (!canManage) {
     return (
-      <AppScreen title="فرع" onBack={navigation.goBack}>
+      <FormScreenLayout title="فرع" onBack={navigation.goBack}>
         <Text>ليس لديك صلاحية إدارة الفروع.</Text>
-      </AppScreen>
+      </FormScreenLayout>
     );
   }
 
   return (
-    <AppScreen title={isEdit ? 'تعديل فرع' : 'فرع جديد'} onBack={navigation.goBack}>
+    <FormScreenLayout
+      title={isEdit ? 'تعديل فرع' : 'فرع جديد'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={busy}
+      onDelete={isEdit && id ? () => setDeleteConfirm(true) : undefined}
+    >
       {loading ? <Text>جاري التحميل…</Text> : null}
-      <View style={{ gap: spacing.md }}>
+      <FormSection title="بيانات الفرع" icon="store">
         {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
         <AppInput label="اسم الفرع *" value={form.name} onChangeText={(t) => patch({ name: t })} />
         <AppInput label="كود الفرع *" value={form.code} onChangeText={(t) => patch({ code: t })} editable={!isEdit} />
@@ -208,8 +227,8 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
         <AppInput label="بريد التواصل" value={form.contact_email} onChangeText={(t) => patch({ contact_email: t })} keyboardType="email-address" autoCapitalize="none" />
         <AppSelect label="الحالة" value={form.status} options={STATUS_OPTS} onChange={(v) => patch({ status: v as 'active' | 'inactive' })} />
         <AppSelect label="فرع رئيسي" value={form.is_main ? '1' : '0'} options={MAIN_OPTS} onChange={(v) => patch({ is_main: v === '1' })} />
-
-        <Text style={{ fontWeight: '700' }}>المخزن الافتراضي {!isEdit ? '*' : ''}</Text>
+      </FormSection>
+      <FormSection title="المخزن الافتراضي" icon="warehouse" subtitle={!isEdit ? 'مطلوب عند الإنشاء' : undefined}>
         <AppSelect
           label="اختر مخزن"
           value={form.warehouse_id || null}
@@ -219,8 +238,8 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
         {!form.warehouse_id && !isEdit ? (
           <AppInput label="اسم مخزن جديد" value={form.warehouse_name} onChangeText={(t) => patch({ warehouse_name: t })} />
         ) : null}
-
-        <Text style={{ fontWeight: '700' }}>الخزينة الافتراضية {!isEdit ? '*' : ''}</Text>
+      </FormSection>
+      <FormSection title="الخزينة الافتراضية" icon="account-balance-wallet" subtitle={!isEdit ? 'مطلوب عند الإنشاء' : undefined}>
         <AppSelect
           label="اختر خزينة"
           value={form.vault_id || null}
@@ -230,12 +249,7 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
         {!form.vault_id && !isEdit ? (
           <AppInput label="اسم خزينة جديدة" value={form.vault_name} onChangeText={(t) => patch({ vault_name: t })} />
         ) : null}
-
-        <AppButton title={isEdit ? 'تحديث' : 'إنشاء'} onPress={() => void save()} loading={busy} fullWidth />
-        {isEdit && id ? (
-          <AppButton title="حذف الفرع" variant="danger" onPress={() => setDeleteConfirm(true)} />
-        ) : null}
-      </View>
+      </FormSection>
       <ConfirmDialog
         visible={deleteConfirm}
         title="حذف الفرع"
@@ -245,6 +259,6 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
         onCancel={() => setDeleteConfirm(false)}
         loading={busy}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

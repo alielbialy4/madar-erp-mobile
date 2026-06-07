@@ -3,11 +3,11 @@ import { ActivityIndicator, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { warehousesAPI } from '@/api/inventory';
-import { AppScreen } from '@/components/layout';
-import { InventoryHero } from '@/components/inventory/InventoryHero';
-import { ProductFormSection } from '@/components/products/ProductFormSection';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
 import { FormError } from '@/components/forms';
-import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { useToast } from '@/components/feedback';
+import { AppInput, AppSelect } from '@/components/ui';
 import { AppText as UiText, Text } from '@/components/ui/AppText';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
@@ -17,6 +17,7 @@ import { textStart } from '@/constants/layout';
 import type { Warehouse } from '@/types/api';
 import type { MoreStackParamList } from '@/types/navigation';
 import { useColors } from '@/hooks/useColors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 import { spacing } from '@/constants/spacing';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'WarehouseForm'>;
@@ -26,6 +27,7 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
   const c = useColors();
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
   const { canManage } = useInventoryDirectoryAccess();
+  const toast = useToast();
   const id = route.params?.id;
   const isEdit = Boolean(id);
 
@@ -79,9 +81,14 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
     try {
       if (isEdit && id) await warehousesAPI.update(id, payload);
       else await warehousesAPI.create(payload);
+      toast.success(isEdit ? 'تم تحديث المخزن' : 'تم إنشاء المخزن');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setFormError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setFormError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setSubmitting(false);
     }
@@ -89,47 +96,42 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
 
   if (!canManage) {
     return (
-      <AppScreen title="المخزن" onBack={navigation.goBack}>
+      <FormScreenLayout title="المخزن" onBack={navigation.goBack}>
         <UiText style={{ ...textStart, textAlign: 'center', padding: spacing.lg }}>
           الإضافة والتعديل متاحة في الوضع العام فقط (وليس وضع الفرع).
         </UiText>
-      </AppScreen>
+      </FormScreenLayout>
     );
   }
 
   return (
-    <AppScreen title={isEdit ? 'تعديل مخزن' : 'إضافة مخزن'} onBack={navigation.goBack} scroll contentStyle={{ padding: 0 }}>
+    <FormScreenLayout
+      title={isEdit ? 'تعديل مخزن' : 'إضافة مخزن'}
+      onBack={navigation.goBack}
+      heroTitle={isEdit ? 'تعديل مخزن' : 'مخزن جديد'}
+      heroSubtitle="يُربط المخزن بالفرع من إعدادات الفرع (المخزن الافتراضي) كما في الويب."
+      onSave={() => void save()}
+      saveLoading={submitting || loading}
+      saveLabel={isEdit ? 'حفظ التعديلات' : 'إنشاء المخزن'}
+    >
       {loading ? (
         <View style={{ padding: spacing.xxl, alignItems: 'center' }}>
           <ActivityIndicator />
         </View>
       ) : (
-        <View style={{ paddingBottom: spacing.xxl }}>
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-            <InventoryHero
-              eyebrow={isEdit ? 'تعديل' : 'إنشاء'}
-              title={isEdit ? 'تعديل مخزن' : 'مخزن جديد'}
-              subtitle="يُربط المخزن بالفرع من إعدادات الفرع (المخزن الافتراضي) كما في الويب."
-            />
-          </View>
-
-          <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: spacing.md }}>
-            <ProductFormSection title="بيانات المخزن" subtitle="الاسم والكود والموقع" icon="warehouse">
-              <AppInput label="اسم المخزن *" value={name} onChangeText={setName} placeholder="مثال: المخزن الرئيسي" />
-              <AppInput label="الكود" value={code} onChangeText={setCode} placeholder="يُولَّد تلقائياً إن تُرك فارغاً" />
-              <AppInput label="الموقع" value={location} onChangeText={setLocation} placeholder="مثال: الطابق الأرضي" />
-              <AppSelect label="الحالة" value={status} options={statusOptions} onChange={setStatus} />
-            </ProductFormSection>
-
-            <Text style={ui.formNote}>
-              ملاحظة: ربط المخزن بفرع معيّن يتم من شاشة إدارة الفروع على الويب.
-            </Text>
-
-            <FormError message={formError} />
-            <AppButton title={isEdit ? 'حفظ التعديلات' : 'إنشاء المخزن'} onPress={() => void save()} loading={submitting} />
-          </View>
-        </View>
+        <>
+          <FormSection title="بيانات المخزن" subtitle="الاسم والكود والموقع" icon="warehouse">
+            <AppInput label="اسم المخزن *" value={name} onChangeText={setName} placeholder="مثال: المخزن الرئيسي" />
+            <AppInput label="الكود" value={code} onChangeText={setCode} placeholder="يُولَّد تلقائياً إن تُرك فارغاً" />
+            <AppInput label="الموقع" value={location} onChangeText={setLocation} placeholder="مثال: الطابق الأرضي" />
+            <AppSelect label="الحالة" value={status} options={statusOptions} onChange={setStatus} />
+          </FormSection>
+          <Text style={ui.formNote}>
+            ملاحظة: ربط المخزن بفرع معيّن يتم من شاشة إدارة الفروع على الويب.
+          </Text>
+          <FormError message={formError} />
+        </>
       )}
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

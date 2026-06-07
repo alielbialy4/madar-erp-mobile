@@ -3,11 +3,13 @@ import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { reorderRulesAPI } from '@/api/reorderRules';
-import { AppScreen } from '@/components/layout';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
-import { AppButton, AppInput } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { AppInput } from '@/components/ui';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { normalizeApiError } from '@/utils/errors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'ReorderRuleForm'>;
@@ -15,6 +17,7 @@ type Route = RouteProp<MoreStackParamList, 'ReorderRuleForm'>;
 
 export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; route: Route }) {
   const editId = route.params?.id;
+  const toast = useToast();
   const [productId, setProductId] = useState<number | null>(null);
   const [productName, setProductName] = useState('');
   const [threshold, setThreshold] = useState('10');
@@ -57,22 +60,34 @@ export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; 
           reorder_to: Number(reorderTo),
         });
       }
-      Alert.alert('تم', 'تم حفظ قاعدة إعادة الطلب');
+      toast.success('تم حفظ قاعدة إعادة الطلب');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      toast.error(msg);
+      void hapticError();
+      Alert.alert('خطأ', msg);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <AppScreen title={editId ? 'تعديل قاعدة' : 'قاعدة جديدة'} onBack={navigation.goBack}>
-      {!editId ? <InventoryProductSearch onSelect={(p) => { setProductId(p.id); setProductName(p.name ?? ''); }} /> : null}
-      {productName ? <AppInput label="المنتج" value={productName} editable={false} /> : null}
-      <AppInput label="حد إعادة الطلب" keyboardType="numeric" value={threshold} onChangeText={setThreshold} />
-      <AppInput label="إعادة الطلب إلى" keyboardType="numeric" value={reorderTo} onChangeText={setReorderTo} />
-      <AppButton title="حفظ" loading={submitting} onPress={() => setConfirmVisible(true)} />
+    <FormScreenLayout
+      title={editId ? 'تعديل قاعدة' : 'قاعدة جديدة'}
+      onBack={navigation.goBack}
+      onSave={() => setConfirmVisible(true)}
+      saveLoading={submitting}
+    >
+      <FormSection title="المنتج" icon="inventory-2">
+        {!editId ? <InventoryProductSearch onSelect={(p) => { setProductId(p.id); setProductName(p.name ?? ''); }} /> : null}
+        {productName ? <AppInput label="المنتج" value={productName} editable={false} /> : null}
+      </FormSection>
+      <FormSection title="حدود إعادة الطلب" icon="low-priority">
+        <AppInput label="حد إعادة الطلب" keyboardType="numeric" value={threshold} onChangeText={setThreshold} />
+        <AppInput label="إعادة الطلب إلى" keyboardType="numeric" value={reorderTo} onChangeText={setReorderTo} />
+      </FormSection>
       <ConfirmDialog
         visible={confirmVisible}
         title="حفظ القاعدة"
@@ -82,6 +97,6 @@ export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; 
         onCancel={() => setConfirmVisible(false)}
         onConfirm={() => void submit()}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { settingsAPI } from '@/api/settings';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
-import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
+import { AppInput, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 import { spacing } from '@/constants/spacing';
 import type { SelectOption } from '@/components/ui/AppSelect';
 
@@ -16,6 +18,7 @@ export function UserFormScreen({ route, navigation }: { route: any; navigation: 
   const id = route.params?.id as number | undefined;
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_users');
+  const toast = useToast();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -67,9 +70,14 @@ export function UserFormScreen({ route, navigation }: { route: any; navigation: 
         userId = Number(row?.id ?? 0) || undefined;
       }
       if (userId && roles.length) await settingsAPI.syncUserRoles(userId, roles);
+      toast.success(id ? 'تم تحديث المستخدم' : 'تم إنشاء المستخدم');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
@@ -80,9 +88,14 @@ export function UserFormScreen({ route, navigation }: { route: any; navigation: 
     setBusy(true);
     try {
       await settingsAPI.deleteUser(id);
+      toast.success('تم حذف المستخدم');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
       setDeleteConfirm(false);
@@ -95,27 +108,33 @@ export function UserFormScreen({ route, navigation }: { route: any; navigation: 
 
   if (!canManage && !id) {
     return (
-      <AppScreen title="مستخدم" onBack={navigation.goBack}>
+      <FormScreenLayout title="مستخدم" onBack={navigation.goBack}>
         <Text>ليس لديك صلاحية manage_users لإنشاء مستخدمين.</Text>
-      </AppScreen>
+      </FormScreenLayout>
     );
   }
 
   return (
-    <AppScreen title={id ? 'تعديل مستخدم' : 'مستخدم جديد'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل مستخدم' : 'مستخدم جديد'}
+      onBack={navigation.goBack}
+      onSave={canManage ? () => void save() : undefined}
+      saveLoading={busy}
+      onDelete={id && canManage ? () => setDeleteConfirm(true) : undefined}
+    >
+      <FormSection title="بيانات المستخدم" icon="person">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <AppInput label="الاسم" value={name} onChangeText={setName} editable={canManage} />
         <AppInput label="البريد" value={email} onChangeText={setEmail} keyboardType="email-address" editable={canManage} />
         <AppInput label="الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={canManage} />
         {!id ? <AppInput label="كلمة المرور" value={password} onChangeText={setPassword} secureTextEntry editable={canManage} /> : null}
         <AppSelect label="نشط" value={active} options={[{ label: 'نعم', value: '1' }, { label: 'لا', value: '0' }]} onChange={setActive} />
+      </FormSection>
+      <FormSection title="الأدوار" icon="admin-panel-settings">
         <AppSelect label="إضافة دور" value={null} options={[{ label: 'اختر دور', value: '' }, ...roleOptions]} onChange={(v) => v && toggleRole(v)} />
         <Text>الأدوار: {roles.length ? roles.join('، ') : '—'}</Text>
-        {canManage ? <AppButton title="حفظ" onPress={() => void save()} loading={busy} /> : null}
-        {id && canManage ? <AppButton title="حذف" variant="ghost" onPress={() => setDeleteConfirm(true)} /> : null}
-      </View>
+      </FormSection>
       <ConfirmDialog visible={deleteConfirm} title="حذف المستخدم" message="حذف هذا المستخدم؟" confirmLabel="حذف" onConfirm={() => void remove()} onCancel={() => setDeleteConfirm(false)} loading={busy} />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

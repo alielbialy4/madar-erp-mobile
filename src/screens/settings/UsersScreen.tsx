@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { settingsAPI } from '@/api/settings';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { ListScreenTemplate } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
@@ -12,7 +12,7 @@ export function UsersScreen({ navigation }: { navigation: any }) {
   const canManage = hasPermission(user, 'manage_users');
 
   return (
-    <CrudListScreen<Record<string, unknown>>
+    <ListScreenTemplate<Record<string, unknown>>
       title="المستخدمون"
       subtitle={canManage ? 'إنشاء وتعديل وتعيين أدوار' : 'قراءة فقط'}
       moduleIcon="users"
@@ -23,6 +23,9 @@ export function UsersScreen({ navigation }: { navigation: any }) {
       itemMeta={(item) => (Array.isArray(item.roles) ? (item.roles as string[]).join(', ') : '—')}
       itemBadge={(item) => ({ label: item.active === false ? 'معطل' : 'نشط', tone: item.active === false ? 'danger' : 'success' })}
       emptyTitle="لا مستخدمين"
+      emptyCtaLabel="مستخدم جديد"
+      onEmptyCta={canManage ? () => navigation.navigate('UserForm', {}) : undefined}
+      fab={canManage ? { onPress: () => navigation.navigate('UserForm', {}), label: 'مستخدم جديد' } : undefined}
       headerRight={
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {canManage ? <AppButton title="جديد" onPress={() => navigation.navigate('UserForm', {})} /> : null}

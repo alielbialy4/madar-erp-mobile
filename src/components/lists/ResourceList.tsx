@@ -16,10 +16,12 @@ type Props<T> = {
   renderItem: ListRenderItem<T>;
   keyExtractor: (item: T, index: number) => string;
   emptyTitle?: string;
+  emptyCtaLabel?: string;
+  onEmptyCta?: () => void;
   noPadding?: boolean;
 };
 
-export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, onEndReached, renderItem, keyExtractor, emptyTitle, noPadding }: Props<T>) {
+export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, onEndReached, renderItem, keyExtractor, emptyTitle, emptyCtaLabel, onEmptyCta, noPadding }: Props<T>) {
   const tabBarInset = useTabBarBottomInset(spacing.lg);
   const c = useColors();
   const styles = useMemo(() => createStyles(c), [c]);
@@ -37,19 +39,19 @@ export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, o
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       contentContainerStyle={contentStyle}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ItemSeparatorComponent={() => <View style={styles.gap} />}
       refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} /> : undefined}
       onEndReached={onEndReached}
       onEndReachedThreshold={0.4}
-      ListEmptyComponent={<AppEmptyState title={emptyTitle || 'لا توجد بيانات'} />}
+      ListEmptyComponent={<AppEmptyState title={emptyTitle || 'لا توجد بيانات'} ctaLabel={emptyCtaLabel} onCtaPress={onEmptyCta} />}
     />
   );
 }
 
-function createStyles(c: AppColors) {
+function createStyles(_c: AppColors) {
   return StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
+    content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1, gap: spacing.sm },
     noPadding: { padding: 0 },
-    separator: { height: 1, backgroundColor: c.borderSubtle },
+    gap: { height: spacing.sm },
   });
 }

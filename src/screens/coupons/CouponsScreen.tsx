@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { couponsAPI } from '@/api/coupons';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { ListScreenTemplate } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
@@ -13,7 +13,7 @@ export function CouponsScreen({ navigation }: { navigation: any }) {
   const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
 
   return (
-    <CrudListScreen<Coupon & Record<string, unknown>>
+    <ListScreenTemplate<Coupon & Record<string, unknown>>
       title="الكوبونات"
       subtitle="التحقق في POS يتطلب شبكة؛ سياسة الفرع من إعدادات الفرع"
       moduleIcon="coupons"
@@ -24,6 +24,9 @@ export function CouponsScreen({ navigation }: { navigation: any }) {
       itemMeta={(item) => (item.min_order_amount ? `حد أدنى: ${money(item.min_order_amount)}` : item.branch_id ? `فرع: ${item.branch_id}` : undefined)}
       itemBadge={(item) => ({ label: item.is_active === false ? 'غير نشط' : 'نشط', tone: item.is_active === false ? 'warning' : 'success' })}
       emptyTitle="لا كوبونات"
+      emptyCtaLabel="كوبون جديد"
+      onEmptyCta={canManage ? () => navigation.navigate('CouponForm', {}) : undefined}
+      fab={canManage ? { onPress: () => navigation.navigate('CouponForm', {}), label: 'كوبون جديد' } : undefined}
       headerRight={
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {canManage ? <AppButton title="جديد" onPress={() => navigation.navigate('CouponForm', {})} /> : null}

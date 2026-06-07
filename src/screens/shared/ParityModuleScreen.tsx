@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { AppScreen } from '@/components/layout';
+import { ListScreenLayout } from '@/components/layout';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppBadge, AppCard, AppResourceRow, AppSearchField, AppSectionHeader, AppText as Text } from '@/components/ui';
+import { AppBadge, AppCard, AppDomainCard, AppSectionHeader, AppText as Text } from '@/components/ui';
 import { get } from '@/api/client';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
@@ -178,28 +178,38 @@ export function ParityModuleScreen({ route, navigation }: Props) {
   const disabled = status === 'Disabled with reason' || status === 'Missing API';
 
   return (
-    <AppScreen
+    <ListScreenLayout
       title={title}
       subtitle={note ?? undefined}
       onBack={navigation.goBack}
-      refreshing={refreshing}
       onRefresh={endpoint ? () => void load(true) : undefined}
+      refreshing={refreshing}
+      searchValue={endpoint ? query : undefined}
+      onSearchChange={endpoint ? setQuery : undefined}
+      hero={{
+        eyebrow: disabled ? 'مسار معطل بأمان' : 'مسار مطابقة للويب',
+        title,
+        subtitle: note ?? 'هذه الشاشة مولدة من مسار الويب وتعرض البيانات المتاحة من API بدون تنفيذ عمليات خطرة.',
+        stats: rows.length ? [{ label: 'العناصر', value: rows.length }] : undefined,
+        compact: true,
+      }}
+      filters={
+        <AppCard style={styles.statusCard}>
+          <View style={styles.statusHeader}>
+            <View style={styles.statusIcon}>
+              <MaterialIcons name={disabled ? 'lock-outline' : 'fact-check'} size={20} color={disabled ? c.warning : c.accent} />
+            </View>
+            <View style={styles.statusTextCol}>
+              <Text style={styles.statusTitle}>{disabled ? 'مسار معطل بأمان' : 'مسار مطابقة للويب'}</Text>
+              <Text style={styles.statusNote}>
+                {note ?? 'هذه الشاشة مولدة من مسار الويب وتعرض البيانات المتاحة من API بدون تنفيذ عمليات خطرة.'}
+              </Text>
+            </View>
+            <AppBadge label={status} tone={disabled ? 'warning' : status === 'Complete' ? 'success' : 'info'} />
+          </View>
+        </AppCard>
+      }
     >
-      <AppCard style={styles.statusCard}>
-        <View style={styles.statusHeader}>
-          <View style={styles.statusIcon}>
-            <MaterialIcons name={disabled ? 'lock-outline' : 'fact-check'} size={20} color={disabled ? c.warning : c.accent} />
-          </View>
-          <View style={styles.statusTextCol}>
-            <Text style={styles.statusTitle}>{disabled ? 'مسار معطل بأمان' : 'مسار مطابقة للويب'}</Text>
-            <Text style={styles.statusNote}>
-              {note ?? 'هذه الشاشة مولدة من مسار الويب وتعرض البيانات المتاحة من API بدون تنفيذ عمليات خطرة.'}
-            </Text>
-          </View>
-          <AppBadge label={status} tone={disabled ? 'warning' : status === 'Complete' ? 'success' : 'info'} />
-        </View>
-      </AppCard>
-
       {!endpoint ? (
         <AppEmptyState
           title="لا يوجد API آمن لهذا المسار"
@@ -207,7 +217,6 @@ export function ParityModuleScreen({ route, navigation }: Props) {
         />
       ) : (
         <>
-          <AppSearchField value={query} onChangeText={setQuery} placeholder="بحث..." />
           {loading ? <AppLoadingState variant="skeleton" skeletonRows={6} /> : null}
           {error ? <AppErrorState message={error} onRetry={() => void load(false)} /> : null}
           {!loading && !error && rows.length === 0 && metrics.length === 0 ? (
@@ -216,12 +225,12 @@ export function ParityModuleScreen({ route, navigation }: Props) {
           {!loading && !error && rows.length > 0 ? (
             <View style={styles.list}>
               {rows.map((item, index) => (
-                <AppResourceRow
+                <AppDomainCard
                   key={String(item.id ?? index)}
                   title={rowTitle(item)}
                   subtitle={rowSubtitle(item)}
-                  meta={rowMeta(item)}
-                  onPress={undefined}
+                  metric={rowMeta(item)}
+                  variant="list"
                 />
               ))}
             </View>
@@ -241,6 +250,6 @@ export function ParityModuleScreen({ route, navigation }: Props) {
           ) : null}
         </>
       )}
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

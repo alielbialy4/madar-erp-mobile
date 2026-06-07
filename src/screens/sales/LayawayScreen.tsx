@@ -16,7 +16,7 @@ import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
-import { statusTone } from '@/screens/shared/CrudListScreen';
+import { statusTone } from '@/utils/statusTone';
 import { hapticSuccess } from '@/utils/haptics';
 
 function amount(value: unknown): number {

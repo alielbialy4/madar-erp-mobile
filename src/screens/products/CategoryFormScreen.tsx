@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { categoriesAPI } from '@/api/categories';
 import type { CategoryPayload } from '@/api/categories';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection, SwitchRow } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { ImagePickerField } from '@/components/forms/ImagePickerField';
 import { FormError } from '@/components/forms';
-import { AppButton, AppInput } from '@/components/ui';
+import { AppInput } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
@@ -16,13 +17,13 @@ import { hasPermission } from '@/utils/permissions';
 import { useAuthStore } from '@/store/authStore';
 import type { Category } from '@/types/api';
 import type { ProductsStackParamList } from '@/types/navigation';
-import { useColors } from '@/hooks/useColors';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'CategoryForm'>;
 type Route = RouteProp<ProductsStackParamList, 'CategoryForm'>;
 
 export function CategoryFormScreen({ navigation, route }: { navigation: Nav; route: Route }) {
-  const c = useColors();
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_categories');
   const id = route.params?.id;
@@ -74,9 +75,13 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
     try {
       if (isEdit && id) await categoriesAPI.update(id, payload());
       else await categoriesAPI.create(payload());
+      toast.success(isEdit ? 'تم تحديث التصنيف' : 'تم إنشاء التصنيف');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
       setFormError(normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
+      void hapticError();
     } finally {
       setSubmitting(false);
     }
@@ -98,30 +103,27 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
 
   if (!canManage) {
     return (
-      <AppScreen title="التصنيف" onBack={navigation.goBack}>
-        <Text style={{ color: c.textMuted, textAlign: 'center' }}>ليس لديك صلاحية إدارة التصنيفات</Text>
-      </AppScreen>
+      <FormScreenLayout title="التصنيف" onBack={navigation.goBack}>
+        <Text style={{ textAlign: 'center' }}>ليس لديك صلاحية إدارة التصنيفات</Text>
+      </FormScreenLayout>
     );
   }
 
   return (
-    <AppScreen
+    <FormScreenLayout
       title={isEdit ? 'تعديل تصنيف' : 'إضافة تصنيف'}
       onBack={navigation.goBack}
-      scroll
+      onSave={() => void save()}
+      saveLoading={submitting || loading}
+      onDelete={isEdit ? () => setDeleteOpen(true) : undefined}
     >
-      <View style={{ gap: 14, padding: 16 }}>
+      <FormSection title="بيانات التصنيف" icon="category">
         <ImagePickerField label="الصورة" value={image} remoteUrl={remoteImage} onChange={setImage} />
         <AppInput label="الاسم" value={name} onChangeText={setName} />
         <AppInput label="الوصف" value={description} onChangeText={setDescription} multiline />
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={{ color: c.text }}>نشط</Text>
-          <Switch value={active} onValueChange={setActive} />
-        </View>
+        <SwitchRow label="نشط" value={active} onValueChange={setActive} />
         <FormError message={formError} />
-        <AppButton title="حفظ" onPress={() => void save()} loading={submitting || loading} />
-        {isEdit ? <AppButton title="حذف التصنيف" variant="danger" onPress={() => setDeleteOpen(true)} /> : null}
-      </View>
+      </FormSection>
       <ConfirmDialog
         visible={deleteOpen}
         title="حذف التصنيف"
@@ -130,6 +132,6 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
         onConfirm={() => void remove()}
         onCancel={() => setDeleteOpen(false)}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

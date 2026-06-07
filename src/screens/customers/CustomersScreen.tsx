@@ -4,15 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { View } from 'react-native';
 import { customersAPI } from '@/api/customers';
-import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/components/ui';
 import { FormError } from '@/components/forms';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
+import { moduleIcons } from '@/constants/iconMap';
 import type { Customer } from '@/types/api';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { spacing } from '@/constants/spacing';
 
 const schema = z.object({
   name: z.string().min(2, 'اسم العميل مطلوب'),
@@ -44,15 +46,23 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
   });
 
   return (
-    <AppScreen
+    <ListScreenLayout
       title="العملاء"
       subtitle="بحث وتفاصيل ومحفظة وولاء"
-      scroll={false}
-      headerRight={<AppButton title="إضافة" onPress={() => setOpen(true)} />}
+      searchValue={query}
+      onSearchChange={setQuery}
+      searchPlaceholder="بحث بالاسم أو الهاتف..."
+      onRefresh={refresh}
+      refreshing={refreshing}
+      fab={{ onPress: () => setOpen(true), label: 'إضافة عميل' }}
+      hero={{
+        eyebrow: 'العملاء',
+        title: 'العملاء',
+        subtitle: 'بحث وتفاصيل ومحفظة وولاء',
+        stats: [{ label: 'العملاء', value: items.length }],
+        compact: true,
+      }}
     >
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث بالاسم أو الهاتف..." />
-      </View>
       <ResourceList
         data={items}
         loading={loading}
@@ -61,20 +71,24 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
         onRefresh={refresh}
         onEndReached={loadMore}
         emptyTitle="لا يوجد عملاء"
+        emptyCtaLabel="إضافة عميل"
+        onEmptyCta={() => setOpen(true)}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <AppListItem
+          <AppDomainCard
             title={item.name}
             subtitle={item.phone ?? item.primary_phone ?? undefined}
             meta={`المحفظة: ${money(item.wallet_balance ?? item.balance ?? 0)} • النقاط: ${item.points_balance ?? 0}`}
-            badge={<AppBadge label={`${item.orders_count ?? item.sales_count ?? 0} طلب`} tone="info" />}
+            badgeLabel={`${item.orders_count ?? item.sales_count ?? 0} طلب`}
+            badgeTone="info"
+            leadingIcon={moduleIcons.customers}
             onPress={() => navigation.navigate('CustomerDetail', { id: item.id, name: item.name })}
           />
         )}
       />
 
       <AppBottomSheet visible={open} onClose={() => setOpen(false)}>
-        <View style={{ gap: 12 }}>
+        <View style={{ gap: spacing.md }}>
           <AppSectionHeader title="إضافة عميل" />
           <Controller control={control} name="name" render={({ field }) => <AppInput label="الاسم" value={field.value} onChangeText={field.onChange} error={errors.name?.message} />} />
           <Controller control={control} name="phone" render={({ field }) => <AppInput label="الهاتف" value={field.value} onChangeText={field.onChange} error={errors.phone?.message} keyboardType="phone-pad" />} />
@@ -83,6 +97,6 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
           <AppButton title="حفظ العميل" onPress={submit} loading={isSubmitting} />
         </View>
       </AppBottomSheet>
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

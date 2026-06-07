@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { promotionsAPI } from '@/api/promotions';
-import { AppScreen } from '@/components/layout';
-import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { useToast } from '@/components/feedback';
+import { AppButton, AppDatePicker, AppInput, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { hasPermission } from '@/utils/permissions';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 import { useColors } from '@/hooks/useColors';
 
 export function PromotionFormScreen({ route, navigation }: { route: any; navigation: any }) {
@@ -18,6 +19,7 @@ export function PromotionFormScreen({ route, navigation }: { route: any; navigat
   const user = useAuthStore((s) => s.user);
   const branch = useBranchStore((s) => s.activeBranch);
   const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
+  const toast = useToast();
 
   const [name, setName] = useState('');
   const [type, setType] = useState('percentage_discount');
@@ -71,17 +73,27 @@ export function PromotionFormScreen({ route, navigation }: { route: any; navigat
       };
       if (id) await promotionsAPI.update(id, payload);
       else await promotionsAPI.create(payload);
+      toast.success(id ? 'تم تحديث العرض' : 'تم إنشاء العرض');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <AppScreen title={id ? 'تعديل عرض' : 'عرض جديد'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل عرض' : 'عرض جديد'}
+      onBack={navigation.goBack}
+      onSave={canManage ? () => void save() : undefined}
+      saveLoading={busy}
+    >
+      <FormSection title="تفاصيل العرض" icon="campaign">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <Text style={{ color: c.textMuted, fontSize: 12 }}>
           العروض تُطبَّق تلقائياً في POS عند استيفاء الشروط (مثل الحد الأدنى للسلة). التحقق من الكوبون يبقى منفصلاً ويتطلب شبكة عند عدم وجود كاش محلي.
@@ -98,14 +110,15 @@ export function PromotionFormScreen({ route, navigation }: { route: any; navigat
           onChange={setType}
         />
         <AppInput label="قيمة المكافأة" value={rewardValue} onChangeText={setRewardValue} keyboardType="decimal-pad" editable={canManage} />
-        <AppInput label="تاريخ البداية YYYY-MM-DD" value={startDate} onChangeText={setStartDate} editable={canManage} />
-        <AppInput label="تاريخ النهاية" value={endDate} onChangeText={setEndDate} editable={canManage} />
+        <AppDatePicker label="تاريخ البداية" value={startDate} onChange={setStartDate} />
+        <AppDatePicker label="تاريخ النهاية" value={endDate} onChange={setEndDate} />
         <AppInput label="حد أدنى للسلة (شرط)" value={minCart} onChangeText={setMinCart} keyboardType="decimal-pad" editable={canManage} />
         <AppInput label="الأولوية" value={priority} onChangeText={setPriority} keyboardType="number-pad" editable={canManage} />
         <AppSelect label="نشط" value={isActive} options={[{ label: 'نعم', value: '1' }, { label: 'لا', value: '0' }]} onChange={setIsActive} />
+      </FormSection>
+      <FormSection title="تقارير" icon="assessment">
         <AppButton title="تقرير العروض" variant="secondary" onPress={() => navigation.navigate('ReportViewer', { reportId: 'marketing-promotions' })} />
-        {canManage ? <AppButton title="حفظ" onPress={() => void save()} loading={busy} /> : null}
-      </View>
-    </AppScreen>
+      </FormSection>
+    </FormScreenLayout>
   );
 }

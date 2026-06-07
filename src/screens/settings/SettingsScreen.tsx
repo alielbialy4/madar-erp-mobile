@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText } from '@/components/ui/AppText';
-import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
 import { BranchSwitcherScreen } from './BranchSwitcherScreen';
 import { useAuthStore } from '@/store/authStore';
 import { authAPI } from '@/api/auth';
 import { normalizeApiError } from '@/utils/errors';
 import { useColors } from '@/hooks/useColors';
+import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 
@@ -71,71 +72,93 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
   const rowActions = { ...flexRow, gap: spacing.sm };
 
   return (
-    <AppScreen title="الإعدادات" subtitle="إعدادات الحساب والسياق">
-      <AppCard>
-        <AppSectionHeader title="الحساب" />
-        {!editingProfile ? (
-          <>
-            <AppListItem title="الاسم" subtitle={user?.name ?? '—'} />
-            <AppListItem title="البريد" subtitle={user?.email ?? '—'} />
-            <AppListItem title="الهاتف" subtitle={user?.phone ?? '—'} />
-            <AppButton title="تعديل البيانات" variant="secondary" onPress={() => { setName(user?.name ?? ''); setEmail(user?.email ?? ''); setEditingProfile(true); }} />
-          </>
-        ) : (
-          <>
-            <AppInput label="الاسم" value={name} onChangeText={setName} />
-            <AppInput label="البريد" value={email} onChangeText={setEmail} keyboardType="email-address" />
-            <AppInput label="الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            {profileMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{profileMessage}</AppText> : null}
-            <View style={rowActions}>
-              <AppButton title="حفظ" onPress={handleUpdateProfile} loading={busy} style={{ flex: 1 }} />
-              <AppButton title="إلغاء" variant="secondary" onPress={() => setEditingProfile(false)} style={{ flex: 1 }} />
-            </View>
-          </>
-        )}
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="الأمان" />
-        {!editingPassword ? (
-          <AppButton title="تغيير كلمة المرور" variant="secondary" onPress={() => setEditingPassword(true)} />
-        ) : (
-          <>
-            <AppInput label="كلمة المرور الحالية" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
-            <AppInput label="كلمة المرور الجديدة" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
-            <AppInput label="تأكيد كلمة المرور" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-            {passwordMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{passwordMessage}</AppText> : null}
-            <View style={rowActions}>
-              <AppButton title="تغيير" onPress={handleChangePassword} loading={busy} style={{ flex: 1 }} />
-              <AppButton title="إلغاء" variant="secondary" onPress={() => { setEditingPassword(false); setPasswordMessage(null); }} style={{ flex: 1 }} />
-            </View>
-          </>
-        )}
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="الفروع" />
-        <AppListItem title="تغيير الفرع / العرض العام" subtitle="يستخدم X-Branch-Id مثل تطبيق الويب" onPress={() => setBranchMode(true)} />
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="الإدارة" />
-        <AppListItem title="المستخدمون" subtitle="إدارة الحسابات والأدوار" onPress={() => navigation.navigate('Users')} />
-        <AppListItem title="الفروع" subtitle="إعدادات POS والضريبة لكل فرع" onPress={() => navigation.navigate('BranchesList')} />
-        <AppListItem title="إعدادات المستأجر" subtitle="قراءة بيانات الشركة" onPress={() => navigation.navigate('TenantSettings')} />
-        <AppListItem title="سجل النشاط" subtitle="بحث وتصفية الأحداث" onPress={() => navigation.navigate('ActivityLogs')} />
-        <AppListItem title="النسخ الاحتياطي" subtitle="ويب فقط — سبب التعطيل" onPress={() => navigation.navigate('BackupInfo')} />
-        <AppListItem title="الكوبونات" onPress={() => navigation.navigate('Coupons')} />
-        <AppListItem title="العروض" onPress={() => navigation.navigate('Promotions')} />
-        <AppListItem title="بطاقات الهدايا" onPress={() => navigation.navigate('GiftCards')} />
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="النظام" />
-        <AppListItem title="الملف الشخصي" subtitle="عرض الحساب والأدوار" onPress={() => navigation.navigate('Profile')} />
-        <AppListItem title="حالة المزامنة" subtitle="اطلع على حالة الاتصال والمزامنة" onPress={() => navigation?.navigate('SyncStatus')} />
-        <AppListItem title="ملفات الطابعات" subtitle="شبكة Ethernet · بلوتوث Android · AirPrint iOS" onPress={() => navigation?.navigate('PrinterProfiles')} />
-        <AppListItem title="تشخيص الطباعة" subtitle="اختبار اتصال وطباعة عربية" onPress={() => navigation?.navigate('PrinterDiagnostics')} />
-        <AppListItem title="قائمة انتظار الطباعة" subtitle="إعادة محاولة المهام الفاشلة" onPress={() => navigation?.navigate('PrintQueue')} />
-        <AppListItem title="الإشعارات" subtitle="الإشعارات غير المقروءة" onPress={() => navigation?.navigate('Notifications')} />
-      </AppCard>
-      <AppButton title="تسجيل الخروج" variant="danger" onPress={() => setLogoutConfirm(true)} loading={busy} fullWidth />
+    <ListScreenLayout
+      title="الإعدادات"
+      subtitle="إعدادات الحساب والسياق"
+      hero={{
+        eyebrow: 'النظام',
+        title: 'الإعدادات',
+        subtitle: 'إعدادات الحساب والسياق',
+        compact: true,
+      }}
+    >
+      <ScrollView contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <View style={{ gap: spacing.sm }}>
+          <AppSectionHeader title="الحساب" />
+          {!editingProfile ? (
+            <>
+              <AppDomainCard title="الاسم" subtitle={user?.name ?? '—'} leadingIcon={moduleIcons.users} />
+              <AppDomainCard title="البريد" subtitle={user?.email ?? '—'} leadingIcon="email" />
+              <AppDomainCard title="الهاتف" subtitle={user?.phone ?? '—'} leadingIcon="phone" />
+              <AppButton title="تعديل البيانات" variant="secondary" onPress={() => { setName(user?.name ?? ''); setEmail(user?.email ?? ''); setEditingProfile(true); }} />
+            </>
+          ) : (
+            <>
+              <AppInput label="الاسم" value={name} onChangeText={setName} />
+              <AppInput label="البريد" value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <AppInput label="الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              {profileMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{profileMessage}</AppText> : null}
+              <View style={rowActions}>
+                <AppButton title="حفظ" onPress={handleUpdateProfile} loading={busy} style={{ flex: 1 }} />
+                <AppButton title="إلغاء" variant="secondary" onPress={() => setEditingProfile(false)} style={{ flex: 1 }} />
+              </View>
+            </>
+          )}
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <AppSectionHeader title="الأمان" />
+          {!editingPassword ? (
+            <AppDomainCard title="تغيير كلمة المرور" subtitle="تحديث كلمة مرور الحساب" leadingIcon="lock" onPress={() => setEditingPassword(true)} />
+          ) : (
+            <>
+              <AppInput label="كلمة المرور الحالية" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
+              <AppInput label="كلمة المرور الجديدة" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+              <AppInput label="تأكيد كلمة المرور" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+              {passwordMessage ? <AppText style={{ ...textStart, color: c.accent, fontSize: typography.body }}>{passwordMessage}</AppText> : null}
+              <View style={rowActions}>
+                <AppButton title="تغيير" onPress={handleChangePassword} loading={busy} style={{ flex: 1 }} />
+                <AppButton title="إلغاء" variant="secondary" onPress={() => { setEditingPassword(false); setPasswordMessage(null); }} style={{ flex: 1 }} />
+              </View>
+            </>
+          )}
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <AppSectionHeader title="الفروع" />
+          <AppDomainCard
+            title="تغيير الفرع / العرض العام"
+            subtitle="يستخدم X-Branch-Id مثل تطبيق الويب"
+            leadingIcon="store"
+            onPress={() => setBranchMode(true)}
+          />
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <AppSectionHeader title="الإدارة" />
+          <AppDomainCard title="المستخدمون" subtitle="إدارة الحسابات والأدوار" leadingIcon={moduleIcons.users} onPress={() => navigation.navigate('Users')} />
+          <AppDomainCard title="الفروع" subtitle="إعدادات POS والضريبة لكل فرع" leadingIcon="store" onPress={() => navigation.navigate('BranchesList')} />
+          <AppDomainCard title="إعدادات المستأجر" subtitle="قراءة بيانات الشركة" leadingIcon="business" onPress={() => navigation.navigate('TenantSettings')} />
+          <AppDomainCard title="سجل النشاط" subtitle="بحث وتصفية الأحداث" leadingIcon="history" onPress={() => navigation.navigate('ActivityLogs')} />
+          <AppDomainCard title="النسخ الاحتياطي" subtitle="ويب فقط — سبب التعطيل" leadingIcon="backup" onPress={() => navigation.navigate('BackupInfo')} />
+          <AppDomainCard title="الكوبونات" leadingIcon={moduleIcons.coupons} onPress={() => navigation.navigate('Coupons')} />
+          <AppDomainCard title="العروض" leadingIcon={moduleIcons.promotions} onPress={() => navigation.navigate('Promotions')} />
+          <AppDomainCard title="بطاقات الهدايا" leadingIcon="card-giftcard" onPress={() => navigation.navigate('GiftCards')} />
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <AppSectionHeader title="النظام" />
+          <AppDomainCard title="الملف الشخصي" subtitle="عرض الحساب والأدوار" leadingIcon="person" onPress={() => navigation.navigate('Profile')} />
+          <AppDomainCard title="حالة المزامنة" subtitle="اطلع على حالة الاتصال والمزامنة" leadingIcon="sync" onPress={() => navigation?.navigate('SyncStatus')} />
+          <AppDomainCard title="ملفات الطابعات" subtitle="شبكة Ethernet · بلوتوث Android · AirPrint iOS" leadingIcon="print" onPress={() => navigation?.navigate('PrinterProfiles')} />
+          <AppDomainCard title="تشخيص الطباعة" subtitle="اختبار اتصال وطباعة عربية" leadingIcon="bug-report" onPress={() => navigation?.navigate('PrinterDiagnostics')} />
+          <AppDomainCard title="قائمة انتظار الطباعة" subtitle="إعادة محاولة المهام الفاشلة" leadingIcon="queue" onPress={() => navigation?.navigate('PrintQueue')} />
+          <AppDomainCard title="الإشعارات" subtitle="الإشعارات غير المقروءة" leadingIcon={moduleIcons.notifications} onPress={() => navigation?.navigate('Notifications')} />
+        </View>
+
+        <AppButton title="تسجيل الخروج" variant="danger" onPress={() => setLogoutConfirm(true)} loading={busy} fullWidth />
+      </ScrollView>
+
       <ConfirmDialog
         visible={logoutConfirm}
         title="تسجيل الخروج"
@@ -144,6 +167,6 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
         onConfirm={() => { setLogoutConfirm(false); void logout(); }}
         onCancel={() => setLogoutConfirm(false)}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

@@ -1,12 +1,11 @@
 import React from 'react';
 import { driversAPI } from '@/api/drivers';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
-import { AppButton } from '@/components/ui';
+import { ListScreenTemplate } from '@/components/layout';
 import { asText } from '@/utils/format';
 
 export function DriversListScreen({ navigation }: { navigation: any }) {
   return (
-    <CrudListScreen
+    <ListScreenTemplate
       title="السائقون"
       moduleIcon="delivery"
       loader={(p) => driversAPI.getAll(p) as never}
@@ -15,7 +14,9 @@ export function DriversListScreen({ navigation }: { navigation: any }) {
       itemSubtitle={(row) => asText(row.phone, '')}
       itemBadge={(row) => ({ label: String(row.status ?? '—'), tone: row.status === 'available' ? 'success' : 'default' })}
       emptyTitle="لا سائقين"
-      headerRight={<AppButton title="سائق جديد" onPress={() => navigation.navigate('DriverForm', {})} />}
+      emptyCtaLabel="سائق جديد"
+      onEmptyCta={() => navigation.navigate('DriverForm', {})}
+      fab={{ onPress: () => navigation.navigate('DriverForm', {}), label: 'سائق جديد' }}
     />
   );
 }

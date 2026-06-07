@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppInput, AppListItem, AppStatCard } from '@/components/ui';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppInput } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { giftCardsAPI } from '@/api/giftCards';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -66,21 +66,29 @@ export function GiftCardsScreen({ navigation }: { navigation: any }) {
   };
 
   return (
-    <AppScreen title="بطاقات الهدايا" scroll={false} headerRight={canManage ? <AppButton title="إنشاء" onPress={() => setCreateOpen(true)} /> : undefined}>
-      {stats ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <View style={{ flex: 1, minWidth: 120 }}>
-            <AppStatCard label="نشطة" value={String(stats.active_count ?? stats.active ?? '—')} tone="success" />
-          </View>
-          <View style={{ flex: 1, minWidth: 120 }}>
-            <AppStatCard label="رصيد متبقٍ" value={money(stats.total_balance ?? stats.total_remaining ?? 0)} />
-          </View>
-        </View>
-      ) : null}
-      <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث بالكود..." />
-        <AppButton title="تقرير بطاقات الهدايا" variant="ghost" onPress={() => navigation.navigate('ReportViewer', { reportId: 'gift-cards' })} />
-      </View>
+    <ListScreenLayout
+      title="بطاقات الهدايا"
+      searchValue={query}
+      onSearchChange={setQuery}
+      searchPlaceholder="بحث بالكود..."
+      onRefresh={refresh}
+      refreshing={refreshing}
+      fab={canManage ? { onPress: () => setCreateOpen(true), label: 'إنشاء بطاقة' } : undefined}
+      hero={{
+        eyebrow: 'التسويق',
+        title: 'بطاقات الهدايا',
+        stats: stats
+          ? [
+              { label: 'نشطة', value: String(stats.active_count ?? stats.active ?? '—') },
+              { label: 'رصيد متبقٍ', value: money(stats.total_balance ?? stats.total_remaining ?? 0) },
+            ]
+          : [{ label: 'البطاقات', value: items.length }],
+        actions: (
+          <AppButton title="تقرير بطاقات الهدايا" variant="secondary" onPress={() => navigation.navigate('ReportViewer', { reportId: 'gift-cards' })} />
+        ),
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -89,16 +97,21 @@ export function GiftCardsScreen({ navigation }: { navigation: any }) {
         onRefresh={refresh}
         onEndReached={loadMore}
         emptyTitle="لا بطاقات"
+        emptyCtaLabel={canManage ? 'إنشاء بطاقة' : undefined}
+        onEmptyCta={canManage ? () => setCreateOpen(true) : undefined}
         keyExtractor={(item, i) => String(item.id ?? i)}
         renderItem={({ item }) => (
-          <AppListItem
+          <AppDomainCard
             title={asText(item.code)}
             subtitle={`${money(item.remaining_balance ?? 0)} / ${money(item.initial_balance ?? 0)}`}
-            badge={<AppBadge label={String(item.status ?? '—')} tone={item.status === 'active' ? 'success' : 'danger'} />}
+            badgeLabel={String(item.status ?? '—')}
+            badgeTone={item.status === 'active' ? 'success' : 'danger'}
+            leadingIcon="card-giftcard"
             onPress={() => navigation.navigate('GiftCardDetail', { id: String(item.id) })}
           />
         )}
       />
+
       <AppBottomSheet visible={createOpen} onClose={() => setCreateOpen(false)}>
         <View style={{ gap: spacing.md }}>
           <AppInput label="الرصيد" value={balance} onChangeText={setBalance} keyboardType="decimal-pad" />
@@ -107,6 +120,6 @@ export function GiftCardsScreen({ navigation }: { navigation: any }) {
           <AppButton title="إنشاء" onPress={() => void createCard()} loading={busy} />
         </View>
       </AppBottomSheet>
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

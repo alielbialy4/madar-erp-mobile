@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
+import { AppIcon } from '@/components/ui/AppIcon';
 import { useColors } from '@/hooks/useColors';
 import { createDashboardStyles } from './dashboardStyles';
 import { DashboardSection } from './DashboardSection';
 import type { KpiTone } from './dashboardStyles';
 import { Text } from '@/components/ui/AppText';
+
+type IconName = Parameters<typeof AppIcon>[0]['name'];
 
 export type ListItem = {
   id: string;
@@ -15,14 +17,14 @@ export type ListItem = {
   meta?: string;
   badge?: string;
   badgeTone?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
-  icon?: keyof typeof MaterialIcons.glyphMap;
+  icon?: string;
   iconTone?: KpiTone;
 };
 
 type Props = {
   title: string;
   hint?: string;
-  sectionIcon?: keyof typeof MaterialIcons.glyphMap;
+  sectionIcon?: string;
   badge?: string;
   badgeTone?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
   items: ListItem[];
@@ -32,7 +34,7 @@ type Props = {
 export function DashboardListCard({
   title,
   hint,
-  sectionIcon = 'list-alt',
+  sectionIcon = 'list-bullets',
   badge,
   badgeTone = 'neutral',
   items,
@@ -66,7 +68,7 @@ export function DashboardListCard({
                 style={[ds.listRow, isLast && { borderBottomWidth: 0 }]}
               >
                 <View style={[ds.listRowIcon, { backgroundColor: iconBg }]}>
-                  <MaterialIcons name={item.icon ?? 'circle'} size={20} color={iconFg} />
+                  <AppIcon name={(item.icon ?? 'circle') as IconName} size={20} color={iconFg} />
                 </View>
                 <View style={ds.listRowBody}>
                   <Text style={ds.listRowTitle} numberOfLines={1}>

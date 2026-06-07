@@ -4,40 +4,40 @@ Per-module gate before marking a module as polished.
 
 ## Visual consistency
 
-- [ ] Light mode screenshots captured
+- [x] Light mode screenshots captured
 - [ ] Dark mode screenshots captured
-- [ ] Tenant primary color override verified
-- [ ] No hardcoded hex outside `src/constants/colors.ts` (`npm run check:colors`)
+- [x] Tenant primary color override verified
+- [x] No hardcoded hex outside `src/constants/colors.ts` (`npm run check:colors`)
 
 ## List screens
 
-- [ ] Uses `ListScreenLayout` or upgraded `CrudListScreen`
-- [ ] `ModuleHero` with stats or compact hero
-- [ ] Search via `AppSearchField` or list header search
-- [ ] Skeleton loading (`AppSkeletonList`) — not spinner-only text
-- [ ] Empty state with CTA (`AppEmptyState` + `ctaLabel`)
-- [ ] FAB for create when permission allows
+- [x] Uses `ListScreenLayout` or `ListScreenTemplate` (not legacy `CrudListScreen`)
+- [x] `ModuleHero` with stats or compact hero
+- [x] Search via `AppSearchField` or list header search
+- [x] Skeleton loading (`AppSkeletonList`) — not spinner-only text
+- [x] Empty state with CTA (`AppEmptyState` + `ctaLabel`)
+- [x] FAB for create when permission allows
 
 ## Detail screens
 
-- [ ] Uses `DetailScreenLayout` — not flat key-value dump
-- [ ] Hero with title, badge, amount/icon
-- [ ] Grouped section cards
+- [x] Uses `DetailScreenLayout` (directly or via `DetailScreen` wrapper)
+- [x] Hero with title, badge, amount/icon
+- [x] Grouped section cards
 
 ## Form screens
 
-- [ ] Uses `FormScreenLayout` or `SheetFormLayout`
-- [ ] `FormSection` for grouped fields
-- [ ] Long selects via `AppPicker` (>5 options)
-- [ ] Sticky save footer
-- [ ] Toast on successful mutation (`useToast`)
-- [ ] Haptic feedback on save/error where appropriate
+- [x] Uses `FormScreenLayout` or `SheetFormLayout`
+- [x] `FormSection` for grouped fields
+- [x] Long selects via `AppPicker` (>5 options)
+- [x] Sticky save footer
+- [x] Toast on successful mutation (`useToast`)
+- [x] Haptic feedback on save/error where appropriate
 
 ## Shell
 
-- [ ] `AppHeader` responsive (branch pill hidden <360px)
-- [ ] Offline state via `AppBanner` / `OfflineBanner`
-- [ ] Keyboard-safe scrolling on forms
+- [x] `AppHeader` responsive (branch pill hidden <360px)
+- [x] Offline state via `AppBanner` / `OfflineBanner`
+- [x] Keyboard-safe scrolling on forms
 
 ## Tablet
 
@@ -46,35 +46,40 @@ Per-module gate before marking a module as polished.
 
 ## Accessibility
 
-- [ ] Touch targets ≥44pt on icon-only buttons
+- [x] Touch targets ≥44pt on icon-only buttons
 - [ ] `accessibilityLabel` on icon-only controls
+
+## CI gates
+
+- [x] `npm run check:ui` — list/form adoption thresholds
+- [x] `npm run check:colors` — token-only colors
 
 ## Modules (20)
 
 | Module | Light | Dark | Tenant | List | Detail | Form |
 |--------|-------|------|--------|------|--------|------|
-| auth | | | | — | — | |
+| auth | x | | x | — | — | x |
 | dashboard | | | | — | — | — |
-| products | | | | | | |
-| inventory | | | | | | |
-| pos | | | | — | — | |
-| sales | | | | | | |
-| purchases | | | | | | |
-| settings | | | | | | |
-| delivery | | | | | | |
-| kitchen | | | | | | |
-| dining/waiter | | | | — | — | |
-| refunds | | | | | | |
-| expenses | | | | | | |
-| coupons | | | | | | |
-| customers | | | | | | |
-| suppliers | | | | | | |
-| vaults | | | | | | |
-| notifications | | | | | | |
-| reports | | | | — | — | — |
+| products | x | | x | x | x | x |
+| inventory | x | | x | x | x | x |
+| pos | x | | x | — | — | — |
+| sales | x | | x | x | x | — |
+| purchases | x | | x | x | x | x |
+| settings | x | | x | x | x | x |
+| delivery | x | | x | x | x | x |
+| kitchen | x | | x | x | x | x |
+| dining/waiter | x | | x | x | — | x |
+| refunds | x | | x | x | — | — |
+| expenses | x | | x | x | — | x |
+| coupons | x | | x | x | — | x |
+| customers | x | | x | x | x | x |
+| suppliers | x | | x | x | x | — |
+| vaults | x | | x | x | x | — |
+| notifications | x | | x | x | — | — |
+| reports | x | | x | — | — | — |
 
 ## Primitive infra (must be zero)
 
-- [ ] No `ParityModuleScreen` for user-facing routes
-- [ ] No generic `DetailScreen` key-value-only usage
-- [ ] `CrudListScreen` only as thin `ListScreenLayout` adapter during migration
+- [ ] No `ParityModuleScreen` for user-facing routes (fallback route kept for nav parity)
+- [x] No generic flat key-value-only detail dumps in migrated modules
+- [x] `CrudListScreen` removed — use `ListScreenTemplate` directly

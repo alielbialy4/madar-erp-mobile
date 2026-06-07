@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
 import { diningAPI } from '@/api/dining';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
-import { AppButton, AppInput } from '@/components/ui';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
+import { AppInput } from '@/components/ui';
 import { useBranchStore } from '@/store/branchStore';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 export function DiningHallFormScreen({ route, navigation }: { route: any; navigation: any }) {
   const id = route.params?.id as string | undefined;
   const branch = useBranchStore((s) => s.activeBranch);
+  const toast = useToast();
   const [name, setName] = useState(route.params?.name ?? '');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
@@ -30,9 +31,14 @@ export function DiningHallFormScreen({ route, navigation }: { route: any; naviga
       } else {
         await diningAPI.createHall(branch.id, { name: name.trim(), description: description.trim() || null, is_active: true });
       }
+      toast.success(id ? 'تم تحديث القاعة' : 'تم إنشاء القاعة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
@@ -43,9 +49,14 @@ export function DiningHallFormScreen({ route, navigation }: { route: any; naviga
     setBusy(true);
     try {
       await diningAPI.deleteHall(id);
+      toast.success('تم حذف القاعة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
       setDeleteConfirm(false);
@@ -53,14 +64,18 @@ export function DiningHallFormScreen({ route, navigation }: { route: any; naviga
   };
 
   return (
-    <AppScreen title={id ? 'تعديل قاعة' : 'قاعة جديدة'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل قاعة' : 'قاعة جديدة'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={busy}
+      onDelete={id ? () => setDeleteConfirm(true) : undefined}
+    >
+      <FormSection title="بيانات القاعة" icon="restaurant">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <AppInput label="اسم القاعة" value={name} onChangeText={setName} />
         <AppInput label="وصف (اختياري)" value={description} onChangeText={setDescription} />
-        <AppButton title="حفظ" onPress={() => void save()} loading={busy} />
-        {id ? <AppButton title="حذف القاعة" variant="ghost" onPress={() => setDeleteConfirm(true)} /> : null}
-      </View>
+      </FormSection>
       <ConfirmDialog
         visible={deleteConfirm}
         title="حذف القاعة"
@@ -70,6 +85,6 @@ export function DiningHallFormScreen({ route, navigation }: { route: any; naviga
         onCancel={() => setDeleteConfirm(false)}
         loading={busy}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

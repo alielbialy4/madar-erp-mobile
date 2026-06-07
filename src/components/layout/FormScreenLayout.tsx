@@ -27,6 +27,7 @@ type Props = {
   onCancel?: () => void;
   deleteLabel?: string;
   onDelete?: () => void;
+  scroll?: boolean;
 };
 
 export function FormScreenLayout({
@@ -48,6 +49,7 @@ export function FormScreenLayout({
   onCancel,
   deleteLabel,
   onDelete,
+  scroll = true,
 }: Props) {
   const c = useColors();
   const styles = createModuleStyles(c);
@@ -55,7 +57,7 @@ export function FormScreenLayout({
   const showFooter = Boolean(footer ?? onSave ?? onCancel ?? onDelete);
 
   return (
-    <AppScreen title={title} subtitle={subtitle} onBack={onBack} headerRight={headerRight} scroll contentStyle={{ padding: 0, gap: 0 }}>
+    <AppScreen title={title} subtitle={subtitle} onBack={onBack} headerRight={headerRight} scroll={scroll} contentStyle={{ padding: 0, gap: 0 }}>
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.lg, paddingBottom: showFooter ? tabInset + 80 : tabInset }}>
         {(heroTitle || heroSubtitle || heroAmount || heroBadge) ? (
           <View style={styles.detailHero}>

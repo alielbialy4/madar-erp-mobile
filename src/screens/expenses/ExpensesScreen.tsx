@@ -8,7 +8,7 @@ import { vaultsAPI } from '@/api/vaults';
 import { SheetFormLayout } from '@/components/layout/SheetFormLayout';
 import { AppButton, AppAmountInput, AppDatePicker, AppInput, AppSectionHeader, AppSelect } from '@/components/ui';
 import { ConfirmDialog, useToast } from '@/components/feedback';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
+import { ListScreenTemplate } from '@/components/layout';
 import { extractArray } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
@@ -95,7 +95,7 @@ export function ExpensesScreen() {
 
   return (
     <View style={{ flex: 1 }} key={listKey}>
-      <CrudListScreen<Record<string, unknown>>
+      <ListScreenTemplate<Record<string, unknown>>
         title="المصروفات"
         subtitle="تتبع المصروفات والتصنيفات"
         moduleIcon="expenses"
@@ -105,6 +105,8 @@ export function ExpensesScreen() {
         itemMeta={(item) => money(item.amount ?? 0)}
         itemBadge={(item) => ({ label: String(item.status ?? 'مسجل'), tone: item.status === 'cancelled' ? 'danger' : 'success' })}
         emptyTitle="لا توجد مصروفات"
+        emptyCtaLabel="مصروف جديد"
+        onEmptyCta={() => setCreateOpen(true)}
         fab={{ onPress: () => setCreateOpen(true), label: 'مصروف جديد' }}
       />
 

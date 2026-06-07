@@ -1,11 +1,12 @@
 import React from 'react';
 import { refundsAPI } from '@/api/refunds';
-import { CrudListScreen, statusTone } from '@/screens/shared/CrudListScreen';
+import { ListScreenTemplate } from '@/components/layout';
+import { statusTone } from '@/utils/statusTone';
 import { dateText, money } from '@/utils/format';
 
 export function RefundsScreen() {
   return (
-    <CrudListScreen<Record<string, unknown>>
+    <ListScreenTemplate<Record<string, unknown>>
       title="المرتجعات"
       subtitle="لإنشاء مرتجع جزئي، افتح تفاصيل البيع من قائمة المبيعات ثم اختر «مرتجع جزئي»."
       moduleIcon="refunds"

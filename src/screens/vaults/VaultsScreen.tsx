@@ -1,19 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { post } from '@/api/client';
-import { AppScreen, AppBottomSheet } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
-import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/components/ui';
+import { AppEmptyState, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { ResourceList } from '@/components/lists';
 import { useBranchStore } from '@/store/branchStore';
 import { extractArray, extractData } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { useColors } from '@/hooks/useColors';
+import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 import { typography } from '@/constants/typography';
 
 type MovementType = 'deposit' | 'withdraw';
@@ -34,17 +36,6 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
   const [movementSubmitting, setMovementSubmitting] = useState(false);
   const [movementError, setMovementError] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
-
-  const styles = useMemo(() => StyleSheet.create({
-    stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-    card: { gap: spacing.md },
-    vaultRow: { gap: spacing.sm },
-    vaultActions: { ...flexRow, gap: spacing.sm },
-    actionBtn: { flex: 1 },
-    sheetContent: { gap: spacing.md },
-    vaultName: { color: c.text, fontSize: typography.body, fontWeight: '800', ...textStart },
-    errorText: { color: c.danger, ...textStart, fontWeight: '800' },
-  }), [c]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,52 +85,77 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
     }
   };
 
+  const shiftCash = money(shift?.expected_cash ?? shift?.starting_cash ?? 0);
+
   return (
-    <AppScreen title="الخزنة / الورديات" refreshing={loading} onRefresh={load}>
-      {loading ? <AppLoadingState /> : null}
-      {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      {!loading && !error ? (
-        <>
-          <View style={styles.stats}>
-            <AppStatCard label="الخزن النشطة" value={String(vaults.length)} tone="primary" />
-            <AppStatCard label="نقدية الوردية" value={money(shift?.expected_cash ?? shift?.starting_cash ?? 0)} tone="success" />
-          </View>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="الوردية الحالية" />
-            {shift ? <AppListItem title={`وردية ${shift.shift_no ?? shift.id}`} subtitle={dateText(String(shift.opened_at ?? ''))} meta={money(shift.expected_cash ?? shift.starting_cash ?? 0)} badge={<AppBadge label="مفتوحة" tone="success" />} /> : <AppEmptyState title="لا توجد وردية نشطة" />}
-            <AppButton title="إدارة الورديات" variant="secondary" onPress={() => navigation.navigate('ShiftManagement')} />
-          </AppCard>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="تحويل بين الخزن" />
-            <Text style={styles.vaultName}>
-              تحويل الأرصدة بين الخزن وتسوية الحسابات متاح من الويب فقط لمراجعة مزدوجة. يمكنك الإيداع والسحب من هنا.
-            </Text>
-          </AppCard>
-          <AppCard style={styles.card}>
-            <AppSectionHeader title="الخزن" />
-            {vaults.length === 0 ? <AppEmptyState title="لا توجد خزن" /> : vaults.map((vault) => (
-              <View key={String(vault.id)} style={styles.vaultRow}>
-                <AppListItem
-                  title={String(vault.name ?? 'خزنة')}
-                  subtitle={String((vault.branch as any)?.name ?? '')}
-                  meta={money(vault.balance ?? 0)}
-                  badge={<AppBadge label={vault.is_active === false ? 'غير نشطة' : 'نشطة'} tone={vault.is_active === false ? 'warning' : 'success'} />}
+    <ListScreenLayout
+      title="الخزنة / الورديات"
+      subtitle="إيداع وسحب وإدارة الورديات"
+      onRefresh={load}
+      refreshing={loading}
+      hero={{
+        eyebrow: 'المالية',
+        title: 'الخزنة / الورديات',
+        subtitle: 'إيداع وسحب وإدارة الورديات',
+        stats: [
+          { label: 'الخزن النشطة', value: vaults.length },
+          { label: 'نقدية الوردية', value: shiftCash },
+        ],
+        actions: (
+          <AppButton title="إدارة الورديات" variant="secondary" onPress={() => navigation.navigate('ShiftManagement')} />
+        ),
+      }}
+    >
+      {loading && vaults.length === 0 ? <AppLoadingState /> : null}
+      {error && vaults.length === 0 ? <AppErrorState message={error} onRetry={load} /> : null}
+      {!error || vaults.length > 0 ? (
+        <View style={{ flex: 1, gap: spacing.md }}>
+          {shift ? (
+            <AppDomainCard
+              title={`وردية ${shift.shift_no ?? shift.id}`}
+              subtitle={dateText(String(shift.opened_at ?? ''))}
+              metric={shiftCash}
+              badgeLabel="مفتوحة"
+              badgeTone="success"
+              leadingIcon={moduleIcons.vaults}
+            />
+          ) : (
+            <AppEmptyState title="لا توجد وردية نشطة" />
+          )}
+          <ResourceList
+            data={vaults}
+            loading={false}
+            refreshing={loading}
+            onRefresh={load}
+            emptyTitle="لا توجد خزن"
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <View style={{ gap: spacing.sm }}>
+                <AppDomainCard
+                  title={String(item.name ?? 'خزنة')}
+                  subtitle={String((item.branch as any)?.name ?? '')}
+                  metric={money(item.balance ?? 0)}
+                  badgeLabel={item.is_active === false ? 'غير نشطة' : 'نشطة'}
+                  badgeTone={item.is_active === false ? 'warning' : 'success'}
+                  leadingIcon={moduleIcons.vaults}
                 />
-                <View style={styles.vaultActions}>
-                  <AppButton title="إيداع" variant="primary" onPress={() => openMovement(vault, 'deposit')} style={styles.actionBtn} />
-                  <AppButton title="سحب" variant="secondary" onPress={() => openMovement(vault, 'withdraw')} style={styles.actionBtn} />
+                <View style={{ ...flexRow, gap: spacing.sm }}>
+                  <AppButton title="إيداع" variant="primary" onPress={() => openMovement(item, 'deposit')} style={{ flex: 1 }} />
+                  <AppButton title="سحب" variant="secondary" onPress={() => openMovement(item, 'withdraw')} style={{ flex: 1 }} />
                 </View>
               </View>
-            ))}
-          </AppCard>
-        </>
+            )}
+          />
+        </View>
       ) : null}
 
       <AppBottomSheet visible={movementOpen} onClose={() => setMovementOpen(false)}>
-        <View style={styles.sheetContent}>
+        <View style={{ gap: spacing.md }}>
           <AppSectionHeader title={movementType === 'deposit' ? 'إيداع' : 'سحب'} />
           {movementVault ? (
-            <Text style={styles.vaultName}>{String(movementVault.name ?? 'خزنة')}: {money(movementVault.balance ?? 0)}</Text>
+            <Text style={{ color: c.text, fontSize: typography.body, fontWeight: '800', ...textStart }}>
+              {String(movementVault.name ?? 'خزنة')}: {money(movementVault.balance ?? 0)}
+            </Text>
           ) : null}
           <AppInput
             label="المبلغ"
@@ -154,7 +170,7 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
             onChangeText={setMovementNotes}
             multiline
           />
-          {movementError ? <Text style={styles.errorText}>{movementError}</Text> : null}
+          {movementError ? <Text style={{ color: c.danger, ...textStart, fontWeight: '800' }}>{movementError}</Text> : null}
           <AppButton
             title={movementType === 'deposit' ? 'تأكيد الإيداع' : 'تأكيد السحب'}
             loading={movementSubmitting}
@@ -172,6 +188,6 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
         onConfirm={() => { setConfirmVisible(false); void handleMovement(); }}
         onCancel={() => setConfirmVisible(false)}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

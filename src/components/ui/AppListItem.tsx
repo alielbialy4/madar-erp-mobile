@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
 import { useColors } from '@/hooks/useColors';
-import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Text } from '@/components/ui/AppText';
+import { createListRowChrome } from '@/styles/listRowChrome';
 
 type Props = {
   title: string;
@@ -35,22 +35,8 @@ export function AppListItem({
   showChevron = !!onPress,
 }: Props) {
   const c = useColors();
+  const chrome = useMemo(() => createListRowChrome(c), [c]);
   const styles = useMemo(() => StyleSheet.create({
-    item: {
-      ...flexRow,
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderSubtle,
-      minHeight: 48,
-      backgroundColor: c.surface,
-    },
-    pressed: { backgroundColor: c.surfaceMuted },
-    leadingSlot: {},
-    badgeSlot: {},
-    content: { flex: 1, gap: 2 },
     titleText: {
       ...textStart,
       color: c.text,
@@ -80,16 +66,16 @@ export function AppListItem({
       disabled={!onPress && !onPressIn && !onLongPress}
       accessibilityRole={onPress ? 'button' : undefined}
       style={({ pressed }) => [
-        styles.item,
-        pressed && onPress ? styles.pressed : undefined,
+        chrome.card,
+        pressed && onPress ? chrome.cardPressed : undefined,
       ]}
     >
-      {leading ? <View style={styles.leadingSlot}>{leading}</View> : null}
-      {badge ? <View style={styles.badgeSlot}>{badge}</View> : null}
-      <View style={styles.content}>
-        <Text style={styles.titleText}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitleText}>{subtitle}</Text> : null}
-        {meta ? <Text style={[styles.metaText, metaLtr ? textLtr : undefined]}>{meta}</Text> : null}
+      {leading ? <View>{leading}</View> : null}
+      {badge ? <View>{badge}</View> : null}
+      <View style={chrome.content}>
+        <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitleText} numberOfLines={2}>{subtitle}</Text> : null}
+        {meta ? <Text style={[styles.metaText, metaLtr ? textLtr : undefined]} numberOfLines={1}>{meta}</Text> : null}
       </View>
       {showChevron && onPress ? (
         <MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />

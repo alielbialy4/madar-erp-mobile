@@ -1,12 +1,11 @@
 import React from 'react';
 import { kitchenStationsAPI } from '@/api/kitchenStations';
-import { CrudListScreen } from '@/screens/shared/CrudListScreen';
-import { AppButton } from '@/components/ui';
+import { ListScreenTemplate } from '@/components/layout';
 import { asText } from '@/utils/format';
 
 export function KitchenStationsListScreen({ navigation }: { navigation: any }) {
   return (
-    <CrudListScreen
+    <ListScreenTemplate
       title="محطات المطبخ"
       subtitle="تصفية KDS وتوجيه الطباعة"
       moduleIcon="kitchen"
@@ -16,7 +15,9 @@ export function KitchenStationsListScreen({ navigation }: { navigation: any }) {
       itemSubtitle={(row) => asText(row.code, '')}
       itemBadge={(row) => ({ label: row.is_active === false ? 'معطلة' : 'نشطة', tone: row.is_active === false ? 'warning' : 'success' })}
       emptyTitle="لا محطات"
-      headerRight={<AppButton title="محطة جديدة" onPress={() => navigation.navigate('KitchenStationForm', {})} />}
+      emptyCtaLabel="محطة جديدة"
+      onEmptyCta={() => navigation.navigate('KitchenStationForm', {})}
+      fab={{ onPress: () => navigation.navigate('KitchenStationForm', {}), label: 'محطة جديدة' }}
     />
   );
 }

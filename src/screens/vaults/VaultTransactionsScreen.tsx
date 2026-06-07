@@ -8,7 +8,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { asText, dateText, money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
-import { statusTone } from '@/screens/shared/CrudListScreen';
+import { statusTone } from '@/utils/statusTone';
 
 type VaultTransactionRow = Record<string, unknown> & {
   id?: string | number;

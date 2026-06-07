@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { deliveryZonesAPI } from '@/api/deliveryZones';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
-import { AppButton, AppInput } from '@/components/ui';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
+import { AppInput } from '@/components/ui';
 import { useBranchStore } from '@/store/branchStore';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 export function DeliveryZoneFormScreen({ route, navigation }: { route: any; navigation: any }) {
   const id = route.params?.id as string | undefined;
   const branch = useBranchStore((s) => s.activeBranch);
+  const toast = useToast();
   const [name, setName] = useState('');
   const [fee, setFee] = useState('');
   const [busy, setBusy] = useState(false);
@@ -39,9 +40,14 @@ export function DeliveryZoneFormScreen({ route, navigation }: { route: any; navi
       const payload = { branch_id: branch.id, name: name.trim(), delivery_fee: Number(fee || 0), is_active: true };
       if (id) await deliveryZonesAPI.update(id, payload);
       else await deliveryZonesAPI.create(payload);
+      toast.success(id ? 'تم تحديث المنطقة' : 'تم إنشاء المنطقة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
@@ -52,9 +58,14 @@ export function DeliveryZoneFormScreen({ route, navigation }: { route: any; navi
     setBusy(true);
     try {
       await deliveryZonesAPI.delete(id);
+      toast.success('تم حذف المنطقة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
       setDeleteConfirm(false);
@@ -62,15 +73,19 @@ export function DeliveryZoneFormScreen({ route, navigation }: { route: any; navi
   };
 
   return (
-    <AppScreen title={id ? 'تعديل منطقة' : 'منطقة جديدة'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل منطقة' : 'منطقة جديدة'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={busy}
+      onDelete={id ? () => setDeleteConfirm(true) : undefined}
+    >
+      <FormSection title="بيانات المنطقة" icon="map">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <AppInput label="الاسم" value={name} onChangeText={setName} />
         <AppInput label="رسوم التوصيل" value={fee} onChangeText={setFee} keyboardType="decimal-pad" />
-        <AppButton title="حفظ" onPress={() => void save()} loading={busy} />
-        {id ? <AppButton title="حذف" variant="ghost" onPress={() => setDeleteConfirm(true)} /> : null}
-      </View>
+      </FormSection>
       <ConfirmDialog visible={deleteConfirm} title="حذف المنطقة" message="حذف منطقة التوصيل؟" confirmLabel="حذف" onConfirm={() => void remove()} onCancel={() => setDeleteConfirm(false)} loading={busy} />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

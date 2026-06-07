@@ -13,7 +13,7 @@ type Props = {
   skeletonRows?: number;
 };
 
-export function AppLoadingState({ message = 'جاري التحميل...', variant = 'spinner', skeletonRows = 6 }: Props) {
+export function AppLoadingState({ message = 'جاري التحميل...', variant = 'skeleton', skeletonRows = 6 }: Props) {
   const c = useColors();
 
   if (variant === 'skeleton') {

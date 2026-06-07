@@ -38,7 +38,22 @@ export type ReportId =
   | 'shifts'
   | 'saved-reports'
   | 'partner-performance'
-  | 'legacy-comprehensive';
+  | 'legacy-comprehensive'
+  | 'inventory-stock-counts'
+  | 'inventory-stock-adjustments'
+  | 'inventory-stock-transfers'
+  | 'inventory-warehouse-utilization'
+  | 'products-variants'
+  | 'customers-loyalty'
+  | 'customers-wallet'
+  | 'suppliers-payments'
+  | 'suppliers-requisitions'
+  | 'dining-reservations'
+  | 'operations-driver-settlements'
+  | 'operations-cash-drawer'
+  | 'operations-kitchen-performance'
+  | 'operations-offline-sync'
+  | 'expenses-detail';
 
 export type ReportFilterKey =
   | 'dateRange'
@@ -54,6 +69,7 @@ export type ReportFilterKey =
   | 'cashier'
   | 'paymentMethod'
   | 'expiryOptions'
+  | 'type'
   | 'perPage';
 
 export type ReportFilters = {
@@ -70,6 +86,7 @@ export type ReportFilters = {
   coupon_code: string;
   status: string;
   payment_method: string;
+  type: string;
   page: number;
   per_page: number;
   days_threshold: number;

@@ -10,7 +10,7 @@ import { spacing } from '@/constants/spacing';
 import { ReportDateRangePicker } from './ReportDateRangePicker';
 import { ReportBranchFilter } from './ReportBranchFilter';
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS_DEFAULT = [
   { value: '', label: 'الكل' },
   { value: 'pending', label: 'قيد الانتظار' },
   { value: 'completed', label: 'مكتمل' },
@@ -19,12 +19,66 @@ const STATUS_OPTIONS = [
   { value: 'overdue', label: 'متأخر' },
 ];
 
+const STATUS_OPTIONS_BY_REPORT: Record<string, { value: string; label: string }[]> = {
+  'inventory-stock-counts': [
+    { value: '', label: 'الكل' },
+    { value: 'draft', label: 'مسودة' },
+    { value: 'posted', label: 'مرحّل' },
+    { value: 'cancelled', label: 'ملغي' },
+  ],
+  'inventory-stock-transfers': [
+    { value: '', label: 'الكل' },
+    { value: 'in_transit', label: 'في الطريق' },
+    { value: 'completed', label: 'مكتمل' },
+    { value: 'cancelled', label: 'ملغي' },
+  ],
+  'suppliers-requisitions': [
+    { value: '', label: 'الكل' },
+    { value: 'submitted', label: 'مقدم' },
+    { value: 'approved', label: 'معتمد' },
+    { value: 'rejected', label: 'مرفوض' },
+    { value: 'fulfilled', label: 'منجز' },
+  ],
+  'dining-reservations': [
+    { value: '', label: 'الكل' },
+    { value: 'confirmed', label: 'مؤكدة' },
+    { value: 'pending', label: 'قيد الانتظار' },
+    { value: 'completed', label: 'منجزة' },
+    { value: 'cancelled', label: 'ملغاة' },
+  ],
+  'operations-offline-sync': [
+    { value: '', label: 'الكل' },
+    { value: 'success', label: 'ناجح' },
+    { value: 'pending', label: 'قيد الانتظار' },
+    { value: 'failed', label: 'فشل' },
+  ],
+};
+
+function getStatusOptions(reportId: string): { value: string; label: string }[] {
+  return STATUS_OPTIONS_BY_REPORT[reportId] ?? STATUS_OPTIONS_DEFAULT;
+}
+
 const PAYMENT_OPTIONS = [
   { value: '', label: 'الكل' },
   { value: 'cash', label: 'نقدي' },
   { value: 'card', label: 'بطاقة' },
   { value: 'wallet', label: 'محفظة' },
   { value: 'credit', label: 'آجل' },
+];
+
+const STOCK_ADJUSTMENT_TYPE_OPTIONS = [
+  { value: '', label: 'الكل' },
+  { value: 'addition', label: 'إضافة' },
+  { value: 'subtraction', label: 'خصم' },
+];
+
+const WALLET_TYPE_OPTIONS = [
+  { value: '', label: 'الكل' },
+  { value: 'deposit', label: 'إيداع' },
+  { value: 'withdrawal', label: 'سحب' },
+  { value: 'sale_payment', label: 'دفع بيع' },
+  { value: 'refund', label: 'استرداد' },
+  { value: 'adjustment', label: 'تسوية' },
 ];
 
 const PER_PAGE_OPTIONS = ['25', '50', '100'];
@@ -124,7 +178,7 @@ export function ReportFilterSheet({ visible, definition, filters, onClose, onApp
           <AppSelect
             label="الحالة"
             value={draft.status}
-            options={STATUS_OPTIONS}
+            options={getStatusOptions(definition.id)}
             onChange={(status) => patch({ status })}
           />
         ) : null}
@@ -134,6 +188,14 @@ export function ReportFilterSheet({ visible, definition, filters, onClose, onApp
             value={draft.payment_method}
             options={PAYMENT_OPTIONS}
             onChange={(payment_method) => patch({ payment_method })}
+          />
+        ) : null}
+        {definition.filters.includes('type') ? (
+          <AppSelect
+            label="النوع"
+            value={draft.type}
+            options={definition.id === 'customers-wallet' ? WALLET_TYPE_OPTIONS : STOCK_ADJUSTMENT_TYPE_OPTIONS}
+            onChange={(type) => patch({ type })}
           />
         ) : null}
         {definition.filters.includes('expiryOptions') ? (

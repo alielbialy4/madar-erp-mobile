@@ -38,23 +38,3 @@ export function AppAmountInput({ label, value, onChangeText, error, required }: 
   );
 }
 
-type DateProps = {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  required?: boolean;
-};
-
-export function AppDatePicker({ label, value, onChange, error, required }: DateProps) {
-  return (
-    <AppInput
-      label={label}
-      value={value}
-      onChangeText={onChange}
-      placeholder="YYYY-MM-DD"
-      error={error}
-      required={required}
-    />
-  );
-}

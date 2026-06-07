@@ -1,19 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { branchesManageAPI } from '@/api/branchesManage';
-import { AppScreen } from '@/components/layout';
+import { ListScreenLayout } from '@/components/layout';
 import { ConfirmDialog } from '@/components/feedback';
-import { AppBadge, AppButton, AppInput, AppListItem, AppSelect } from '@/components/ui';
+import { AppDomainCard, AppSelect, AppSwipeRow } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { asText } from '@/utils/format';
-import { flexRow } from '@/constants/layout';
-import { spacing } from '@/constants/spacing';
-import { useColors } from '@/hooks/useColors';
 import type { BranchManageRow } from '@/types/branches';
 import type { SelectOption } from '@/components/ui/AppSelect';
 
@@ -24,7 +19,6 @@ const STATUS_FILTER_OPTS: SelectOption[] = [
 ];
 
 export function BranchesListScreen({ navigation }: { navigation: any }) {
-  const c = useColors();
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_branches');
 
@@ -102,21 +96,24 @@ export function BranchesListScreen({ navigation }: { navigation: any }) {
   };
 
   return (
-    <AppScreen
+    <ListScreenLayout
       title="إدارة الفروع"
       subtitle={canManage ? 'إدارة الفروع والمخازن والخزائن' : 'عرض الفروع فقط'}
-      scroll={false}
-      headerRight={
-        canManage ? <AppButton title="فرع جديد" onPress={() => navigation.navigate('BranchForm', {})} /> : undefined
-      }
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="اسم، كود، موقع، مخزن…"
       onRefresh={() => void load(true)}
       refreshing={refreshing}
+      fab={canManage ? { onPress: () => navigation.navigate('BranchForm', {}), label: 'فرع جديد' } : undefined}
+      filters={<AppSelect label="الحالة" value={statusFilter} options={STATUS_FILTER_OPTS} onChange={setStatusFilter} />}
+      hero={{
+        eyebrow: 'الإعدادات',
+        title: 'إدارة الفروع',
+        subtitle: canManage ? 'إدارة الفروع والمخازن والخزائن' : 'عرض الفروع فقط',
+        stats: [{ label: 'الفروع', value: filtered.length }],
+        compact: true,
+      }}
     >
-      <View style={styles.filters}>
-        <AppInput value={search} onChangeText={setSearch} placeholder="اسم، كود، موقع، مخزن…" returnKeyType="search" />
-        <AppSelect label="الحالة" value={statusFilter} options={STATUS_FILTER_OPTS} onChange={setStatusFilter} />
-      </View>
-
       <ResourceList
         data={filtered as unknown as Record<string, unknown>[]}
         loading={loading}
@@ -124,42 +121,31 @@ export function BranchesListScreen({ navigation }: { navigation: any }) {
         error={error}
         onRefresh={() => void load(true)}
         emptyTitle="لا فروع مطابقة"
+        emptyCtaLabel={canManage ? 'فرع جديد' : undefined}
+        onEmptyCta={canManage ? () => navigation.navigate('BranchForm', {}) : undefined}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => {
           const row = item as unknown as BranchManageRow;
           const inactive = row.status === 'inactive';
-          return (
-            <View style={[styles.rowWrap, { borderBottomColor: c.borderSubtle }]}>
-              <AppListItem
-                title={asText(row.name, 'فرع')}
-                subtitle={`${asText(row.code)}${row.location ? ` • ${row.location}` : ''}`}
-                meta={[row.default_warehouse?.name, row.default_vault?.name].filter(Boolean).join(' • ') || undefined}
-                badge={
-                  <AppBadge label={inactive ? 'غير نشط' : 'نشط'} tone={inactive ? 'warning' : 'success'} />
-                }
-                onPress={() => navigation.navigate('BranchDetail', { id: String(row.id) })}
-                showChevron
-              />
-              {canManage ? (
-                <View style={styles.actions}>
-                  <ActionIcon
-                    icon="settings"
-                    color={c.accent}
-                    onPress={() => navigation.navigate('BranchSettings', { id: String(row.id) })}
-                  />
-                  <ActionIcon icon="edit" color={c.text} onPress={() => navigation.navigate('BranchForm', { id: String(row.id) })} />
-                  <ActionIcon
-                    icon={inactive ? 'toggle-off' : 'toggle-on'}
-                    color={inactive ? c.danger : c.success}
-                    onPress={() => void toggleStatus(row)}
-                  />
-                  {!row.is_main ? (
-                    <ActionIcon icon="delete" color={c.danger} onPress={() => setDeleteId(String(row.id))} />
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
+          const card = (
+            <AppDomainCard
+              title={asText(row.name, 'فرع')}
+              subtitle={`${asText(row.code)}${row.location ? ` • ${row.location}` : ''}`}
+              meta={[row.default_warehouse?.name, row.default_vault?.name].filter(Boolean).join(' • ') || undefined}
+              badgeLabel={inactive ? 'غير نشط' : 'نشط'}
+              badgeTone={inactive ? 'warning' : 'success'}
+              leadingIcon="store"
+              onPress={() => navigation.navigate('BranchDetail', { id: String(row.id) })}
+            />
           );
+          if (!canManage) return card;
+          const swipeActions = [
+            { label: 'إعدادات', icon: 'settings' as const, onPress: () => navigation.navigate('BranchSettings', { id: String(row.id) }) },
+            { label: 'تعديل', icon: 'edit' as const, onPress: () => navigation.navigate('BranchForm', { id: String(row.id) }) },
+            { label: inactive ? 'تفعيل' : 'تعطيل', icon: (inactive ? 'toggle-off' : 'toggle-on') as 'toggle-off' | 'toggle-on', onPress: () => void toggleStatus(row) },
+            ...(!row.is_main ? [{ label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: () => setDeleteId(String(row.id)) }] : []),
+          ];
+          return <AppSwipeRow rightActions={swipeActions}>{card}</AppSwipeRow>;
         }}
       />
 
@@ -172,29 +158,6 @@ export function BranchesListScreen({ navigation }: { navigation: any }) {
         onCancel={() => setDeleteId(null)}
         loading={busy}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }
-
-function ActionIcon({
-  icon,
-  color,
-  onPress,
-}: {
-  icon: keyof typeof MaterialIcons.glyphMap;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.actionBtn} hitSlop={8}>
-      <MaterialIcons name={icon} size={20} color={color} />
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  filters: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  rowWrap: { borderBottomWidth: 1 },
-  actions: { ...flexRow, justifyContent: 'flex-end', gap: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  actionBtn: { padding: 4 },
-});

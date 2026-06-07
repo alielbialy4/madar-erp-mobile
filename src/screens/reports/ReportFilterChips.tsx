@@ -7,6 +7,43 @@ import { useReportFilterOptions } from '@/hooks/useReportFilterOptions';
 import { flexRow } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'قيد الانتظار',
+  completed: 'مكتمل',
+  cancelled: 'ملغي',
+  active: 'نشط',
+  overdue: 'متأخر',
+  draft: 'مسودة',
+  posted: 'مرحّل',
+  in_transit: 'في الطريق',
+  submitted: 'مقدم',
+  approved: 'معتمد',
+  rejected: 'مرفوض',
+  fulfilled: 'منجز',
+  confirmed: 'مؤكدة',
+  success: 'ناجح',
+  failed: 'فشل',
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'نقدي',
+  card: 'بطاقة',
+  wallet: 'محفظة',
+  credit: 'آجل',
+  bank: 'تحويل بنكي',
+  bank_transfer: 'تحويل بنكي',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  addition: 'إضافة',
+  subtraction: 'خصم',
+  deposit: 'إيداع',
+  withdrawal: 'سحب',
+  sale_payment: 'دفع بيع',
+  refund: 'استرداد',
+  adjustment: 'تسوية',
+};
+
 type Props = {
   definition: ReportDefinition;
   filters: ReportFilters;
@@ -36,8 +73,18 @@ export function ReportFilterChips({ definition, filters }: Props) {
   if (filters.cashier_id) chips.push(`كاشير: ${labelFor(options.cashiers, filters.cashier_id)}`);
   if (filters.search) chips.push(`بحث: ${filters.search}`);
   if (filters.coupon_code) chips.push(`كوبون: ${filters.coupon_code}`);
-  if (filters.status) chips.push(`حالة: ${filters.status}`);
-  if (filters.payment_method) chips.push(`دفع: ${filters.payment_method}`);
+  if (filters.status) {
+    const statusLabel = STATUS_LABELS[filters.status] ?? filters.status;
+    chips.push(`حالة: ${statusLabel}`);
+  }
+  if (filters.payment_method) {
+    const pmLabel = PAYMENT_METHOD_LABELS[filters.payment_method] ?? filters.payment_method;
+    chips.push(`دفع: ${pmLabel}`);
+  }
+  if (filters.type) {
+    const typeLabel = TYPE_LABELS[filters.type] ?? filters.type;
+    chips.push(`نوع: ${typeLabel}`);
+  }
   if (filters.expired_only) chips.push('منتهي فقط');
   if (filters.near_expiry_only) chips.push('قريب الانتهاء');
   if (definition.paginated && filters.per_page) chips.push(`${filters.per_page} / صفحة`);

@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { kitchenStationsAPI } from '@/api/kitchenStations';
-import { AppScreen } from '@/components/layout';
-import { ConfirmDialog } from '@/components/feedback';
-import { AppButton, AppInput } from '@/components/ui';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { ConfirmDialog, useToast } from '@/components/feedback';
+import { AppInput } from '@/components/ui';
 import { useBranchStore } from '@/store/branchStore';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 export function KitchenStationFormScreen({ route, navigation }: { navigation: any; route: any }) {
   const id = route.params?.id as string | undefined;
   const branch = useBranchStore((s) => s.activeBranch);
+  const toast = useToast();
   const [name, setName] = useState(route.params?.name ?? '');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -39,9 +40,14 @@ export function KitchenStationFormScreen({ route, navigation }: { navigation: an
       const payload = { name: name.trim(), code: code.trim() || null, branch_id: branch?.id, is_active: true };
       if (id) await kitchenStationsAPI.update(id, payload);
       else await kitchenStationsAPI.create(payload);
+      toast.success(id ? 'تم تحديث المحطة' : 'تم إنشاء المحطة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
@@ -52,9 +58,14 @@ export function KitchenStationFormScreen({ route, navigation }: { navigation: an
     setBusy(true);
     try {
       await kitchenStationsAPI.remove(id);
+      toast.success('تم حذف المحطة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
       setDeleteConfirm(false);
@@ -62,15 +73,19 @@ export function KitchenStationFormScreen({ route, navigation }: { navigation: an
   };
 
   return (
-    <AppScreen title={id ? 'تعديل محطة' : 'محطة جديدة'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل محطة' : 'محطة جديدة'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={busy}
+      onDelete={id ? () => setDeleteConfirm(true) : undefined}
+    >
+      <FormSection title="بيانات المحطة" icon="restaurant">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <AppInput label="الاسم" value={name} onChangeText={setName} />
         <AppInput label="الرمز" value={code} onChangeText={setCode} />
-        <AppButton title="حفظ" onPress={() => void save()} loading={busy} />
-        {id ? <AppButton title="حذف" variant="ghost" onPress={() => setDeleteConfirm(true)} /> : null}
-      </View>
+      </FormSection>
       <ConfirmDialog visible={deleteConfirm} title="حذف المحطة" message="حذف محطة المطبخ؟" confirmLabel="حذف" onConfirm={() => void remove()} onCancel={() => setDeleteConfirm(false)} loading={busy} />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

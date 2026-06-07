@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppButton } from '@/components/ui';
 import { AppEmptyState, AppErrorState } from '@/components/feedback';
 import { DashboardHero } from './DashboardHero';
@@ -8,9 +9,11 @@ import { DashboardScopePill } from './DashboardScopePill';
 import { RevenueTrendChart } from './RevenueTrendChart';
 import { DashboardListCard } from './DashboardListCard';
 import { DashboardSection } from './DashboardSection';
+import { DashboardAlerts } from './DashboardAlerts';
 import { createDashboardStyles } from './dashboardStyles';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
+import { fonts } from '@/constants/fonts';
 import { money, numberText } from '@/utils/format';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -85,6 +88,7 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
   const salesCount = Number(kpis.today_sales ?? 0) || 0;
   const revenue = Number(kpis.today_revenue ?? 0) || 0;
   const avgOrder = salesCount ? revenue / salesCount : 0;
+  const monthRev = Number(kpis.month_revenue ?? 0);
 
   const scopeBadges = (
     <>
@@ -100,6 +104,15 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
     </>
   );
 
+  const alerts = lowStock.slice(0, 5).map((p) => ({
+    id: `stock-${p.id ?? p.name}`,
+    title: String(p.name ?? 'منتج'),
+    subtitle: `الكمية: ${numberText(p.stock_quantity ?? 0)} · حد: ${numberText(p.min_stock_alert ?? 0)}`,
+    icon: 'package',
+    tone: (Number(p.stock_quantity ?? 0) <= 0 ? 'danger' : 'warning') as 'danger' | 'warning',
+    meta: Number(p.stock_quantity ?? 0) <= 0 ? 'نفد' : 'منخفض',
+  }));
+
   return (
     <View style={ds.page}>
       <DashboardHero
@@ -113,26 +126,75 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
         quickActions={shell.quickActions}
       />
 
-      <View style={ds.kpiGrid}>
-        <DashboardKpiCard
-          wide
-          label="إيرادات اليوم"
-          value={money(kpis.today_revenue ?? 0)}
-          hint={`${numberText(salesCount)} عملية بيع`}
-          icon="payments"
-          tone="success"
-        />
-        <DashboardKpiCard label="مبيعات اليوم" value={numberText(kpis.today_sales ?? 0)} icon="shopping-bag" tone="accent" />
-        <DashboardKpiCard label="متوسط الطلب" value={money(avgOrder)} icon="shopping-cart" tone="info" />
-        <DashboardKpiCard label="إيرادات الشهر" value={money(kpis.month_revenue ?? 0)} icon="trending-up" tone="neutral" />
-      </View>
+      {/* Hero KPIs */}
+      <DashboardSection title="ملخص اليوم" icon="lightning" iconTone="success">
+        <View style={ds.kpiGrid}>
+          <DashboardKpiCard
+            wide
+            label="إيرادات اليوم"
+            value={money(revenue)}
+            hint={`${numberText(salesCount)} عملية بيع`}
+            icon="wallet"
+            tone="success"
+            index={0}
+          />
+          <DashboardKpiCard label="مبيعات اليوم" value={numberText(salesCount)} icon="storefront" tone="accent" index={1} />
+          <DashboardKpiCard label="متوسط الطلب" value={money(avgOrder)} icon="tag" tone="info" index={2} />
+          <DashboardKpiCard label="إيرادات الشهر" value={money(monthRev)} icon="calendar-blank" tone="neutral" index={3} />
+        </View>
+      </DashboardSection>
 
+      {/* Dining highlight card */}
+      {dining.total_tables ? (
+        <View style={{ marginHorizontal: spacing.lg }}>
+          <LinearGradient
+            colors={['#F59E0B', '#F97316']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              borderRadius: 20,
+              padding: spacing.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.md,
+              shadowColor: '#F59E0B',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.20,
+              shadowRadius: 12,
+              elevation: 5,
+            }}
+          >
+            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 22, fontFamily: fonts.extraBold, color: '#FFFFFF' }}>
+                {numberText(dining.active_tables ?? 0)}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: 'rgba(255,255,255,0.80)' }}>
+                صالة الطعام
+              </Text>
+              <Text style={{ fontSize: 18, fontFamily: fonts.extraBold, color: '#FFFFFF' }}>
+                {numberText(dining.active_tables ?? 0)} طاولات مشغولة
+              </Text>
+              <Text style={{ fontSize: 11, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.70)', marginTop: 2 }}>
+                من إجمالي {numberText(dining.total_tables ?? 0)} طاولات
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+      ) : null}
+
+      {/* Revenue trend */}
       <RevenueTrendChart days={trend.days ?? []} revenue={(trend.revenue ?? []).map((n) => Number(n ?? 0))} />
 
+      {/* Alerts */}
+      {alerts.length > 0 ? <DashboardAlerts alerts={alerts} /> : null}
+
+      {/* Shift section */}
       <DashboardSection
         title="الوردية الحالية"
         hint="ملخص الوردية المفتوحة"
-        icon="schedule"
+        icon="clock"
         iconTone="info"
         badge={shift ? 'نشطة' : 'مغلقة'}
         badgeTone={shift ? 'success' : 'warning'}
@@ -180,25 +242,11 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
         </View>
       </DashboardSection>
 
-      <DashboardSection title="صالة الطعام" icon="restaurant" iconTone="warning">
-        <View style={ds.surfaceCard}>
-          <View style={ds.metricStrip}>
-            <View style={ds.metricBox}>
-              <Text style={[ds.metricValue, { color: c.warning }]}>{numberText(dining.active_tables ?? 0)}</Text>
-              <Text style={ds.metricLabel}>طاولات مشغولة</Text>
-            </View>
-            <View style={ds.metricBox}>
-              <Text style={ds.metricValue}>{numberText(dining.total_tables ?? 0)}</Text>
-              <Text style={ds.metricLabel}>إجمالي الطاولات</Text>
-            </View>
-          </View>
-        </View>
-      </DashboardSection>
-
+      {/* Recent sales */}
       <DashboardListCard
         title="آخر المبيعات"
         hint="أحدث العمليات على الفرع"
-        sectionIcon="receipt-long"
+        sectionIcon="receipt"
         badge={`${recentSales.length} سجل`}
         items={recentSales.map((s, i) => ({
           id: String(s.id ?? i),
@@ -211,24 +259,6 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
           iconTone: 'accent',
         }))}
         emptyMessage="لا توجد مبيعات حديثة."
-      />
-
-      <DashboardListCard
-        title="تنبيهات المخزون"
-        hint="أصناف تحتاج متابعة"
-        sectionIcon="inventory-2"
-        badge={String(lowStock.length)}
-        badgeTone={lowStock.length > 0 ? 'warning' : 'neutral'}
-        items={lowStock.map((p, i) => ({
-          id: String(p.id ?? i),
-          title: String(p.name ?? 'منتج'),
-          subtitle: `الكمية: ${numberText(p.stock_quantity ?? 0)} · حد: ${numberText(p.min_stock_alert ?? 0)}`,
-          badge: Number(p.stock_quantity ?? 0) <= 0 ? 'نفد' : 'منخفض',
-          badgeTone: Number(p.stock_quantity ?? 0) <= 0 ? 'danger' : 'warning',
-          icon: 'warning',
-          iconTone: 'warning',
-        }))}
-        emptyMessage="لا توجد أصناف بمخزون منخفض."
       />
     </View>
   );

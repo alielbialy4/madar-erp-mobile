@@ -1,16 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
 import { kitchenAPI } from '@/api/kitchen';
 import { kitchenStationsAPI } from '@/api/kitchenStations';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppInput, AppListItem, AppSelect } from '@/components/ui';
+import { ListScreenLayout } from '@/components/layout';
+import { AppButton, AppDomainCard, AppSelect } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import type { KitchenOrder } from '@/types/api';
 import { extractArray, extractData } from '@/utils/data';
 import { dateText, numberText } from '@/utils/format';
-import { spacing } from '@/constants/spacing';
+import { moduleIcons } from '@/constants/iconMap';
 
 const STATUS_COLUMNS = [
   { key: '', label: 'الكل' },
@@ -49,25 +48,42 @@ export function KitchenScreen({ navigation }: { navigation: any }) {
   }, []);
 
   return (
-    <AppScreen title="شاشة المطبخ" subtitle="KDS — تحديث الحالة والمحطات" scroll={false}>
-      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <AppButton title="محطات" variant="secondary" onPress={() => navigation.navigate('KitchenStationsList')} />
-          <AppButton title="طباعة" variant="secondary" onPress={() => navigation.navigate('KitchenPrintJobs')} />
-        </View>
-        {stats ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-            <AppBadge label={`انتظار: ${numberText(stats.pending ?? 0)}`} tone="warning" />
-            <AppBadge label={`تحضير: ${numberText(stats.preparing ?? 0)}`} tone="info" />
-            <AppBadge label={`جاهز: ${numberText(stats.ready ?? 0)}`} tone="success" />
-          </View>
-        ) : null}
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث برقم الفاتورة..." />
-        <AppSelect label="الحالة" value={status || null} onChange={(v) => setStatus(v ?? '')} options={STATUS_COLUMNS.map((c) => ({ label: c.label, value: c.key }))} />
-        {stations.length > 1 ? (
-          <AppSelect label="المحطة" value={stationId || null} onChange={(v) => setStationId(v ?? '')} options={stations} />
-        ) : null}
-      </View>
+    <ListScreenLayout
+      title="شاشة المطبخ"
+      subtitle="KDS — تحديث الحالة والمحطات"
+      searchValue={query}
+      onSearchChange={setQuery}
+      searchPlaceholder="بحث برقم الفاتورة..."
+      onRefresh={refresh}
+      refreshing={refreshing}
+      filters={
+        <>
+          <AppSelect label="الحالة" value={status || null} onChange={(v) => setStatus(v ?? '')} options={STATUS_COLUMNS.map((c) => ({ label: c.label, value: c.key }))} />
+          {stations.length > 1 ? (
+            <AppSelect label="المحطة" value={stationId || null} onChange={(v) => setStationId(v ?? '')} options={stations} />
+          ) : null}
+        </>
+      }
+      hero={{
+        eyebrow: 'KDS',
+        title: 'شاشة المطبخ',
+        subtitle: 'KDS — تحديث الحالة والمحطات',
+        stats: stats
+          ? [
+              { label: 'انتظار', value: numberText(stats.pending ?? 0) },
+              { label: 'تحضير', value: numberText(stats.preparing ?? 0) },
+              { label: 'جاهز', value: numberText(stats.ready ?? 0) },
+            ]
+          : [{ label: 'الطلبات', value: items.length }],
+        actions: (
+          <>
+            <AppButton title="محطات" variant="secondary" onPress={() => navigation.navigate('KitchenStationsList')} />
+            <AppButton title="طباعة" variant="secondary" onPress={() => navigation.navigate('KitchenPrintJobs')} />
+          </>
+        ),
+        compact: true,
+      }}
+    >
       <ResourceList
         data={items}
         loading={loading}
@@ -78,20 +94,17 @@ export function KitchenScreen({ navigation }: { navigation: any }) {
         emptyTitle="لا توجد طلبات مطبخ"
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <AppListItem
+          <AppDomainCard
             title={item.invoice_number || `طلب ${item.id}`}
             subtitle={`${dateText(item.created_at)} • ${item.order_type ?? '—'} • ${(item.dining_table as Record<string, unknown>)?.name ?? ''}`}
             meta={`${numberText(item.items?.length ?? 0)} صنف • ${numberText(item.wait_time ?? 0)} د`}
-            badge={
-              <AppBadge
-                label={String(item.kitchen_status ?? item.status ?? 'pending')}
-                tone={item.is_overdue ? 'danger' : item.kitchen_status === 'ready' ? 'success' : 'warning'}
-              />
-            }
+            badgeLabel={String(item.kitchen_status ?? item.status ?? 'pending')}
+            badgeTone={item.is_overdue ? 'danger' : item.kitchen_status === 'ready' ? 'success' : 'warning'}
+            leadingIcon={moduleIcons.kitchen}
             onPress={() => navigation.navigate('KitchenOrder', { id: item.id })}
           />
         )}
       />
-    </AppScreen>
+    </ListScreenLayout>
   );
 }

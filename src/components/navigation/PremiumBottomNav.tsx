@@ -4,10 +4,13 @@ import {
   Animated,
   Platform,
   Pressable,
+  StyleSheet,
   View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { AppIcon } from '@/components/ui/AppIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
@@ -20,6 +23,7 @@ import {
 } from '@/constants/tabBar';
 import { spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
+import { glassTokens } from '@/constants/glass';
 import type { MainTabParamList } from '@/types/navigation';
 import { popTabStackToRoot } from '@/navigation/nestedTabNavigation';
 
@@ -68,6 +72,7 @@ function StandardTab({
   const pressScale = useRef(new Animated.Value(1)).current;
   const glowScale = useRef(new Animated.Value(focused ? 1 : 0)).current;
   const labelOpacity = useRef(new Animated.Value(focused ? 1 : 0.72)).current;
+  const labelY = useRef(new Animated.Value(focused ? 0 : 2)).current;
   const inactive = c.textCaption;
 
   useEffect(() => {
@@ -83,8 +88,13 @@ function StandardTab({
         duration: 200,
         useNativeDriver: true,
       }),
+      Animated.timing(labelY, {
+        toValue: focused ? 0 : 2,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [focused, glowScale, labelOpacity]);
+  }, [focused, glowScale, labelOpacity, labelY]);
 
   const handlePressIn = () => {
     Animated.spring(pressScale, { toValue: 0.9, friction: 5, tension: 280, useNativeDriver: true }).start();
@@ -118,7 +128,7 @@ function StandardTab({
               opacity: glowScale,
             }}
           />
-          <MaterialIcons name={icon} size={focused ? 24 : 22} color={iconColor} />
+          <AppIcon name={icon} size={focused ? 24 : 22} color={iconColor} weight={focused ? 'fill' : undefined} />
         </View>
         <Animated.Text
           style={{
@@ -129,6 +139,7 @@ function StandardTab({
             textAlign: 'center',
             writingDirection: 'rtl',
             opacity: labelOpacity,
+            transform: [{ translateY: labelY }],
           }}
           numberOfLines={1}
         >
@@ -220,7 +231,7 @@ function PosCenterTab({
               }),
             }}
           >
-            <MaterialIcons name="point-of-sale" size={26} color={c.primaryForeground} />
+            <AppIcon name="point-of-sale" size={26} color={c.primaryForeground} weight="fill" />
           </Animated.View>
         </View>
         <Text
@@ -246,11 +257,7 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET) + TAB_BAR_FLOAT_GAP;
 
-  const dockShadow = Platform.select({
-    ios: { shadowColor: c.shadowMd, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 24 },
-    android: { elevation: 12 },
-    default: { boxShadow: `0 10px 32px ${c.shadowMd}` } as object,
-  });
+  const dockShadow = glassTokens.shadow.xl;
 
   const routeByName = useMemo(() => {
     const map = new Map<string, (typeof state.routes)[number]>();
@@ -311,36 +318,36 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
       }}
       pointerEvents="box-none"
     >
-      <View style={{ overflow: 'visible', borderRadius: DOCK_RADIUS, backgroundColor: 'transparent', ...dockShadow }}>
-        <View
-          style={{
-            ...flexRow,
-            height: TAB_BAR_DOCK_HEIGHT,
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            paddingHorizontal: spacing.xs,
-            paddingBottom: 6,
-            paddingTop: 4,
-            backgroundColor: c.surface,
-            borderRadius: DOCK_RADIUS,
-            borderWidth: 1,
-            borderColor: c.borderSubtle,
-            overflow: 'visible',
-          }}
-        >
+      <View style={{ overflow: 'visible', borderRadius: DOCK_RADIUS, ...dockShadow }}>
+        <View style={{ borderRadius: DOCK_RADIUS, overflow: 'hidden' }}>
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
+          ) : (
+            <LinearGradient
+              colors={['#FFFFFF', '#FAFBFF']}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          )}
           <View
-            pointerEvents="none"
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 12,
-              right: 12,
-              height: 1,
-              backgroundColor: c.borderSubtle,
-              opacity: 0.6,
+              ...flexRow,
+              height: TAB_BAR_DOCK_HEIGHT,
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              paddingHorizontal: spacing.xs,
+              paddingBottom: 6,
+              paddingTop: 4,
+              backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.50)' : 'transparent',
+              borderRadius: DOCK_RADIUS,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: 'rgba(255,255,255,0.50)',
+              overflow: 'visible',
             }}
-          />
-          {TAB_DISPLAY_ORDER.map((name) => renderTab(name))}
+          >
+            {TAB_DISPLAY_ORDER.map((name) => renderTab(name))}
+          </View>
         </View>
       </View>
     </View>

@@ -8,7 +8,7 @@ import { suppliersAPI } from '@/api/suppliers';
 import { productsAPI } from '@/api/products';
 import { inventoryAPI } from '@/api/inventory';
 import { useBranchStore } from '@/store/branchStore';
-import { AppScreen, AppBottomSheet } from '@/components/layout';
+import { FormScreenLayout, AppBottomSheet } from '@/components/layout';
 import { AppButton, AppInput, AppListItem, AppPicker, AppAmountInput, AppDatePicker } from '@/components/ui';
 import { FormSection } from '@/components/forms/FormSection';
 import { ConfirmDialog, useToast } from '@/components/feedback';
@@ -226,7 +226,20 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   };
 
   return (
-    <AppScreen title="إنشاء شراء" onBack={navigation.goBack} scroll={false}>
+    <FormScreenLayout
+      title="إنشاء شراء"
+      onBack={navigation.goBack}
+      scroll={false}
+      footer={
+        <AppButton
+          title={`تأكيد الشراء — ${money(total)}`}
+          disabled={items.length === 0 || !selectedSupplier || submitting}
+          loading={submitting}
+          onPress={() => setConfirmVisible(true)}
+          fullWidth
+        />
+      }
+    >
       <FlatList
         style={{ flex: 1 }}
         data={items}
@@ -319,16 +332,6 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         }
       />
 
-      <View style={styles.stickyBar}>
-        <AppButton
-          title={`تأكيد الشراء — ${money(total)}`}
-          disabled={items.length === 0 || !selectedSupplier || submitting}
-          loading={submitting}
-          onPress={() => setConfirmVisible(true)}
-          fullWidth
-        />
-      </View>
-
       <AppBottomSheet visible={productSearchOpen} onClose={() => { setProductSearchOpen(false); setProductQuery(''); setProductResults([]); }}>
         <View style={styles.sheetContent}>
           <Text style={{ fontWeight: '700', fontSize: typography.sectionTitle }}>بحث منتج أو خامة</Text>
@@ -360,6 +363,6 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         onConfirm={() => { setConfirmVisible(false); void handleSubmit(); }}
         onCancel={() => setConfirmVisible(false)}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

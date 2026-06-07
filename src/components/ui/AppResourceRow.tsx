@@ -1,14 +1,14 @@
-import React from 'react';
-import { Pressable, View, ViewStyle } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, ViewStyle } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { flexRow, textStart } from '@/constants/layout';
-import { radius, spacing } from '@/constants/spacing';
+import { textStart } from '@/constants/layout';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
 import { PressableScale } from './PressableScale';
 import { AppText } from './AppText';
 import { AppBadge } from './AppBadge';
+import { createListRowChrome } from '@/styles/listRowChrome';
 
 type Props = {
   title: string;
@@ -38,35 +38,16 @@ export function AppResourceRow({
   style,
 }: Props) {
   const c = useColors();
+  const chrome = useMemo(() => createListRowChrome(c), [c]);
+
   const content = (
-    <View
-      style={[
-        {
-          ...flexRow,
-          alignItems: 'center',
-          gap: spacing.md,
-          padding: spacing.md,
-          borderRadius: radius.xl,
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-          backgroundColor: c.surface,
-        },
-        style,
-      ]}
-    >
+    <View style={[chrome.card, style]}>
       {leading ?? (leadingIcon ? (
-        <View style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.lg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: c.accentSoft,
-        }}>
+        <View style={chrome.iconWrap}>
           <MaterialIcons name={leadingIcon} size={20} color={c.accent} />
         </View>
       ) : null)}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={chrome.content}>
         <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body }} numberOfLines={1}>
           {title}
         </AppText>
@@ -76,7 +57,7 @@ export function AppResourceRow({
           </AppText>
         ) : null}
       </View>
-      <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
+      <View style={chrome.trailing}>
         {meta ? <AppText style={{ color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body }}>{meta}</AppText> : null}
         {badge ?? (badgeLabel ? <AppBadge label={badgeLabel} tone={badgeTone} /> : null)}
       </View>

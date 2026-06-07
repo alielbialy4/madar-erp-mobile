@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
-import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppInput, AppSectionHeader } from '@/components/ui';
-import { spacing } from '@/constants/spacing';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { useToast } from '@/components/feedback';
+import { AppInput } from '@/components/ui';
 import { getPrinterProfile, upsertPrinterProfile } from '@/services/printing/printerProfiles';
 import { getConnectionCapability, recommendedConnectionForPlatform } from '@/services/printing/printerCapabilities';
 import type { PrinterConnectionType, PrinterProfile, PrinterRole, PaperWidth, EscPosEncoding } from '@/types/printing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'PrinterProfileForm'>;
 
@@ -18,6 +19,7 @@ const ENCODINGS: EscPosEncoding[] = ['cp864', 'cp720', 'windows1256', 'utf8_imag
 
 export function PrinterProfileFormScreen({ navigation, route }: Props) {
   const id = route.params?.id;
+  const toast = useToast();
   const [name, setName] = useState('');
   const [role, setRole] = useState<PrinterRole>('cashier');
   const [connectionType, setConnectionType] = useState<PrinterConnectionType>(recommendedConnectionForPlatform());
@@ -72,46 +74,49 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
         mode: 'escpos_text',
       };
       await upsertPrinterProfile(profile);
+      toast.success('تم حفظ إعدادات الطابعة');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'تعذر الحفظ');
+      const msg = err instanceof Error ? err.message : 'تعذر الحفظ';
+      setMessage(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <AppScreen title={id ? 'تعديل طابعة' : 'طابعة جديدة'}>
-      <View style={{ gap: spacing.md, paddingBottom: spacing.xxl }}>
-        <AppCard>
-          <AppSectionHeader title="أساسي" />
-          <AppInput label="الاسم" value={name} onChangeText={setName} />
-          <AppInput label="الدور (cashier/kitchen/bar/shift/report)" value={role} onChangeText={(t) => setRole((ROLES.includes(t as PrinterRole) ? t : role) as PrinterRole)} />
-          <AppInput label="الاتصال" value={connectionType} onChangeText={(t) => setConnectionType((CONNECTIONS.includes(t as PrinterConnectionType) ? t : connectionType) as PrinterConnectionType)} />
-          {!cap.supported && cap.reasonAr ? (
-            <AppInput label="تنبيه" value={cap.reasonAr} editable={false} />
-          ) : null}
-          <AppInput label="عرض الورق (58mm/80mm)" value={paperWidth} onChangeText={(t) => setPaperWidth((WIDTHS.includes(t as PaperWidth) ? t : paperWidth) as PaperWidth)} />
-          <AppInput label="مفعّلة (true/false)" value={String(enabled)} onChangeText={(t) => setEnabled(t !== 'false')} />
-        </AppCard>
-        <AppCard>
-          <AppSectionHeader title="شبكة Ethernet" />
-          <AppInput label="IP" value={ip} onChangeText={setIp} placeholder="192.168.1.100" />
-          <AppInput label="Port" value={port} onChangeText={setPort} keyboardType="numeric" />
-        </AppCard>
-        <AppCard>
-          <AppSectionHeader title="بلوتوث Android" />
-          <AppInput label="MAC Address" value={bluetoothAddress} onChangeText={setBluetoothAddress} />
-        </AppCard>
-        <AppCard>
-          <AppSectionHeader title="ESC/POS" />
-          <AppInput label="Encoding" value={encoding} onChangeText={(t) => setEncoding((ENCODINGS.includes(t as EscPosEncoding) ? t : encoding) as EscPosEncoding)} />
-          <AppInput label="أحرف في السطر" value={charsPerLine} onChangeText={setCharsPerLine} keyboardType="numeric" />
-          <AppInput label="قص الورق" value={String(cutPaper)} onChangeText={(t) => setCutPaper(t !== 'false')} />
-        </AppCard>
-        {message ? <AppInput label="رسالة" value={message} editable={false} /> : null}
-        <AppButton title="حفظ" onPress={save} loading={busy} fullWidth />
-      </View>
-    </AppScreen>
+    <FormScreenLayout
+      title={id ? 'تعديل طابعة' : 'طابعة جديدة'}
+      onBack={navigation.goBack}
+      onSave={() => void save()}
+      saveLoading={busy}
+    >
+      <FormSection title="أساسي" icon="print">
+        <AppInput label="الاسم" value={name} onChangeText={setName} />
+        <AppInput label="الدور (cashier/kitchen/bar/shift/report)" value={role} onChangeText={(t) => setRole((ROLES.includes(t as PrinterRole) ? t : role) as PrinterRole)} />
+        <AppInput label="الاتصال" value={connectionType} onChangeText={(t) => setConnectionType((CONNECTIONS.includes(t as PrinterConnectionType) ? t : connectionType) as PrinterConnectionType)} />
+        {!cap.supported && cap.reasonAr ? (
+          <AppInput label="تنبيه" value={cap.reasonAr} editable={false} />
+        ) : null}
+        <AppInput label="عرض الورق (58mm/80mm)" value={paperWidth} onChangeText={(t) => setPaperWidth((WIDTHS.includes(t as PaperWidth) ? t : paperWidth) as PaperWidth)} />
+        <AppInput label="مفعّلة (true/false)" value={String(enabled)} onChangeText={(t) => setEnabled(t !== 'false')} />
+      </FormSection>
+      <FormSection title="شبكة Ethernet" icon="lan">
+        <AppInput label="IP" value={ip} onChangeText={setIp} placeholder="192.168.1.100" />
+        <AppInput label="Port" value={port} onChangeText={setPort} keyboardType="numeric" />
+      </FormSection>
+      <FormSection title="بلوتوث Android" icon="bluetooth">
+        <AppInput label="MAC Address" value={bluetoothAddress} onChangeText={setBluetoothAddress} />
+      </FormSection>
+      <FormSection title="ESC/POS" icon="receipt-long">
+        <AppInput label="Encoding" value={encoding} onChangeText={(t) => setEncoding((ENCODINGS.includes(t as EscPosEncoding) ? t : encoding) as EscPosEncoding)} />
+        <AppInput label="أحرف في السطر" value={charsPerLine} onChangeText={setCharsPerLine} keyboardType="numeric" />
+        <AppInput label="قص الورق" value={String(cutPaper)} onChangeText={(t) => setCutPaper(t !== 'false')} />
+      </FormSection>
+      {message ? <AppInput label="رسالة" value={message} editable={false} /> : null}
+    </FormScreenLayout>
   );
 }

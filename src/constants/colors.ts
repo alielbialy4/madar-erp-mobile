@@ -79,6 +79,16 @@ export type AppColors = {
   shiftAlertBorder: string;
   shiftAlertFg: string;
   shiftInfoBg: string;
+  glassBorder: string;
+  glassHighlight: string;
+  meshGradient1: string;
+  meshGradient2: string;
+  meshGradient3: string;
+  shadowColored: string;
+  glassSurface: string;
+  glassOverlay: string;
+  glassTabBar: string;
+  navDot: string;
 };
 
 export const lightColors: AppColors = {
@@ -164,7 +174,7 @@ export const lightColors: AppColors = {
   paymentInstapayFg: '#7B2FF7',
   paymentEwalletBg: '#EDE9FE',
   paymentEwalletBorder: '#A78BFA',
-  paymentEwalletFg: '#6D28D9',
+  paymentEwalletFg: '#6D28F9',
   paymentCashBg: '#ECFDF5',
   paymentCashBorder: '#A7F3D0',
   paymentCashFg: '#15803D',
@@ -173,6 +183,16 @@ export const lightColors: AppColors = {
   shiftAlertBorder: '#FECACA',
   shiftAlertFg: '#B91C1C',
   shiftInfoBg: '#EFF6FF',
+  glassBorder: 'rgba(15, 23, 42, 0.05)',
+  glassHighlight: 'rgba(255, 255, 255, 0.90)',
+  meshGradient1: '#E0E7FF',
+  meshGradient2: '#F0F9FF',
+  meshGradient3: '#FDF4FF',
+  shadowColored: 'rgba(15, 23, 42, 0.08)',
+  glassSurface: 'rgba(255, 255, 255, 0.55)',
+  glassOverlay: 'rgba(255, 255, 255, 0.35)',
+  glassTabBar: 'rgba(255, 255, 255, 0.75)',
+  navDot: '#0F172A',
 };
 
 export const darkColors: AppColors = {
@@ -267,6 +287,16 @@ export const darkColors: AppColors = {
   shiftAlertBorder: '#7A1A1A',
   shiftAlertFg: '#FCA5A5',
   shiftInfoBg: '#152040',
+  glassBorder: 'rgba(255, 255, 255, 0.08)',
+  glassHighlight: 'rgba(255, 255, 255, 0.06)',
+  meshGradient1: '#0F172A',
+  meshGradient2: '#1E1B4B',
+  meshGradient3: '#0B1120',
+  shadowColored: 'rgba(0, 0, 0, 0.50)',
+  glassSurface: 'rgba(30, 41, 59, 0.72)',
+  glassOverlay: 'rgba(30, 41, 59, 0.50)',
+  glassTabBar: 'rgba(11, 17, 32, 0.82)',
+  navDot: '#FFFFFF',
 };
 
 export type ColorScheme = 'light' | 'dark';

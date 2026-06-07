@@ -3,7 +3,7 @@ import { salesAPI } from '@/api/sales';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { ResourceList } from '@/components/lists';
 import { SaleInvoiceCard } from '@/components/sales/SaleInvoiceCard';
-import { statusTone } from '@/screens/shared/CrudListScreen';
+import { statusTone } from '@/utils/statusTone';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import type { Sale } from '@/types/api';

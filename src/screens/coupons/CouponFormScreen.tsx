@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { couponsAPI } from '@/api/coupons';
-import { AppScreen } from '@/components/layout';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms';
+import { useToast } from '@/components/feedback';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { hasPermission } from '@/utils/permissions';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { hapticError, hapticSuccess } from '@/utils/haptics';
 
 export function CouponFormScreen({ route, navigation }: { route: any; navigation: any }) {
   const id = route.params?.id as string | undefined;
   const user = useAuthStore((s) => s.user);
   const branch = useBranchStore((s) => s.activeBranch);
   const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
+  const toast = useToast();
 
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -63,17 +65,27 @@ export function CouponFormScreen({ route, navigation }: { route: any; navigation
       };
       if (id) await couponsAPI.update(id, payload);
       else await couponsAPI.create(payload);
+      toast.success(id ? 'تم تحديث الكوبون' : 'تم إنشاء الكوبون');
+      void hapticSuccess();
       navigation.goBack();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const msg = normalizeApiError(err).message;
+      setError(msg);
+      toast.error(msg);
+      void hapticError();
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <AppScreen title={id ? 'تعديل كوبون' : 'كوبون جديد'} onBack={navigation.goBack}>
-      <View style={{ gap: spacing.md }}>
+    <FormScreenLayout
+      title={id ? 'تعديل كوبون' : 'كوبون جديد'}
+      onBack={navigation.goBack}
+      onSave={canManage ? () => void save() : undefined}
+      saveLoading={busy}
+    >
+      <FormSection title="بيانات الكوبون" icon="local-offer">
         {error ? <AppInput label="خطأ" value={error} editable={false} /> : null}
         <AppInput label="الكود" value={code} onChangeText={setCode} autoCapitalize="characters" editable={canManage} />
         <AppInput label="الاسم" value={name} onChangeText={setName} editable={canManage} />
@@ -91,9 +103,10 @@ export function CouponFormScreen({ route, navigation }: { route: any; navigation
         <AppInput label="أقصى خصم" value={maxDiscount} onChangeText={setMaxDiscount} keyboardType="decimal-pad" editable={canManage} />
         <AppInput label="معرف الفرع (فارغ = الكل)" value={branchId} onChangeText={setBranchId} editable={canManage} />
         <AppSelect label="نشط" value={isActive} options={[{ label: 'نعم', value: '1' }, { label: 'لا', value: '0' }]} onChange={setIsActive} />
+      </FormSection>
+      <FormSection title="تقارير" icon="assessment">
         <AppButton title="تقرير الكوبونات" variant="secondary" onPress={() => navigation.navigate('ReportViewer', { reportId: 'marketing-coupons' })} />
-        {canManage ? <AppButton title="حفظ" onPress={() => void save()} loading={busy} /> : null}
-      </View>
-    </AppScreen>
+      </FormSection>
+    </FormScreenLayout>
   );
 }

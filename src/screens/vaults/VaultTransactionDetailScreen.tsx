@@ -2,7 +2,7 @@ import React from 'react';
 import { vaultsAPI } from '@/api/vaults';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { asText, dateText, money } from '@/utils/format';
-import { statusTone } from '@/screens/shared/CrudListScreen';
+import { statusTone } from '@/utils/statusTone';
 
 type VaultTransaction = Record<string, unknown> & {
   id?: string | number;

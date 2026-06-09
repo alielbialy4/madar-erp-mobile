@@ -1,28 +1,48 @@
 import type { PrinterProfile, ReceiptPrintPayload } from '@/types/printing';
-import { captureReceiptPngBase64 } from './printCaptureRegistry';
-import { buildEscPosFromPngBase64, rasterHasInk } from './escposRaster';
+import { capturePrint } from './printCaptureRegistry';
+import { buildEscPosFromMono, monoHasInk } from './escposRaster';
 import { buildArabicTestEscPos, buildReceiptEscPos, buildTestPageEscPos } from './receiptTemplates';
-import { recordCaptureFailure, recordPrintTiming, recordReceiptPrintPath } from './printDiagnostics';
+import {
+  recordCaptureFailureSync,
+  recordPrintTimingSync,
+  recordReceiptPrintPathSync,
+} from './printDiagnostics';
+import { warmupTcpPrinter } from './networkTcpPrinter';
 import { pickFallbackStep, TEXT_FALLBACK_STEPS, usesRasterEncoding } from './receiptRasterFallback';
 
 export { pickFallbackStep, TEXT_FALLBACK_STEPS, usesRasterEncoding };
 
-async function tryBuildRaster(
-  base64: string,
+async function captureReceiptWithTcpWarmup(
+  payload: ReceiptPrintPayload,
   profile: PrinterProfile,
-): Promise<Uint8Array | null> {
+) {
+  const warmup =
+    profile.connection_type === 'network_tcp' && profile.ip?.trim()
+      ? warmupTcpPrinter(profile.ip, profile.port)
+      : Promise.resolve();
+  const [captured] = await Promise.all([
+    capturePrint({ kind: 'receipt', payload, profile }),
+    warmup,
+  ]);
+  return captured;
+}
+
+function tryBuildRasterFromMono(
+  captured: Awaited<ReturnType<typeof captureReceiptWithTcpWarmup>>,
+  profile: PrinterProfile,
+): Uint8Array | null {
   const rasterStart = Date.now();
-  if (!rasterHasInk(base64, profile.paper_width)) return null;
-  const buffer = buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
-  await recordPrintTiming({ raster_ms: Date.now() - rasterStart });
+  if (!monoHasInk(captured.mono)) return null;
+  const buffer = buildEscPosFromMono(captured.mono, profile.cut_paper);
+  recordPrintTimingSync({ raster_ms: Date.now() - rasterStart });
   return buffer;
 }
 
-async function buildTextFallback(
+function buildTextFallback(
   payload: ReceiptPrintPayload,
   profile: PrinterProfile,
   reason: string,
-): Promise<Uint8Array> {
+): Uint8Array {
   const step = pickFallbackStep(profile);
   const fallbackProfile: PrinterProfile = {
     ...profile,
@@ -30,8 +50,8 @@ async function buildTextFallback(
     code_page_preset: step.code_page_preset,
     mode: 'escpos_text',
   };
-  await recordCaptureFailure(profile.id, profile.name, reason);
-  await recordReceiptPrintPath(
+  recordCaptureFailureSync(profile.id, profile.name, reason);
+  recordReceiptPrintPathSync(
     profile.id,
     profile.name,
     step.path,
@@ -46,10 +66,10 @@ async function buildRasterOrFallback(
 ): Promise<Uint8Array> {
   let captureError = 'فشل التقاط الصورة';
   try {
-    const base64 = await captureReceiptPngBase64(payload, profile);
-    const raster = await tryBuildRaster(base64, profile);
+    const captured = await captureReceiptWithTcpWarmup(payload, profile);
+    const raster = tryBuildRasterFromMono(captured, profile);
     if (raster) {
-      await recordReceiptPrintPath(profile.id, profile.name, 'raster', null);
+      recordReceiptPrintPathSync(profile.id, profile.name, 'raster', null);
       return raster;
     }
     captureError = 'صورة الإيصال فارغة';

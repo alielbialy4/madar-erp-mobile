@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { PrintJobRecord, PrinterProfile } from '@/types/printing';
-import type { PrintDiagnosticState } from '@/services/printing/printDiagnostics';
+import { emptyTiming, type PrintDiagnosticState } from '@/services/printing/printDiagnostics';
 import { countPrintJobs, getPrintJobs, recoverStalePrintJobs } from '@/services/printing/printQueue';
 import { getPrinterProfiles } from '@/services/printing/printerProfiles';
 import { getPrintDiagnostics } from '@/services/printing/printDiagnostics';
@@ -28,17 +28,7 @@ export const usePrintStore = create<PrintState>((set) => ({
     last_print_path: null,
     capture_failed_reason: null,
     capture_ok_at: null,
-    timing: {
-      measured_at: null,
-      capture_total_ms: null,
-      capture_attempts: null,
-      ink_fail_count: null,
-      raster_ms: null,
-      tcp_ms: null,
-      storage_ms: null,
-      kitchen_api_ms: null,
-      receipt_height_px: null,
-    },
+    timing: { ...emptyTiming },
   },
   pendingCount: 0,
   failedCount: 0,
@@ -78,17 +68,7 @@ export const usePrintStore = create<PrintState>((set) => ({
         last_print_path: null,
         capture_failed_reason: null,
         capture_ok_at: null,
-        timing: {
-          measured_at: null,
-          capture_total_ms: null,
-          capture_attempts: null,
-          ink_fail_count: null,
-          raster_ms: null,
-          tcp_ms: null,
-          storage_ms: null,
-          kitchen_api_ms: null,
-          receipt_height_px: null,
-        },
+        timing: { ...emptyTiming },
       },
       pendingCount: 0,
       failedCount: 0,

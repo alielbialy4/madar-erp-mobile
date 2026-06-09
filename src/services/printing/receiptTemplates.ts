@@ -1,24 +1,28 @@
 import { buildReceiptViewModel } from './buildReceiptViewModel';
-import { RECEIPT_RASTER_FONT_BOOST } from '@/constants/receiptPrintTokens';
+import { receiptRasterFontBoost } from '@/constants/receiptPrintTokens';
 import type { EscPosEncoding, PrinterProfile, ReceiptPrintPayload } from '@/types/printing';
 import type { BranchPrintSettingsNormalized } from '@/utils/branchPrintSettings';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
 import { EscPosBuilder, charsForPaper } from './escposBuilder';
+import {
+  CP864_CODE_PAGE_CANDIDATES,
+  WINDOWS1256_CODE_PAGE_CANDIDATES,
+} from './codePageTables';
 
 function effectiveTextEncoding(profile: PrinterProfile): EscPosEncoding {
   if (profile.encoding === 'utf8_image') return 'windows1256';
   return profile.encoding;
 }
 
-function fontScale(size: number): { w: boolean; h: boolean } {
-  const boosted = size * RECEIPT_RASTER_FONT_BOOST;
+function fontScale(size: number, paperWidth: PrinterProfile['paper_width']): { w: boolean; h: boolean } {
+  const boosted = size * receiptRasterFontBoost(paperWidth);
   if (boosted >= 14) return { w: true, h: true };
   if (boosted >= 10) return { w: true, h: false };
   return { w: false, h: false };
 }
 
-function bodyFontScale(size: number): { w: boolean; h: boolean } {
-  const boosted = size * RECEIPT_RASTER_FONT_BOOST;
+function bodyFontScale(size: number, paperWidth: PrinterProfile['paper_width']): { w: boolean; h: boolean } {
+  const boosted = size * receiptRasterFontBoost(paperWidth);
   if (boosted >= 18) return { w: true, h: true };
   if (boosted >= 8) return { w: true, h: false };
   return { w: false, h: false };
@@ -30,8 +34,9 @@ function applyBrandedHeader(
   enc: PrinterProfile['encoding'],
   brand: BranchPrintSettingsNormalized,
   payload: ReceiptPrintPayload,
+  paperWidth: PrinterProfile['paper_width'],
 ): void {
-  const scale = fontScale(brand.customer_receipt_font_size);
+  const scale = fontScale(brand.customer_receipt_font_size, paperWidth);
   b.align('center').bold(true).size(scale.w, scale.h);
   if (brand.receipt_header.trim()) {
     b.textLine(brand.receipt_header.trim(), cols, enc);
@@ -123,12 +128,12 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   const enc = effectiveTextEncoding(profile);
   const brand = payload._printSettings;
   const receiptFontSize = brand?.customer_receipt_font_size ?? 12;
-  const bodyScale = bodyFontScale(receiptFontSize);
-  const heroScale = fontScale(receiptFontSize);
+  const bodyScale = bodyFontScale(receiptFontSize, profile.paper_width);
+  const heroScale = fontScale(receiptFontSize, profile.paper_width);
   const b = EscPosBuilder.forProfile(profile).init().codePage(enc);
 
   if (brand) {
-    applyBrandedHeader(b, cols, enc, brand, payload);
+    applyBrandedHeader(b, cols, enc, brand, payload, profile.paper_width);
   } else {
     b.align('center').bold(true).size(true, true);
     b.textLine((vm.storeName || payload.branch_name) ?? 'Madar ERP', cols, enc).size(false, false).bold(false).align('left');
@@ -177,7 +182,7 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   }
   if (vm.tax > 0) b.textLine(`${vm.labels.tax}: ${vm.formatCurrency(vm.tax)}`, cols, enc);
   if (vm.deliveryFee > 0) b.textLine(`${vm.labels.deliveryFee}: ${vm.formatCurrency(vm.deliveryFee)}`, cols, enc);
-  const totalScale = fontScale(receiptFontSize);
+  const totalScale = fontScale(receiptFontSize, profile.paper_width);
   b.bold(true).size(totalScale.w, totalScale.h);
   b.textLine(`${vm.labels.total}: ${vm.formatCurrency(vm.total)}`, cols, enc);
   b.size(bodyScale.w, bodyScale.h).bold(false);
@@ -219,15 +224,18 @@ export function buildArabicTestEscPos(profile: PrinterProfile): Uint8Array {
   return b.build();
 }
 
-const CODE_PAGE_SAMPLE_TABLES = [0, 22, 32, 37, 50];
-
 export function buildCodePageReferenceEscPos(profile: PrinterProfile): Uint8Array {
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const b = EscPosBuilder.forProfile(profile).init().align('center').bold(true);
-  b.textLine('Code Page Reference', cols, 'utf8').bold(false).align('left');
-  for (const table of CODE_PAGE_SAMPLE_TABLES) {
+  b.textLine('Arabic Code Pages', cols, 'utf8').bold(false).align('left');
+  for (const table of WINDOWS1256_CODE_PAGE_CANDIDATES) {
     b.selectCodePageTable(table);
-    b.textLine(`Table ${table}: اختبار عربي`, cols, 'cp864');
+    b.textLinePreservingCodePage(`CP${table} W1256: اختبار عربي`, cols, 'windows1256');
+  }
+  b.separator(cols);
+  for (const table of CP864_CODE_PAGE_CANDIDATES) {
+    b.selectCodePageTable(table);
+    b.textLinePreservingCodePage(`CP${table} PC864: اختبار عربي`, cols, 'cp864');
     b.separator(cols);
   }
   b.feed(2);
@@ -239,11 +247,32 @@ export function buildEncodingTestEscPos(profile: PrinterProfile, sampleEncoding:
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const testProfile = { ...profile, encoding: sampleEncoding };
   const enc = effectiveTextEncoding(testProfile);
-  const b = EscPosBuilder.forProfile(testProfile).init().codePage(enc).align('center').bold(true);
-  b.textLine(`Encoding: ${sampleEncoding}`, cols, enc);
-  b.textLine('اختبار الطباعة العربية', cols, enc);
-  b.textLine('فاتورة بيع 123.45', cols, enc);
-  b.textLine('English OK', cols, enc);
+  const b = EscPosBuilder.forProfile(testProfile).init().align('center').bold(true);
+
+  if (sampleEncoding === 'windows1256') {
+    for (const table of WINDOWS1256_CODE_PAGE_CANDIDATES) {
+      b.selectCodePageTable(table);
+      b.textLinePreservingCodePage(`W1256 CP${table}`, cols, enc);
+      b.textLinePreservingCodePage('اختبار الطباعة العربية', cols, enc);
+      b.separator(cols);
+    }
+    b.textLine('English OK', cols, enc);
+  } else if (sampleEncoding === 'cp864') {
+    for (const table of CP864_CODE_PAGE_CANDIDATES) {
+      b.selectCodePageTable(table);
+      b.textLinePreservingCodePage(`CP864 CP${table}`, cols, enc);
+      b.textLinePreservingCodePage('اختبار الطباعة العربية', cols, enc);
+      b.separator(cols);
+    }
+    b.textLine('English OK', cols, enc);
+  } else {
+    b.codePage(enc);
+    b.textLine(`Encoding: ${sampleEncoding}`, cols, enc);
+    b.textLine('اختبار الطباعة العربية', cols, enc);
+    b.textLine('فاتورة بيع 123.45', cols, enc);
+    b.textLine('English OK', cols, enc);
+  }
+
   b.feed(2);
   if (profile.cut_paper) b.cut();
   return b.build();

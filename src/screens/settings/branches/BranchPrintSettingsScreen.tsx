@@ -33,12 +33,24 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
 import { hapticError, hapticSuccess } from '@/utils/haptics';
 import { spacing } from '@/constants/spacing';
-import { flexRow } from '@/constants/layout';
+import { flexRow, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'BranchPrintSettings'>;
 
+const RECEIPT_PRINT_MODE_OPTIONS: SelectOption[] = [
+  {
+    label: 'صورة عالية الجودة (عربي واضح)',
+    value: 'quality_image',
+  },
+  {
+    label: 'نص سريع (Windows-1256)',
+    value: 'fast_text',
+  },
+];
+
 const PRINT_SETTING_KEYS = [
+  'receipt_print_mode',
   'auto_print_receipt',
   'enable_kitchen_print',
   'use_server_kitchen_print_queue',
@@ -408,6 +420,20 @@ export function BranchPrintSettingsScreen({ navigation, route }: Props) {
       </FormSection>
 
       <FormSection title="سلوك الطباعة" icon="settings">
+        <AppSelect
+          label="وضع طباعة الإيصال"
+          options={RECEIPT_PRINT_MODE_OPTIONS}
+          value={settings.receipt_print_mode}
+          onChange={(v) =>
+            setSettings((s) => ({
+              ...s,
+              receipt_print_mode: v === 'fast_text' ? 'fast_text' : 'quality_image',
+            }))
+          }
+        />
+        <Text style={{ color: c.textMuted, fontSize: 12, ...textStart }}>
+          النص السريع ~1 ثانية · الصورة ~3–4 ثوانٍ
+        </Text>
         <SwitchRow
           label="طباعة إيصال تلقائياً بعد البيع"
           value={settings.auto_print_receipt}

@@ -6,7 +6,12 @@ import {
   isPrintFontSizeInRange,
 } from '@/utils/branchSettings';
 
+export type ReceiptPrintMode = 'quality_image' | 'fast_text';
+
+export const DEFAULT_RECEIPT_PRINT_MODE: ReceiptPrintMode = 'quality_image';
+
 export type BranchPrintSettingsNormalized = {
+  receipt_print_mode: ReceiptPrintMode;
   auto_print_receipt: boolean;
   enable_kitchen_print: boolean;
   use_server_kitchen_print_queue: boolean;
@@ -64,7 +69,12 @@ export function normalizeBranchPrintSettings(
     ? legacyReceiptFooter
     : DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE;
 
+  const rawMode = r.receipt_print_mode;
+  const receiptPrintMode: ReceiptPrintMode =
+    rawMode === 'fast_text' ? 'fast_text' : DEFAULT_RECEIPT_PRINT_MODE;
+
   return {
+    receipt_print_mode: receiptPrintMode,
     auto_print_receipt: boolSetting('auto_print_receipt', false),
     enable_kitchen_print: boolSetting('enable_kitchen_print', false),
     use_server_kitchen_print_queue: boolSetting('use_server_kitchen_print_queue', false),

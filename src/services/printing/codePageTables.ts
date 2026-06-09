@@ -15,11 +15,51 @@ export const EPSON_CODE_PAGE_TABLE: CodePageTable = {
   windows1256: 50,
 };
 
-/** Common Xprinter / clone firmware (CP864 sometimes on page 22). */
+/** Arabic Windows-1256 table on this firmware (ESC t 17 = 0x11). */
+export const ARABIC_WINDOWS1256_CODE_PAGE = 17;
+
+/** Arabic code pages from printer self-test (use for sweep / diagnostics). */
+export const ARABIC_SELF_TEST_CODE_PAGES = {
+  arabic: 17,
+  pc864: 22,
+  ansi1256: 106,
+  ibm20420: 128,
+  iso28596: 147,
+  mac10004: 155,
+  oem864: 178,
+} as const;
+
+/** W1256-byte encodings — try these ESC t values with encoding `windows1256`. */
+export const WINDOWS1256_CODE_PAGE_CANDIDATES = [
+  ARABIC_SELF_TEST_CODE_PAGES.arabic,
+  ARABIC_SELF_TEST_CODE_PAGES.ansi1256,
+  ARABIC_SELF_TEST_CODE_PAGES.ibm20420,
+  ARABIC_SELF_TEST_CODE_PAGES.iso28596,
+  ARABIC_SELF_TEST_CODE_PAGES.mac10004,
+] as const;
+
+/** CP864-byte encodings — try these ESC t values with encoding `cp864`. */
+export const CP864_CODE_PAGE_CANDIDATES = [
+  ARABIC_SELF_TEST_CODE_PAGES.pc864,
+  ARABIC_SELF_TEST_CODE_PAGES.oem864,
+  37,
+] as const;
+
+/** Common Xprinter / clone firmware. */
 export const CLONE_CODE_PAGE_TABLE: CodePageTable = {
   cp864: 22,
   cp720: 32,
-  windows1256: 50,
+  windows1256: ARABIC_WINDOWS1256_CODE_PAGE,
+};
+
+/**
+ * Default Arabic text tables for fast_text checkout (TCP instant print).
+ * Override per printer in profile advanced settings if self-test differs.
+ */
+export const THERMAL_ARABIC_SELF_TEST_TABLE: CodePageTable = {
+  cp864: 22,
+  cp720: 32,
+  windows1256: ARABIC_WINDOWS1256_CODE_PAGE,
 };
 
 export const CODE_PAGE_PRESETS: Record<CodePagePreset, CodePageTable> = {

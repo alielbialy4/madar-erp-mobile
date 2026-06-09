@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
 import type { ReceiptPrintLabels } from '@/constants/printLabels';
-import { RECEIPT_PRINT_LINE_HEIGHT } from '@/constants/receiptPrintTokens';
+import { useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 import type { ReceiptPrintItem } from '@/types/printing';
 
 type Props = {
@@ -34,12 +34,13 @@ function Cell({
   align?: 'right' | 'center' | 'left';
   numeric?: boolean;
 }) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <View style={[styles.cell, { width }]}>
       <Text
         style={[
           styles.cellText,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT, textAlign: align },
+          { fontSize, lineHeight: fontSize * lineHeight, textAlign: align },
         ]}
         numeric={numeric}
       >
@@ -57,12 +58,13 @@ export function ReceiptItemsTable({
   formatCurrency,
   fontSize,
 }: Props) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <View style={styles.section}>
       <Text
         style={[
           styles.sectionTitle,
-          { fontSize: fontSize.sectionTitle, lineHeight: fontSize.sectionTitle * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize: fontSize.sectionTitle, lineHeight: fontSize.sectionTitle * lineHeight },
         ]}
       >
         {labels.itemsSection}
@@ -88,7 +90,7 @@ export function ReceiptItemsTable({
               <Text
                 style={[
                   styles.itemName,
-                  { fontSize: fontSize.itemName, lineHeight: fontSize.itemName * RECEIPT_PRINT_LINE_HEIGHT },
+                  { fontSize: fontSize.itemName, lineHeight: fontSize.itemName * lineHeight },
                 ]}
               >
                 {item.name}
@@ -97,7 +99,7 @@ export function ReceiptItemsTable({
                 <Text
                   style={[
                     styles.lineDesc,
-                    { fontSize: fontSize.lineDesc, lineHeight: fontSize.lineDesc * RECEIPT_PRINT_LINE_HEIGHT },
+                    { fontSize: fontSize.lineDesc, lineHeight: fontSize.lineDesc * lineHeight },
                   ]}
                 >
                   {item.category_name}
@@ -107,7 +109,7 @@ export function ReceiptItemsTable({
                 <Text
                   style={[
                     styles.lineDesc,
-                    { fontSize: fontSize.lineDesc, lineHeight: fontSize.lineDesc * RECEIPT_PRINT_LINE_HEIGHT },
+                    { fontSize: fontSize.lineDesc, lineHeight: fontSize.lineDesc * lineHeight },
                   ]}
                 >
                   {item.description}
@@ -119,7 +121,7 @@ export function ReceiptItemsTable({
                     key={`${gi}-${oi}`}
                     style={[
                       styles.lineExtra,
-                      { fontSize: fontSize.lineExtra, lineHeight: fontSize.lineExtra * RECEIPT_PRINT_LINE_HEIGHT },
+                      { fontSize: fontSize.lineExtra, lineHeight: fontSize.lineExtra * lineHeight },
                     ]}
                   >
                     {group.group_title ? `${group.group_title}: ` : ''}
@@ -134,7 +136,7 @@ export function ReceiptItemsTable({
                 <Text
                   style={[
                     styles.lineExtra,
-                    { fontSize: fontSize.lineExtra, lineHeight: fontSize.lineExtra * RECEIPT_PRINT_LINE_HEIGHT },
+                    { fontSize: fontSize.lineExtra, lineHeight: fontSize.lineExtra * lineHeight },
                   ]}
                 >
                   {labels.discount}: -{formatCurrency(item.discount ?? 0)}

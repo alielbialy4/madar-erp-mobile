@@ -10,7 +10,10 @@ export const DEFAULT_CUSTOMER_RECEIPT_DEVELOPER_FOOTER = 'Powered by Madar';
 
 export type ServiceChargeApplyTo = 'dine_in' | 'delivery' | 'takeaway' | 'all';
 
+export type ReceiptPrintMode = 'quality_image' | 'fast_text';
+
 export type BranchSettingsForm = {
+  receipt_print_mode: ReceiptPrintMode;
   auto_print_receipt: boolean;
   enable_kitchen_print: boolean;
   use_server_kitchen_print_queue: boolean;
@@ -50,6 +53,7 @@ export type BranchSettingsForm = {
 
 export function defaultBranchSettingsForm(): BranchSettingsForm {
   return {
+    receipt_print_mode: 'quality_image',
     auto_print_receipt: false,
     enable_kitchen_print: false,
     use_server_kitchen_print_queue: false,
@@ -109,8 +113,13 @@ export function parseBranchSettingsObject(obj?: Record<string, unknown>): Branch
   const serviceApply: ServiceChargeApplyTo =
     applyTo === 'delivery' || applyTo === 'takeaway' || applyTo === 'all' ? applyTo : 'dine_in';
 
+  const rawMode = obj.receipt_print_mode;
+  const receiptPrintMode: ReceiptPrintMode =
+    rawMode === 'fast_text' ? 'fast_text' : 'quality_image';
+
   return {
     ...base,
+    receipt_print_mode: receiptPrintMode,
     auto_print_receipt: truthy(obj.auto_print_receipt),
     enable_kitchen_print: truthy(obj.enable_kitchen_print),
     use_server_kitchen_print_queue: truthy(obj.use_server_kitchen_print_queue),
@@ -164,6 +173,7 @@ export function buildBranchSettingsPayload(form: BranchSettingsForm, keys?: (key
   }
 
   const full: BranchSettingsPatch = {
+    receipt_print_mode: form.receipt_print_mode,
     auto_print_receipt: form.auto_print_receipt,
     enable_kitchen_print: form.enable_kitchen_print,
     use_server_kitchen_print_queue: form.use_server_kitchen_print_queue,

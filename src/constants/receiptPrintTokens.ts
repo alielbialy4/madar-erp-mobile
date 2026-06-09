@@ -1,4 +1,5 @@
 import type { ReceiptViewModel } from '@/services/printing/buildReceiptViewModel';
+import type { PaperWidth } from '@/types/printing';
 
 /** Base px sizes mirrored from front/src/Components/PrintReceipt/receiptSharedCss.ts */
 export const RECEIPT_PRINT_TOKENS = {
@@ -28,19 +29,37 @@ export const RECEIPT_PRINT_TOKENS = {
 
 export type ReceiptPrintTokenKey = keyof typeof RECEIPT_PRINT_TOKENS;
 
-export const RECEIPT_PRINT_LINE_HEIGHT = 1.35;
+/** @deprecated Use receiptPrintLineHeight(paperWidth) */
+export const RECEIPT_PRINT_LINE_HEIGHT = 1.28;
 
-/** Thermal raster prints smaller than browser HTML at same CSS px — boost for readability. */
-export const RECEIPT_RASTER_FONT_BOOST = 2;
-
-export function scaledReceiptToken(vm: ReceiptViewModel, key: ReceiptPrintTokenKey): number {
-  return vm.scaled(RECEIPT_PRINT_TOKENS[key]) * RECEIPT_RASTER_FONT_BOOST;
+/** Tighter line height for shorter raster receipts. */
+export function receiptPrintLineHeight(_paperWidth: PaperWidth): number {
+  return 1.28;
 }
 
-export function scaledReceiptTokens(vm: ReceiptViewModel): Record<ReceiptPrintTokenKey, number> {
+/** Thermal raster prints smaller than browser HTML at same CSS px — boost for readability. */
+export function receiptRasterFontBoost(paperWidth: PaperWidth): number {
+  return paperWidth === '58mm' ? 1.4 : 1.6;
+}
+
+/** @deprecated Use receiptRasterFontBoost(paperWidth) */
+export const RECEIPT_RASTER_FONT_BOOST = 1.6;
+
+export function scaledReceiptToken(
+  vm: ReceiptViewModel,
+  key: ReceiptPrintTokenKey,
+  paperWidth: PaperWidth = '80mm',
+): number {
+  return vm.scaled(RECEIPT_PRINT_TOKENS[key]) * receiptRasterFontBoost(paperWidth);
+}
+
+export function scaledReceiptTokens(
+  vm: ReceiptViewModel,
+  paperWidth: PaperWidth = '80mm',
+): Record<ReceiptPrintTokenKey, number> {
   const out = {} as Record<ReceiptPrintTokenKey, number>;
   for (const key of Object.keys(RECEIPT_PRINT_TOKENS) as ReceiptPrintTokenKey[]) {
-    out[key] = scaledReceiptToken(vm, key);
+    out[key] = scaledReceiptToken(vm, key, paperWidth);
   }
   return out;
 }

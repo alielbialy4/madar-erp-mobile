@@ -1,4 +1,12 @@
 import { Platform } from 'react-native';
+import {
+  DEFAULT_TCP_CHUNK_SIZE,
+  DEFAULT_TCP_SETTLE_MS,
+  sendEscPosOverTcpPooled,
+  warmupTcpPrinter,
+} from './tcpPrinterPool';
+
+export { warmupTcpPrinter };
 
 export class PrintTransportError extends Error {
   code: string;
@@ -29,7 +37,6 @@ type TcpSocketModule = {
 function loadTcpModule(): TcpSocketModule | null {
   if (Platform.OS === 'web') return null;
   try {
-    // Native module — install `react-native-tcp-socket` and build a Dev Client / production APK.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('react-native-tcp-socket') as TcpSocketModule;
   } catch {
@@ -43,60 +50,10 @@ export async function sendEscPosOverTcp(
   buffer: Uint8Array,
   timeoutMs = 8000,
 ): Promise<void> {
-  const TcpSocket = loadTcpModule();
-  if (!TcpSocket) {
-    throw new PrintTransportError(
-      'NETWORK_TCP_UNAVAILABLE',
-      'طباعة الشبكة TCP غير متاحة في Expo Go. استخدم Dev Client مع react-native-tcp-socket.',
-    );
-  }
-  if (!ip?.trim()) {
-    throw new PrintTransportError('INVALID_IP', 'عنوان IP الطابعة مطلوب.');
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-    let client: ReturnType<TcpSocketModule['createConnection']> | undefined;
-    const finish = (err?: Error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        client?.destroy();
-      } catch {
-        /* ignore — socket may already be closed */
-      }
-      if (err) reject(err);
-      else resolve();
-    };
-
-    const timer = setTimeout(() => {
-      finish(new PrintTransportError('TCP_TIMEOUT', 'فشل الاتصال بالطابعة — انتهت المهلة.'));
-    }, timeoutMs);
-
-    client = TcpSocket.createConnection(
-      { port, host: ip.trim(), connectTimeout: timeoutMs },
-      () => {
-        // 'connect' callback — write buffer, then close gracefully.
-        client!.write(buffer, 'binary', (writeErr) => {
-          if (writeErr) {
-            finish(new PrintTransportError('TCP_WRITE_FAILED', writeErr.message));
-            return;
-          }
-          try {
-            client!.end();
-          } catch {
-            /* ignore */
-          }
-          // Brief settle delay so the printer flushes before destroy.
-          setTimeout(() => finish(), 150);
-        });
-      },
-    );
-
-    client.on('error', (err) => {
-      finish(new PrintTransportError('TCP_CONNECT_FAILED', err?.message ?? 'فشل الاتصال بالطابعة'));
-    });
+  void timeoutMs;
+  await sendEscPosOverTcpPooled(ip, port, buffer, {
+    chunkSize: DEFAULT_TCP_CHUNK_SIZE,
+    settleMs: DEFAULT_TCP_SETTLE_MS,
   });
 }
 

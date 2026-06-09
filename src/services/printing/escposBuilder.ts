@@ -64,10 +64,29 @@ export class EscPosBuilder {
       encoding === 'cp864' || encoding === 'cp720' || encoding === 'windows1256';
     for (const row of wrapped) {
       if (needsCodePageReselect) this.codePage(encoding);
-      const bytes = encodeForPrinter(row, encoding);
-      this.chunks.push(...bytes, 0x0a);
+      this.appendEncodedLine(row, encoding);
     }
     return this;
+  }
+
+  /**
+   * Append wrapped text without ESC t — use after selectCodePageTable() in diagnostics.
+   */
+  textLinePreservingCodePage(
+    line: string,
+    charsPerLine: number,
+    encoding: EscPosEncoding = 'utf8',
+  ): this {
+    const wrapped = wrapText(line, charsPerLine);
+    for (const row of wrapped) {
+      this.appendEncodedLine(row, encoding);
+    }
+    return this;
+  }
+
+  private appendEncodedLine(row: string, encoding: EscPosEncoding): void {
+    const bytes = encodeForPrinter(row, encoding);
+    this.chunks.push(...bytes, 0x0a);
   }
 
   separator(charsPerLine: number, char = '-'): this {

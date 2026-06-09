@@ -2,7 +2,6 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import type { PrinterProfile } from '@/types/printing';
 import { resolveCodePageTable } from './codePageTables';
 import { encodingUsesSingleByte } from './arabicTextEncode';
-import { prepareArabicLine } from './prepareArabicLine';
 import { dotsForPaper } from './escposRaster';
 import { PrintTransportError } from './networkTcpPrinter';
 
@@ -138,8 +137,7 @@ export async function sendTextLinesOverBluetooth(
   const printer = await connectBluetooth(address);
   const opts = bluetoothEncodingOptions(profile);
   for (const line of lines) {
-    const shaped = prepareArabicLine(line);
-    await printer.printText(`${shaped}\n`, { ...opts, cut: false });
+    await printer.printText(`${line}\n`, { ...opts, cut: false });
   }
   await printer.printText('\n\n', { ...opts, cut: profile.cut_paper });
 }

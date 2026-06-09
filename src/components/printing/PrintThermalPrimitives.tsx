@@ -1,8 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
-import { RECEIPT_PRINT_LINE_HEIGHT } from '@/constants/receiptPrintTokens';
-import { LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH } from '@/constants/printThermalLayout';
+import { useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 
 type MetaRowProps = {
   label: string;
@@ -12,15 +11,16 @@ type MetaRowProps = {
 };
 
 export function PrintMetaRow({ label, value, valueLtr, fontSize }: MetaRowProps) {
+  const lineHeight = useReceiptLineHeight();
   if (!value?.trim()) return null;
   return (
     <View style={styles.metaRow}>
-      <Text style={[styles.metaLabel, { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT }]}>
+      <Text style={[styles.metaLabel, { fontSize, lineHeight: fontSize * lineHeight }]}>
         {label}
       </Text>
       <View style={styles.metaLeader} />
       <Text
-        style={[styles.metaValue, { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT }]}
+        style={[styles.metaValue, { fontSize, lineHeight: fontSize * lineHeight }]}
         numeric={valueLtr}
       >
         {value}
@@ -39,6 +39,7 @@ type OrderHeroProps = {
 };
 
 export function PrintOrderHero({ label, value, labelFontSize, valueFontSize, fontSize }: OrderHeroProps) {
+  const lineHeight = useReceiptLineHeight();
   const labelFs = labelFontSize ?? (fontSize != null ? fontSize * 0.85 : 10);
   const valueFs = valueFontSize ?? (fontSize != null ? fontSize * 1.5 : 21);
   return (
@@ -46,7 +47,7 @@ export function PrintOrderHero({ label, value, labelFontSize, valueFontSize, fon
       <Text
         style={[
           styles.orderHeroLabel,
-          { fontSize: labelFs, lineHeight: labelFs * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize: labelFs, lineHeight: labelFs * lineHeight },
         ]}
       >
         {label}
@@ -73,12 +74,13 @@ type TotalRowProps = {
 };
 
 export function PrintTotalRow({ label, value, fontSize, bold, negative }: TotalRowProps) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <View style={styles.totalRow}>
       <Text
         style={[
           styles.totalLabel,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize, lineHeight: fontSize * lineHeight },
           bold ? styles.bold : null,
         ]}
       >
@@ -87,7 +89,7 @@ export function PrintTotalRow({ label, value, fontSize, bold, negative }: TotalR
       <Text
         style={[
           styles.totalValue,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize, lineHeight: fontSize * lineHeight },
           bold ? styles.bold : null,
         ]}
         numeric
@@ -122,11 +124,12 @@ type SectionTitleProps = {
 };
 
 export function PrintSectionTitle({ title, fontSize }: SectionTitleProps) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <Text
       style={[
         styles.sectionTitle,
-        { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
+        { fontSize, lineHeight: fontSize * lineHeight },
       ]}
     >
       {title}
@@ -136,17 +139,19 @@ export function PrintSectionTitle({ title, fontSize }: SectionTitleProps) {
 
 type LogoProps = {
   uri: string | null;
+  maxWidth?: number;
+  maxHeight?: number;
   onLoad?: () => void;
   onError?: () => void;
 };
 
-export function PrintLogo({ uri, onLoad, onError }: LogoProps) {
+export function PrintLogo({ uri, maxWidth = 100, maxHeight = 48, onLoad, onError }: LogoProps) {
   if (!uri) return null;
   return (
     <View style={styles.logoWrap}>
       <Image
         source={{ uri }}
-        style={styles.logo}
+        style={{ width: maxWidth, height: maxHeight }}
         resizeMode="contain"
         onLoad={onLoad}
         onError={onError}
@@ -161,12 +166,13 @@ type DocumentTitleProps = {
 };
 
 export function PrintDocumentTitle({ title, fontSize }: DocumentTitleProps) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <View style={styles.documentTitle}>
       <Text
         style={[
           styles.documentTitleText,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize, lineHeight: fontSize * lineHeight },
         ]}
       >
         {title}
@@ -181,12 +187,13 @@ type ReprintBannerProps = {
 };
 
 export function PrintReprintBanner({ text, fontSize }: ReprintBannerProps) {
+  const lineHeight = useReceiptLineHeight();
   return (
     <View style={styles.reprintBanner}>
       <Text
         style={[
           styles.reprintText,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
+          { fontSize, lineHeight: fontSize * lineHeight },
         ]}
       >
         {text}
@@ -282,10 +289,6 @@ const styles = StyleSheet.create({
   logoWrap: {
     alignItems: 'center',
     marginBottom: 4,
-  },
-  logo: {
-    width: LOGO_MAX_WIDTH,
-    height: LOGO_MAX_HEIGHT,
   },
   documentTitle: {
     alignSelf: 'center',

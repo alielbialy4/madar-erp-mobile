@@ -5,14 +5,18 @@ import { KitchenPrintContent } from '@/components/printing/KitchenPrintContent';
 import { ReceiptPrintContent } from '@/components/printing/ReceiptPrintContent';
 import { ShiftClosePrintContent } from '@/components/printing/ShiftClosePrintContent';
 import { resolvePrintLogoUri } from '@/services/printing/printLogoCache';
-import { registerPrintCapture } from '@/services/printing/printCaptureRegistry';
+import { registerPrintCapture, type PrintCaptureResult } from '@/services/printing/printCaptureRegistry';
 import {
   cacheMonoForBase64,
   clearMonoCache,
   dotsForPaper,
   monoHasInk,
 } from '@/services/printing/escposRaster';
-import { recordCaptureFailure, recordCaptureSuccess, recordPrintTiming } from '@/services/printing/printDiagnostics';
+import {
+  recordCaptureFailureSync,
+  recordCaptureSuccessSync,
+  recordPrintTimingSync,
+} from '@/services/printing/printDiagnostics';
 import { withCaptureTimeout } from '@/services/printing/printCaptureTimeout';
 import type {
   KitchenTicketPayload,
@@ -25,14 +29,16 @@ import { waitForFontsReady } from '@/utils/fontReady';
 import { assertViewShotAvailable } from '@/utils/viewShotAvailability';
 
 type InternalJob = PrintCaptureJob & {
-  resolve: (base64: string) => void;
+  resolve: (result: PrintCaptureResult) => void;
   reject: (err: Error) => void;
 };
 
-const MAX_CAPTURE_ATTEMPTS = 3;
-const INK_RETRY_MS = [80, 120, 160];
-const ASSETS_READY_TIMEOUT_MS = 2_000;
-const CAPTURE_QUALITY = 0.9;
+const MAX_CAPTURE_ATTEMPTS = 2;
+const INK_RETRY_MS = [80, 120];
+const ASSETS_READY_TIMEOUT_MS = 1_500;
+const LAYOUT_FALLBACK_MS = 50;
+const CAPTURE_QUALITY = 0.5;
+const PRE_CAPTURE_FRAMES = 1;
 
 const PLACEHOLDER_RECEIPT: ReceiptPrintPayload = {
   date: ' ',
@@ -109,6 +115,8 @@ export function PrintCaptureHost() {
   const [job, setJob] = useState<InternalJob | null>(null);
   const [preparedJob, setPreparedJob] = useState<PrintCaptureJob | null>(null);
   const capturingRef = useRef(false);
+  const activeJobRef = useRef<InternalJob | null>(null);
+  const pendingQueueRef = useRef<InternalJob[]>([]);
   const layoutReadyRef = useRef(false);
   const assetsReadyRef = useRef(false);
   const captureStartedRef = useRef(false);
@@ -124,73 +132,95 @@ export function PrintCaptureHost() {
     }
   }, []);
 
-  const runCapture = useCallback(async (next: InternalJob) => {
-    if (capturingRef.current) return;
-    capturingRef.current = true;
-    clearMonoCache();
-    const captureStartedAt = Date.now();
-    let inkFailCount = 0;
-    let attempts = 0;
-
-    try {
-      assertViewShotAvailable();
-      await waitForFontsReady();
-      await waitFrames(2);
-
-      let lastError: Error | null = null;
-      for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt += 1) {
-        attempts += 1;
-        if (attempt > 0) {
-          await new Promise((r) => setTimeout(r, INK_RETRY_MS[attempt - 1] ?? 160));
-          await waitFrames(1);
-        }
-        try {
-          const uri = await withCaptureTimeout(
-            captureRef(shotRef, {
-              format: 'png',
-              quality: CAPTURE_QUALITY,
-              result: 'base64',
-            }),
-          );
-          if (!uri) {
-            lastError = new Error('فشل التقاط الصورة');
-            inkFailCount += 1;
-            continue;
-          }
-          const mono = cacheMonoForBase64(uri, next.profile.paper_width);
-          if (monoHasInk(mono)) {
-            await recordCaptureSuccess(next.profile.id, next.profile.name);
-            await recordPrintTiming({
-              capture_total_ms: Date.now() - captureStartedAt,
-              capture_attempts: attempts,
-              ink_fail_count: inkFailCount,
-              receipt_height_px: mono.height,
-            });
-            next.resolve(uri);
-            return;
-          }
-          inkFailCount += 1;
-          lastError = new Error('صورة الطباعة فارغة (لا حبر)');
-        } catch (err) {
-          lastError = err instanceof Error ? err : new Error('فشل التقاط الطباعة');
-        }
-      }
-
-      const reason = lastError?.message ?? 'فشل التقاط الطباعة';
-      await recordCaptureFailure(next.profile.id, next.profile.name, reason);
-      await recordPrintTiming({
-        capture_total_ms: Date.now() - captureStartedAt,
-        capture_attempts: attempts,
-        ink_fail_count: inkFailCount,
-      });
-      next.reject(lastError ?? new Error(reason));
-    } finally {
-      capturingRef.current = false;
-      setJob(null);
-      setPreparedJob(null);
-      resetCaptureGate();
-    }
+  const dequeueNextJob = useCallback(() => {
+    if (capturingRef.current || activeJobRef.current) return;
+    const next = pendingQueueRef.current.shift();
+    if (!next) return;
+    activeJobRef.current = next;
+    resetCaptureGate();
+    assetsReadyRef.current = next.kind !== 'receipt';
+    const { resolve: _r, reject: _j, ...captureOnly } = next;
+    setPreparedJob(captureOnly);
+    setJob(next);
   }, [resetCaptureGate]);
+
+  const runCapture = useCallback(
+    async (next: InternalJob) => {
+      if (capturingRef.current) return;
+      capturingRef.current = true;
+      clearMonoCache();
+      const captureStartedAt = Date.now();
+      let inkFailCount = 0;
+      let attempts = 0;
+
+      try {
+        assertViewShotAvailable();
+        await waitForFontsReady();
+        await waitFrames(PRE_CAPTURE_FRAMES);
+        const captureGatesMs = Date.now() - captureStartedAt;
+
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt += 1) {
+          attempts += 1;
+          if (attempt > 0) {
+            await new Promise((r) => setTimeout(r, INK_RETRY_MS[attempt - 1] ?? 160));
+            await waitFrames(1);
+          }
+          try {
+            const viewShotStartedAt = Date.now();
+            const uri = await withCaptureTimeout(
+              captureRef(shotRef, {
+                format: 'png',
+                quality: CAPTURE_QUALITY,
+                result: 'base64',
+              }),
+            );
+            recordPrintTimingSync({ view_shot_ms: Date.now() - viewShotStartedAt });
+            if (!uri) {
+              lastError = new Error('فشل التقاط الصورة');
+              inkFailCount += 1;
+              continue;
+            }
+            const mono = cacheMonoForBase64(uri, next.profile.paper_width);
+            if (monoHasInk(mono)) {
+              recordCaptureSuccessSync(next.profile.id, next.profile.name);
+              recordPrintTimingSync({
+                capture_total_ms: Date.now() - captureStartedAt,
+                capture_gates_ms: captureGatesMs,
+                capture_attempts: attempts,
+                ink_fail_count: inkFailCount,
+                receipt_height_px: mono.height,
+              });
+              next.resolve({ pngBase64: uri, mono });
+              return;
+            }
+            inkFailCount += 1;
+            lastError = new Error('صورة الطباعة فارغة (لا حبر)');
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error('فشل التقاط الطباعة');
+          }
+        }
+
+        const reason = lastError?.message ?? 'فشل التقاط الطباعة';
+        recordCaptureFailureSync(next.profile.id, next.profile.name, reason);
+        recordPrintTimingSync({
+          capture_total_ms: Date.now() - captureStartedAt,
+          capture_gates_ms: captureGatesMs,
+          capture_attempts: attempts,
+          ink_fail_count: inkFailCount,
+        });
+        next.reject(lastError ?? new Error(reason));
+      } finally {
+        capturingRef.current = false;
+        activeJobRef.current = null;
+        setJob(null);
+        setPreparedJob(null);
+        resetCaptureGate();
+        queueMicrotask(() => dequeueNextJob());
+      }
+    },
+    [dequeueNextJob, resetCaptureGate],
+  );
 
   const tryStartCapture = useCallback(
     (active: InternalJob) => {
@@ -219,15 +249,13 @@ export function PrintCaptureHost() {
           payload: { ...captureJob.payload, logo_uri: logoUri },
         };
       }
-      return new Promise<string>((resolve, reject) => {
-        resetCaptureGate();
-        assetsReadyRef.current = captureJob.kind !== 'receipt';
-        setPreparedJob(enriched);
-        setJob({ ...enriched, resolve, reject });
+      return new Promise<PrintCaptureResult>((resolve, reject) => {
+        pendingQueueRef.current.push({ ...enriched, resolve, reject });
+        dequeueNextJob();
       });
     });
     return () => registerPrintCapture(null);
-  }, [resetCaptureGate]);
+  }, [dequeueNextJob]);
 
   const onLayoutReady = useCallback(() => {
     if (!job || capturingRef.current || layoutReadyRef.current) return;
@@ -250,7 +278,7 @@ export function PrintCaptureHost() {
       if (!job || capturingRef.current || layoutReadyRef.current) return;
       layoutReadyRef.current = true;
       tryStartCapture(job);
-    }, 150);
+    }, LAYOUT_FALLBACK_MS);
 
     return () => {
       clearTimeout(layoutTimer);

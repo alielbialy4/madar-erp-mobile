@@ -15,11 +15,14 @@ import { ReceiptInvoiceBarcode } from '@/components/printing/ReceiptInvoiceBarco
 import { buildReceiptViewModel } from '@/services/printing/buildReceiptViewModel';
 import { dotsForPaper } from '@/services/printing/escposRaster';
 import type { PaperWidth, ReceiptPrintPayload } from '@/types/printing';
+import { scaledReceiptTokens } from '@/constants/receiptPrintTokens';
 import {
-  RECEIPT_PRINT_LINE_HEIGHT,
-  scaledReceiptTokens,
-} from '@/constants/receiptPrintTokens';
-import { receiptColumnWidths, thermalPaddingPx } from '@/constants/printThermalLayout';
+  logoMaxHeight,
+  logoMaxWidth,
+  receiptColumnWidths,
+  thermalPaddingPx,
+} from '@/constants/printThermalLayout';
+import { ReceiptPrintLayoutProvider, useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 
 type Props = {
   payload: ReceiptPrintPayload;
@@ -28,8 +31,17 @@ type Props = {
 };
 
 export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Props) {
+  return (
+    <ReceiptPrintLayoutProvider paperWidth={paperWidth}>
+      <ReceiptPrintContentInner payload={payload} paperWidth={paperWidth} onAssetsReady={onAssetsReady} />
+    </ReceiptPrintLayoutProvider>
+  );
+}
+
+function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props) {
+  const lineHeight = useReceiptLineHeight();
   const vm = useMemo(() => buildReceiptViewModel(payload), [payload]);
-  const t = useMemo(() => scaledReceiptTokens(vm), [vm]);
+  const t = useMemo(() => scaledReceiptTokens(vm, paperWidth), [vm, paperWidth]);
   const width = dotsForPaper(paperWidth);
   const padding = thermalPaddingPx(paperWidth);
   const cols = receiptColumnWidths(width, padding);
@@ -67,7 +79,13 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
   return (
     <View style={[styles.root, { width, padding }]}>
       <View style={styles.header}>
-        <PrintLogo uri={vm.logoUri} onLoad={markLogoReady} onError={markLogoReady} />
+        <PrintLogo
+          uri={vm.logoUri}
+          maxWidth={logoMaxWidth(paperWidth)}
+          maxHeight={logoMaxHeight(paperWidth)}
+          onLoad={markLogoReady}
+          onError={markLogoReady}
+        />
         {vm.showBranchName && vm.storeName ? (
           <Text
             style={[
@@ -82,7 +100,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.headerNote,
-              { fontSize: t.storeNote, lineHeight: t.storeNote * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.storeNote, lineHeight: t.storeNote * lineHeight },
             ]}
           >
             {vm.headerNote}
@@ -98,7 +116,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
         <Text
           style={[
             styles.offline,
-            { fontSize: t.offline, lineHeight: t.offline * RECEIPT_PRINT_LINE_HEIGHT },
+            { fontSize: t.offline, lineHeight: t.offline * lineHeight },
           ]}
         >
           {vm.labels.offlineUnsynced}
@@ -231,7 +249,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.notes,
-              { fontSize: t.notes, lineHeight: t.notes * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.notes, lineHeight: t.notes * lineHeight },
             ]}
           >
             <Text style={{ fontWeight: '500' }}>{vm.labels.notes}: </Text>
@@ -254,7 +272,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.footerText,
-              { fontSize: t.footer, lineHeight: t.footer * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.footer, lineHeight: t.footer * lineHeight },
             ]}
           >
             {vm.footerMessage}
@@ -264,7 +282,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.footerText,
-              { fontSize: t.footer, lineHeight: t.footer * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.footer, lineHeight: t.footer * lineHeight },
             ]}
           >
             {vm.returnPolicy}
@@ -276,7 +294,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.footerText,
-              { fontSize: t.footer, lineHeight: t.footer * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.footer, lineHeight: t.footer * lineHeight },
             ]}
           >
             {[vm.address, vm.phone ? `${vm.labels.phonePrefix} ${vm.phone}` : '', vm.email]
@@ -288,7 +306,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
           <Text
             style={[
               styles.footerDev,
-              { fontSize: t.footerDev, lineHeight: t.footerDev * RECEIPT_PRINT_LINE_HEIGHT },
+              { fontSize: t.footerDev, lineHeight: t.footerDev * lineHeight },
             ]}
           >
             {vm.developerFooter}

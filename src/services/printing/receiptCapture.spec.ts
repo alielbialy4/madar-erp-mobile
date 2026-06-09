@@ -8,7 +8,7 @@ import { pickFallbackStep } from './receiptRasterFallback';
 function testDefaultCodePageIsClone() {
   const table = resolveCodePageTable();
   assert.equal(table.cp864, 22);
-  assert.equal(table.windows1256, 50);
+  assert.equal(table.windows1256, 17);
 }
 
 function testPickFallbackStepRespectsProfileTextEncoding() {

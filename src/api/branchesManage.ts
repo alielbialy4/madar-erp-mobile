@@ -5,6 +5,7 @@ import type { BranchManageRow, BranchSummary } from '@/types/branches';
 import type { PickedImage } from '@/types/api';
 
 export type BranchSettingsPatch = {
+  receipt_print_mode?: 'quality_image' | 'fast_text';
   auto_print_receipt?: boolean;
   enable_kitchen_print?: boolean;
   use_server_kitchen_print_queue?: boolean;

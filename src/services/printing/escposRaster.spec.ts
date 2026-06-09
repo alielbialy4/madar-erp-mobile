@@ -3,7 +3,15 @@
  */
 import assert from 'node:assert/strict';
 import UPNG from 'upng-js';
-import { buildEscPosFromPngBase64, pngToMonoRaster, rasterHasInk } from './escposRaster';
+import {
+  buildEscPosFromPngBase64,
+  dotsForPaper,
+  monoToPngBase64,
+  pngToMonoRaster,
+  rasterHasInk,
+  trimMonoVerticalWhitespace,
+  type MonoRaster,
+} from './escposRaster';
 
 function makeTestPngBase64(): string {
   const w = 2;
@@ -58,9 +66,61 @@ function testBuildEscPosFromPngBase64StartsWithInit() {
   assert.ok(buf.length > 8, 'buffer must include raster payload');
 }
 
+function makeMonoWithBlankMargins(rows: number, inkRow: number): MonoRaster {
+  const width = 16;
+  const bytesPerRow = Math.ceil(width / 8);
+  const data = new Uint8Array(bytesPerRow * rows);
+  const inkByte = 0x80;
+  data[inkRow * bytesPerRow] = inkByte;
+  return { width, height: rows, data };
+}
+
+function testTrimMonoVerticalWhitespace() {
+  const mono = makeMonoWithBlankMargins(5, 2);
+  const trimmed = trimMonoVerticalWhitespace(mono);
+  assert.equal(trimmed.height, 1);
+  assert.equal(trimmed.width, mono.width);
+  assert.ok(trimmed.data.some((b) => b !== 0));
+}
+
+function makeMonoAllInk(rows: number): MonoRaster {
+  const width = 16;
+  const bytesPerRow = Math.ceil(width / 8);
+  const data = new Uint8Array(bytesPerRow * rows);
+  for (let r = 0; r < rows; r += 1) data[r * bytesPerRow] = 0xff;
+  return { width, height: rows, data };
+}
+
+function testTrimMonoVerticalWhitespaceNoOp() {
+  const mono = makeMonoAllInk(3);
+  const trimmed = trimMonoVerticalWhitespace(mono);
+  assert.equal(trimmed.height, 3);
+  assert.equal(trimmed.data, mono.data);
+}
+
+function testDotsForPaper() {
+  assert.equal(dotsForPaper('58mm'), 384);
+  assert.equal(dotsForPaper('80mm'), 576);
+}
+
+function testMonoToPngBase64RoundTrip() {
+  const bytes = base64ToBytes(TEST_PNG_BASE64);
+  const mono = pngToMonoRaster(bytes, 384);
+  const pngBase64 = monoToPngBase64(mono);
+  assert.ok(pngBase64.length > 0);
+  const roundTrip = pngToMonoRaster(base64ToBytes(pngBase64), mono.width);
+  assert.equal(roundTrip.width, mono.width);
+  assert.equal(roundTrip.height, mono.height);
+  assert.ok(roundTrip.data.some((b) => b !== 0));
+}
+
 testPngToMonoRasterDimensions();
 testPngToMonoRasterHasInk();
 testRasterHasInk();
 testBuildEscPosFromPngBase64StartsWithInit();
+testTrimMonoVerticalWhitespace();
+testTrimMonoVerticalWhitespaceNoOp();
+testDotsForPaper();
+testMonoToPngBase64RoundTrip();
 
 console.log('escposRaster.spec.ts: OK');

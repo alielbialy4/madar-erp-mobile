@@ -5,31 +5,40 @@ import type {
   ReceiptPrintPayload,
   ShiftCloseReportPayload,
 } from '@/types/printing';
-import { capturePrintPngBase64 } from './printCaptureRegistry';
-import { buildEscPosFromPngBase64, rasterHasInk } from './escposRaster';
+import { capturePrint, type PrintCaptureResult } from './printCaptureRegistry';
+import { buildEscPosFromMono, monoHasInk } from './escposRaster';
 import { buildKitchenTicketEscPos } from './kitchenTicketTemplates';
 import { buildReceiptEscPos } from './receiptTemplates';
 import { buildShiftSummaryEscPos } from './shiftSummaryTemplate';
-import { recordCaptureFailure, recordPrintTiming, recordReceiptPrintPath } from './printDiagnostics';
+import {
+  recordCaptureFailureSync,
+  recordPrintTimingSync,
+  recordReceiptPrintPathSync,
+} from './printDiagnostics';
+import { warmupTcpPrinter } from './networkTcpPrinter';
 import { pickFallbackStep, usesRasterEncoding } from './receiptRasterFallback';
 
 export { usesRasterEncoding };
 
-async function tryBuildRaster(base64: string, profile: PrinterProfile): Promise<Uint8Array | null> {
+function tryBuildRasterFromMono(captured: PrintCaptureResult, profile: PrinterProfile): Uint8Array | null {
   const rasterStart = Date.now();
-  if (!rasterHasInk(base64, profile.paper_width)) return null;
-  const buffer = buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
-  await recordPrintTiming({ raster_ms: Date.now() - rasterStart });
+  if (!monoHasInk(captured.mono)) return null;
+  const buffer = buildEscPosFromMono(captured.mono, profile.cut_paper);
+  recordPrintTimingSync({ raster_ms: Date.now() - rasterStart });
   return buffer;
 }
 
 async function buildRasterBuffer(job: PrintCaptureJob): Promise<Uint8Array> {
   let captureError = 'فشل التقاط الصورة';
   try {
-    const base64 = await capturePrintPngBase64(job);
-    const raster = await tryBuildRaster(base64, job.profile);
+    const warmup =
+      job.profile.connection_type === 'network_tcp' && job.profile.ip?.trim()
+        ? warmupTcpPrinter(job.profile.ip, job.profile.port)
+        : Promise.resolve();
+    const [captured] = await Promise.all([capturePrint(job), warmup]);
+    const raster = tryBuildRasterFromMono(captured, job.profile);
     if (raster) {
-      await recordReceiptPrintPath(job.profile.id, job.profile.name, 'raster', null);
+      recordReceiptPrintPathSync(job.profile.id, job.profile.name, 'raster', null);
       return raster;
     }
     captureError = 'صورة الطباعة فارغة';
@@ -37,7 +46,7 @@ async function buildRasterBuffer(job: PrintCaptureJob): Promise<Uint8Array> {
     captureError = err instanceof Error ? err.message : captureError;
   }
 
-  await recordCaptureFailure(job.profile.id, job.profile.name, captureError);
+  recordCaptureFailureSync(job.profile.id, job.profile.name, captureError);
   const step = pickFallbackStep(job.profile);
   const fallbackProfile: PrinterProfile = {
     ...job.profile,
@@ -45,7 +54,7 @@ async function buildRasterBuffer(job: PrintCaptureJob): Promise<Uint8Array> {
     code_page_preset: step.code_page_preset,
     mode: 'escpos_text',
   };
-  await recordReceiptPrintPath(
+  recordReceiptPrintPathSync(
     job.profile.id,
     job.profile.name,
     step.path,
@@ -91,6 +100,12 @@ export async function buildShiftBuffer(
   return buildDocumentBuffer({ kind: 'shift', payload, profile });
 }
 
+export async function captureDocument(job: PrintCaptureJob): Promise<PrintCaptureResult> {
+  return capturePrint(job);
+}
+
+/** @deprecated Use captureDocument */
 export async function captureDocumentPngBase64(job: PrintCaptureJob): Promise<string> {
-  return capturePrintPngBase64(job);
+  const result = await captureDocument(job);
+  return result.pngBase64;
 }

@@ -21,3 +21,27 @@ declare module 'arabic-persian-reshaper' {
   };
   export default Reshaper;
 }
+
+declare module 'bidi-js' {
+  type EmbeddingLevels = {
+    levels: number[];
+  };
+
+  type BidiInstance = {
+    getEmbeddingLevels: (text: string, baseDirection: 'ltr' | 'rtl') => EmbeddingLevels;
+    getReorderSegments: (
+      text: string,
+      embeddingLevels: EmbeddingLevels,
+      lineStart?: number,
+      lineEnd?: number,
+    ) => Array<[number, number]>;
+    getMirroredCharactersMap: (
+      text: string,
+      embeddingLevels: EmbeddingLevels,
+      lineStart?: number,
+      lineEnd?: number,
+    ) => Map<number, string>;
+  };
+
+  export default function bidiFactory(): BidiInstance;
+}

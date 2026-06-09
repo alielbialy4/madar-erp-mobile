@@ -23,5 +23,15 @@ export function receiptColumnWidths(contentWidth: number, padding: number): numb
   return RECEIPT_COL_RATIOS.map((ratio) => Math.floor(inner * ratio));
 }
 
+/** @deprecated Use logoMaxWidth(paperWidth) */
 export const LOGO_MAX_WIDTH = 100;
+/** @deprecated Use logoMaxHeight(paperWidth) */
 export const LOGO_MAX_HEIGHT = 48;
+
+export function logoMaxWidth(paperWidth: PaperWidth): number {
+  return paperWidth === '58mm' ? 90 : 100;
+}
+
+export function logoMaxHeight(paperWidth: PaperWidth): number {
+  return paperWidth === '58mm' ? 40 : 48;
+}

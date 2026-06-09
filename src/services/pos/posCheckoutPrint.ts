@@ -111,53 +111,95 @@ function buildKitchenPayload(input: PostCheckoutPrintInput, group: Awaited<Retur
   };
 }
 
+async function printReceiptForCheckout(
+  input: PostCheckoutPrintInput,
+  printSettings: ReturnType<typeof normalizeBranchPrintSettings>,
+): Promise<PostCheckoutPrintResult['receipt']> {
+  if (!printSettings.auto_print_receipt) {
+    return {
+      outcome: 'skipped',
+      message: 'طباعة الإيصال التلقائية معطّلة في إعدادات الفرع.',
+    };
+  }
+
+  const serverProfileId = String(input.catalogSettings.customer_printer_profile_id ?? '');
+  const profile = await resolveReceiptProfile(input.branchId, serverProfileId || null);
+  if (!profile) {
+    return {
+      outcome: 'skipped',
+      message: 'لم تُحدَّد طابعة إيصال على هذا الجهاز.',
+    };
+  }
+
+  const payload = buildOnlineReceiptPayload(input);
+  try {
+    const job = await printEngine.printReceiptCheckout(
+      payload,
+      profile,
+      printSettings.receipt_print_mode,
+    );
+    const status = jobOutcome(job);
+    return {
+      outcome: status === 'printed' ? 'printed' : status === 'queued' ? 'queued' : 'failed',
+      message:
+        status === 'failed'
+          ? 'فشلت طباعة الإيصال — راجع قائمة انتظار الطباعة.'
+          : status === 'queued'
+            ? 'تمت إضافة الإيصال لقائمة انتظار الطباعة.'
+            : undefined,
+    };
+  } catch {
+    return {
+      outcome: 'failed',
+      message: 'فشلت طباعة الإيصال — راجع قائمة انتظار الطباعة.',
+    };
+  }
+}
+
 export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promise<PostCheckoutPrintResult> {
   const printSettings = normalizeBranchPrintSettings(input.catalogSettings);
-  const serverProfileId = String(input.catalogSettings.customer_printer_profile_id ?? '');
 
   const result: PostCheckoutPrintResult = {
     receipt: { outcome: 'skipped' },
     kitchen: { outcome: 'skipped', ticketsPrinted: 0, warnings: [] },
   };
 
-  if (printSettings.auto_print_receipt) {
-    const profile = await resolveReceiptProfile(input.branchId, serverProfileId || null);
-    if (!profile) {
-      result.receipt = {
-        outcome: 'skipped',
-        message: 'لم تُحدَّد طابعة إيصال على هذا الجهاز.',
-      };
-    } else {
-      const payload = buildOnlineReceiptPayload(input);
-      try {
-        const job = await printEngine.printReceipt(payload, profile);
-        const status = jobOutcome(job);
-        result.receipt = {
-          outcome: status === 'printed' ? 'printed' : status === 'queued' ? 'queued' : 'failed',
-          message:
-            status === 'failed'
-              ? 'فشلت طباعة الإيصال — راجع قائمة انتظار الطباعة.'
-              : status === 'queued'
-                ? 'تمت إضافة الإيصال لقائمة انتظار الطباعة.'
-                : undefined,
-        };
-      } catch {
-        result.receipt = {
-          outcome: 'failed',
-          message: 'فشلت طباعة الإيصال — راجع قائمة انتظار الطباعة.',
-        };
-      }
-    }
-  } else {
-    result.receipt = {
-      outcome: 'skipped',
-      message: 'طباعة الإيصال التلقائية معطّلة في إعدادات الفرع.',
-    };
+  const kitchenEligible =
+    printSettings.enable_kitchen_print &&
+    !useServerKitchenPrintQueue(input.catalogSettings) &&
+    input.cartLines.length > 0;
+
+  let kitchenApiMs: number | null = null;
+  const kitchenRoutingPromise = kitchenEligible
+    ? (async () => {
+        const kitchenApiStartedAt = Date.now();
+        const routing = await resolveKitchenPrintGroups({
+          branchId: input.branchId,
+          cart: input.cartLines,
+          products: input.products,
+        });
+        kitchenApiMs = Date.now() - kitchenApiStartedAt;
+        return routing;
+      })()
+    : Promise.resolve({ groups: [] as Awaited<ReturnType<typeof resolveKitchenPrintGroups>>['groups'], warnings: [] as string[] });
+
+  const [kitchenRouting, receiptResult] = await Promise.all([
+    kitchenRoutingPromise,
+    printReceiptForCheckout(input, printSettings),
+  ]);
+
+  result.receipt = receiptResult;
+
+  if (kitchenApiMs != null) {
+    await recordPrintTiming({ kitchen_api_ms: kitchenApiMs });
   }
 
   if (!printSettings.enable_kitchen_print) {
     result.kitchen = { outcome: 'skipped', ticketsPrinted: 0, warnings: [], message: 'طباعة المطبخ معطّلة.' };
-  } else if (useServerKitchenPrintQueue(input.catalogSettings)) {
+    return result;
+  }
+
+  if (useServerKitchenPrintQueue(input.catalogSettings)) {
     result.kitchen = {
       outcome: 'skipped',
       ticketsPrinted: 0,
@@ -165,45 +207,47 @@ export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promi
       message:
         'طابور طباعة السيرفر مفعّل — لن تُطبع تذاكر مطبخ محلياً من هذا الجهاز. عطّله لاستخدام IP المحلي.',
     };
-  } else if (input.cartLines.length === 0) {
-    result.kitchen = { outcome: 'skipped', ticketsPrinted: 0, warnings: [] };
-  } else {
-    const kitchenApiStartedAt = Date.now();
-    const { groups, warnings } = await resolveKitchenPrintGroups({
-      branchId: input.branchId,
-      cart: input.cartLines,
-      products: input.products,
-    });
-    await recordPrintTiming({ kitchen_api_ms: Date.now() - kitchenApiStartedAt });
-    result.kitchen.warnings = warnings;
+    return result;
+  }
 
-    if (groups.length === 0) {
-      result.kitchen.message =
-        warnings.length > 0 ? warnings[0] : 'لا توجد أصناف موجّهة لطباعة المطبخ.';
-    } else {
-      const outcomes = await Promise.all(
-        groups.map(async (group) => {
-          try {
-            const job = await printEngine.printKitchenTicket(buildKitchenPayload(input, group), group.profile);
-            return jobOutcome(job) === 'printed';
-          } catch {
-            return false;
-          }
-        }),
-      );
-      const printed = outcomes.filter(Boolean).length;
-      const failed = outcomes.length - printed;
-      result.kitchen.ticketsPrinted = printed;
-      if (printed > 0 && failed === 0) {
-        result.kitchen.outcome = 'printed';
-      } else if (printed > 0) {
-        result.kitchen.outcome = 'queued';
-        result.kitchen.message = 'بعض تذاكر المطبخ فشلت — راجع قائمة انتظار الطباعة.';
-      } else {
-        result.kitchen.outcome = 'failed';
-        result.kitchen.message = 'فشلت طباعة تذاكر المطبخ — راجع قائمة انتظار الطباعة.';
+  if (input.cartLines.length === 0) {
+    result.kitchen = { outcome: 'skipped', ticketsPrinted: 0, warnings: [] };
+    return result;
+  }
+
+  const { groups, warnings } = kitchenRouting;
+  result.kitchen.warnings = warnings;
+
+  if (groups.length === 0) {
+    result.kitchen.message =
+      warnings.length > 0 ? warnings[0] : 'لا توجد أصناف موجّهة لطباعة المطبخ.';
+    return result;
+  }
+
+  const outcomes = await Promise.all(
+    groups.map(async (group) => {
+      try {
+        const job = await printEngine.printKitchenTicketCheckout(
+          buildKitchenPayload(input, group),
+          group.profile,
+        );
+        return jobOutcome(job) === 'printed';
+      } catch {
+        return false;
       }
-    }
+    }),
+  );
+  const printed = outcomes.filter(Boolean).length;
+  const failed = outcomes.length - printed;
+  result.kitchen.ticketsPrinted = printed;
+  if (printed > 0 && failed === 0) {
+    result.kitchen.outcome = 'printed';
+  } else if (printed > 0) {
+    result.kitchen.outcome = 'queued';
+    result.kitchen.message = 'بعض تذاكر المطبخ فشلت — راجع قائمة انتظار الطباعة.';
+  } else {
+    result.kitchen.outcome = 'failed';
+    result.kitchen.message = 'فشلت طباعة تذاكر المطبخ — راجع قائمة انتظار الطباعة.';
   }
 
   return result;

@@ -12,6 +12,7 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { cartLineKey, type CartLine } from '@/store/posStore';
+import { POS_HOLD_CARTS_ENABLED } from '@/constants/posFeatures';
 import { money, numberText } from '@/utils/format';
 
 type Props = {
@@ -324,7 +325,7 @@ export function PosOrderPanel({
           />
           <View style={styles.checkoutIcons}>
             <PosCartIconBtn size="lg" icon="person-outline" accessibilityLabel="اختيار عميل" onPress={onSelectCustomer} />
-            {onOpenHoldCarts ? (
+            {POS_HOLD_CARTS_ENABLED && onOpenHoldCarts ? (
               <PosCartIconBtn
                 size="lg"
                 icon="inventory-2"
@@ -332,7 +333,7 @@ export function PosOrderPanel({
                 onPress={onOpenHoldCarts}
               />
             ) : null}
-            {onSaveHoldCart ? (
+            {POS_HOLD_CARTS_ENABLED && onSaveHoldCart ? (
               <PosCartIconBtn
                 size="lg"
                 icon="pause-circle-outline"

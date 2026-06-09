@@ -54,6 +54,16 @@ function makeStorageStub() {
     storageSet: async (key: string, value: unknown) => {
       kv[key] = JSON.stringify(value);
     },
+    storageGetArray: async <T>(key: string, isValid: (item: unknown) => item is T): Promise<T[]> => {
+      if (!(key in kv)) return [];
+      try {
+        const raw = JSON.parse(kv[key]) as unknown;
+        if (!Array.isArray(raw)) return [];
+        return raw.filter(isValid);
+      } catch {
+        return [];
+      }
+    },
     storageDelete: async (key: string) => {
       delete kv[key];
     },
@@ -79,6 +89,7 @@ function installStub(stub: ReturnType<typeof makeStorageStub>) {
       return {
         storageGet: stub.storageGet,
         storageSet: stub.storageSet,
+        storageGetArray: stub.storageGetArray,
         storageDelete: stub.storageDelete,
         storageKeys: stub.storageKeys,
       };

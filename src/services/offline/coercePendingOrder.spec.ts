@@ -48,6 +48,27 @@ function testKeepsValidItems() {
   assert.equal(fixed!.items.length, 1);
 }
 
+function testKeepsValidItemsWithNullPayload() {
+  const raw = {
+    local_order_id: 'loc',
+    client_order_id: 'abc',
+    client_uuid: 'abc',
+    branch_id: '1',
+    items: [{ product_id: 1, quantity: 2, unit_price: 10 }],
+    payload: null,
+    status: 'pending' as const,
+    created_at: new Date().toISOString(),
+    discounts: {},
+    payment_lines: null,
+    totals_snapshot: { subtotal: 20, discount: 0, tax: 0, total: 20, paid: 20 },
+  } as unknown as OfflinePosOrderRecord;
+  const fixed = coercePendingOrderForSync(raw);
+  assert.ok(fixed);
+  assert.equal(fixed!.items.length, 1);
+  assert.deepEqual(fixed!.payload.items, fixed!.items);
+}
+
 testDropsEmptyItems();
 testKeepsValidItems();
+testKeepsValidItemsWithNullPayload();
 console.log('coercePendingOrder.spec.ts: OK');

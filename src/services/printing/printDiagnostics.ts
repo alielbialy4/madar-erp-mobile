@@ -56,7 +56,7 @@ export async function recordCaptureSuccess(profileId: string, profileName: strin
 
 export async function getPrintDiagnostics(): Promise<PrintDiagnosticState> {
   const stored = await storageGet<PrintDiagnosticState>(storageKeys.printDiagnostics);
-  return { ...empty, ...stored };
+  return { ...empty, ...(stored ?? {}) };
 }
 
 export async function recordReceiptPrintPath(

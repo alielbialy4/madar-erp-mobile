@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppListItem, AppSectionHeader, AppBadge } from '@/components/ui';
-import { getPrintJobs, retryPrintJob, cancelPrintJob } from '@/services/printing/printQueue';
+import { getPrintJobs, retryPrintJob, cancelPrintJob, recoverStalePrintJobs } from '@/services/printing/printQueue';
 import { printEngine } from '@/services/printing/printEngine';
 import { getPrinterProfile } from '@/services/printing/printerProfiles';
 import type { PrintJobRecord } from '@/types/printing';
@@ -22,6 +22,7 @@ export function PrintQueueScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    await recoverStalePrintJobs();
     setJobs(await getPrintJobs());
     await refreshPrint();
   }, [refreshPrint]);
@@ -66,8 +67,18 @@ export function PrintQueueScreen() {
                   badge={<AppBadge label={STATUS_LABEL[job.status]} tone={job.status === 'failed' ? 'danger' : job.status === 'printed' ? 'success' : 'info'} />}
                   onPress={job.status === 'failed' ? () => void retry(job) : undefined}
                 />
-                {(job.status === 'pending' || job.status === 'failed') ? (
-                  <AppButton title="إلغاء" variant="ghost" onPress={() => void cancel(job.id)} loading={busyId === job.id} />
+                {(job.status === 'pending' || job.status === 'failed' || job.status === 'printing') ? (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {job.status === 'failed' || job.status === 'printing' ? (
+                      <AppButton
+                        title="إعادة محاولة"
+                        variant="outline"
+                        onPress={() => void retry(job)}
+                        loading={busyId === job.id}
+                      />
+                    ) : null}
+                    <AppButton title="إلغاء" variant="ghost" onPress={() => void cancel(job.id)} loading={busyId === job.id} />
+                  </View>
                 ) : null}
               </View>
             ))}

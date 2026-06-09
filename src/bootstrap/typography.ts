@@ -61,8 +61,8 @@ export function applyEarlyRtlDefaults() {
   rtlDefaultsApplied = true;
 
   const rtlOnly = defaultRtlTextStyle();
-  T.defaultProps = { ...T.defaultProps, style: rtlOnly };
-  I.defaultProps = { ...I.defaultProps, style: { ...rtlOnly, fontSize: typography.body } };
+  T.defaultProps = { ...(T.defaultProps ?? {}), style: rtlOnly };
+  I.defaultProps = { ...(I.defaultProps ?? {}), style: { ...rtlOnly, fontSize: typography.body } };
 
   applyWebTypography();
 }
@@ -80,6 +80,6 @@ export function applyGlobalTypography() {
     ...resolveTajawalFontOnly({ fontSize: typography.body, ...defaultRtlTextStyle() }, fonts.medium),
   };
 
-  T.defaultProps = { ...T.defaultProps, style: defaultText };
-  I.defaultProps = { ...I.defaultProps, style: defaultInput };
+  T.defaultProps = { ...(T.defaultProps ?? {}), style: defaultText };
+  I.defaultProps = { ...(I.defaultProps ?? {}), style: defaultInput };
 }

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { AppColors } from '@/constants/colors';
@@ -105,31 +105,41 @@ function createPosSheetStyles(c: AppColors) {
     summaryValue: { fontSize: typography.small, fontFamily: fonts.bold, color: c.text, writingDirection: 'rtl' },
     summaryDiscount: { color: c.danger },
     divider: { height: 1, backgroundColor: c.borderSubtle, marginVertical: spacing.xs },
-    paymentRow: { ...flexRow, gap: spacing.xs },
+    paymentRow: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm, alignItems: 'stretch' },
     paymentCard: {
-      flexGrow: 0,
-      flexShrink: 0,
-      minWidth: 76,
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 100,
+      maxWidth: 140,
       paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.xs,
       borderRadius: radius.lg,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: c.border,
       backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: spacing.xs,
+      minHeight: 56,
     },
     paymentCardActive: {
+      borderWidth: 2,
       borderColor: c.primary,
       backgroundColor: c.softPrimary,
+      ...Platform.select({
+        ios: { shadowColor: c.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6 },
+        android: { elevation: 4 },
+        default: {},
+      }),
     },
     paymentCardLabel: {
       fontSize: typography.tiny,
+      lineHeight: 14,
       fontFamily: fonts.bold,
       color: c.text,
       writingDirection: 'rtl',
       textAlign: 'center',
+      width: '100%',
     },
     paymentCardLabelActive: { color: c.primary },
     walletBanner: {
@@ -229,28 +239,31 @@ export function PosPaymentMethodGrid({
 }) {
   const c = useColors();
   const s = usePosSheetStyles();
+  const { width } = useWindowDimensions();
+  const cardBasis = width >= 768 ? '30%' : '47%';
+
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>طريقة الدفع</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.paymentRow}>
+      <View style={s.paymentRow}>
         {options.map((opt) => {
           const active = value === opt.key;
           return (
             <Pressable
               key={opt.key}
               onPress={() => onChange(opt.key)}
-              style={[s.paymentCard, active && s.paymentCardActive]}
+              style={[s.paymentCard, { flexBasis: cardBasis }, active && s.paymentCardActive]}
             >
               {opt.brandTile ? (
                 <View
                   style={{
-                    minWidth: 72,
-                    height: 36,
-                    borderRadius: 8,
+                    width: 96,
+                    height: 28,
+                    borderRadius: 6,
                     backgroundColor: opt.brandTile.backgroundColor,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    paddingHorizontal: 6,
+                    paddingHorizontal: 2,
                   }}
                 >
                   <Text
@@ -259,22 +272,117 @@ export function PosPaymentMethodGrid({
                       fontSize: 9,
                       fontWeight: '800',
                       textAlign: 'center',
-                      lineHeight: 12,
+                      lineHeight: 11,
                     }}
                   >
                     {opt.brandTile.title}
                   </Text>
                 </View>
               ) : opt.icon ? (
-                <MaterialIcons name={opt.icon} size={20} color={active ? c.primary : c.textMuted} />
+                <MaterialIcons name={opt.icon} size={22} color={active ? c.primary : c.textMuted} />
               ) : null}
-              <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]} numberOfLines={1}>
+              <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]} numberOfLines={2}>
                 {opt.label}
               </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
+    </View>
+  );
+}
+
+export function PosOrderTypeSegment({
+  needsDelivery,
+  onChange,
+}: {
+  needsDelivery: boolean;
+  onChange: (delivery: boolean) => void;
+}) {
+  const c = useColors();
+  const s = usePosSheetStyles();
+
+  const segments = [
+    { key: false as const, label: 'تيك أواي', icon: 'shopping-bag' as const },
+    { key: true as const, label: 'توصيل', icon: 'delivery-dining' as const },
+  ];
+
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionLabel}>نوع الطلب</Text>
+      <View style={{ ...flexRow, gap: spacing.sm }}>
+        {segments.map((seg) => {
+          const active = needsDelivery === seg.key;
+          return (
+            <Pressable
+              key={seg.label}
+              onPress={() => onChange(seg.key)}
+              style={{
+                flex: 1,
+                minHeight: 52,
+                borderRadius: radius.xl,
+                borderWidth: active ? 2 : 1,
+                borderColor: active ? c.primary : c.border,
+                backgroundColor: active ? c.primary : c.surface,
+                ...flexRow,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.xs,
+              }}
+            >
+              <MaterialIcons
+                name={seg.icon}
+                size={20}
+                color={active ? c.primaryForeground : c.textMuted}
+              />
+              <Text
+                style={{
+                  fontFamily: fonts.bold,
+                  fontSize: typography.body,
+                  color: active ? c.primaryForeground : c.text,
+                }}
+              >
+                {seg.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+export function PosCollapsibleSection({
+  label,
+  summary,
+  defaultOpen,
+  children,
+}: {
+  label: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const c = useColors();
+  const s = usePosSheetStyles();
+  const [open, setOpen] = useState(defaultOpen ?? true);
+
+  return (
+    <View style={s.section}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}
+        accessibilityRole="button"
+      >
+        <Text style={s.sectionLabel}>{label}</Text>
+        <View style={{ ...flexRow, alignItems: 'center', gap: spacing.xs }}>
+          {!open && summary ? (
+            <Text style={{ fontSize: typography.small, fontFamily: fonts.bold, color: c.primary }}>{summary}</Text>
+          ) : null}
+          <MaterialIcons name={open ? 'expand-less' : 'expand-more'} size={22} color={c.textCaption} />
+        </View>
+      </Pressable>
+      {open ? <View style={s.sectionCard}>{children}</View> : null}
     </View>
   );
 }

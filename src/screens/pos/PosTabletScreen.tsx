@@ -52,6 +52,10 @@ type Props = {
   onOpenTables: () => void;
   onOpenHoldCarts?: () => void;
   onSaveHoldCart?: () => void;
+  onShiftSummary?: () => void;
+  onCloseShift?: () => void;
+  onOpenDrawer?: () => void;
+  openDrawerBusy?: boolean;
   posNotice: string | null;
   activeBranch: Branch | null;
   loading: boolean;
@@ -87,6 +91,10 @@ export function PosTabletScreen({
   onOpenTables,
   onOpenHoldCarts,
   onSaveHoldCart,
+  onShiftSummary,
+  onCloseShift,
+  onOpenDrawer,
+  openDrawerBusy,
   posNotice,
   activeBranch,
   loading,
@@ -130,6 +138,10 @@ export function PosTabletScreen({
         onOpenTables={onOpenTables}
         onOpenHoldCarts={onOpenHoldCarts}
         onSaveHoldCart={onSaveHoldCart}
+        onShiftSummary={onShiftSummary}
+        onCloseShift={onCloseShift}
+        onOpenDrawer={onOpenDrawer}
+        openDrawerBusy={openDrawerBusy}
       />
 
       <View style={styles.offlineTablet}>

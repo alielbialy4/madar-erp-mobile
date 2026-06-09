@@ -84,6 +84,12 @@ export class EscPosBuilder {
     return this;
   }
 
+  /** GS p m t1 t2 — Epson standard cash drawer kick */
+  pulseDrawer(pin = 0, onMs = 50, offMs = 250): this {
+    this.chunks.push(GS, 0x70, pin, onMs, offMs);
+    return this;
+  }
+
   build(): Uint8Array {
     return Uint8Array.from(this.chunks);
   }

@@ -14,7 +14,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" App.tsx",
     "check:colors": "node scripts/check-no-hardcoded-colors.js",
     "check:ui": "node scripts/check-ui-adoption.js",
-    "test:unit": "npx tsx src/services/offline/coercePendingOrder.spec.ts && npx tsx src/utils/posDining.spec.ts && npx tsx src/utils/posTotals.spec.ts && npx tsx src/utils/viewShotAvailability.spec.ts && npx tsx src/services/printing/escposBuilder.spec.ts && npx tsx src/services/printing/escposRaster.spec.ts && npx tsx src/services/printing/receiptRaster.spec.ts && npx tsx src/services/printing/receiptCapture.spec.ts && npx tsx src/services/printing/printerProfiles.spec.ts && npx tsx src/services/printing/buildReceiptViewModel.spec.ts && npx tsx src/constants/receiptPrintTokens.spec.ts",
+    "test:unit": "npx tsx src/services/offline/coercePendingOrder.spec.ts && npx tsx src/utils/posDining.spec.ts && npx tsx src/utils/posTotals.spec.ts && npx tsx src/utils/viewShotAvailability.spec.ts && npx tsx src/services/printing/escposBuilder.spec.ts && npx tsx src/services/printing/escposRaster.spec.ts && npx tsx src/services/printing/receiptRaster.spec.ts && npx tsx src/services/printing/receiptCapture.spec.ts && npx tsx src/services/printing/printerProfiles.spec.ts && npx tsx src/services/printing/buildReceiptViewModel.spec.ts && npx tsx src/constants/receiptPrintTokens.spec.ts && npx tsx src/services/printing/printCaptureTimeout.spec.ts && npx tsx src/services/printing/printQueueStuck.spec.ts",
     "build:dev-client": "eas build --profile dev-client --platform android",
     "build:apk": "eas build --profile preview --platform android"
   },

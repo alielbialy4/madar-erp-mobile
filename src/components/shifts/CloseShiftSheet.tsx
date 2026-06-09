@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppChip, AppInput, AppSelect, AppText } from '@/components/ui';
+import { AppBadge, AppButton, AppChip, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { extractArray, extractData } from '@/utils/data';
@@ -9,10 +9,11 @@ import { printShiftSummaryForShift } from '@/services/printing/shiftSummaryPrint
 import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
 import { useColors } from '@/hooks/useColors';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
 import type { ActiveShiftExtended, ClosePreview, ShiftDetailedSummary } from '@/types/shifts';
 import { ShiftClosingAmountBanner } from './ShiftClosingAmountBanner';
+import { ShiftKpiRow, ShiftSectionCard, ShiftSheetFooter } from './shiftSheetUi';
 
 function closingPaymentBanners(
   totals: {
@@ -265,50 +266,45 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
   };
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} title="إغلاق الوردية">
-      <View style={{ gap: spacing.md, paddingBottom: spacing.md }}>
+    <AppBottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="إغلاق الوردية"
+      subtitle="أدخل النقد الفعلي وأكمل إغلاق الوردية"
+      size="fullscreen"
+    >
+      <View style={styles.content}>
+        {shift?.shift_no != null ? (
+          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+            <AppBadge label={`وردية #${shift.shift_no}`} tone="info" />
+            {shift.vault?.name ? <AppBadge label={shift.vault.name} tone="neutral" /> : null}
+          </View>
+        ) : null}
         {(errorMsg || (!canCloseShift && closeBlockerMessage)) ? (
-          <View
-            style={{
-              padding: spacing.md,
-              borderRadius: 12,
-              backgroundColor: c.shiftAlertBg,
-              borderWidth: 1,
-              borderColor: c.shiftAlertBorder,
-            }}
-          >
+          <View style={[styles.alertBox, { backgroundColor: c.shiftAlertBg, borderColor: c.shiftAlertBorder }]}>
             <AppText style={{ ...textStart, color: c.shiftAlertFg, fontWeight: '700' }}>
               {errorMsg || closeBlockerMessage}
             </AppText>
           </View>
         ) : null}
-        {shift?.vault?.name ? (
-          <AppText style={textStart}>
-            {shift.drawer_ledger_enabled ? 'خزنة إيداع الإغلاق' : 'الخزنة'}:{' '}
-            <AppText style={{ fontWeight: '800' }}>{shift.vault.name}</AppText>
-          </AppText>
-        ) : null}
-        {shift?.drawer_ledger_enabled ? (
-          <AppText style={{ ...textStart, opacity: 0.8, fontSize: 12 }}>
-            النقد يُعدّ في الدرج؛ الإيداع إلى الخزنة يتم عند الإغلاق.
-          </AppText>
-        ) : null}
 
-        {isAdmin && loadingPreview ? <AppText style={textStart}>جاري حساب النقد المتوقع…</AppText> : null}
+        {isAdmin && loadingPreview ? (
+          <AppText style={{ ...textStart, color: c.textMuted }}>جاري حساب النقد المتوقع…</AppText>
+        ) : null}
         {(isAdmin || closeTotals) && paymentInfo && !loadingPreview ? (
-          <View style={{ gap: spacing.sm, padding: spacing.md, borderRadius: 12, backgroundColor: c.shiftInfoBg }}>
-            <View style={{ ...flexRow, justifyContent: 'space-between' }}>
-              <AppText style={textStart}>نقدية الافتتاح</AppText>
-              <AppText style={{ fontWeight: '800' }}>
-                {money(closeTotals ? summary?.shift.starting_cash : preview?.starting_cash ?? 0)}
+          <ShiftSectionCard title="ملخص الإغلاق" icon="account-balance-wallet">
+            {shift?.drawer_ledger_enabled ? (
+              <AppText style={{ ...textStart, opacity: 0.8, fontSize: 12, marginBottom: spacing.xs }}>
+                النقد يُعدّ في الدرج؛ الإيداع إلى الخزنة يتم عند الإغلاق.
               </AppText>
-            </View>
+            ) : null}
+            <ShiftKpiRow
+              label="نقدية الافتتاح"
+              value={money(closeTotals ? summary?.shift.starting_cash : preview?.starting_cash ?? 0)}
+            />
             {closeTotals ? (
               <>
-                <View style={{ ...flexRow, justifyContent: 'space-between' }}>
-                  <AppText style={textStart}>مبيعات نقدية (الدرج)</AppText>
-                  <AppText style={{ fontWeight: '800' }}>{money(closeTotals.cash_sales)}</AppText>
-                </View>
+                <ShiftKpiRow label="مبيعات نقدية (الدرج)" value={money(closeTotals.cash_sales)} tone="success" />
                 {closingPaymentBanners(
                   closeTotals,
                   closeTotals?.expected_cash ?? preview?.expected_cash,
@@ -323,15 +319,19 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
                 نقد الدرج فقط — لا يشمل البطاقات أو المحافظ الإلكترونية أو إنستاباي
               </AppText>
             ) : null}
-          </View>
+          </ShiftSectionCard>
         ) : null}
 
         {!isAdmin ? (
-          <AppText style={{ ...textStart, opacity: 0.75 }}>أدخل النقدية الفعلية في الدرج دون عرض الرصيد المتوقع.</AppText>
+          <View style={[styles.hintBox, { backgroundColor: c.softInfo, borderColor: c.softInfoBorder }]}>
+            <AppText style={{ ...textStart, color: c.info, fontSize: 13 }}>
+              أدخل النقدية الفعلية في الدرج دون عرض الرصيد المتوقع.
+            </AppText>
+          </View>
         ) : null}
 
         {!closedShiftId ? (
-          <>
+          <ShiftSectionCard title="بيانات الإغلاق" icon="edit-note">
             <AppInput
               label="النقدية الفعلية"
               keyboardType="decimal-pad"
@@ -350,7 +350,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
             />
             {shift?.drawer_ledger_enabled ? (
               <>
-                <AppText style={{ ...textStart, fontWeight: '700' }}>التسوية مع الخزنة</AppText>
+                <AppText style={{ ...textStart, fontWeight: '700', marginTop: spacing.sm }}>التسوية مع الخزنة</AppText>
                 <View style={{ ...flexRow, gap: spacing.sm, flexWrap: 'wrap' }}>
                   <AppChip
                     label="إغلاق مع السحب"
@@ -407,7 +407,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
               </>
             ) : null}
             <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
-            <View style={{ gap: spacing.sm }}>
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               <AppText style={{ ...textStart, fontWeight: '700' }}>فتح وردية تالية بعد الإغلاق</AppText>
               <View style={{ ...flexRow, gap: spacing.sm }}>
                 <AppChip label="لا" active={!openNextShift} onPress={() => setOpenNextShift(false)} />
@@ -427,30 +427,47 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
                 />
               ) : null}
             </View>
-          </>
+          </ShiftSectionCard>
         ) : null}
 
         {closedShiftId && printFailed ? (
-          <View style={{ gap: spacing.sm }}>
+          <ShiftSectionCard title="طباعة التقرير" icon="print">
             <AppText style={{ ...textStart, color: c.warning, fontWeight: '700' }}>
               تم إغلاق الوردية، لكن فشلت الطباعة
             </AppText>
             <AppButton title="طباعة تقرير الوردية" variant="secondary" loading={submitting} onPress={() => void handleReprint()} />
-          </View>
+          </ShiftSectionCard>
         ) : null}
 
-        {!closedShiftId ? (
-          <AppButton
-            title="إغلاق الوردية"
-            variant="danger"
-            loading={submitting}
-            disabled={!canCloseShift}
-            onPress={() => void handleClose()}
-          />
-        ) : (
-          <AppButton title="إغلاق" variant="secondary" onPress={onClose} />
-        )}
+        <ShiftSheetFooter>
+          {!closedShiftId ? (
+            <AppButton
+              title="إغلاق الوردية"
+              variant="danger"
+              loading={submitting}
+              disabled={!canCloseShift}
+              style={{ flex: 1 }}
+              onPress={() => void handleClose()}
+            />
+          ) : (
+            <AppButton title="إغلاق" variant="secondary" style={{ flex: 1 }} onPress={onClose} />
+          )}
+        </ShiftSheetFooter>
       </View>
     </AppBottomSheet>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { gap: spacing.lg, paddingBottom: spacing.md },
+  alertBox: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  hintBox: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+});

@@ -1,4 +1,5 @@
 import { buildReceiptViewModel } from './buildReceiptViewModel';
+import { RECEIPT_RASTER_FONT_BOOST } from '@/constants/receiptPrintTokens';
 import type { EscPosEncoding, PrinterProfile, ReceiptPrintPayload } from '@/types/printing';
 import type { BranchPrintSettingsNormalized } from '@/utils/branchPrintSettings';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
@@ -10,8 +11,16 @@ function effectiveTextEncoding(profile: PrinterProfile): EscPosEncoding {
 }
 
 function fontScale(size: number): { w: boolean; h: boolean } {
-  if (size >= 18) return { w: true, h: true };
-  if (size >= 14) return { w: true, h: false };
+  const boosted = size * RECEIPT_RASTER_FONT_BOOST;
+  if (boosted >= 14) return { w: true, h: true };
+  if (boosted >= 10) return { w: true, h: false };
+  return { w: false, h: false };
+}
+
+function bodyFontScale(size: number): { w: boolean; h: boolean } {
+  const boosted = size * RECEIPT_RASTER_FONT_BOOST;
+  if (boosted >= 18) return { w: true, h: true };
+  if (boosted >= 8) return { w: true, h: false };
   return { w: false, h: false };
 }
 
@@ -113,6 +122,9 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
   const brand = payload._printSettings;
+  const receiptFontSize = brand?.customer_receipt_font_size ?? 12;
+  const bodyScale = bodyFontScale(receiptFontSize);
+  const heroScale = fontScale(receiptFontSize);
   const b = EscPosBuilder.forProfile(profile).init().codePage(enc);
 
   if (brand) {
@@ -135,8 +147,11 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   if (vm.isReprint) b.textLine('--- إعادة طباعة ---', cols, enc);
 
   b.separator(cols);
+  b.size(bodyScale.w, bodyScale.h);
   if (vm.showOrderHero && vm.printSequence) {
+    b.bold(true).size(heroScale.w, heroScale.h);
     b.textLine(`${vm.labels.orderNumber}: ${vm.printSequence}`, cols, enc);
+    b.bold(false).size(bodyScale.w, bodyScale.h);
   }
   b.textLine(`${vm.labels.date}: ${vm.date}`, cols, enc);
   if (vm.cashierName) b.textLine(`${vm.labels.cashier}: ${vm.cashierName}`, cols, enc);
@@ -162,7 +177,10 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   }
   if (vm.tax > 0) b.textLine(`${vm.labels.tax}: ${vm.formatCurrency(vm.tax)}`, cols, enc);
   if (vm.deliveryFee > 0) b.textLine(`${vm.labels.deliveryFee}: ${vm.formatCurrency(vm.deliveryFee)}`, cols, enc);
-  b.bold(true).textLine(`${vm.labels.total}: ${vm.formatCurrency(vm.total)}`, cols, enc).bold(false);
+  const totalScale = fontScale(receiptFontSize);
+  b.bold(true).size(totalScale.w, totalScale.h);
+  b.textLine(`${vm.labels.total}: ${vm.formatCurrency(vm.total)}`, cols, enc);
+  b.size(bodyScale.w, bodyScale.h).bold(false);
   if (vm.paymentBreakdown.length > 1) {
     for (const line of vm.paymentBreakdown) {
       b.textLine(`${line.label}: ${vm.formatCurrency(Number(line.amount))}`, cols, enc);

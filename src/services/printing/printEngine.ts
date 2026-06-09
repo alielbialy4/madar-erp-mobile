@@ -37,7 +37,7 @@ import {
 } from './documentRaster';
 import type { PrintCaptureJob } from '@/types/printing';
 
-async function dispatchBuffer(profile: PrinterProfile, buffer: Uint8Array): Promise<void> {
+export async function sendRawEscPos(profile: PrinterProfile, buffer: Uint8Array): Promise<void> {
   const cap = getConnectionCapability(profile.connection_type);
   if (!cap.supported) {
     throw new Error(cap.reasonAr ?? 'نوع الاتصال غير مدعوم على هذا الجهاز.');
@@ -55,9 +55,17 @@ async function dispatchBuffer(profile: PrinterProfile, buffer: Uint8Array): Prom
       await printHtmlViaAirPrint(html, profile.airprintName ?? profile.name);
       return;
     }
+    case 'bluetooth_android':
+      throw new Error(
+        'فتح الدرج عبر البلوتوث غير مدعوم على هذا الجهاز. اربط طابعة الكاشير عبر الشبكة (TCP) في إعدادات الطباعة.',
+      );
     default:
       throw new Error(cap.reasonAr ?? 'نوع الاتصال غير مدعوم.');
   }
+}
+
+async function dispatchBuffer(profile: PrinterProfile, buffer: Uint8Array): Promise<void> {
+  await sendRawEscPos(profile, buffer);
 }
 
 async function dispatchBluetoothText(profile: PrinterProfile, lines: string[]): Promise<void> {

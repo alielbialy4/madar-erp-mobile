@@ -1,8 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
+import { PrintText as Text } from '@/components/printing/PrintText';
 import { RECEIPT_PRINT_LINE_HEIGHT } from '@/constants/receiptPrintTokens';
-import { fonts } from '@/constants/fonts';
 import { LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH } from '@/constants/printThermalLayout';
 
 type MetaRowProps = {
@@ -127,7 +126,7 @@ export function PrintSectionTitle({ title, fontSize }: SectionTitleProps) {
     <Text
       style={[
         styles.sectionTitle,
-        { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT, fontFamily: fonts.bold },
+        { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
       ]}
     >
       {title}
@@ -179,7 +178,7 @@ export function PrintReprintBanner({ text, fontSize }: ReprintBannerProps) {
       <Text
         style={[
           styles.reprintText,
-          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT, fontFamily: fonts.bold },
+          { fontSize, lineHeight: fontSize * RECEIPT_PRINT_LINE_HEIGHT },
         ]}
       >
         {text}
@@ -196,8 +195,7 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   metaLeader: {
     flex: 1,
@@ -209,8 +207,7 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     maxWidth: '62%',
     textAlign: 'left',
   },
@@ -226,14 +223,12 @@ const styles = StyleSheet.create({
   },
   orderHeroLabel: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     marginBottom: 2,
   },
   orderHeroValue: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     letterSpacing: 1.7,
   },
   totalRow: {
@@ -245,19 +240,16 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     flex: 1,
   },
   totalValue: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'left',
   },
   bold: {
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   grandTotalBox: {
     borderWidth: 1.5,
@@ -275,7 +267,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#000',
-    fontWeight: '900',
+    fontWeight: '500',
     marginBottom: 3,
     textAlign: 'center',
   },
@@ -298,8 +290,7 @@ const styles = StyleSheet.create({
   },
   documentTitleText: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   reprintBanner: {
     borderWidth: 1,
@@ -312,6 +303,6 @@ const styles = StyleSheet.create({
   },
   reprintText: {
     color: '#000',
-    fontWeight: '900',
+    fontWeight: '500',
   },
 });

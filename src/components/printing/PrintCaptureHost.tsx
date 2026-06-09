@@ -8,6 +8,7 @@ import { resolvePrintLogoUri } from '@/services/printing/printLogoCache';
 import { registerPrintCapture } from '@/services/printing/printCaptureRegistry';
 import { dotsForPaper, rasterHasInk } from '@/services/printing/escposRaster';
 import { recordCaptureFailure } from '@/services/printing/printDiagnostics';
+import { withCaptureTimeout } from '@/services/printing/printCaptureTimeout';
 import type {
   KitchenTicketPayload,
   PrintCaptureJob,
@@ -99,6 +100,11 @@ export function PrintCaptureHost() {
   const capturingRef = useRef(false);
   const layoutReadyRef = useRef(false);
 
+  useEffect(() => {
+    capturingRef.current = false;
+    layoutReadyRef.current = false;
+  }, []);
+
   const runCapture = useCallback(async (next: InternalJob) => {
     if (capturingRef.current) return;
     capturingRef.current = true;
@@ -110,13 +116,13 @@ export function PrintCaptureHost() {
         await waitFrames(3);
         await new Promise((r) => setTimeout(r, LAYOUT_SETTLE_MS[attempt] ?? 360));
         try {
-          const captureWidth = dotsForPaper(next.profile.paper_width);
-          const uri = await captureRef(shotRef, {
-            format: 'png',
-            quality: 1,
-            result: 'base64',
-            width: captureWidth,
-          });
+          const uri = await withCaptureTimeout(
+            captureRef(shotRef, {
+              format: 'png',
+              quality: 1,
+              result: 'base64',
+            }),
+          );
           if (uri && rasterHasInk(uri, next.profile.paper_width)) {
             next.resolve(uri);
             return;
@@ -179,9 +185,16 @@ export function PrintCaptureHost() {
     preparedJob ??
     ({ kind: 'receipt', payload: PLACEHOLDER_RECEIPT, profile: PLACEHOLDER_PROFILE } as PrintCaptureJob);
 
+  const captureWidth = dotsForPaper(renderJob.profile.paper_width);
+
   return (
     <View style={{ position: 'absolute', top: 0, left: -10000, opacity: 1 }} pointerEvents="none" collapsable={false}>
-      <View ref={shotRef} collapsable={false} onLayout={onLayoutReady}>
+      <View
+        ref={shotRef}
+        collapsable={false}
+        onLayout={onLayoutReady}
+        style={{ width: captureWidth, alignSelf: 'flex-start', overflow: 'hidden' }}
+      >
         <CaptureContent job={renderJob} />
       </View>
     </View>

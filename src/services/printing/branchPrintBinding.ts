@@ -1,4 +1,4 @@
-import { storageGet, storageSet } from '@/services/storage';
+import { storageGet, storageGetRecord, storageSet } from '@/services/storage';
 import { getEnabledProfilesByRole, getPrinterProfile, getPrinterProfilesStrict } from './printerProfiles';
 import type { PrinterProfile } from '@/types/printing';
 
@@ -34,7 +34,7 @@ export async function saveBranchPrintBinding(
 }
 
 export async function getServerPrinterMap(branchId: string): Promise<ServerPrinterMap> {
-  return (await storageGet<ServerPrinterMap>(serverMapKey(branchId))) ?? {};
+  return storageGetRecord<ServerPrinterMap>(serverMapKey(branchId));
 }
 
 export async function saveServerPrinterMap(branchId: string, map: ServerPrinterMap): Promise<void> {

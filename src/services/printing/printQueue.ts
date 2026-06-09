@@ -1,9 +1,25 @@
 import type { PrintJobRecord, PrintJobStatus, PrintJobType } from '@/types/printing';
-import { storageGet, storageKeys, storageSet } from '@/services/storage';
+import { storageGetArray, storageKeys, storageSet } from '@/services/storage';
 import { createUuid } from '@/utils/uuid';
+import {
+  shouldRecoverPrintingJob,
+  STALE_PRINTING_JOB_MS,
+  STALE_PRINTING_JOB_MESSAGE,
+} from '@/services/printing/printQueueRecovery';
+
+export { shouldRecoverPrintingJob, STALE_PRINTING_JOB_MS, STALE_PRINTING_JOB_MESSAGE };
+
+function isPrintJobRecord(item: unknown): item is PrintJobRecord {
+  return (
+    item != null &&
+    typeof item === 'object' &&
+    typeof (item as PrintJobRecord).id === 'string' &&
+    typeof (item as PrintJobRecord).status === 'string'
+  );
+}
 
 export async function getPrintJobs(): Promise<PrintJobRecord[]> {
-  return (await storageGet<PrintJobRecord[]>(storageKeys.printJobsQueue)) ?? [];
+  return storageGetArray(storageKeys.printJobsQueue, isPrintJobRecord);
 }
 
 async function persist(jobs: PrintJobRecord[]): Promise<void> {
@@ -41,6 +57,7 @@ export async function updatePrintJob(id: string, patch: Partial<PrintJobRecord>)
 export async function setPrintJobStatus(id: string, status: PrintJobStatus, error?: string | null): Promise<void> {
   const patch: Partial<PrintJobRecord> = { status, error_message: error ?? null };
   if (status === 'printed') patch.printed_at = new Date().toISOString();
+  if (status === 'printing') patch.printing_at = new Date().toISOString();
   await updatePrintJob(id, patch);
 }
 
@@ -63,4 +80,22 @@ export function countPrintJobs(jobs: PrintJobRecord[]) {
 export async function getPendingPrintJobs(): Promise<PrintJobRecord[]> {
   const jobs = await getPrintJobs();
   return jobs.filter((j) => j.status === 'pending');
+}
+
+/** Mark jobs stuck in `printing` as failed so the queue can recover. */
+export async function recoverStalePrintJobs(maxAgeMs = STALE_PRINTING_JOB_MS): Promise<number> {
+  const jobs = await getPrintJobs();
+  const now = Date.now();
+  let recovered = 0;
+  const next = jobs.map((job) => {
+    if (!isPrintJobRecord(job) || !shouldRecoverPrintingJob(job, now, maxAgeMs)) return job;
+    recovered += 1;
+    return {
+      ...job,
+      status: 'failed' as PrintJobStatus,
+      error_message: STALE_PRINTING_JOB_MESSAGE,
+    };
+  });
+  if (recovered > 0) await persist(next);
+  return recovered;
 }

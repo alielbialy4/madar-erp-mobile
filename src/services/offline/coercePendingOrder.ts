@@ -74,6 +74,6 @@ export function coercePendingOrderForSync(raw: OfflinePosOrderRecord): OfflinePo
   return {
     ...raw,
     items,
-    payload: { ...raw.payload, items },
+    payload: { ...(raw.payload ?? {}), items },
   };
 }

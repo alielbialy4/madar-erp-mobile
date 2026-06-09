@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
+import { PrintText as Text } from '@/components/printing/PrintText';
 import {
   PrintDocumentTitle,
   PrintGrandTotalBox,
@@ -20,7 +20,6 @@ import {
   scaledReceiptTokens,
 } from '@/constants/receiptPrintTokens';
 import { receiptColumnWidths, thermalPaddingPx } from '@/constants/printThermalLayout';
-import { fonts } from '@/constants/fonts';
 
 type Props = {
   payload: ReceiptPrintPayload;
@@ -68,7 +67,7 @@ export function ReceiptPrintContent({ payload, paperWidth }: Props) {
         <Text
           style={[
             styles.offline,
-            { fontSize: t.offline, lineHeight: t.offline * RECEIPT_PRINT_LINE_HEIGHT, fontFamily: fonts.bold },
+            { fontSize: t.offline, lineHeight: t.offline * RECEIPT_PRINT_LINE_HEIGHT },
           ]}
         >
           {vm.labels.offlineUnsynced}
@@ -204,7 +203,7 @@ export function ReceiptPrintContent({ payload, paperWidth }: Props) {
               { fontSize: t.notes, lineHeight: t.notes * RECEIPT_PRINT_LINE_HEIGHT },
             ]}
           >
-            <Text style={{ fontFamily: fonts.bold, fontWeight: '900' }}>{vm.labels.notes}: </Text>
+            <Text style={{ fontWeight: '500' }}>{vm.labels.notes}: </Text>
             {vm.notes}
           </Text>
         </View>
@@ -282,15 +281,13 @@ const styles = StyleSheet.create({
   },
   storeName: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'center',
     letterSpacing: 0.34,
   },
   headerNote: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'center',
     marginTop: 2,
   },
@@ -298,7 +295,7 @@ const styles = StyleSheet.create({
     color: '#000',
     textAlign: 'center',
     marginBottom: 4,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   metaSection: {
     marginBottom: 5,
@@ -328,8 +325,7 @@ const styles = StyleSheet.create({
   },
   notes: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   footer: {
     alignItems: 'center',
@@ -342,15 +338,13 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#000',
     textAlign: 'center',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     marginBottom: 2,
   },
   footerDev: {
     color: '#000',
     textAlign: 'center',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     marginTop: 4,
   },
 });

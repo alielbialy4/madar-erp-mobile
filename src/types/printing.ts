@@ -53,6 +53,7 @@ export type PrintJobRecord = {
   attempts: number;
   error_message?: string | null;
   created_at: string;
+  printing_at?: string | null;
   printed_at?: string | null;
 };
 

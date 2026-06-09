@@ -11,10 +11,17 @@ function shouldMergeBranchSetting(value: unknown): boolean {
   return true;
 }
 
+function asSettingsRecord(value: unknown): Record<string, unknown> {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
 /** Merges catalog + branch settings for POS (tax, charges, printing, receipts). */
 export function resolvePosCatalogSettings(catalog: PosCatalog | null | undefined): Record<string, unknown> {
-  const base = { ...(catalog?.settings ?? {}) } as Record<string, unknown>;
-  const branch = (catalog?.branch?.settings ?? {}) as Record<string, unknown>;
+  const base = { ...asSettingsRecord(catalog?.settings) };
+  const branch = asSettingsRecord(catalog?.branch?.settings);
   const taxKeys = ['tax_enabled', 'tax_rate', 'tax_name', 'tax_inclusive'] as const;
   const hasBranchTax = taxKeys.some((key) => shouldMergeBranchSetting(branch[key]));
   if (hasBranchTax) {

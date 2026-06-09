@@ -1,5 +1,5 @@
 import type { Coupon, Customer } from '@/types/api';
-import { storageGet, storageKeys, storageSet } from '@/services/storage';
+import { storageGetRecord, storageKeys, storageSet } from '@/services/storage';
 import type { CartLine } from '@/store/posStore';
 
 export type TableCartSnapshot = {
@@ -12,8 +12,7 @@ export type TableCartSnapshot = {
 export type TableCartsRecord = Record<string, TableCartSnapshot>;
 
 export async function getTableCartsRecord(): Promise<TableCartsRecord> {
-  const raw = await storageGet<TableCartsRecord>(storageKeys.posTableCarts);
-  return raw && typeof raw === 'object' ? raw : {};
+  return storageGetRecord<TableCartsRecord>(storageKeys.posTableCarts);
 }
 
 export async function setTableCartsRecord(map: TableCartsRecord): Promise<void> {

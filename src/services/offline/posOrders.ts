@@ -5,7 +5,7 @@ import type {
   OfflineOrderSyncStatus,
   OfflinePosOrderRecord,
 } from '@/types/offline';
-import { storageGet, storageKeys, storageSet } from '@/services/storage';
+import { storageGetArray, storageKeys, storageSet } from '@/services/storage';
 import { createUuid } from '@/utils/uuid';
 
 export type PendingOfflineOrder = OfflinePosOrderRecord;
@@ -53,13 +53,23 @@ function migrateLegacy(row: LegacyPendingOfflineOrder): OfflinePosOrderRecord {
   };
 }
 
+function isStoredOrderRow(row: unknown): row is LegacyPendingOfflineOrder | OfflinePosOrderRecord {
+  return row != null && typeof row === 'object';
+}
+
 function normalizeRows(rows: unknown[]): OfflinePosOrderRecord[] {
-  return rows.map((row) => (isLegacyOrder(row) ? migrateLegacy(row) : row as OfflinePosOrderRecord));
+  return rows
+    .filter(isStoredOrderRow)
+    .map((row) => (isLegacyOrder(row) ? migrateLegacy(row) : row));
+}
+
+async function readStoredOrderRows(): Promise<unknown[]> {
+  return storageGetArray(storageKeys.posPendingOrders, isStoredOrderRow);
 }
 
 export async function getPendingOrders(): Promise<OfflinePosOrderRecord[]> {
-  const raw = await storageGet<unknown[]>(storageKeys.posPendingOrders);
-  if (!raw?.length) return [];
+  const raw = await readStoredOrderRows();
+  if (!raw.length) return [];
   return normalizeRows(raw).filter((o) => o.status !== 'synced');
 }
 
@@ -114,8 +124,8 @@ export async function resetOrdersToPending(clientOrderIds: string[], message?: s
 }
 
 export async function getAllOfflineOrders(): Promise<OfflinePosOrderRecord[]> {
-  const raw = await storageGet<unknown[]>(storageKeys.posPendingOrders);
-  if (!raw?.length) return [];
+  const raw = await readStoredOrderRows();
+  if (!raw.length) return [];
   return normalizeRows(raw);
 }
 
@@ -246,15 +256,16 @@ export function countByStatus(orders: OfflinePosOrderRecord[]) {
 
 /** Payload shape expected by `/sync/offline-orders`. */
 export function toApiOfflineOrder(order: OfflinePosOrderRecord): LegacyPendingOfflineOrder & { sale_date: string } {
+  const payload = order.payload ?? ({} as SalePayload);
   return {
-    ...order.payload,
+    ...payload,
     client_uuid: order.client_uuid,
     branch_id: order.branch_id,
-    shift_id: order.shift_id ?? order.payload.shift_id ?? undefined,
-    warehouse_id: order.payload.warehouse_id ?? undefined,
+    shift_id: order.shift_id ?? payload.shift_id ?? undefined,
+    warehouse_id: payload.warehouse_id ?? undefined,
     created_at_local: order.created_at,
     status: order.status === 'failed' ? 'failed' : 'pending',
     last_error: order.error_message,
-    sale_date: order.payload.sale_date ?? order.created_at,
+    sale_date: payload.sale_date ?? order.created_at,
   };
 }

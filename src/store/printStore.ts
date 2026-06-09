@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PrintJobRecord, PrinterProfile } from '@/types/printing';
 import type { PrintDiagnosticState } from '@/services/printing/printDiagnostics';
-import { countPrintJobs, getPrintJobs } from '@/services/printing/printQueue';
+import { countPrintJobs, getPrintJobs, recoverStalePrintJobs } from '@/services/printing/printQueue';
 import { getPrinterProfiles } from '@/services/printing/printerProfiles';
 import { getPrintDiagnostics } from '@/services/printing/printDiagnostics';
 import { useBranchStore } from '@/store/branchStore';
@@ -32,20 +32,27 @@ export const usePrintStore = create<PrintState>((set) => ({
   pendingCount: 0,
   failedCount: 0,
   refresh: async () => {
-    const branchId = useBranchStore.getState().activeBranch?.id ?? null;
-    const [jobs, profiles, diagnostics] = await Promise.all([
-      getPrintJobs(),
-      getPrinterProfiles(branchId),
-      getPrintDiagnostics(),
-    ]);
-    const counts = countPrintJobs(jobs);
-    set({
-      jobs,
-      profiles,
-      diagnostics,
-      pendingCount: counts.pending,
-      failedCount: counts.failed,
-    });
+    try {
+      await recoverStalePrintJobs();
+      const branchId = useBranchStore.getState().activeBranch?.id ?? null;
+      const [jobs, profiles, diagnostics] = await Promise.all([
+        getPrintJobs(),
+        getPrinterProfiles(branchId),
+        getPrintDiagnostics(),
+      ]);
+      const counts = countPrintJobs(jobs);
+      set({
+        jobs,
+        profiles,
+        diagnostics,
+        pendingCount: counts.pending,
+        failedCount: counts.failed,
+      });
+    } catch (err) {
+      if (__DEV__) {
+        console.warn('[printStore] refresh failed', err);
+      }
+    }
   },
   reset: () =>
     set({

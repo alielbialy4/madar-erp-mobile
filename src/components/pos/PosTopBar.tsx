@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, rtlDirection, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
@@ -25,6 +25,12 @@ type Props = {
   showMobileTabs?: boolean;
   onExit?: () => void;
   cartPulse?: boolean;
+  onShiftSummary?: () => void;
+  onCloseShift?: () => void;
+  onOpenDrawer?: () => void;
+  openDrawerBusy?: boolean;
+  onCashMovement?: () => void;
+  onOpenTables?: () => void;
 };
 
 export function PosTopBar({
@@ -39,11 +45,35 @@ export function PosTopBar({
   showMobileTabs = true,
   onExit,
   cartPulse,
+  onShiftSummary,
+  onCloseShift,
+  onOpenDrawer,
+  openDrawerBusy = false,
+  onCashMovement,
+  onOpenTables,
 }: Props) {
   const c = useColors();
   const bar = usePosHeaderBarStyle();
   const styles = useMemo(() => createStyles(c), [c]);
   const cartScale = useRef(new Animated.Value(1)).current;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const menuActions = useMemo(() => {
+    const items: { key: string; label: string; icon: keyof typeof MaterialIcons.glyphMap; onPress?: () => void }[] = [];
+    if (onShiftSummary) items.push({ key: 'summary', label: 'ملخص الوردية', icon: 'summarize', onPress: onShiftSummary });
+    if (onOpenDrawer) {
+      items.push({
+        key: 'drawer',
+        label: 'فتح الدرج',
+        icon: 'account-balance-wallet',
+        onPress: openDrawerBusy ? undefined : onOpenDrawer,
+      });
+    }
+    if (onCloseShift) items.push({ key: 'close', label: 'إغلاق الوردية', icon: 'logout', onPress: onCloseShift });
+    if (onOpenTables) items.push({ key: 'tables', label: 'الطاولات', icon: 'table-restaurant', onPress: onOpenTables });
+    if (onCashMovement) items.push({ key: 'cash', label: 'حركة نقدية', icon: 'payments', onPress: onCashMovement });
+    return items;
+  }, [onShiftSummary, onOpenDrawer, openDrawerBusy, onCloseShift, onOpenTables, onCashMovement]);
 
   useEffect(() => {
     if (!cartPulse) return;
@@ -77,6 +107,12 @@ export function PosTopBar({
           <PosShiftChip active={hasShift} label={shiftLabel} />
           <PosOnlineChip compact />
         </View>
+
+        {menuActions.length > 0 ? (
+          <Pressable onPress={() => setMenuOpen(true)} style={styles.menuBtn} accessibilityLabel="إجراءات الوردية">
+            <MaterialIcons name="more-vert" size={22} color={c.text} />
+          </Pressable>
+        ) : null}
       </View>
 
       {metaParts.length > 0 ? (
@@ -111,6 +147,27 @@ export function PosTopBar({
           </Pressable>
         </View>
       ) : null}
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View style={[styles.menuSheet, rtlDirection]}>
+            <Text style={styles.menuTitle}>إجراءات الوردية</Text>
+            {menuActions.map((action) => (
+              <Pressable
+                key={action.key}
+                style={styles.menuRow}
+                onPress={() => {
+                  setMenuOpen(false);
+                  action.onPress?.();
+                }}
+              >
+                <MaterialIcons name={action.icon} size={20} color={c.text} />
+                <Text style={styles.menuRowLabel}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -189,5 +246,49 @@ function createStyles(c: AppColors) {
       color: c.primaryForeground,
       writingDirection: 'ltr',
     },
+    menuBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.lg,
+      backgroundColor: c.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      flexShrink: 0,
+    },
+    menuBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'flex-start',
+      alignItems: 'flex-end',
+      paddingTop: 64,
+      paddingHorizontal: spacing.lg,
+    },
+    menuSheet: {
+      minWidth: 220,
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      paddingVertical: spacing.sm,
+      gap: spacing.xs,
+      ...Platform.select({
+        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24 },
+        android: { elevation: 8 },
+        default: {},
+      }),
+    },
+    menuTitle: {
+      ...textStart,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      color: c.textMuted,
+      fontSize: typography.tiny,
+      fontFamily: fonts.bold,
+      fontWeight: '700',
+    },
+    menuRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+    menuRowLabel: { ...textStart, color: c.text, fontSize: typography.body, fontFamily: fonts.medium, fontWeight: '600' },
   });
 }

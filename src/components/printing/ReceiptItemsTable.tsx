@@ -1,9 +1,8 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
+import { PrintText as Text } from '@/components/printing/PrintText';
 import type { ReceiptPrintLabels } from '@/constants/printLabels';
 import { RECEIPT_PRINT_LINE_HEIGHT } from '@/constants/receiptPrintTokens';
-import { fonts } from '@/constants/fonts';
 import type { ReceiptPrintItem } from '@/types/printing';
 
 type Props = {
@@ -73,7 +72,7 @@ export function ReceiptItemsTable({
           <Cell width={cols[0]} fontSize={fontSize.tableHeader} align="right">
             {labels.item}
           </Cell>
-          <Cell width={cols[1]} fontSize={fontSize.tableHeader} align="center">
+          <Cell width={cols[1]} fontSize={fontSize.tableHeader} align="center" numeric>
             {labels.qty}
           </Cell>
           <Cell width={cols[2]} fontSize={fontSize.tableHeader} align="center" numeric>
@@ -167,8 +166,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'center',
     marginBottom: 3,
   },
@@ -194,26 +192,22 @@ const styles = StyleSheet.create({
   },
   cellText: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   itemName: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'right',
   },
   lineDesc: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'right',
     marginTop: 1,
   },
   lineExtra: {
     color: '#000',
-    fontFamily: fonts.bold,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'right',
     marginTop: 1,
   },

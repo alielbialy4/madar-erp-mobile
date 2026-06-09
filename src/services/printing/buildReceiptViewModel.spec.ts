@@ -56,8 +56,8 @@ assert.equal(coupon.couponDiscount, 2);
 assert.equal(coupon.couponCode, 'SAVE');
 
 const vm = buildReceiptViewModel(basePayload);
-assert.equal(vm.scaled(21), 20);
-assert.equal(vm.scaled(14), 13.3);
-assert.equal(vm.scaled(11.5), 10.9);
+assert.equal(vm.scaled(21), 21);
+assert.equal(vm.scaled(14), 14);
+assert.equal(vm.scaled(11.5), 11.5);
 
 console.log('buildReceiptViewModel.spec: ok');

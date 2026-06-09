@@ -15,6 +15,7 @@ import { PosTabletScreen } from './PosTabletScreen';
 import { OfflinePrintIndicators } from '@/components/printing/OfflinePrintIndicators';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
+import { POS_HOLD_CARTS_ENABLED } from '@/constants/posFeatures';
 import { rootRtl, textStart } from '@/constants/layout';
 import { responsive } from '@/constants/responsive';
 import { spacing } from '@/constants/spacing';
@@ -23,6 +24,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { couponsAPI } from '@/api/coupons';
 import { revalidateAppliedCoupon, validateCouponOffline } from '@/api/couponOffline';
 import { giftCardsAPI } from '@/api/giftCards';
+import { cashDrawerAPI } from '@/api/cashDrawer';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { walletAPI } from '@/api/wallet';
@@ -34,15 +36,17 @@ import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, Po
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, type PosOrderType } from '@/utils/posTotals';
 import { money } from '@/utils/format';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
-import { SplitPaymentSheet, SplitLine } from './SplitPaymentSheet';
-import { CheckoutReviewSheet } from './CheckoutReviewSheet';
-import { PosCheckoutSheet } from './PosCheckoutSheet';
+import type { SplitLine } from './SplitPaymentSheet';
+import { PosPaymentModal } from './PosPaymentModal';
 import { VariantPickerSheet } from './VariantPickerSheet';
 import { QuickCustomerSheet } from './QuickCustomerSheet';
 import { CashMovementSheet } from './CashMovementSheet';
-import { PosTablesSheet } from './PosTablesSheet';
+import { PosTablesModal } from './PosTablesModal';
+import { resolveActiveTableOrderId, syncPosTableDraftBeforeCheckout } from '@/hooks/usePosTableDraftSync';
 import { HoldCartsSheet } from './HoldCartsSheet';
+import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
+import { ShiftSummarySheet } from '@/components/shifts/ShiftSummarySheet';
 import { usePosDiningTable } from '@/hooks/usePosDiningTable';
 import { diningAPI } from '@/api/dining';
 import { buildTableOrderDraftPayload, cartContextFromSale, saleMetaFromServer } from '@/utils/posDining';
@@ -54,6 +58,9 @@ import {
 import { getLocallyOccupiedTables, markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
 import { printTablePreInvoiceFromCart } from '@/services/pos/posTablePreInvoicePrint';
+import { openCashDrawer } from '@/services/printing/openCashDrawer';
+import { hasPermission } from '@/utils/permissions';
+import type { ActiveShiftExtended } from '@/types/shifts';
 
 type ProductVariantSelection = { id: string; name?: string | null };
 
@@ -63,6 +70,26 @@ function productHasOptions(product: Product | null): boolean {
 
 function productHasVariants(product: Product | null): boolean {
   return Boolean(product?.variants?.length);
+}
+
+function isCashierRole(user: { roles?: string[] } | null | undefined): boolean {
+  return Boolean(user?.roles?.some((role) => String(role).toLowerCase() === 'cashier'));
+}
+
+function toExtendedShift(shift: ActiveShift): ActiveShiftExtended {
+  return {
+    id: shift.id,
+    shift_no: shift.shift_no,
+    branch_id: shift.branch_id,
+    vault_id: shift.vault_id,
+    vault: shift.vault,
+    opened_at: shift.opened_at,
+    starting_cash: shift.starting_cash,
+    expected_cash: shift.expected_cash,
+    drawer_ledger_enabled: shift.drawer_ledger_enabled,
+    accounting_model: shift.accounting_model,
+    status: shift.status,
+  };
 }
 
 export function POSScreen({ navigation }: { navigation: any }) {
@@ -141,6 +168,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [variantOpen, setVariantOpen] = useState(false);
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
+  const [shiftSummaryOpen, setShiftSummaryOpen] = useState(false);
+  const [closeShiftOpen, setCloseShiftOpen] = useState(false);
+  const [drawerBusy, setDrawerBusy] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
   const [holdCartsOpen, setHoldCartsOpen] = useState(false);
   const [holdCartsMode, setHoldCartsMode] = useState<'list' | 'save'>('list');
@@ -148,8 +178,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const tableDraftSyncGenerationRef = useRef(0);
   const selectedTableIdRef = useRef<string | null>(null);
   const lastDraftErrorRef = useRef<string | null>(null);
-  const [splitOpen, setSplitOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
   const [vaults, setVaults] = useState<Vault[]>([]);
 
@@ -897,9 +925,41 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setCheckoutMessage('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.');
       return;
     }
-    if (selectedTable && orderType === 'dine_in' && isOnline && !selectedTable.activeOrderId) {
-      setCheckoutMessage('تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.');
-      return;
+    let settleOrderId: number | string | null = selectedTable?.activeOrderId ?? null;
+    if (selectedTable && orderType === 'dine_in' && isOnline) {
+      const syncResult = await syncPosTableDraftBeforeCheckout({
+        table: selectedTable,
+        cart,
+        checkoutTotals: {
+          gross: checkoutTotals.gross,
+          tax: checkoutTotals.tax,
+          invoiceDiscount: checkoutTotals.invoiceDiscount,
+          promotionDiscount: checkoutTotals.promotionDiscount,
+          couponDiscount: checkoutTotals.couponDiscount,
+          total: checkoutTotals.totalBeforeLoyalty,
+        },
+        effectiveTotal,
+        selectedCustomerId: selectedCustomer?.id ?? null,
+        notes,
+        allowCoupons,
+        allowManualDiscount,
+        appliedCoupon,
+        updateTableMeta,
+        restoreCartContext,
+      });
+      if (!syncResult.ok) {
+        setCheckoutMessage(syncResult.message || 'تعذر حفظ طلب الطاولة');
+        return;
+      }
+      settleOrderId = selectedTable.activeOrderId ?? settleOrderId;
+      if (!settleOrderId) {
+        settleOrderId = await resolveActiveTableOrderId(selectedTable.id);
+        if (settleOrderId) updateTableMeta({ activeOrderId: settleOrderId });
+      }
+      if (!settleOrderId && cart.length > 0) {
+        setCheckoutMessage('تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.');
+        return;
+      }
     }
     if (!isOnline && loyaltyPointsNum > 0) {
       setCheckoutMessage('استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
@@ -916,6 +976,22 @@ export function POSScreen({ navigation }: { navigation: any }) {
       }
       if (!appliedGiftCard) {
         setCheckoutMessage('تحقق من بطاقة الهدايا أولاً');
+        return;
+      }
+    }
+    if (needsDelivery) {
+      if (!selectedCustomer) {
+        setCheckoutMessage('يجب اختيار عميل قبل التوصيل.');
+        return;
+      }
+      if (!deliveryAddress.trim()) {
+        setCheckoutMessage('أدخل عنوان التوصيل.');
+        return;
+      }
+      const deliveryPhoneReady =
+        deliveryPhone.trim() || (selectedCustomer.phone ? String(selectedCustomer.phone).trim() : '');
+      if (!deliveryPhoneReady) {
+        setCheckoutMessage('أدخل هاتف التوصيل.');
         return;
       }
     }
@@ -992,7 +1068,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         shiftId: shift?.id ?? null,
         settleTable:
           selectedTable && orderType === 'dine_in'
-            ? { tableId: selectedTable.id, orderId: selectedTable.activeOrderId ?? null }
+            ? { tableId: selectedTable.id, orderId: settleOrderId }
             : undefined,
       },
     );
@@ -1005,7 +1081,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
       }
       setPosNotice(result.message);
       setCheckoutOpen(false);
-      setReviewOpen(false);
       setPaid('');
       setNotes('');
       setCouponCode('');
@@ -1064,6 +1139,42 @@ export function POSScreen({ navigation }: { navigation: any }) {
     if (showCategoryCards || categoryId === 'all') return null;
     return categoryItems.find((cat) => cat.id === categoryId)?.name ?? null;
   }, [showCategoryCards, categoryId, categoryItems]);
+
+  const isAdmin = useMemo(
+    () => Boolean(user?.is_super_admin || hasPermission(user, 'access_admin_routes')),
+    [user],
+  );
+  const canCloseShift = hasPermission(user, 'close_shift');
+  const showShiftSummaryAction = Boolean(shift && !isCashierRole(user));
+  const showCloseShiftAction = Boolean(shift && canCloseShift);
+  const showOpenDrawerAction = Boolean(shift);
+
+  const handleOpenDrawer = useCallback(async () => {
+    if (drawerBusy) return;
+    setDrawerBusy(true);
+    try {
+      await openCashDrawer({
+        branchId: activeBranch?.id ?? null,
+        catalogSettings: catalogSettings ?? {},
+      });
+      void cashDrawerAPI.logOpen().catch(() => {});
+      setPosNotice('تم فتح الدرج.');
+    } catch (err) {
+      Alert.alert('فتح الدرج', normalizeApiError(err).message);
+    } finally {
+      setDrawerBusy(false);
+    }
+  }, [activeBranch?.id, catalogSettings, drawerBusy]);
+
+  const shiftToolbarProps = useMemo(
+    () => ({
+      ...(showShiftSummaryAction ? { onShiftSummary: () => setShiftSummaryOpen(true) } : {}),
+      ...(showOpenDrawerAction ? { onOpenDrawer: () => void handleOpenDrawer() } : {}),
+      ...(showCloseShiftAction ? { onCloseShift: () => setCloseShiftOpen(true) } : {}),
+      openDrawerBusy: drawerBusy,
+    }),
+    [showShiftSummaryAction, showOpenDrawerAction, showCloseShiftAction, handleOpenDrawer, drawerBusy],
+  );
 
   const handleExitPos = useCallback(() => {
     const hasCartItems = cart.length > 0;
@@ -1187,14 +1298,18 @@ export function POSScreen({ navigation }: { navigation: any }) {
     onClearCart: clearCart,
     onCheckout: openCheckout,
     onCashMovement: () => setCashMovementOpen(true),
-    onOpenHoldCarts: () => {
-      setHoldCartsMode('list');
-      setHoldCartsOpen(true);
-    },
-    onSaveHoldCart: () => {
-      setHoldCartsMode('save');
-      setHoldCartsOpen(true);
-    },
+    ...(POS_HOLD_CARTS_ENABLED
+      ? {
+          onOpenHoldCarts: () => {
+            setHoldCartsMode('list');
+            setHoldCartsOpen(true);
+          },
+          onSaveHoldCart: () => {
+            setHoldCartsMode('save');
+            setHoldCartsOpen(true);
+          },
+        }
+      : {}),
     onUpdateQty: updateQuantity,
     onRemoveLine: removeLine,
     onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
@@ -1216,8 +1331,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
           onExitPos={handleExitPos}
           onCashMovement={() => setCashMovementOpen(true)}
           onOpenTables={() => setTablesOpen(true)}
-          onOpenHoldCarts={cartPanelProps.onOpenHoldCarts}
-          onSaveHoldCart={cartPanelProps.onSaveHoldCart}
+          {...shiftToolbarProps}
+          {...(POS_HOLD_CARTS_ENABLED
+            ? {
+                onOpenHoldCarts: cartPanelProps.onOpenHoldCarts,
+                onSaveHoldCart: cartPanelProps.onSaveHoldCart,
+              }
+            : {})}
           posNotice={posNotice}
           activeBranch={activeBranch}
           loading={loading}
@@ -1262,6 +1382,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
             lastSyncedLabel={lastSyncedLabel}
             showMobileTabs
             onExit={handleExitPos}
+            onCashMovement={() => setCashMovementOpen(true)}
+            onOpenTables={() => setTablesOpen(true)}
+            {...shiftToolbarProps}
           />
           <OfflinePrintIndicators compact />
           {posNotice ? (
@@ -1326,7 +1449,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         </>
       )}
 
-      <PosCheckoutSheet
+      <PosPaymentModal
         visible={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         amountDue={effectiveTotal}
@@ -1372,16 +1495,34 @@ export function POSScreen({ navigation }: { navigation: any }) {
         checkoutMessage={checkoutMessage}
         hasCustomer={!!selectedCustomer}
         selectedTableName={selectedTableName}
-        vaultsEmpty={vaults.length === 0}
-        onOpenSplit={() => setSplitOpen(true)}
-        onReview={() => setReviewOpen(true)}
-        splitLinesCount={splitLines.length}
+        customerName={selectedCustomer?.name ?? null}
+        vaults={vaults}
+        splitLines={splitLines}
+        onSplitLinesChange={setSplitLines}
+        onConfirm={() => void handleCheckout()}
+        loading={submitting}
+        subtotal={checkoutTotals.gross}
+        discount={checkoutTotals.invoiceDiscount}
+        totalBeforeLoyalty={checkoutTotals.totalBeforeLoyalty}
+        promotionDiscount={checkoutTotals.promotionDiscount}
+        tax={checkoutTotals.tax}
+        serviceCharge={checkoutTotals.serviceCharge}
+        deliveryFeeSummary={checkoutTotals.deliveryFee}
+        loyaltyPointsRedeemed={loyaltyPointsNum}
         layawayTermMonths={layawayTermMonths}
         onLayawayTermMonthsChange={setLayawayTermMonths}
         layawayMarkupPercent={layawayMarkupPercent}
         onLayawayMarkupPercentChange={setLayawayMarkupPercent}
         layawayFirstDueDate={layawayFirstDueDate}
         onLayawayFirstDueDateChange={setLayawayFirstDueDate}
+        customers={customers}
+        selectedCustomer={selectedCustomer}
+        onSelectCustomer={setCustomer}
+        branchId={activeBranch?.id ?? null}
+        onCustomerCreated={(customer) => {
+          setCustomer(customer);
+          void loadCatalog();
+        }}
         needsDelivery={needsDelivery}
         onNeedsDeliveryChange={(value) => {
           if (value) void setDiningTable(null, { forceRelease: true });
@@ -1400,29 +1541,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
         deliveryPhone={deliveryPhone}
         onDeliveryPhoneChange={setDeliveryPhone}
         deliveryFee={deliveryFee}
-      />
-
-      <CheckoutReviewSheet
-        visible={reviewOpen}
-        cart={cart}
-        subtotal={checkoutTotals.gross}
-        discount={checkoutTotals.invoiceDiscount}
-        total={checkoutTotals.totalBeforeLoyalty}
-        coupon={appliedCoupon}
-        promotionDiscount={checkoutTotals.promotionDiscount}
-        tax={checkoutTotals.tax}
-        serviceCharge={checkoutTotals.serviceCharge}
-        deliveryFee={checkoutTotals.deliveryFee}
-        loyaltyDiscount={loyaltyDiscount}
-        loyaltyPointsRedeemed={loyaltyPointsNum}
-        giftCard={appliedGiftCard}
-        paymentType={paymentType}
-        paid={Number(paid || effectiveTotal)}
-        customerName={selectedCustomer?.name ?? null}
-        tableName={selectedTableName}
-        onClose={() => setReviewOpen(false)}
-        onConfirm={handleCheckout}
-        loading={submitting}
       />
 
       <ModifierPickerSheet
@@ -1444,18 +1562,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
           setVariantProduct(null);
         }}
         onSelect={handleVariantSelect}
-      />
-
-      <SplitPaymentSheet
-        visible={splitOpen}
-        totalDue={effectiveTotal}
-        vaults={vaults}
-        hasCustomer={!!selectedCustomer}
-        onClose={() => setSplitOpen(false)}
-        onConfirm={(lines) => {
-          setSplitLines(lines);
-          setSplitOpen(false);
-        }}
       />
 
       <AppBottomSheet visible={customerOpen} onClose={() => setCustomerOpen(false)}>
@@ -1506,6 +1612,24 @@ export function POSScreen({ navigation }: { navigation: any }) {
         }}
       />
 
+      <ShiftSummarySheet
+        visible={shiftSummaryOpen}
+        shiftId={shift?.id ?? null}
+        branchId={activeBranch?.id ?? shift?.branch_id ?? null}
+        onClose={() => setShiftSummaryOpen(false)}
+      />
+
+      <CloseShiftSheet
+        visible={closeShiftOpen}
+        shift={shift ? toExtendedShift(shift) : null}
+        isAdmin={isAdmin}
+        onClose={() => setCloseShiftOpen(false)}
+        onSuccess={() => {
+          setCloseShiftOpen(false);
+          void refreshShift();
+        }}
+      />
+
       <OpenShiftSheet
         visible={needOpenShift}
         branchId={activeBranch?.id ?? null}
@@ -1515,7 +1639,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onSuccess={() => void refreshShift()}
       />
 
-      <PosTablesSheet
+      <PosTablesModal
         visible={tablesOpen}
         branchId={activeBranch?.id ?? null}
         isOnline={isOnline}
@@ -1529,25 +1653,27 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onMergeTable={handleMergeTableFromSheet}
       />
 
-      <HoldCartsSheet
-        visible={holdCartsOpen}
-        initialMode={holdCartsMode}
-        cart={cart}
-        customer={selectedCustomer}
-        manualDiscount={manualDiscountAmount}
-        appliedCoupon={appliedCoupon}
-        cartTotal={effectiveTotal}
-        onClose={() => setHoldCartsOpen(false)}
-        onRestore={(data) => {
-          restoreCartContext({
-            lines: data.lines,
-            cartDiscount: data.manualDiscount,
-            customer: data.customer,
-            appliedCoupon: data.appliedCoupon,
-          });
-          setPosNotice('تم استعادة السلة المحفوظة.');
-        }}
-      />
+      {POS_HOLD_CARTS_ENABLED ? (
+        <HoldCartsSheet
+          visible={holdCartsOpen}
+          initialMode={holdCartsMode}
+          cart={cart}
+          customer={selectedCustomer}
+          manualDiscount={manualDiscountAmount}
+          appliedCoupon={appliedCoupon}
+          cartTotal={effectiveTotal}
+          onClose={() => setHoldCartsOpen(false)}
+          onRestore={(data) => {
+            restoreCartContext({
+              lines: data.lines,
+              cartDiscount: data.manualDiscount,
+              customer: data.customer,
+              appliedCoupon: data.appliedCoupon,
+            });
+            setPosNotice('تم استعادة السلة المحفوظة.');
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

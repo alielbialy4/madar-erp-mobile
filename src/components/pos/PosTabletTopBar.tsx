@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, rtlDirection, textStart } from '@/constants/layout';
@@ -9,6 +9,7 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useBranchStore } from '@/store/branchStore';
+import { POS_HOLD_CARTS_ENABLED } from '@/constants/posFeatures';
 import { backArrowIcon } from '@/utils/rtl';
 import {
   PosBranchMark,
@@ -28,6 +29,10 @@ type Props = {
   onOpenHoldCarts?: () => void;
   onCashMovement?: () => void;
   onOpenTables?: () => void;
+  onShiftSummary?: () => void;
+  onCloseShift?: () => void;
+  onOpenDrawer?: () => void;
+  openDrawerBusy?: boolean;
 };
 
 type MenuAction = {
@@ -76,6 +81,10 @@ export function PosTabletTopBar({
   onOpenHoldCarts,
   onCashMovement,
   onOpenTables,
+  onShiftSummary,
+  onCloseShift,
+  onOpenDrawer,
+  openDrawerBusy = false,
 }: Props) {
   const activeBranch = useBranchStore((s) => s.activeBranch);
   const viewMode = useBranchStore((s) => s.viewMode);
@@ -93,6 +102,34 @@ export function PosTabletTopBar({
     return items;
   }, [onCashMovement]);
 
+  const toolbarActions = useMemo(() => {
+    const items: {
+      key: string;
+      label: string;
+      icon: keyof typeof MaterialIcons.glyphMap;
+      onPress?: () => void;
+      accent?: boolean;
+    }[] = [];
+    if (onShiftSummary) items.push({ key: 'summary', label: 'ملخص الوردية', icon: 'summarize', onPress: onShiftSummary });
+    if (onOpenDrawer) {
+      items.push({
+        key: 'drawer',
+        label: 'فتح الدرج',
+        icon: 'account-balance-wallet',
+        onPress: openDrawerBusy ? undefined : onOpenDrawer,
+      });
+    }
+    if (onCloseShift) items.push({ key: 'close', label: 'إغلاق الوردية', icon: 'logout', onPress: onCloseShift });
+    if (onOpenTables) items.push({ key: 'tables', label: 'الطاولات', icon: 'table-restaurant', onPress: onOpenTables, accent: true });
+    if (onOpenHoldCarts && POS_HOLD_CARTS_ENABLED) {
+      items.push({ key: 'hold-list', label: 'السلات', icon: 'inventory-2', onPress: onOpenHoldCarts });
+    }
+    if (onSaveHoldCart && POS_HOLD_CARTS_ENABLED) {
+      items.push({ key: 'hold-save', label: 'حفظ', icon: 'pause-circle-outline', onPress: onSaveHoldCart });
+    }
+    return items;
+  }, [onShiftSummary, onOpenDrawer, openDrawerBusy, onCloseShift, onOpenTables, onOpenHoldCarts, onSaveHoldCart]);
+
   return (
     <>
       <View style={[styles.bar, rtlDirection]}>
@@ -102,27 +139,42 @@ export function PosTabletTopBar({
 
         <PosBranchMark />
 
-        <View style={styles.center}>
-          <View style={styles.centerTop}>
-            <Text style={bar.branchName} numberOfLines={1}>
-              {branchLabel}
-            </Text>
-            <View style={styles.chips}>
-              <PosShiftChip active={hasShift} label={shiftLabel} />
-              <PosOnlineChip compact />
+        <View style={styles.main}>
+          <View style={styles.center}>
+            <View style={styles.centerTop}>
+              <Text style={bar.branchName} numberOfLines={1}>
+                {branchLabel}
+              </Text>
+              <View style={styles.chips}>
+                <PosShiftChip active={hasShift} label={shiftLabel} />
+                <PosOnlineChip compact />
+              </View>
             </View>
+            {metaParts.length > 0 ? (
+              <Text style={bar.meta} numberOfLines={1}>
+                {metaParts.join(' · ')}
+              </Text>
+            ) : null}
           </View>
-          {metaParts.length > 0 ? (
-            <Text style={bar.meta} numberOfLines={1}>
-              {metaParts.join(' · ')}
-            </Text>
-          ) : null}
-        </View>
 
-        <View style={styles.actions}>
-          {onOpenTables ? <QuickAction label="الطاولات" icon="table-restaurant" onPress={onOpenTables} accent /> : null}
-          {onOpenHoldCarts ? <QuickAction label="السلات" icon="inventory-2" onPress={onOpenHoldCarts} /> : null}
-          {onSaveHoldCart ? <QuickAction label="حفظ" icon="pause-circle-outline" onPress={onSaveHoldCart} /> : null}
+          {toolbarActions.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.actionsScroll}
+              contentContainerStyle={[styles.actionsRow, rtlDirection]}
+            >
+              {toolbarActions.map((action) => (
+                <QuickAction
+                  key={action.key}
+                  label={action.label}
+                  icon={action.icon}
+                  onPress={action.onPress}
+                  accent={action.accent}
+                />
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
 
         {menuActions.length > 0 ? (
@@ -170,6 +222,24 @@ function createStyles(c: AppColors) {
       minHeight: 60,
       ...posHeaderElevation(c),
     },
+    main: {
+      flex: 1,
+      minWidth: 0,
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    actionsScroll: {
+      flex: 1,
+      minWidth: 0,
+      flexGrow: 1,
+    },
+    actionsRow: {
+      ...flexRow,
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: 2,
+    },
     exitBtn: {
       width: 40,
       height: 40,
@@ -181,15 +251,9 @@ function createStyles(c: AppColors) {
       borderColor: c.softDangerBorder,
       flexShrink: 0,
     },
-    center: { flex: 1, minWidth: 0, gap: 3 },
-    centerTop: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+    center: { flexShrink: 1, minWidth: 88, maxWidth: '38%', gap: 2 },
+    centerTop: { ...flexRow, alignItems: 'center', gap: spacing.sm },
     chips: { ...flexRow, alignItems: 'center', gap: spacing.xs, flexShrink: 0 },
-    actions: {
-      ...flexRow,
-      alignItems: 'center',
-      gap: spacing.xs,
-      flexShrink: 0,
-    },
     quickActionBtn: {
       ...flexRow,
       alignItems: 'center',
@@ -200,7 +264,7 @@ function createStyles(c: AppColors) {
       backgroundColor: c.surfaceMuted,
       borderWidth: 1,
       borderColor: c.borderSubtle,
-      maxWidth: 108,
+      flexShrink: 0,
     },
     quickActionAccent: {
       backgroundColor: c.primarySoftMuted,

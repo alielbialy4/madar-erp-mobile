@@ -30,8 +30,11 @@ export type ReceiptPrintTokenKey = keyof typeof RECEIPT_PRINT_TOKENS;
 
 export const RECEIPT_PRINT_LINE_HEIGHT = 1.35;
 
+/** Thermal raster prints smaller than browser HTML at same CSS px — boost for readability. */
+export const RECEIPT_RASTER_FONT_BOOST = 2;
+
 export function scaledReceiptToken(vm: ReceiptViewModel, key: ReceiptPrintTokenKey): number {
-  return vm.scaled(RECEIPT_PRINT_TOKENS[key]);
+  return vm.scaled(RECEIPT_PRINT_TOKENS[key]) * RECEIPT_RASTER_FONT_BOOST;
 }
 
 export function scaledReceiptTokens(vm: ReceiptViewModel): Record<ReceiptPrintTokenKey, number> {

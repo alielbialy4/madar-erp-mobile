@@ -1,7 +1,21 @@
 import type { PrinterProfile } from '@/types/printing';
 import { defaultCharsPerLine, recommendedConnectionForPlatform } from './printerCapabilities';
-import { storageGet, storageKeys, storageSet } from '@/services/storage';
+import { storageGet, storageGetArray, storageKeys, storageSet } from '@/services/storage';
 import { createUuid } from '@/utils/uuid';
+
+function isPrinterProfile(item: unknown): item is PrinterProfile {
+  return (
+    item != null &&
+    typeof item === 'object' &&
+    typeof (item as PrinterProfile).id === 'string' &&
+    typeof (item as PrinterProfile).name === 'string' &&
+    typeof (item as PrinterProfile).role === 'string'
+  );
+}
+
+async function readAllPrinterProfiles(): Promise<PrinterProfile[]> {
+  return storageGetArray(storageKeys.printerProfiles, isPrinterProfile);
+}
 
 /**
  * Read all stored printer profiles, optionally filtered by branch.
@@ -13,7 +27,7 @@ import { createUuid } from '@/utils/uuid';
  *   the global PrintQueueScreen, migrations, and diagnostics).
  */
 export async function getPrinterProfiles(branchId?: string | null): Promise<PrinterProfile[]> {
-  const all = (await storageGet<PrinterProfile[]>(storageKeys.printerProfiles)) ?? [];
+  const all = await readAllPrinterProfiles();
   if (branchId === undefined) return all;
   const normalized = branchId || null;
   return all.filter((p) => (p.branch_id ?? null) === normalized || p.branch_id == null);
@@ -21,7 +35,7 @@ export async function getPrinterProfiles(branchId?: string | null): Promise<Prin
 
 /** Branch UI: only profiles scoped to this branch (no legacy shared rows). */
 export async function getPrinterProfilesStrict(branchId: string): Promise<PrinterProfile[]> {
-  const all = (await storageGet<PrinterProfile[]>(storageKeys.printerProfiles)) ?? [];
+  const all = await readAllPrinterProfiles();
   return all.filter((p) => p.branch_id === branchId);
 }
 

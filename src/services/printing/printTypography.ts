@@ -27,7 +27,7 @@ export function clampPrintFontSize(value: unknown, kind: PrintFontKind = 'custom
 
 export function scaleReceiptCssPx(basePx: number, fontSizePx: number): number {
   const safe = clampPrintFontSize(fontSizePx, 'customer');
-  return Math.round(((basePx * safe * THERMAL_READABILITY_SCALE) / RECEIPT_CSS_BASE) * 10) / 10;
+  return Math.round(((basePx * safe) / RECEIPT_CSS_BASE) * 10) / 10;
 }
 
 export function scaleKitchenCssPx(basePx: number, fontSizePx: number): number {

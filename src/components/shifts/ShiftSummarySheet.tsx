@@ -1,20 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppText } from '@/components/ui';
+import { AppBadge, AppButton, AppListItem } from '@/components/ui';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { shiftsAPI } from '@/api/shifts';
 import { printShiftSummaryForShift } from '@/services/printing/shiftSummaryPrint';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { dateText, money, numberText } from '@/utils/format';
+import { paymentTypeLabel } from '@/utils/paymentLabels';
+import { saleStatusBadgeTone, saleStatusLabel, shiftStatusBadgeTone, shiftStatusLabel } from '@/utils/saleStatus';
 import { normalizeShiftSummary } from '@/utils/shiftSummaryNormalize';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
 import type { ShiftDetailedSummary } from '@/types/shifts';
 import { ShiftClosingAmountBanner } from './ShiftClosingAmountBanner';
+import {
+  ShiftHighlightCard,
+  ShiftInfoTile,
+  ShiftKpiRow,
+  ShiftKpiTile,
+  ShiftSectionCard,
+  ShiftSheetFooter,
+} from './shiftSheetUi';
+import { AppText } from '@/components/ui/AppText';
 
 const BRANCH_REQUIRED_AR = 'تعذر تحديد فرع الوردية';
 
@@ -25,29 +35,6 @@ type Props = {
   onClose: () => void;
 };
 
-function paymentLabel(type: string): string {
-  const map: Record<string, string> = {
-    cash: 'نقدي',
-    card: 'بطاقة',
-    credit: 'آجل',
-    layaway: 'تقسيط',
-    split: 'دفع متعدد',
-  };
-  return map[type] ?? type;
-}
-
-function KpiRow({ label, value, tone }: { label: string; value: string; tone?: 'default' | 'success' | 'warning' | 'danger' }) {
-  const c = useColors();
-  const color =
-    tone === 'success' ? c.success : tone === 'warning' ? c.warning : tone === 'danger' ? c.danger : c.text;
-  return (
-    <View style={{ ...flexRow, justifyContent: 'space-between', paddingVertical: spacing.xs }}>
-      <AppText style={{ ...textStart, color: c.textMuted, fontSize: typography.small }}>{label}</AppText>
-      <AppText style={{ fontWeight: '800', color }}>{value}</AppText>
-    </View>
-  );
-}
-
 export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props) {
   const c = useColors();
   const [data, setData] = useState<ShiftDetailedSummary | null>(null);
@@ -55,21 +42,14 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        footer: { ...flexRow, gap: spacing.sm, paddingTop: spacing.md },
-        section: { gap: spacing.sm },
-        calcTotal: {
-          borderTopWidth: 1,
-          borderTopColor: c.border,
-          marginTop: spacing.sm,
-          paddingTop: spacing.sm,
-          ...flexRow,
-          justifyContent: 'space-between',
-        },
-      }),
-    [c.border],
+  const listDivider = useMemo(
+    () => ({
+      borderTopWidth: 1,
+      borderTopColor: c.borderSubtle,
+      paddingTop: spacing.sm,
+      marginTop: spacing.xs,
+    }),
+    [c.borderSubtle],
   );
 
   const fetchData = useCallback(async () => {
@@ -123,7 +103,13 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
   const variance = data?.totals.variance != null ? Number(data.totals.variance) : null;
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} title="ملخص الوردية">
+    <AppBottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="ملخص الوردية"
+      subtitle="نظرة سريعة على أداء الوردية الحالية"
+      size="fullscreen"
+    >
       {!shiftId ? (
         <AppText style={textStart}>لا توجد وردية محددة.</AppText>
       ) : loading ? (
@@ -131,129 +117,145 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
       ) : error && !data ? (
         <AppErrorState message={error} onRetry={fetchData} />
       ) : data ? (
-        <View style={{ gap: spacing.lg, paddingBottom: spacing.xl }}>
+        <View style={styles.content}>
           <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
-            <AppBadge label={data.shift.status === 'open' ? 'مفتوحة' : 'مغلقة'} tone={data.shift.status === 'open' ? 'success' : 'default'} />
+            <AppBadge
+              label={shiftStatusLabel(data.shift.status)}
+              tone={shiftStatusBadgeTone(data.shift.status)}
+            />
             {data.shift.branch?.name ? <AppBadge label={data.shift.branch.name} tone="info" /> : null}
+            {data.shift.shift_no != null ? (
+              <AppBadge label={`وردية #${data.shift.shift_no}`} tone="neutral" />
+            ) : null}
           </View>
 
-          <AppCard style={styles.section}>
-            <AppSectionHeader title="بيانات الوردية" />
-            <KpiRow label="الكاشير" value={data.shift.cashier?.name ?? '—'} />
-            <KpiRow label="الخزينة" value={data.shift.vault?.name ?? '—'} />
-            <KpiRow label="رقم الوردية" value={data.shift.shift_no != null ? String(data.shift.shift_no) : '—'} />
-            <KpiRow label="وقت الافتتاح" value={dateText(data.shift.opened_at)} />
-            <KpiRow label="وقت الإغلاق" value={dateText(data.shift.closed_at)} />
-            <KpiRow label="رصيد الافتتاح" value={fmt(data.shift.starting_cash)} tone="success" />
-          </AppCard>
+          <ShiftHighlightCard label="رصيد الافتتاح" value={fmt(data.shift.starting_cash)} />
 
-          <AppCard style={styles.section}>
-            <AppSectionHeader title="ملخص الإيرادات" />
-            <KpiRow label="إجمالي المبيعات" value={fmt(data.totals.gross_sales)} />
-            <KpiRow label="إجمالي المدفوع" value={fmt(data.totals.total_paid)} />
-            <KpiRow label="المرتجعات" value={fmt(data.totals.total_refunds)} tone="warning" />
-            <KpiRow label="صافي الإيراد" value={fmt(data.totals.net_revenue)} tone="success" />
-            <KpiRow label="مبيعات نقدية" value={fmt(data.totals.cash_sales)} />
-            <KpiRow label="مبيعات غير نقدية" value={fmt(data.totals.non_cash_sales)} />
+          <View style={styles.kpiGrid}>
+            <ShiftKpiTile label="إجمالي المبيعات" value={fmt(data.totals.gross_sales)} tone="info" />
+            <ShiftKpiTile label="صافي الإيراد" value={fmt(data.totals.net_revenue)} tone="success" />
+            <ShiftKpiTile label="مبيعات نقدية" value={fmt(data.totals.cash_sales)} tone="default" />
+            <ShiftKpiTile label="المرتجعات" value={fmt(data.totals.total_refunds)} tone="warning" />
+          </View>
+
+          <View style={styles.infoGrid}>
+            <ShiftInfoTile label="الكاشير" value={data.shift.cashier?.name ?? '—'} />
+            <ShiftInfoTile label="الخزينة" value={data.shift.vault?.name ?? '—'} />
+            <ShiftInfoTile label="وقت الافتتاح" value={dateText(data.shift.opened_at)} />
+            <ShiftInfoTile label="وقت الإغلاق" value={dateText(data.shift.closed_at)} />
+          </View>
+
+          <ShiftSectionCard title="ملخص الإيرادات" icon="bar-chart">
+            <ShiftKpiRow label="إجمالي المدفوع" value={fmt(data.totals.total_paid)} />
+            <ShiftKpiRow label="مبيعات غير نقدية" value={fmt(data.totals.non_cash_sales)} />
             {Number(data.totals.card_payments ?? 0) > 0 ? (
-              <KpiRow label="بطاقات" value={fmt(data.totals.card_payments ?? 0)} />
+              <ShiftKpiRow label="بطاقات" value={fmt(data.totals.card_payments ?? 0)} />
             ) : null}
             {Number(data.totals.instapay_payments ?? 0) > 0 ? (
-              <KpiRow label="إنستا باي" value={fmt(data.totals.instapay_payments ?? 0)} />
+              <ShiftKpiRow label="إنستا باي" value={fmt(data.totals.instapay_payments ?? 0)} />
             ) : null}
             {Number(data.totals.electronic_wallet_payments ?? 0) > 0 ? (
-              <KpiRow label="محافظ إلكترونية" value={fmt(data.totals.electronic_wallet_payments ?? 0)} />
+              <ShiftKpiRow label="محافظ إلكترونية" value={fmt(data.totals.electronic_wallet_payments ?? 0)} />
             ) : null}
-            <KpiRow label="عدد الفواتير" value={numberText(data.totals.invoice_count)} />
-          </AppCard>
+            <ShiftKpiRow label="عدد الفواتير" value={numberText(data.totals.invoice_count)} tone="info" />
+          </ShiftSectionCard>
 
-          <AppCard style={styles.section}>
-            <AppSectionHeader title={`الفواتير (${data.invoices.length})`} />
+          <ShiftSectionCard title={`الفواتير (${data.invoices.length})`} icon="receipt-long">
             {data.invoices.length === 0 ? (
               <AppText style={{ ...textStart, color: c.textMuted }}>لا توجد فواتير في هذه الوردية.</AppText>
             ) : (
-              data.invoices.slice(0, 30).map((inv) => (
-                <AppListItem
-                  key={inv.id}
-                  title={inv.invoice_number || String(inv.print_sequence ?? inv.id)}
-                  subtitle={`${dateText(inv.created_at)} · ${paymentLabel(inv.payment_type)}`}
-                  meta={fmt(inv.total)}
-                  badge={<AppBadge label={inv.status} tone={inv.status === 'completed' ? 'success' : 'warning'} />}
-                />
+              data.invoices.slice(0, 30).map((inv, index) => (
+                <View key={inv.id} style={index > 0 ? listDivider : undefined}>
+                  <AppListItem
+                    title={inv.invoice_number || String(inv.print_sequence ?? inv.id)}
+                    subtitle={`${dateText(inv.created_at)} · ${paymentTypeLabel(inv.payment_type)}`}
+                    meta={fmt(inv.total)}
+                    badge={
+                      <AppBadge
+                        label={saleStatusLabel(inv.status)}
+                        tone={saleStatusBadgeTone(inv.status)}
+                      />
+                    }
+                  />
+                </View>
               ))
             )}
-          </AppCard>
+          </ShiftSectionCard>
 
           {data.sold_products.length > 0 ? (
-            <AppCard style={styles.section}>
-              <AppSectionHeader title={`المنتجات المباعة (${data.sold_products.length})`} />
-              {data.sold_products.slice(0, 25).map((p) => (
-                <AppListItem
-                  key={p.product_id}
-                  title={p.product_name}
-                  subtitle={p.category_name ?? undefined}
-                  meta={fmt(p.net_amount)}
-                />
+            <ShiftSectionCard title={`المنتجات المباعة (${data.sold_products.length})`} icon="inventory-2">
+              {data.sold_products.slice(0, 25).map((p, index) => (
+                <View key={p.product_id} style={index > 0 ? listDivider : undefined}>
+                  <AppListItem
+                    title={p.product_name}
+                    subtitle={p.category_name ?? undefined}
+                    meta={fmt(p.net_amount)}
+                  />
+                </View>
               ))}
-            </AppCard>
+            </ShiftSectionCard>
           ) : null}
 
           {data.refunds.length > 0 ? (
-            <AppCard style={styles.section}>
-              <AppSectionHeader title={`المرتجعات (${data.refunds.length})`} />
-              {data.refunds.map((r) => (
-                <AppListItem
-                  key={r.id}
-                  title={r.invoice_number || String(r.sale_id)}
-                  subtitle={dateText(r.created_at)}
-                  meta={fmt(r.amount)}
-                  badge={<AppBadge label="مرتجع" tone="warning" />}
-                />
+            <ShiftSectionCard title={`المرتجعات (${data.refunds.length})`} icon="undo">
+              {data.refunds.map((r, index) => (
+                <View key={r.id} style={index > 0 ? listDivider : undefined}>
+                  <AppListItem
+                    title={r.invoice_number || String(r.sale_id)}
+                    subtitle={dateText(r.created_at)}
+                    meta={fmt(r.amount)}
+                    badge={<AppBadge label="مرتجع" tone="warning" />}
+                  />
+                </View>
               ))}
-            </AppCard>
+            </ShiftSectionCard>
           ) : null}
 
           {data.expenses.length > 0 ? (
-            <AppCard style={styles.section}>
-              <AppSectionHeader title={`المصروفات (${data.expenses.length})`} />
-              <KpiRow label="إجمالي المصروفات" value={fmt(data.totals.total_expenses)} tone="danger" />
-              {data.expenses.map((e) => (
-                <AppListItem
-                  key={e.id}
-                  title={e.category_name ?? 'مصروف'}
-                  subtitle={e.note ?? undefined}
-                  meta={fmt(e.amount)}
-                />
+            <ShiftSectionCard title={`المصروفات (${data.expenses.length})`} icon="receipt">
+              <ShiftKpiRow label="إجمالي المصروفات" value={fmt(data.totals.total_expenses)} tone="danger" />
+              {data.expenses.map((e, index) => (
+                <View key={e.id} style={index > 0 ? listDivider : undefined}>
+                  <AppListItem
+                    title={e.category_name ?? 'مصروف'}
+                    subtitle={e.note ?? undefined}
+                    meta={fmt(e.amount)}
+                  />
+                </View>
               ))}
-            </AppCard>
+            </ShiftSectionCard>
           ) : null}
 
-          <AppCard style={styles.section}>
-            <AppSectionHeader title="الحركات النقدية" />
-            <KpiRow label="إيداعات نقدية" value={fmt(data.totals.cash_deposits)} tone="success" />
-            <KpiRow label="مسحوبات نقدية" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
-            <KpiRow label="مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
-            {data.cash_movements.map((cm) => (
-              <AppListItem
-                key={String(cm.id)}
-                title={cm.type === 'cash_in' ? 'إيداع' : 'سحب'}
-                subtitle={cm.note ?? undefined}
-                meta={fmt(cm.amount)}
-                badge={<AppBadge label={cm.direction === 'in' ? 'داخل' : 'خارج'} tone={cm.direction === 'in' ? 'success' : 'warning'} />}
-              />
+          <ShiftSectionCard title="الحركات النقدية" icon="swap-horiz">
+            <ShiftKpiRow label="إيداعات نقدية" value={fmt(data.totals.cash_deposits)} tone="success" />
+            <ShiftKpiRow label="مسحوبات نقدية" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
+            <ShiftKpiRow label="مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
+            {data.cash_movements.map((cm, index) => (
+              <View key={String(cm.id)} style={index > 0 ? listDivider : undefined}>
+                <AppListItem
+                  title={cm.type === 'cash_in' ? 'إيداع' : 'سحب'}
+                  subtitle={cm.note ?? undefined}
+                  meta={fmt(cm.amount)}
+                  badge={
+                    <AppBadge
+                      label={cm.direction === 'in' ? 'داخل' : 'خارج'}
+                      tone={cm.direction === 'in' ? 'success' : 'warning'}
+                    />
+                  }
+                />
+              </View>
             ))}
-          </AppCard>
+          </ShiftSectionCard>
 
-          <AppCard style={styles.section}>
-            <AppSectionHeader title="ملخص الإغلاق" />
-            <KpiRow label="رصيد الافتتاح" value={fmt(data.shift.starting_cash)} />
-            <KpiRow label="+ مبيعات نقدية" value={fmt(data.totals.cash_sales)} tone="success" />
-            <KpiRow label="+ إيداعات" value={fmt(data.totals.cash_deposits)} tone="success" />
-            <KpiRow label="- مرتجعات نقدية" value={fmt(data.totals.cash_refunds)} tone="warning" />
-            <KpiRow label="- مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
-            <KpiRow label="- مسحوبات" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
+          <ShiftSectionCard title="ملخص الإغلاق" icon="account-balance-wallet">
+            <ShiftKpiRow label="رصيد الافتتاح" value={fmt(data.shift.starting_cash)} />
+            <ShiftKpiRow label="+ مبيعات نقدية" value={fmt(data.totals.cash_sales)} tone="success" />
+            <ShiftKpiRow label="+ إيداعات" value={fmt(data.totals.cash_deposits)} tone="success" />
+            <ShiftKpiRow label="- مرتجعات نقدية" value={fmt(data.totals.cash_refunds)} tone="warning" />
+            <ShiftKpiRow label="- مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
+            <ShiftKpiRow label="- مسحوبات" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
             {Number(data.totals.card_payments ?? 0) > 0 ? (
-              <KpiRow label="بطاقات (معلوماتي)" value={fmt(data.totals.card_payments ?? 0)} />
+              <ShiftKpiRow label="بطاقات (معلوماتي)" value={fmt(data.totals.card_payments ?? 0)} />
             ) : null}
             <ShiftClosingAmountBanner label="إنستا باي" value={fmt(data.totals.instapay_payments ?? 0)} variant="instapay" />
             <ShiftClosingAmountBanner
@@ -273,9 +275,9 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             </AppText>
             {data.totals.actual_cash != null ? (
               <>
-                <KpiRow label="النقد الفعلي" value={fmt(data.totals.actual_cash)} />
+                <ShiftKpiRow label="النقد الفعلي" value={fmt(data.totals.actual_cash)} />
                 {Number(data.totals.deposit_amount ?? 0) > 0 ? (
-                  <KpiRow
+                  <ShiftKpiRow
                     label={
                       data.totals.closing_vault_settlement_direction === 'withdraw'
                         ? 'سحب إغلاق من الخزنة'
@@ -285,21 +287,27 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
                     tone={data.totals.closing_vault_settlement_direction === 'withdraw' ? 'success' : 'warning'}
                   />
                 ) : null}
-                <KpiRow
+                <ShiftKpiRow
                   label="الفرق"
                   value={fmt(data.totals.variance)}
                   tone={variance != null && variance < 0 ? 'danger' : variance != null && variance > 0 ? 'success' : 'default'}
                 />
               </>
             ) : null}
-          </AppCard>
+          </ShiftSectionCard>
 
-          <View style={styles.footer}>
+          <ShiftSheetFooter>
             <AppButton title="طباعة التقرير" variant="secondary" loading={printing} style={{ flex: 1 }} onPress={() => void handlePrint()} />
             <AppButton title="إغلاق" style={{ flex: 1 }} onPress={onClose} />
-          </View>
+          </ShiftSheetFooter>
         </View>
       ) : null}
     </AppBottomSheet>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  kpiGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
+  infoGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
+});

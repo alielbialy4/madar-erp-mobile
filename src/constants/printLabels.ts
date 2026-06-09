@@ -44,7 +44,7 @@ export const receiptPrintLabels: ReceiptPrintLabels = {
   table: 'الطاولة',
   item: 'الصنف',
   category: 'التصنيف',
-  qty: 'الكمية',
+  qty: 'كمية',
   price: 'السعر',
   total: 'الإجمالي',
   subtotal: 'المجموع',

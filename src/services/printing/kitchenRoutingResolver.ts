@@ -2,7 +2,7 @@ import type { CartLine } from '@/store/posStore';
 import type { KitchenRoutingCategoryRow, KitchenRoutingProductRow, KitchenRoutingSnapshot } from '@/api/kitchenRouting';
 import { kitchenRoutingAPI } from '@/api/kitchenRouting';
 import { getServerPrinterMap } from '@/services/printing/branchPrintBinding';
-import { getPrinterProfile } from '@/services/printing/printerProfiles';
+import { getPrinterProfiles } from '@/services/printing/printerProfiles';
 import type { PrinterProfile } from '@/types/printing';
 
 type ProductRef = { id: number; name: string; category_id?: number | null };
@@ -75,6 +75,7 @@ export async function resolveKitchenPrintGroups(input: {
   const { branchId, cart, products } = input;
   const snapshot = input.snapshot ?? (await loadKitchenRoutingSnapshot(branchId));
   const serverMap = await getServerPrinterMap(branchId);
+  const profileById = new Map((await getPrinterProfiles(branchId)).map((p) => [p.id, p]));
   const groups = new Map<string, KitchenPrintGroup>();
   const warnings: string[] = [];
   const unmappedServerIds = new Set<string>();
@@ -92,7 +93,7 @@ export async function resolveKitchenPrintGroups(input: {
       continue;
     }
 
-    const profile = await getPrinterProfile(localId);
+    const profile = profileById.get(localId);
     if (!profile?.enabled) {
       disabledLocalIds.add(localId);
       continue;

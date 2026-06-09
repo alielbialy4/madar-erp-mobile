@@ -136,13 +136,21 @@ export function PrintSectionTitle({ title, fontSize }: SectionTitleProps) {
 
 type LogoProps = {
   uri: string | null;
+  onLoad?: () => void;
+  onError?: () => void;
 };
 
-export function PrintLogo({ uri }: LogoProps) {
+export function PrintLogo({ uri, onLoad, onError }: LogoProps) {
   if (!uri) return null;
   return (
     <View style={styles.logoWrap}>
-      <Image source={{ uri }} style={styles.logo} resizeMode="contain" />
+      <Image
+        source={{ uri }}
+        style={styles.logo}
+        resizeMode="contain"
+        onLoad={onLoad}
+        onError={onError}
+      />
     </View>
   );
 }

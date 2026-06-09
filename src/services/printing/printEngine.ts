@@ -22,7 +22,7 @@ import {
 import { sendPngBase64OverBluetooth, sendTextLinesOverBluetooth } from './androidBluetoothPrinter';
 import { escPosBufferToHtml, escPosToSimpleHtml, printHtmlViaAirPrint } from './iosAirPrintPrinter';
 import { sendEscPosOverTcp, testTcpConnection } from './networkTcpPrinter';
-import { recordPrintError, recordPrintSuccess } from './printDiagnostics';
+import { recordPrintError, recordPrintSuccess, recordPrintTiming } from './printDiagnostics';
 import {
   buildArabicTestBuffer,
   buildReceiptBuffer,
@@ -141,21 +141,31 @@ async function dispatchJob(profile: PrinterProfile, job: PrintJobRecord): Promis
   await dispatchBuffer(profile, buffer);
 }
 
-async function runJob(job: PrintJobRecord): Promise<void> {
+async function runJob(job: PrintJobRecord): Promise<PrintJobRecord> {
+  const storageStartedAt = Date.now();
   const profile = await getPrinterProfile(job.printer_profile_id);
   if (!profile) {
-    await setPrintJobStatus(job.id, 'failed', 'ملف الطابعة غير موجود');
-    return;
+    const failed = await setPrintJobStatus(job.id, 'failed', 'ملف الطابعة غير موجود');
+    await recordPrintTiming({ storage_ms: Date.now() - storageStartedAt });
+    return failed ?? { ...job, status: 'failed', error_message: 'ملف الطابعة غير موجود' };
   }
-  await updatePrintJob(job.id, { status: 'printing', attempts: job.attempts + 1 });
+  const activeJob =
+    (await updatePrintJob(job.id, { status: 'printing', attempts: job.attempts + 1 })) ??
+    ({ ...job, status: 'printing' as const, attempts: job.attempts + 1, printing_at: new Date().toISOString() });
   try {
-    await dispatchJob(profile, job);
-    await setPrintJobStatus(job.id, 'printed');
+    const dispatchStartedAt = Date.now();
+    await dispatchJob(profile, activeJob);
+    await recordPrintTiming({ tcp_ms: Date.now() - dispatchStartedAt });
+    const printed = await setPrintJobStatus(job.id, 'printed');
     await recordPrintSuccess(profile.id, profile.name);
+    await recordPrintTiming({ storage_ms: Date.now() - storageStartedAt });
+    return printed ?? { ...activeJob, status: 'printed', printed_at: new Date().toISOString() };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'فشلت الطباعة';
-    await setPrintJobStatus(job.id, 'failed', message);
+    const failed = await setPrintJobStatus(job.id, 'failed', message);
     await recordPrintError(profile.id, profile.name, message);
+    await recordPrintTiming({ storage_ms: Date.now() - storageStartedAt });
+    return failed ?? { ...activeJob, status: 'failed', error_message: message };
   }
 }
 
@@ -178,8 +188,7 @@ export const printEngine = {
       payload_snapshot: payload as unknown as Record<string, unknown>,
       local_order_id: payload.local_order_id ?? null,
     });
-    await runJob(job);
-    return job;
+    return runJob(job);
   },
 
   async printRefundReceipt(payload: ReceiptPrintPayload, profile: PrinterProfile): Promise<PrintJobRecord> {
@@ -189,8 +198,7 @@ export const printEngine = {
       payload_snapshot: payload as unknown as Record<string, unknown>,
       local_order_id: payload.local_order_id ?? null,
     });
-    await runJob(job);
-    return job;
+    return runJob(job);
   },
 
   async printKitchenTicket(payload: KitchenTicketPayload, profile: PrinterProfile): Promise<PrintJobRecord> {
@@ -199,8 +207,7 @@ export const printEngine = {
       printer_profile_id: profile.id,
       payload_snapshot: payload as unknown as Record<string, unknown>,
     });
-    await runJob(job);
-    return job;
+    return runJob(job);
   },
 
   async printShiftSummary(payload: ShiftCloseReportPayload, profile: PrinterProfile): Promise<PrintJobRecord> {
@@ -209,8 +216,7 @@ export const printEngine = {
       printer_profile_id: profile.id,
       payload_snapshot: payload as unknown as Record<string, unknown>,
     });
-    await runJob(job);
-    return job;
+    return runJob(job);
   },
 
   async testConnection(profile: PrinterProfile): Promise<void> {

@@ -40,6 +40,17 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
     last_print_path: null,
     capture_failed_reason: null,
     capture_ok_at: null,
+    timing: {
+      measured_at: null,
+      capture_total_ms: null,
+      capture_attempts: null,
+      ink_fail_count: null,
+      raster_ms: null,
+      tcp_ms: null,
+      storage_ms: null,
+      kitchen_api_ms: null,
+      receipt_height_px: null,
+    },
   });
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -132,6 +143,20 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
         </Text>
         <Text style={{ ...textStart, color: c.textMuted }}>
           آخر تقاط ناجح: {diag.capture_ok_at ?? '—'}
+        </Text>
+        <Text style={{ ...textStart, color: c.textMuted, marginTop: 8 }}>
+          آخر قياس ({diag.timing.measured_at ?? '—'}):
+        </Text>
+        <Text style={{ ...textStart, color: c.textMuted }}>
+          التقاط: {diag.timing.capture_total_ms ?? '—'}ms · محاولات: {diag.timing.capture_attempts ?? '—'} · فشل حبر:{' '}
+          {diag.timing.ink_fail_count ?? '—'}
+        </Text>
+        <Text style={{ ...textStart, color: c.textMuted }}>
+          raster: {diag.timing.raster_ms ?? '—'}ms · TCP: {diag.timing.tcp_ms ?? '—'}ms · تخزين:{' '}
+          {diag.timing.storage_ms ?? '—'}ms · مطبخ API: {diag.timing.kitchen_api_ms ?? '—'}ms
+        </Text>
+        <Text style={{ ...textStart, color: c.textMuted }}>
+          ارتفاع الإيصال: {diag.timing.receipt_height_px ?? '—'}px
         </Text>
         {result ? <Text style={{ ...textStart, color: c.info, marginTop: 8 }}>{result}</Text> : null}
       </AppCard>

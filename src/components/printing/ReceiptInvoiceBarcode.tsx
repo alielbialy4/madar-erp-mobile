@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Barcode from 'react-native-barcode-svg';
 import { View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
@@ -9,10 +9,22 @@ type Props = {
   width?: number;
   height?: number;
   fontSize?: number;
+  onReady?: () => void;
 };
 
-export function ReceiptInvoiceBarcode({ value, width = 280, height = 40, fontSize = 10 }: Props) {
+export function ReceiptInvoiceBarcode({ value, width = 280, height = 40, fontSize = 10, onReady }: Props) {
   const trimmed = value.trim();
+  useEffect(() => {
+    if (!trimmed || !onReady) return;
+    let frame = 0;
+    const step = () => {
+      frame += 1;
+      if (frame >= 2) onReady();
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [trimmed, onReady]);
+
   if (!trimmed) return null;
   return (
     <View style={{ alignItems: 'center', marginVertical: 4 }}>

@@ -10,14 +10,17 @@ import { buildEscPosFromPngBase64, rasterHasInk } from './escposRaster';
 import { buildKitchenTicketEscPos } from './kitchenTicketTemplates';
 import { buildReceiptEscPos } from './receiptTemplates';
 import { buildShiftSummaryEscPos } from './shiftSummaryTemplate';
-import { recordCaptureFailure, recordReceiptPrintPath } from './printDiagnostics';
+import { recordCaptureFailure, recordPrintTiming, recordReceiptPrintPath } from './printDiagnostics';
 import { pickFallbackStep, usesRasterEncoding } from './receiptRasterFallback';
 
 export { usesRasterEncoding };
 
 async function tryBuildRaster(base64: string, profile: PrinterProfile): Promise<Uint8Array | null> {
+  const rasterStart = Date.now();
   if (!rasterHasInk(base64, profile.paper_width)) return null;
-  return buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
+  const buffer = buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
+  await recordPrintTiming({ raster_ms: Date.now() - rasterStart });
+  return buffer;
 }
 
 async function buildRasterBuffer(job: PrintCaptureJob): Promise<Uint8Array> {

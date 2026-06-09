@@ -1070,15 +1070,15 @@ export function POSScreen({ navigation }: { navigation: any }) {
           selectedTable && orderType === 'dine_in'
             ? { tableId: selectedTable.id, orderId: settleOrderId }
             : undefined,
+        onPrintComplete: (printFeedback) => {
+          void notifyPostCheckoutPrint(printFeedback, toast, () => {
+            navigation.getParent?.()?.navigate('MoreTab', { screen: 'PrintQueue' });
+          });
+        },
       },
     );
     setCheckoutMessage(result.message);
     if (result.ok || result.queued) {
-      if (result.printFeedback) {
-        void notifyPostCheckoutPrint(result.printFeedback, toast, () => {
-          navigation.getParent?.()?.navigate('MoreTab', { screen: 'PrintQueue' });
-        });
-      }
       setPosNotice(result.message);
       setCheckoutOpen(false);
       setPaid('');

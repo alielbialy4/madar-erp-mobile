@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
 import {
@@ -24,19 +24,50 @@ import { receiptColumnWidths, thermalPaddingPx } from '@/constants/printThermalL
 type Props = {
   payload: ReceiptPrintPayload;
   paperWidth: PaperWidth;
+  onAssetsReady?: () => void;
 };
 
-export function ReceiptPrintContent({ payload, paperWidth }: Props) {
+export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Props) {
   const vm = useMemo(() => buildReceiptViewModel(payload), [payload]);
   const t = useMemo(() => scaledReceiptTokens(vm), [vm]);
   const width = dotsForPaper(paperWidth);
   const padding = thermalPaddingPx(paperWidth);
   const cols = receiptColumnWidths(width, padding);
 
+  const needsLogo = Boolean(vm.logoUri);
+  const needsBarcode = vm.showBarcode;
+  const pendingRef = useRef({ logo: needsLogo, barcode: needsBarcode });
+  const notifiedRef = useRef(false);
+
+  const tryNotifyReady = useCallback(() => {
+    if (notifiedRef.current) return;
+    if (pendingRef.current.logo || pendingRef.current.barcode) return;
+    notifiedRef.current = true;
+    onAssetsReady?.();
+  }, [onAssetsReady]);
+
+  useEffect(() => {
+    pendingRef.current = { logo: needsLogo, barcode: needsBarcode };
+    notifiedRef.current = false;
+    if (!needsLogo && !needsBarcode) {
+      tryNotifyReady();
+    }
+  }, [needsLogo, needsBarcode, payload, tryNotifyReady]);
+
+  const markLogoReady = useCallback(() => {
+    pendingRef.current.logo = false;
+    tryNotifyReady();
+  }, [tryNotifyReady]);
+
+  const markBarcodeReady = useCallback(() => {
+    pendingRef.current.barcode = false;
+    tryNotifyReady();
+  }, [tryNotifyReady]);
+
   return (
     <View style={[styles.root, { width, padding }]}>
       <View style={styles.header}>
-        <PrintLogo uri={vm.logoUri} />
+        <PrintLogo uri={vm.logoUri} onLoad={markLogoReady} onError={markLogoReady} />
         {vm.showBranchName && vm.storeName ? (
           <Text
             style={[
@@ -214,6 +245,7 @@ export function ReceiptPrintContent({ payload, paperWidth }: Props) {
           value={vm.invoiceNumber}
           width={width - padding * 2}
           fontSize={t.barcodeCaption}
+          onReady={markBarcodeReady}
         />
       ) : null}
 

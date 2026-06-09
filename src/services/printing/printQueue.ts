@@ -18,11 +18,29 @@ function isPrintJobRecord(item: unknown): item is PrintJobRecord {
   );
 }
 
+let jobsCache: PrintJobRecord[] | null = null;
+let jobsCacheLoaded = false;
+
+async function ensureJobsLoaded(): Promise<PrintJobRecord[]> {
+  if (!jobsCacheLoaded) {
+    jobsCache = await storageGetArray(storageKeys.printJobsQueue, isPrintJobRecord);
+    jobsCacheLoaded = true;
+  }
+  return jobsCache ?? [];
+}
+
+export function invalidatePrintJobsCache(): void {
+  jobsCache = null;
+  jobsCacheLoaded = false;
+}
+
 export async function getPrintJobs(): Promise<PrintJobRecord[]> {
-  return storageGetArray(storageKeys.printJobsQueue, isPrintJobRecord);
+  return [...(await ensureJobsLoaded())];
 }
 
 async function persist(jobs: PrintJobRecord[]): Promise<void> {
+  jobsCache = jobs;
+  jobsCacheLoaded = true;
   await storageSet(storageKeys.printJobsQueue, jobs);
 }
 
@@ -33,7 +51,7 @@ export async function enqueuePrintJob(input: {
   local_order_id?: string | null;
   server_sale_id?: number | null;
 }): Promise<PrintJobRecord> {
-  const jobs = await getPrintJobs();
+  const jobs = await ensureJobsLoaded();
   const job: PrintJobRecord = {
     id: createUuid(),
     local_order_id: input.local_order_id ?? null,
@@ -49,16 +67,23 @@ export async function enqueuePrintJob(input: {
   return job;
 }
 
-export async function updatePrintJob(id: string, patch: Partial<PrintJobRecord>): Promise<void> {
-  const jobs = await getPrintJobs();
-  await persist(jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+export async function updatePrintJob(id: string, patch: Partial<PrintJobRecord>): Promise<PrintJobRecord | null> {
+  const jobs = await ensureJobsLoaded();
+  let updated: PrintJobRecord | null = null;
+  const next = jobs.map((j) => {
+    if (j.id !== id) return j;
+    updated = { ...j, ...patch };
+    return updated;
+  });
+  await persist(next);
+  return updated;
 }
 
-export async function setPrintJobStatus(id: string, status: PrintJobStatus, error?: string | null): Promise<void> {
+export async function setPrintJobStatus(id: string, status: PrintJobStatus, error?: string | null): Promise<PrintJobRecord | null> {
   const patch: Partial<PrintJobRecord> = { status, error_message: error ?? null };
   if (status === 'printed') patch.printed_at = new Date().toISOString();
   if (status === 'printing') patch.printing_at = new Date().toISOString();
-  await updatePrintJob(id, patch);
+  return updatePrintJob(id, patch);
 }
 
 export async function retryPrintJob(id: string): Promise<void> {
@@ -78,13 +103,13 @@ export function countPrintJobs(jobs: PrintJobRecord[]) {
 }
 
 export async function getPendingPrintJobs(): Promise<PrintJobRecord[]> {
-  const jobs = await getPrintJobs();
+  const jobs = await ensureJobsLoaded();
   return jobs.filter((j) => j.status === 'pending');
 }
 
 /** Mark jobs stuck in `printing` as failed so the queue can recover. */
 export async function recoverStalePrintJobs(maxAgeMs = STALE_PRINTING_JOB_MS): Promise<number> {
-  const jobs = await getPrintJobs();
+  const jobs = await ensureJobsLoaded();
   const now = Date.now();
   let recovered = 0;
   const next = jobs.map((job) => {

@@ -13,8 +13,16 @@ function isPrinterProfile(item: unknown): item is PrinterProfile {
   );
 }
 
+let profilesCache: PrinterProfile[] | null = null;
+
 async function readAllPrinterProfiles(): Promise<PrinterProfile[]> {
-  return storageGetArray(storageKeys.printerProfiles, isPrinterProfile);
+  if (profilesCache) return profilesCache;
+  profilesCache = await storageGetArray(storageKeys.printerProfiles, isPrinterProfile);
+  return profilesCache;
+}
+
+export function invalidatePrinterProfilesCache(): void {
+  profilesCache = null;
 }
 
 /**
@@ -40,6 +48,7 @@ export async function getPrinterProfilesStrict(branchId: string): Promise<Printe
 }
 
 export async function savePrinterProfiles(profiles: PrinterProfile[]): Promise<void> {
+  profilesCache = profiles;
   await storageSet(storageKeys.printerProfiles, profiles);
 }
 

@@ -2,7 +2,7 @@ import type { PrinterProfile, ReceiptPrintPayload } from '@/types/printing';
 import { captureReceiptPngBase64 } from './printCaptureRegistry';
 import { buildEscPosFromPngBase64, rasterHasInk } from './escposRaster';
 import { buildArabicTestEscPos, buildReceiptEscPos, buildTestPageEscPos } from './receiptTemplates';
-import { recordCaptureFailure, recordReceiptPrintPath } from './printDiagnostics';
+import { recordCaptureFailure, recordPrintTiming, recordReceiptPrintPath } from './printDiagnostics';
 import { pickFallbackStep, TEXT_FALLBACK_STEPS, usesRasterEncoding } from './receiptRasterFallback';
 
 export { pickFallbackStep, TEXT_FALLBACK_STEPS, usesRasterEncoding };
@@ -11,8 +11,11 @@ async function tryBuildRaster(
   base64: string,
   profile: PrinterProfile,
 ): Promise<Uint8Array | null> {
+  const rasterStart = Date.now();
   if (!rasterHasInk(base64, profile.paper_width)) return null;
-  return buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
+  const buffer = buildEscPosFromPngBase64(base64, profile.paper_width, profile.cut_paper);
+  await recordPrintTiming({ raster_ms: Date.now() - rasterStart });
+  return buffer;
 }
 
 async function buildTextFallback(

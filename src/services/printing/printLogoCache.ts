@@ -35,3 +35,17 @@ export async function resolvePrintLogoUri(url: string | null | undefined): Promi
 export function clearPrintLogoCache(): void {
   cache.clear();
 }
+
+/** Prefetch receipt logo while POS/catalog loads so first print skips network wait. */
+export async function prewarmReceiptLogoFromSettings(
+  catalogSettings: Record<string, unknown> | null | undefined,
+): Promise<void> {
+  const brand = catalogSettings as { receipt_logo_url?: string | null } | undefined;
+  const url = brand?.receipt_logo_url;
+  if (!url?.trim()) return;
+  try {
+    await resolvePrintLogoUri(url);
+  } catch {
+    /* best-effort */
+  }
+}

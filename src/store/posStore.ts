@@ -14,6 +14,8 @@ import type { OfflinePosOrderRecord } from '@/types/offline';
 import { saveOfflinePosOrder, OFFLINE_SAVE_MESSAGE } from '@/services/offline/offlineCheckout';
 import { getPaymentPrintLabel } from '@/constants/printLabels';
 import { runPostCheckoutPrint } from '@/services/pos/posCheckoutPrint';
+import type { PostCheckoutPrintResult } from '@/services/pos/posCheckoutPrint';
+import { prewarmReceiptLogoFromSettings } from '@/services/printing/printLogoCache';
 import { syncAll } from '@/services/sync/syncEngine';
 import { normalizeApiError } from '@/utils/errors';
 import { useAuthStore } from './authStore';
@@ -103,6 +105,8 @@ export type SubmitSaleExtras = {
   warehouseId?: string | null;
   /** When set, settle an existing table order instead of creating a new sale. */
   settleTable?: { tableId: string; orderId?: number | string | null };
+  /** Called when background post-checkout printing finishes. */
+  onPrintComplete?: (result: PostCheckoutPrintResult) => void;
 };
 
 async function triggerPostCheckoutPrint(input: {
@@ -130,7 +134,7 @@ async function triggerPostCheckoutPrint(input: {
   tableName?: string | null;
   products: Product[];
   categories?: { id: number; name: string }[];
-}): Promise<import('@/services/pos/posCheckoutPrint').PostCheckoutPrintResult | null> {
+}): Promise<PostCheckoutPrintResult | null> {
   const branch = useBranchStore.getState().activeBranch;
   const user = useAuthStore.getState().user;
   try {
@@ -167,6 +171,15 @@ async function triggerPostCheckoutPrint(input: {
   } catch {
     return null;
   }
+}
+
+function schedulePostCheckoutPrint(
+  input: Parameters<typeof triggerPostCheckoutPrint>[0],
+  onComplete?: (result: PostCheckoutPrintResult) => void,
+): void {
+  void triggerPostCheckoutPrint(input).then((result) => {
+    if (result && onComplete) onComplete(result);
+  });
 }
 
 function resolveDefaultWarehouseId(catalog: import('@/types/api').PosCatalog): string | null {
@@ -247,16 +260,18 @@ export const usePosStore = create<PosState>((set, get) => ({
         const catalog = response.data;
         if (catalog && response.status === 'success') {
           await savePosCatalog(catalog, branchId);
-          set(applyCatalogToState(catalog, catalog.generated_at ?? new Date().toISOString()));
+          const nextState = applyCatalogToState(catalog, catalog.generated_at ?? new Date().toISOString());
+          set(nextState);
+          void prewarmReceiptLogoFromSettings(nextState.catalogSettings);
           await get().refreshPendingOrders();
           return;
         }
       }
       const cached = await loadPosCatalog();
       if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
-        set({
-          ...applyCatalogToState(cached.catalog, cached.saved_at),
-        });
+        const nextState = applyCatalogToState(cached.catalog, cached.saved_at);
+        set(nextState);
+        void prewarmReceiptLogoFromSettings(nextState.catalogSettings);
       } else if (cached?.catalog && branchId && cached.branch_id && cached.branch_id !== branchId) {
         set({
           loading: false,
@@ -269,9 +284,9 @@ export const usePosStore = create<PosState>((set, get) => ({
     } catch (error) {
       const cached = await loadPosCatalog();
       if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
-        set({
-          ...applyCatalogToState(cached.catalog, cached.saved_at),
-        });
+        const nextState = applyCatalogToState(cached.catalog, cached.saved_at);
+        set(nextState);
+        void prewarmReceiptLogoFromSettings(nextState.catalogSettings);
       } else {
         set({ loading: false, error: normalizeApiError(error).message });
       }
@@ -526,7 +541,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           const saleData = (settleRes.data ?? {}) as import('@/types/api').Sale;
           const change = salePaid > saleTotal ? salePaid - saleTotal : 0;
           const balance = paymentType === 'credit' ? Math.max(0, saleTotal - salePaid) : 0;
-          const printFeedback = await triggerPostCheckoutPrint({
+          const printInput = {
             branchId,
             saleId,
             invoiceNumber: saleData.invoice_number ?? null,
@@ -556,14 +571,14 @@ export const usePosStore = create<PosState>((set, get) => ({
             tableName: extras?.tableName ?? null,
             products: get().products,
             categories: get().categories.map((c) => ({ id: c.id, name: c.name })),
-          });
+          };
           get().clearCart();
+          schedulePostCheckoutPrint(printInput, extras?.onPrintComplete);
           void syncAll();
           return {
             ok: true,
             message: settleRes.message || 'تم تحصيل طلب الطاولة بنجاح',
             saleId,
-            printFeedback: printFeedback ?? undefined,
           };
         }
         return { ok: false, message: settleRes.message || 'تعذر تحصيل طلب الطاولة' };
@@ -593,7 +608,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         const saleData = (response.data ?? {}) as import('@/types/api').Sale;
         const change = salePaid > saleTotal ? salePaid - saleTotal : 0;
         const balance = paymentType === 'credit' ? Math.max(0, saleTotal - salePaid) : 0;
-        const printFeedback = await triggerPostCheckoutPrint({
+        const printInput = {
           branchId,
           saleId,
           invoiceNumber: saleData.invoice_number ?? null,
@@ -623,14 +638,14 @@ export const usePosStore = create<PosState>((set, get) => ({
           tableName: extras?.tableName ?? null,
           products: get().products,
           categories: get().categories.map((c) => ({ id: c.id, name: c.name })),
-        });
+        };
         get().clearCart();
+        schedulePostCheckoutPrint(printInput, extras?.onPrintComplete);
         void syncAll();
         return {
           ok: true,
           message: response.message || 'تمت عملية البيع بنجاح',
           saleId,
-          printFeedback: printFeedback ?? undefined,
         };
       }
       return { ok: false, message: response.message || 'لا يمكن تنفيذ هذه العملية حالياً' };

@@ -1,10 +1,10 @@
 import type { CartLine } from '@/store/posStore';
-import type { ReceiptPrintPayload } from '@/types/printing';
+import type { PrintJobRecord, ReceiptPrintPayload } from '@/types/printing';
 import { resolveReceiptProfile } from '@/services/printing/branchPrintBinding';
 import { printEngine } from '@/services/printing/printEngine';
-import { getPrintJobs } from '@/services/printing/printQueue';
 import { resolveKitchenPrintGroups } from '@/services/printing/kitchenRoutingResolver';
 import { mapCheckoutToReceiptPayload } from '@/services/printing/receiptMappers';
+import { recordPrintTiming } from '@/services/printing/printDiagnostics';
 import { getPaymentPrintLabel } from '@/constants/printLabels';
 import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
 import { useServerKitchenPrintQueue } from '@/services/pos/posKitchenPrint';
@@ -50,10 +50,9 @@ export type PostCheckoutPrintResult = {
   kitchen: { outcome: PrintOutcome; ticketsPrinted: number; warnings: string[]; message?: string };
 };
 
-async function jobOutcome(jobId: string): Promise<'printed' | 'failed' | 'queued'> {
-  const updated = (await getPrintJobs()).find((j) => j.id === jobId);
-  if (updated?.status === 'printed') return 'printed';
-  if (updated?.status === 'pending' || updated?.status === 'printing') return 'queued';
+function jobOutcome(job: PrintJobRecord): 'printed' | 'failed' | 'queued' {
+  if (job.status === 'printed') return 'printed';
+  if (job.status === 'pending' || job.status === 'printing') return 'queued';
   return 'failed';
 }
 
@@ -132,7 +131,7 @@ export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promi
       const payload = buildOnlineReceiptPayload(input);
       try {
         const job = await printEngine.printReceipt(payload, profile);
-        const status = await jobOutcome(job.id);
+        const status = jobOutcome(job);
         result.receipt = {
           outcome: status === 'printed' ? 'printed' : status === 'queued' ? 'queued' : 'failed',
           message:
@@ -169,29 +168,31 @@ export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promi
   } else if (input.cartLines.length === 0) {
     result.kitchen = { outcome: 'skipped', ticketsPrinted: 0, warnings: [] };
   } else {
+    const kitchenApiStartedAt = Date.now();
     const { groups, warnings } = await resolveKitchenPrintGroups({
       branchId: input.branchId,
       cart: input.cartLines,
       products: input.products,
     });
+    await recordPrintTiming({ kitchen_api_ms: Date.now() - kitchenApiStartedAt });
     result.kitchen.warnings = warnings;
 
     if (groups.length === 0) {
       result.kitchen.message =
         warnings.length > 0 ? warnings[0] : 'لا توجد أصناف موجّهة لطباعة المطبخ.';
     } else {
-      let printed = 0;
-      let failed = 0;
-      for (const group of groups) {
-        try {
-          const job = await printEngine.printKitchenTicket(buildKitchenPayload(input, group), group.profile);
-          const status = await jobOutcome(job.id);
-          if (status === 'printed') printed += 1;
-          else failed += 1;
-        } catch {
-          failed += 1;
-        }
-      }
+      const outcomes = await Promise.all(
+        groups.map(async (group) => {
+          try {
+            const job = await printEngine.printKitchenTicket(buildKitchenPayload(input, group), group.profile);
+            return jobOutcome(job) === 'printed';
+          } catch {
+            return false;
+          }
+        }),
+      );
+      const printed = outcomes.filter(Boolean).length;
+      const failed = outcomes.length - printed;
       result.kitchen.ticketsPrinted = printed;
       if (printed > 0 && failed === 0) {
         result.kitchen.outcome = 'printed';

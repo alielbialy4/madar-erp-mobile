@@ -4,6 +4,8 @@ import type { PaperWidth } from '@/types/printing';
 const GS = 0x1d;
 const ESC = 0x1b;
 
+export type MonoRaster = { width: number; height: number; data: Uint8Array };
+
 export function dotsForPaper(width: PaperWidth): number {
   return width === '58mm' ? 384 : 576;
 }
@@ -20,7 +22,7 @@ function decodeBase64Png(base64: string): Uint8Array {
 export function pngToMonoRaster(
   pngBytes: Uint8Array,
   targetWidthDots: number,
-): { width: number; height: number; data: Uint8Array } {
+): MonoRaster {
   const copy = Uint8Array.from(pngBytes);
   const decoded = UPNG.decode(copy.buffer);
   const rgba = new Uint8Array(UPNG.toRGBA8(decoded)[0]);
@@ -53,18 +55,42 @@ export function pngToMonoRaster(
   return { width: outW, height: outH, data: raster };
 }
 
+let lastMonoCache: { base64: string; mono: MonoRaster } | null = null;
+
+export function cacheMonoForBase64(base64: string, paperWidth: PaperWidth): MonoRaster {
+  const pngBytes = decodeBase64Png(base64);
+  const mono = pngToMonoRaster(pngBytes, dotsForPaper(paperWidth));
+  lastMonoCache = { base64, mono };
+  return mono;
+}
+
+export function getCachedMonoForBase64(base64: string): MonoRaster | null {
+  if (lastMonoCache?.base64 === base64) return lastMonoCache.mono;
+  return null;
+}
+
+export function clearMonoCache(): void {
+  lastMonoCache = null;
+}
+
+export function monoHasInk(mono: MonoRaster): boolean {
+  return mono.data.some((b) => b !== 0);
+}
+
 export function rasterHasInk(base64: string, paperWidth: PaperWidth): boolean {
   try {
+    const cached = getCachedMonoForBase64(base64);
+    if (cached) return monoHasInk(cached);
     const pngBytes = decodeBase64Png(base64);
     const mono = pngToMonoRaster(pngBytes, dotsForPaper(paperWidth));
-    return mono.data.some((b) => b !== 0);
+    return monoHasInk(mono);
   } catch {
     return false;
   }
 }
 
 /** GS v 0 — raster bit image body (without init/feed/cut). */
-export function buildGsV0Raster(mono: { width: number; height: number; data: Uint8Array }): Uint8Array {
+export function buildGsV0Raster(mono: MonoRaster): Uint8Array {
   const bytesPerRow = Math.ceil(mono.width / 8);
   const xL = bytesPerRow & 0xff;
   const xH = (bytesPerRow >> 8) & 0xff;
@@ -77,9 +103,7 @@ export function buildGsV0Raster(mono: { width: number; height: number; data: Uin
   return out;
 }
 
-export function buildEscPosFromPngBase64(base64: string, paperWidth: PaperWidth, cut = true): Uint8Array {
-  const pngBytes = decodeBase64Png(base64);
-  const mono = pngToMonoRaster(pngBytes, dotsForPaper(paperWidth));
+export function buildEscPosFromMono(mono: MonoRaster, cut = true): Uint8Array {
   const parts: number[] = [
     ESC, 0x40,
     ESC, 0x33, 0x00,
@@ -88,4 +112,10 @@ export function buildEscPosFromPngBase64(base64: string, paperWidth: PaperWidth,
   ];
   if (cut) parts.push(GS, 0x56, 0x00);
   return Uint8Array.from(parts);
+}
+
+export function buildEscPosFromPngBase64(base64: string, paperWidth: PaperWidth, cut = true): Uint8Array {
+  const cached = getCachedMonoForBase64(base64);
+  const mono = cached ?? cacheMonoForBase64(base64, paperWidth);
+  return buildEscPosFromMono(mono, cut);
 }

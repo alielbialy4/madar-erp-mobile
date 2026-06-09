@@ -7,6 +7,18 @@ export type ReceiptPrintPath =
   | 'text_cp864_epson'
   | null;
 
+export type PrintTimingSnapshot = {
+  measured_at: string | null;
+  capture_total_ms: number | null;
+  capture_attempts: number | null;
+  ink_fail_count: number | null;
+  raster_ms: number | null;
+  tcp_ms: number | null;
+  storage_ms: number | null;
+  kitchen_api_ms: number | null;
+  receipt_height_px: number | null;
+};
+
 export type PrintDiagnosticState = {
   last_error: string | null;
   last_error_at: string | null;
@@ -16,6 +28,19 @@ export type PrintDiagnosticState = {
   last_print_path: ReceiptPrintPath;
   capture_failed_reason: string | null;
   capture_ok_at: string | null;
+  timing: PrintTimingSnapshot;
+};
+
+const emptyTiming: PrintTimingSnapshot = {
+  measured_at: null,
+  capture_total_ms: null,
+  capture_attempts: null,
+  ink_fail_count: null,
+  raster_ms: null,
+  tcp_ms: null,
+  storage_ms: null,
+  kitchen_api_ms: null,
+  receipt_height_px: null,
 };
 
 const empty: PrintDiagnosticState = {
@@ -27,7 +52,20 @@ const empty: PrintDiagnosticState = {
   last_print_path: null,
   capture_failed_reason: null,
   capture_ok_at: null,
+  timing: emptyTiming,
 };
+
+export async function recordPrintTiming(partial: Partial<PrintTimingSnapshot>): Promise<void> {
+  const current = await getPrintDiagnostics();
+  await storageSet(storageKeys.printDiagnostics, {
+    ...current,
+    timing: {
+      ...current.timing,
+      ...partial,
+      measured_at: partial.measured_at ?? new Date().toISOString(),
+    },
+  });
+}
 
 export async function recordCaptureFailure(
   profileId: string,
@@ -56,7 +94,11 @@ export async function recordCaptureSuccess(profileId: string, profileName: strin
 
 export async function getPrintDiagnostics(): Promise<PrintDiagnosticState> {
   const stored = await storageGet<PrintDiagnosticState>(storageKeys.printDiagnostics);
-  return { ...empty, ...(stored ?? {}) };
+  const merged = { ...empty, ...(stored ?? {}) };
+  return {
+    ...merged,
+    timing: { ...emptyTiming, ...(stored?.timing ?? {}) },
+  };
 }
 
 export async function recordReceiptPrintPath(

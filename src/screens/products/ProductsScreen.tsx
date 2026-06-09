@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, View, useWindowDimensions } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { FlatList, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -10,11 +9,11 @@ import { AppScreen } from '@/components/layout';
 import { ProductsHero } from '@/components/products/ProductsHero';
 import { ProductListCard } from '@/components/products/ProductListCard';
 import { ProductFiltersPanel } from '@/components/products/ProductFiltersPanel';
-import { createCategoryStyles } from '@/components/categories/categoryStyles';
+import { ProductFiltersSheet } from '@/components/products/ProductFiltersSheet';
+import { ProductsListToolbar } from '@/components/products/ProductsListToolbar';
 import { productListStats } from '@/components/products/productUtils';
 import type { ProductListFilters } from '@/components/lists/ListFiltersBar';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppInput } from '@/components/ui';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
@@ -22,6 +21,11 @@ import { extractArray } from '@/utils/data';
 import { hasPermission } from '@/utils/permissions';
 import { useAuthStore } from '@/store/authStore';
 import { useColors } from '@/hooks/useColors';
+import { contentAreaRtl, sidebarAreaRtl, tabletShellRow } from '@/constants/layout';
+import {
+  PRODUCTS_FILTER_SIDEBAR_WIDTH,
+  getProductGridColumns,
+} from '@/constants/productsLayout';
 import type { Product, Category } from '@/types/api';
 import type { ProductsStackParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
@@ -29,13 +33,12 @@ import { spacing } from '@/constants/spacing';
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductsHome'>;
 type Route = RouteProp<ProductsStackParamList, 'ProductsHome'>;
 
-const FILTER_SIDEBAR_WIDTH = 272;
-
 export function ProductsScreen({ navigation, route }: { navigation: Nav; route: Route }) {
   const c = useColors();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isTablet = width >= 900;
-  const cs = useMemo(() => createCategoryStyles(c), [c]);
+  const gridColumns = getProductGridColumns(width, height);
+  const isGrid = gridColumns > 1;
   const tabBarInset = useTabBarBottomInset(spacing.sm);
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_products');
@@ -44,6 +47,7 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<ProductListFilters>({
     category_id: initialCategoryId ? String(initialCategoryId) : null,
     stock_status: null,
@@ -98,86 +102,122 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
       promo: (items as Product[]).filter((p) => p.track_expiry || p.track_batch).length,
     };
   }, [isRawMaterials, items, stats]);
+
   const categoryHint = useMemo(() => {
     if (!filters.category_id) return null;
     return categories.find((cat) => String(cat.id) === filters.category_id)?.name ?? null;
   }, [categories, filters.category_id]);
 
-  const searchBar = (
-    <View style={[cs.searchWrap, isTablet && { marginBottom: 0 }]}>
-      <MaterialIcons name="search" size={22} color={c.textCaption} />
-      <View style={cs.searchInput}>
-        <AppInput value={query} onChangeText={setQuery} placeholder="بحث بالاسم أو الباركود..." />
-      </View>
-      {query.length > 0 ? (
-        <Pressable onPress={() => setQuery('')} hitSlop={8}>
-          <MaterialIcons name="close" size={20} color={c.textMuted} />
-        </Pressable>
-      ) : null}
-    </View>
+  const heroProps = {
+    totalCount: stats.total,
+    lowStockCount: displayStats.low,
+    outOfStockCount: displayStats.out,
+    promoCount: displayStats.promo,
+    isLoading: loading || refreshing,
+    onRefresh: () => void refresh(),
+    canManage,
+    onCategories: isRawMaterials ? undefined : () => navigation.navigate('Categories'),
+    onReorder: !isRawMaterials && canManage ? () => navigation.navigate('ProductsReorder') : undefined,
+    onAdd: canManage ? () => navigation.navigate('ProductForm', isRawMaterials ? { mode: 'raw_material' } : {}) : undefined,
+    categoryHint,
+    title: isRawMaterials ? 'الخامات / المواد الخام' : undefined,
+    addLabel: isRawMaterials ? 'خامة جديدة' : undefined,
+    statLabels: isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined,
+    eyebrow: isRawMaterials ? 'المخزون' : undefined,
+    subtitle: isRawMaterials ? 'خامات الشراء والوصفات منفصلة عن كتالوج البيع.' : undefined,
+  };
+
+  const navigateDetail = useCallback(
+    (item: Product) => {
+      navigation.navigate('ProductDetail', {
+        id: item.id,
+        name: item.name,
+        mode: isRawMaterials ? 'raw_material' : 'product',
+      });
+    },
+    [navigation, isRawMaterials],
   );
 
-  const listHeaderPhone = (
-    <View style={cs.pageHeader}>
+  const navigateEdit = useCallback(
+    (item: Product) => {
+      navigation.navigate('ProductForm', {
+        id: item.id,
+        mode: isRawMaterials ? 'raw_material' : 'product',
+      });
+    },
+    [navigation, isRawMaterials],
+  );
+
+  const navigateInsights = useCallback(
+    (item: Product) => {
+      navigation.navigate('ProductInsights', { id: item.id, name: item.name });
+    },
+    [navigation],
+  );
+
+  const cardVariant = isGrid ? 'grid' as const : 'compact' as const;
+
+  const listHeader = (
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xs }}>
       <ProductsHero
+        {...heroProps}
+        statsOnly
+        showActions={
+          isTablet
+            ? true
+            : Boolean(heroProps.onCategories || heroProps.onReorder)
+        }
         compact
-        totalCount={stats.total}
-        lowStockCount={displayStats.low}
-        outOfStockCount={displayStats.out}
-        promoCount={displayStats.promo}
-        isLoading={loading || refreshing}
-        onRefresh={() => void refresh()}
-        canManage={canManage}
-        onCategories={isRawMaterials ? undefined : () => navigation.navigate('Categories')}
-        onReorder={!isRawMaterials && canManage ? () => navigation.navigate('ProductsReorder') : undefined}
-        onAdd={canManage ? () => navigation.navigate('ProductForm', isRawMaterials ? { mode: 'raw_material' } : {}) : undefined}
-        categoryHint={categoryHint}
-        title={isRawMaterials ? 'الخامات / المواد الخام' : undefined}
-        addLabel={isRawMaterials ? 'خامة جديدة' : undefined}
-        statLabels={isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined}
       />
-      {searchBar}
-      <ProductFiltersPanel
-        categories={categories}
+      <ProductsListToolbar
+        query={query}
+        onQueryChange={setQuery}
         filters={filters}
-        onChange={setFilters}
-        resultCount={items.length}
+        onFiltersChange={setFilters}
+        categories={categories}
+        onOpenFilters={isTablet ? undefined : () => setFiltersOpen(true)}
         rawMaterialMode={isRawMaterials}
+        canManage={canManage && !isTablet}
+        onAdd={!isTablet ? heroProps.onAdd : undefined}
+        searchPlaceholder={isRawMaterials ? 'بحث بالاسم أو الكود...' : 'بحث بالاسم أو الباركود...'}
       />
     </View>
   );
 
-  const listHeaderTablet = (
-    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md }}>
-      <ProductsHero
-        totalCount={stats.total}
-        lowStockCount={displayStats.low}
-        outOfStockCount={displayStats.out}
-        promoCount={displayStats.promo}
-        isLoading={loading || refreshing}
-        onRefresh={() => void refresh()}
-        canManage={canManage}
-        onCategories={isRawMaterials ? undefined : () => navigation.navigate('Categories')}
-        onReorder={!isRawMaterials && canManage ? () => navigation.navigate('ProductsReorder') : undefined}
-        onAdd={canManage ? () => navigation.navigate('ProductForm', isRawMaterials ? { mode: 'raw_material' } : {}) : undefined}
-        categoryHint={categoryHint}
-        eyebrow={isRawMaterials ? 'المخزون' : undefined}
-        title={isRawMaterials ? 'الخامات / المواد الخام' : undefined}
-        subtitle={isRawMaterials ? 'خامات الشراء والوصفات منفصلة عن كتالوج البيع.' : undefined}
-        addLabel={isRawMaterials ? 'خامة جديدة' : undefined}
-        statLabels={isRawMaterials ? { promo: 'دفعات', metaSuffix: 'خامة في القائمة' } : undefined}
-      />
-      {searchBar}
-    </View>
+  const renderProductItem = useCallback(
+    ({ item }: { item: Product & Record<string, unknown> }) => {
+      const product = item as Product;
+      const card = (
+        <ProductListCard
+          product={product}
+          canManage={canManage}
+          variant={cardVariant}
+          onPress={() => navigateDetail(product)}
+          onInsights={() => navigateInsights(product)}
+          onEdit={canManage ? () => navigateEdit(product) : undefined}
+        />
+      );
+      if (isGrid) {
+        return <View style={{ flex: 1, paddingHorizontal: spacing.xs }}>{card}</View>;
+      }
+      return card;
+    },
+    [canManage, cardVariant, isGrid, navigateDetail, navigateEdit, navigateInsights],
   );
 
   const listBody = (
     <FlatList
+      key={isGrid ? `products-grid-${gridColumns}` : 'products-list'}
       data={items}
+      numColumns={gridColumns}
       keyExtractor={(item, index) => `prod-${String(item.id)}-${index}`}
-      ListHeaderComponent={isTablet ? listHeaderTablet : listHeaderPhone}
-      contentContainerStyle={[cs.listContent, { paddingBottom: tabBarInset, gap: undefined }]}
-      ItemSeparatorComponent={() => <View style={cs.listSeparator} />}
+      ListHeaderComponent={listHeader}
+      contentContainerStyle={{
+        paddingBottom: tabBarInset,
+        ...(isGrid ? { paddingHorizontal: spacing.md } : { paddingHorizontal: spacing.lg }),
+      }}
+      columnWrapperStyle={isGrid ? { gap: spacing.sm, marginBottom: spacing.sm } : undefined}
+      ItemSeparatorComponent={isGrid ? undefined : () => <View style={{ height: spacing.sm }} />}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={c.accent} />
@@ -187,55 +227,62 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
       ListEmptyComponent={
         <AppEmptyState title="لا توجد منتجات" message={canManage ? 'أضف أول منتج أو غيّر الفلاتر' : undefined} />
       }
-      renderItem={({ item }) => (
-        <ProductListCard
-          product={item as Product}
-          canManage={canManage}
-          onPress={() => navigation.navigate('ProductDetail', { id: item.id, name: item.name, mode: isRawMaterials ? 'raw_material' : 'product' })}
-          onInsights={() => navigation.navigate('ProductInsights', { id: item.id, name: item.name })}
-          onEdit={canManage ? () => navigation.navigate('ProductForm', { id: item.id, mode: isRawMaterials ? 'raw_material' : 'product' }) : undefined}
-        />
-      )}
+      renderItem={renderProductItem}
     />
   );
 
   return (
-    <AppScreen title={isRawMaterials ? 'الخامات / المواد الخام' : 'المنتجات'} scroll={false} noHeader contentStyle={{ padding: 0, gap: 0 }}>
+    <AppScreen
+      title={isRawMaterials ? 'الخامات / المواد الخام' : 'المنتجات'}
+      scroll={false}
+      noHeader
+      contentStyle={{ padding: 0, gap: 0 }}
+    >
       {loading && items.length === 0 ? (
         <AppLoadingState variant="skeleton" skeletonRows={8} />
       ) : error && items.length === 0 ? (
         <AppErrorState message={error} onRetry={() => void refresh()} />
       ) : isTablet ? (
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-          <View style={{ flex: 1, minWidth: 0 }}>{listBody}</View>
+        <View style={tabletShellRow}>
+          <View style={contentAreaRtl}>{listBody}</View>
           <View
             style={{
-              width: FILTER_SIDEBAR_WIDTH,
-              borderStartWidth: 1,
-              borderStartColor: c.borderSubtle,
+              ...sidebarAreaRtl,
+              width: PRODUCTS_FILTER_SIDEBAR_WIDTH,
+              borderLeftWidth: 1,
+              borderLeftColor: c.borderSubtle,
               backgroundColor: c.surface,
-              padding: spacing.lg,
-              gap: spacing.md,
             }}
           >
-            <View style={{ ...cs.searchWrap, marginBottom: 0 }}>
-              <MaterialIcons name="tune" size={20} color={c.accent} />
-              <View style={{ flex: 1 }}>
-                <AppInput value={query} onChangeText={setQuery} placeholder="بحث سريع..." />
-              </View>
-            </View>
-            <ProductFiltersPanel
-              categories={categories}
-              filters={filters}
-              onChange={setFilters}
-              resultCount={items.length}
-              layout="sidebar"
-              rawMaterialMode={isRawMaterials}
-            />
+            <ScrollView
+              contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <ProductFiltersPanel
+                categories={categories}
+                filters={filters}
+                onChange={setFilters}
+                resultCount={items.length}
+                layout="sidebar"
+                rawMaterialMode={isRawMaterials}
+              />
+            </ScrollView>
           </View>
         </View>
       ) : (
-        listBody
+        <>
+          <View style={{ ...contentAreaRtl, flex: 1 }}>{listBody}</View>
+          <ProductFiltersSheet
+            visible={filtersOpen}
+            categories={categories}
+            filters={filters}
+            resultCount={items.length}
+            rawMaterialMode={isRawMaterials}
+            onClose={() => setFiltersOpen(false)}
+            onApply={setFilters}
+          />
+        </>
       )}
     </AppScreen>
   );

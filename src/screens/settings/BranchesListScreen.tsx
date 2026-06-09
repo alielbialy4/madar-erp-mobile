@@ -140,7 +140,6 @@ export function BranchesListScreen({ navigation }: { navigation: any }) {
           );
           if (!canManage) return card;
           const swipeActions = [
-            { label: 'إعدادات', icon: 'settings' as const, onPress: () => navigation.navigate('BranchSettings', { id: String(row.id) }) },
             { label: 'تعديل', icon: 'edit' as const, onPress: () => navigation.navigate('BranchForm', { id: String(row.id) }) },
             { label: inactive ? 'تفعيل' : 'تعطيل', icon: (inactive ? 'toggle-off' : 'toggle-on') as 'toggle-off' | 'toggle-on', onPress: () => void toggleStatus(row) },
             ...(!row.is_main ? [{ label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: () => setDeleteId(String(row.id)) }] : []),

@@ -45,6 +45,13 @@ export function appFont(weight: FontWeightKey = 'medium') {
   return { fontFamily: fonts[weight] };
 }
 
+function resolveFontFamily(flat: TextStyle | undefined, fallback: string): string {
+  if (!flat) return fallback;
+  const { fontWeight, fontFamily } = flat;
+  if (fontWeight != null) return fontFamilyForWeight(fontWeight);
+  return fontFamily ?? fallback;
+}
+
 /**
  * Resolve a TextStyle to a single Tajawal face.
  * fontWeight wins over fontFamily (avoids Regular + bold synthesizing to system font).
@@ -56,9 +63,18 @@ export function resolveTajawalStyle(style?: StyleProp<TextStyle>, fallback: stri
   const { fontWeight, fontFamily, ...rest } = flat;
   return {
     ...rest,
-    fontFamily:
-      fontWeight != null
-        ? fontFamilyForWeight(fontWeight)
-        : fontFamily ?? fallback,
+    fontFamily: resolveFontFamily(flat, fallback),
+  };
+}
+
+/** Fonts + non-alignment styles only — AppText applies writingDirection/textAlign separately. */
+export function resolveTajawalFontOnly(style?: StyleProp<TextStyle>, fallback: string = fonts.regular): TextStyle {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  if (!flat) return { fontFamily: fallback };
+
+  const { fontWeight, fontFamily, textAlign: _ta, writingDirection: _wd, ...rest } = flat;
+  return {
+    ...rest,
+    fontFamily: resolveFontFamily(flat, fallback),
   };
 }

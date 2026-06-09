@@ -7,6 +7,7 @@ import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/componen
 import { ConfirmDialog } from '@/components/feedback';
 import { BranchSwitcherScreen } from './BranchSwitcherScreen';
 import { useAuthStore } from '@/store/authStore';
+import { useBranchStore } from '@/store/branchStore';
 import { authAPI } from '@/api/auth';
 import { normalizeApiError } from '@/utils/errors';
 import { useColors } from '@/hooks/useColors';
@@ -150,7 +151,11 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
           <AppSectionHeader title="النظام" />
           <AppDomainCard title="الملف الشخصي" subtitle="عرض الحساب والأدوار" leadingIcon="person" onPress={() => navigation.navigate('Profile')} />
           <AppDomainCard title="حالة المزامنة" subtitle="اطلع على حالة الاتصال والمزامنة" leadingIcon="sync" onPress={() => navigation?.navigate('SyncStatus')} />
-          <AppDomainCard title="ملفات الطابعات" subtitle="شبكة Ethernet · بلوتوث Android · AirPrint iOS" leadingIcon="print" onPress={() => navigation?.navigate('PrinterProfiles')} />
+          <AppDomainCard title="ملفات الطابعات" subtitle="إعداد طابعات الفرع النشط" leadingIcon="print" onPress={() => {
+            const activeId = useBranchStore.getState().activeBranch?.id;
+            if (activeId) navigation.navigate('BranchDetail', { id: activeId });
+            else navigation.navigate('BranchesList');
+          }} />
           <AppDomainCard title="تشخيص الطباعة" subtitle="اختبار اتصال وطباعة عربية" leadingIcon="bug-report" onPress={() => navigation?.navigate('PrinterDiagnostics')} />
           <AppDomainCard title="قائمة انتظار الطباعة" subtitle="إعادة محاولة المهام الفاشلة" leadingIcon="queue" onPress={() => navigation?.navigate('PrintQueue')} />
           <AppDomainCard title="الإشعارات" subtitle="الإشعارات غير المقروءة" leadingIcon={moduleIcons.notifications} onPress={() => navigation?.navigate('Notifications')} />

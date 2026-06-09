@@ -1,10 +1,25 @@
-import type { EscPosEncoding, PaperWidth } from '@/types/printing';
+import type { EscPosEncoding, PaperWidth, PrinterProfile } from '@/types/printing';
+import { encodeForPrinter } from './arabicTextEncode';
+import { resolveCodePageTable, type CodePageTable } from './codePageTables';
 
 const ESC = 0x1b;
 const GS = 0x1d;
 
+export type EscPosBuilderOptions = {
+  codePageTable?: CodePageTable;
+};
+
 export class EscPosBuilder {
   private chunks: number[] = [];
+  private readonly codePageTable: CodePageTable;
+
+  constructor(options?: EscPosBuilderOptions) {
+    this.codePageTable = options?.codePageTable ?? resolveCodePageTable();
+  }
+
+  static forProfile(profile: Pick<PrinterProfile, 'code_page_preset' | 'code_page_table'>): EscPosBuilder {
+    return new EscPosBuilder({ codePageTable: resolveCodePageTable(profile) });
+  }
 
   init(): this {
     this.chunks.push(ESC, 0x40);
@@ -29,22 +44,34 @@ export class EscPosBuilder {
   }
 
   codePage(encoding: EscPosEncoding): this {
-    if (encoding === 'cp864') this.chunks.push(ESC, 0x74, 22);
-    else if (encoding === 'cp720') this.chunks.push(ESC, 0x74, 32);
-    else if (encoding === 'windows1256') this.chunks.push(ESC, 0x74, 50);
+    if (encoding === 'utf8' || encoding === 'utf8_image') return this;
+    const table = this.codePageTable;
+    if (encoding === 'cp864') this.chunks.push(ESC, 0x74, table.cp864);
+    else if (encoding === 'cp720') this.chunks.push(ESC, 0x74, table.cp720);
+    else if (encoding === 'windows1256') this.chunks.push(ESC, 0x74, table.windows1256);
     return this;
   }
 
-  textLine(line: string, charsPerLine: number): this {
+  /** Raw ESC t n — for code page diagnostic prints. */
+  selectCodePageTable(tableNumber: number): this {
+    this.chunks.push(ESC, 0x74, tableNumber & 0xff);
+    return this;
+  }
+
+  textLine(line: string, charsPerLine: number, encoding: EscPosEncoding = 'utf8'): this {
     const wrapped = wrapText(line, charsPerLine);
+    const needsCodePageReselect =
+      encoding === 'cp864' || encoding === 'cp720' || encoding === 'windows1256';
     for (const row of wrapped) {
-      this.chunks.push(...encodeLatin1(row), 0x0a);
+      if (needsCodePageReselect) this.codePage(encoding);
+      const bytes = encodeForPrinter(row, encoding);
+      this.chunks.push(...bytes, 0x0a);
     }
     return this;
   }
 
   separator(charsPerLine: number, char = '-'): this {
-    return this.textLine(char.repeat(charsPerLine), charsPerLine);
+    return this.textLine(char.repeat(charsPerLine), charsPerLine, 'utf8');
   }
 
   feed(lines = 3): this {
@@ -76,15 +103,6 @@ function wrapText(text: string, max: number): string[] {
   }
   if (current) lines.push(current);
   return lines.length ? lines : [''];
-}
-
-function encodeLatin1(text: string): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < text.length; i += 1) {
-    const code = text.charCodeAt(i);
-    out.push(code <= 0xff ? code : 0x3f);
-  }
-  return out;
 }
 
 export function charsForPaper(width: PaperWidth): number {

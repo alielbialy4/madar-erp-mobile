@@ -23,6 +23,7 @@ export const posAPI = {
   getSale: (id: number) => get<Sale>(`/pos/sales/${id}`),
   refundSale: (id: number) => post(`/pos/sales/${id}/refund`),
   partialRefund: (saleId: number, data: {
+    client_uuid?: string;
     items: { sale_item_id: number; quantity: number; restock?: boolean }[];
     reason?: string;
     notes?: string;

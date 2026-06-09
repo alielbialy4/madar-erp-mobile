@@ -4,6 +4,7 @@ export const PRINT_FONT_SIZE_MIN = 10;
 export const PRINT_FONT_SIZE_MAX = 22;
 export const DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE = 12;
 export const DEFAULT_KITCHEN_TICKET_FONT_SIZE = 14;
+export const DEFAULT_SHIFT_CLOSE_FONT_SIZE = 12;
 export const DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE = 'شكراً لزيارتكم';
 export const DEFAULT_CUSTOMER_RECEIPT_DEVELOPER_FOOTER = 'Powered by Madar';
 
@@ -19,6 +20,7 @@ export type BranchSettingsForm = {
   receipt_show_print_sequence: boolean;
   receipt_show_branch_name: boolean;
   customer_printer_name: string;
+  customer_printer_profile_id: string;
   print_sequence_max: string;
   receipt_footer: string;
   customer_receipt_footer_message: string;
@@ -43,6 +45,7 @@ export type BranchSettingsForm = {
   allow_pos_coupon: boolean;
   customer_receipt_font_size: string;
   kitchen_ticket_font_size: string;
+  shift_close_font_size: string;
 };
 
 export function defaultBranchSettingsForm(): BranchSettingsForm {
@@ -56,6 +59,7 @@ export function defaultBranchSettingsForm(): BranchSettingsForm {
     receipt_show_print_sequence: false,
     receipt_show_branch_name: true,
     customer_printer_name: '',
+    customer_printer_profile_id: '',
     print_sequence_max: '',
     receipt_footer: '',
     customer_receipt_footer_message: DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE,
@@ -80,6 +84,7 @@ export function defaultBranchSettingsForm(): BranchSettingsForm {
     allow_pos_coupon: true,
     customer_receipt_font_size: String(DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE),
     kitchen_ticket_font_size: String(DEFAULT_KITCHEN_TICKET_FONT_SIZE),
+    shift_close_font_size: String(DEFAULT_SHIFT_CLOSE_FONT_SIZE),
   };
 }
 
@@ -115,6 +120,7 @@ export function parseBranchSettingsObject(obj?: Record<string, unknown>): Branch
     receipt_show_print_sequence: truthy(obj.receipt_show_print_sequence),
     receipt_show_branch_name: obj.receipt_show_branch_name === undefined ? true : truthy(obj.receipt_show_branch_name),
     customer_printer_name: String(obj.customer_printer_name ?? ''),
+    customer_printer_profile_id: String(obj.customer_printer_profile_id ?? ''),
     print_sequence_max: obj.print_sequence_max != null ? String(obj.print_sequence_max) : '',
     receipt_footer: legacyFooter,
     customer_receipt_footer_message: customerFooter,
@@ -141,6 +147,7 @@ export function parseBranchSettingsObject(obj?: Record<string, unknown>): Branch
     allow_pos_coupon: !falsyFlag(obj.allow_pos_coupon),
     customer_receipt_font_size: String(obj.customer_receipt_font_size ?? DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE),
     kitchen_ticket_font_size: String(obj.kitchen_ticket_font_size ?? DEFAULT_KITCHEN_TICKET_FONT_SIZE),
+    shift_close_font_size: String(obj.shift_close_font_size ?? DEFAULT_SHIFT_CLOSE_FONT_SIZE),
   };
 }
 
@@ -166,6 +173,7 @@ export function buildBranchSettingsPayload(form: BranchSettingsForm, keys?: (key
     receipt_show_print_sequence: form.receipt_show_print_sequence,
     receipt_show_branch_name: form.receipt_show_branch_name,
     customer_printer_name: form.customer_printer_name.trim() || null,
+    customer_printer_profile_id: form.customer_printer_profile_id.trim() || null,
     receipt_footer: form.receipt_footer.trim() || null,
     customer_receipt_footer_message: form.customer_receipt_footer_message.trim() || null,
     customer_receipt_developer_footer: form.customer_receipt_developer_footer.trim() || null,
@@ -188,6 +196,7 @@ export function buildBranchSettingsPayload(form: BranchSettingsForm, keys?: (key
     allow_pos_coupon: form.allow_pos_coupon,
     customer_receipt_font_size: parseInt(form.customer_receipt_font_size, 10),
     kitchen_ticket_font_size: parseInt(form.kitchen_ticket_font_size, 10),
+    shift_close_font_size: parseInt(form.shift_close_font_size, 10),
     print_sequence_max: printSequenceMax,
   };
 

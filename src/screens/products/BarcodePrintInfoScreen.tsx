@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppButton, AppCard, AppSectionHeader } from '@/components/ui';
 import { AppEmptyState } from '@/components/feedback';
+import { useBranchStore } from '@/store/branchStore';
 import { spacing } from '@/constants/spacing';
 
 export function BarcodePrintInfoScreen({ navigation }: { navigation: any }) {
@@ -17,7 +18,11 @@ export function BarcodePrintInfoScreen({ navigation }: { navigation: any }) {
       </AppCard>
       <View style={{ gap: spacing.sm }}>
         <AppButton title="فتح المنتجات" onPress={() => navigation.getParent?.()?.navigate('ProductsTab', { screen: 'ProductsHome' })} />
-        <AppButton title="ملفات الطابعات" variant="secondary" onPress={() => navigation.navigate('PrinterProfiles')} />
+        <AppButton title="ملفات الطابعات" variant="secondary" onPress={() => {
+          const branchId = useBranchStore.getState().activeBranch?.id;
+          if (branchId) navigation.navigate('BranchDetail', { id: branchId });
+          else navigation.navigate('BranchesList');
+        }} />
       </View>
     </AppScreen>
   );

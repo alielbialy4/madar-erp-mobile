@@ -39,22 +39,28 @@ export function FormSection({ title, subtitle, icon, children }: Props) {
   );
 }
 
-export function SwitchRow({ label, hint, value, onValueChange }: {
+export function SwitchRow({ label, hint, value, onValueChange, disabled }: {
   label: string;
   hint?: string;
   value: boolean;
   onValueChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   const c = useColors();
   const styles = useMemo(() => createFormSectionStyles(c), [c]);
 
   return (
-    <View style={styles.switchRow}>
+    <View style={[styles.switchRow, disabled && { opacity: 0.5 }]}>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.switchLabel}>{label}</Text>
         {hint ? <Text style={styles.switchHint}>{hint}</Text> : null}
       </View>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: c.border, true: c.accent }} />
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: c.border, true: c.accent }}
+      />
     </View>
   );
 }

@@ -7,8 +7,6 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,9 +19,8 @@ import {
   TAB_BAR_HORIZONTAL_MARGIN,
   TAB_BAR_MIN_BOTTOM_INSET,
 } from '@/constants/tabBar';
-import { spacing } from '@/constants/spacing';
+import { shadows, spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
-import { glassTokens } from '@/constants/glass';
 import type { MainTabParamList } from '@/types/navigation';
 import { popTabStackToRoot } from '@/navigation/nestedTabNavigation';
 
@@ -257,7 +254,7 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET) + TAB_BAR_FLOAT_GAP;
 
-  const dockShadow = glassTokens.shadow.xl;
+  const dockShadow = shadows.dock;
 
   const routeByName = useMemo(() => {
     const map = new Map<string, (typeof state.routes)[number]>();
@@ -319,17 +316,15 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
       pointerEvents="box-none"
     >
       <View style={{ overflow: 'visible', borderRadius: DOCK_RADIUS, ...dockShadow }}>
-        <View style={{ borderRadius: DOCK_RADIUS, overflow: 'hidden' }}>
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
-          ) : (
-            <LinearGradient
-              colors={['#FFFFFF', '#FAFBFF']}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-          )}
+        <View
+          style={{
+            borderRadius: DOCK_RADIUS,
+            overflow: 'hidden',
+            backgroundColor: c.surface,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: c.borderSubtle,
+          }}
+        >
           <View
             style={{
               ...flexRow,
@@ -339,10 +334,6 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
               paddingHorizontal: spacing.xs,
               paddingBottom: 6,
               paddingTop: 4,
-              backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.50)' : 'transparent',
-              borderRadius: DOCK_RADIUS,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: 'rgba(255,255,255,0.50)',
               overflow: 'visible',
             }}
           >

@@ -4,16 +4,26 @@
 
 ### 1. ESC/POS text (`escpos_text`)
 
-- Code pages: CP864 (default), CP720, Windows-1256 via `ESC t n`.
+- Code pages: CP864, CP720, Windows-1256 via `ESC t n` (table preset: Epson 37/32/50 or Clone 22/32/50).
+- Bytes produced by pure-JS SBCS tables (Windows-1256 / CP864 / CP720) — not raw UTF-8.
+- Arabic shaping via `arabic-persian-reshaper` before encoding.
 - Works on printers with Arabic firmware/codepage support.
-- Arabic test receipt lines included in `buildArabicTestEscPos`.
-- **Limitation:** RTL shaping not applied in text mode; complex Arabic may render incorrectly.
+- **Limitation:** BiDi for mixed Arabic + Latin may still be imperfect; disconnected letters possible on some firmware.
 
 ### 2. ESC/POS raster (`escpos_image` / `utf8_image`)
 
-- Render receipt as bitmap (RTL), send `GS v 0` raster.
-- **Status:** adapter interface reserved; full raster pipeline not implemented in this phase.
+- **Status: implemented**
+- `ReceiptPrintCaptureHost` renders receipt RTL (Tajawal) off-screen.
+- `react-native-view-shot` captures PNG base64.
+- **TCP:** PNG → 1-bit → `GS v 0` via `escposRaster.ts`.
+- **Bluetooth:** `BluetoothEscposPrinter.printPic(base64, { width, paperSize })`.
 - **Recommended** for production Arabic on mixed printer brands.
+
+## Default for new profiles
+
+- `encoding: utf8_image`
+- `mode: escpos_image`
+- `code_page_preset: generic_clone`
 
 ## Test content (Arabic test)
 
@@ -22,6 +32,8 @@
 - الإجمالي 123.45 ج.م
 - رقم الفاتورة
 - التاريخ
+
+Use **اختبار الترميزات** in printer settings to print: Windows-1256, CP864, UTF-8 text, UTF-8 image.
 
 ## Offline receipts
 

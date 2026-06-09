@@ -11,6 +11,8 @@ import { DetailScreen } from '@/screens/shared/DetailScreen';
 import type { Sale } from '@/types/api';
 import { dateText, money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
+import { useBranchStore } from '@/store/branchStore';
 
 export function SaleDetailScreen({ route, navigation }: { route: any; navigation: any }) {
   const rawId = route.params?.id;
@@ -31,10 +33,28 @@ function canSplitSale(sale: Sale & Record<string, unknown>): boolean {
 }
 
 function SaleDetail({ id, route, navigation }: { id: number; route: any; navigation: any }) {
+  const branchId = useBranchStore((s) => s.activeBranch?.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const printReceipt = async () => {
+    if (!branchId) {
+      setMessage('يجب اختيار فرع قبل الطباعة');
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await printSaleReceiptLocal(id, branchId, { isReprint: true });
+      setMessage(result.ok ? result.message : result.message);
+    } catch (err) {
+      setMessage(normalizeApiError(err).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const refund = async () => {
     setBusy(true);
@@ -43,6 +63,16 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
       const response = await salesAPI.refund(id);
       setMessage(response.message || 'تم تسجيل المرتجع');
       setConfirmOpen(false);
+      if (branchId) {
+        const printResult = await printSaleReceiptLocal(id, branchId, {
+          isReprint: true,
+          documentTitle: 'فاتورة مرتجع',
+          asRefund: true,
+        });
+        if (printResult.ok) {
+          setMessage(`${response.message || 'تم تسجيل المرتجع'} — ${printResult.message}`);
+        }
+      }
     } catch (err) {
       setMessage(normalizeApiError(err).message);
     } finally {
@@ -83,7 +113,7 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
               <AppSectionHeader title="الإجراءات" />
               {message ? <Text style={{ ...textStart }}>{message}</Text> : null}
               <View style={{ gap: 12 }}>
-                <AppButton title="طباعة / إعادة إرسال للطباعة" variant="secondary" onPress={() => salesAPI.print(id).catch(() => undefined)} />
+                <AppButton title="طباعة / إعادة طباعة" variant="secondary" loading={busy} onPress={printReceipt} />
                 {canSplitSale(sale) ? (
                   <AppButton title="تقسيم الفاتورة" variant="secondary" onPress={() => setSplitOpen(true)} />
                 ) : null}

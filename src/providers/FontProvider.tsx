@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/tajawal';
 import { useColors } from '@/hooks/useColors';
 import { rootRtl } from '@/constants/layout';
+import { markFontsReady } from '@/utils/fontReady';
 
 export function FontProvider({ children }: PropsWithChildren) {
   const c = useColors();
@@ -25,16 +26,17 @@ export function FontProvider({ children }: PropsWithChildren) {
   });
 
   useEffect(() => {
-    if (loaded) applyGlobalTypography();
+    if (loaded) {
+      applyGlobalTypography();
+      markFontsReady();
+    }
   }, [loaded]);
-
-  if (loaded) applyGlobalTypography();
 
   if (!loaded) {
     return (
       <View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background }, rootRtl]}>
         <ActivityIndicator color={c.accent} size="large" />
-        <Text style={{ marginTop: 12, fontFamily: fonts.medium, color: c.textMuted, writingDirection: 'rtl' }}>
+        <Text style={{ marginTop: 12, fontFamily: fonts.medium, color: c.textMuted }}>
           جاري تحميل الخط…
         </Text>
       </View>

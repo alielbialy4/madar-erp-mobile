@@ -5,32 +5,28 @@ import { evaluateLocalCartPromotions, type CatalogPromotion } from '@/services/p
 
 export type PosOrderType = 'dine_in' | 'takeaway' | 'delivery';
 
+function shouldMergeBranchSetting(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string' && value.trim() === '') return false;
+  return true;
+}
+
+/** Merges catalog + branch settings for POS (tax, charges, printing, receipts). */
 export function resolvePosCatalogSettings(catalog: PosCatalog | null | undefined): Record<string, unknown> {
   const base = { ...(catalog?.settings ?? {}) } as Record<string, unknown>;
   const branch = (catalog?.branch?.settings ?? {}) as Record<string, unknown>;
   const taxKeys = ['tax_enabled', 'tax_rate', 'tax_name', 'tax_inclusive'] as const;
-  const hasBranchTax = taxKeys.some((key) => branch[key] !== undefined && branch[key] !== null && branch[key] !== '');
+  const hasBranchTax = taxKeys.some((key) => shouldMergeBranchSetting(branch[key]));
   if (hasBranchTax) {
     for (const key of taxKeys) {
-      if (branch[key] !== undefined && branch[key] !== null && branch[key] !== '') {
+      if (shouldMergeBranchSetting(branch[key])) {
         base[key] = branch[key];
       }
     }
   }
-  const serviceKeys = [
-    'service_charge_enabled',
-    'service_charge_type',
-    'service_charge_value',
-    'service_charge_apply_to',
-    'service_charge_label',
-    'allow_pos_discount',
-    'allow_pos_coupon',
-    'enable_kitchen_print',
-    'use_server_kitchen_print_queue',
-  ] as const;
-  for (const key of serviceKeys) {
-    if (branch[key] !== undefined && branch[key] !== null && branch[key] !== '') {
-      base[key] = branch[key];
+  for (const [key, value] of Object.entries(branch)) {
+    if (shouldMergeBranchSetting(value)) {
+      base[key] = value;
     }
   }
   return base;

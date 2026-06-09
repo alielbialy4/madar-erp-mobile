@@ -1,0 +1,23 @@
+/** Arabic auth strings — aligned with front/src/locales/ar.json (auth.*). */
+export const authCopy = {
+  brandName: 'Madar Pos',
+  heroTagline: 'سجّل دخولك لإدارة المبيعات ونقاط البيع بسهولة.',
+  heroSecureNote: 'دخول آمن — بياناتك محمية.',
+  loginHeading: 'تسجيل الدخول',
+  loginSubheading: 'أدخل بياناتك للمتابعة.',
+  tenantId: 'معرف المستأجر',
+  tenantIdPlaceholder: 'ادخل المعرف',
+  tenantHint: 'سجّل بيانات الدخول الخاصة بك للمتابعة بأمان.',
+  email: 'البريد الإلكتروني',
+  emailPlaceholder: 'أدخل البريد الإلكتروني',
+  emailRequired: 'البريد الإلكتروني مطلوب',
+  emailInvalid: 'البريد الإلكتروني غير صحيح',
+  password: 'كلمة المرور',
+  passwordPlaceholder: 'أدخل كلمة المرور',
+  passwordRequired: 'كلمة المرور مطلوبة',
+  passwordMinLength: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+  signIn: 'تسجيل الدخول',
+  loginSuccess: 'تم تسجيل الدخول بنجاح',
+  developedBy: 'Developed by',
+  developerName: 'madar',
+} as const;

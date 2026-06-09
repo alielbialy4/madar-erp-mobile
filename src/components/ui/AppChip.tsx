@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { Animated, Pressable, View } from 'react-native';
+import { flexRow } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { AppText } from './AppText';
@@ -27,7 +28,7 @@ export function AppChip({ label, active, onPress, icon }: { label: string; activ
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={{
-          flexDirection: 'row',
+          ...flexRow,
           alignItems: 'center',
           gap: spacing.xs,
           paddingHorizontal: spacing.md,

@@ -1,42 +1,61 @@
 import React, { useMemo } from 'react';
-import { Text } from '@/components/ui/AppText';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { PremiumHeroPanel } from '@/components/layout/PremiumHeroPanel';
+import { HeroStatPill } from '@/components/layout/HeroStatPill';
+import { HeroActionChip } from '@/components/layout/HeroActionChip';
 import { AppBadge } from '@/components/ui';
-import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
+import { Text } from '@/components/ui/AppText';
+import { flexRow, textStart } from '@/constants/layout';
+import { spacing, radius } from '@/constants/spacing';
+import { typography } from '@/constants/typography';
+import { fonts } from '@/constants/fonts';
+import {
+  HERO_CHIP_BG_SUBTLE,
+  HERO_CHIP_BORDER_STRONG,
+  HERO_MUTED_FG,
+} from '@/constants/dashboardHeroTheme';
 import { useColors } from '@/hooks/useColors';
 import { resolveMediaUrl } from '@/utils/media';
 import { money, numberText } from '@/utils/format';
 import type { Product } from '@/types/api';
 import { getProductBadge, getProductPrices, getProductQuantity } from './productUtils';
-import { flexRow, textStart } from '@/constants/layout';
-import { spacing, radius } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
-import { fonts } from '@/constants/fonts';
 
 type Props = {
   product: Product;
   canManage: boolean;
+  isRawMaterial?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
   onInsights?: () => void;
-  large?: boolean;
+  onRefresh?: () => void;
+  isLoading?: boolean;
+  loading?: boolean;
+  lastUpdatedAt?: Date | null;
 };
 
-export function ProductDetailHero({ product, canManage, onEdit, onDelete, onInsights, large }: Props) {
+export function ProductDetailHero({
+  product,
+  canManage,
+  isRawMaterial,
+  onEdit,
+  onDelete,
+  onInsights,
+  onRefresh,
+  isLoading,
+  loading,
+  lastUpdatedAt,
+}: Props) {
   const c = useColors();
-  const ds = useMemo(() => createDashboardStyles(c), [c]);
-  const local = useMemo(() => createLocalStyles(c, large), [c, large]);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const styles = useMemo(() => createStyles(c, isTablet), [c, isTablet]);
   const thumb = resolveMediaUrl(product.image);
+  const showThumbSkeleton = loading && !thumb;
   const badge = getProductBadge(product);
   const prices = getProductPrices(product);
   const qty = getProductQuantity(product);
+  const showSellingPrice = !isRawMaterial && product.is_sellable !== false;
 
   const badgeTone =
     badge.tone === 'danger'
@@ -49,119 +68,156 @@ export function ProductDetailHero({ product, canManage, onEdit, onDelete, onInsi
             ? 'info'
             : 'default';
 
-  const chips = (
+  const lastUpdatedLabel = useMemo(
+    () =>
+      lastUpdatedAt
+        ? `آخر تحديث ${lastUpdatedAt.toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' })}`
+        : undefined,
+    [lastUpdatedAt],
+  );
+
+  const subtitle = product.barcode
+    ? `الباركود: ${product.barcode}`
+    : isRawMaterial
+      ? 'خامة / مادة — تفاصيل التكلفة والمخزون.'
+      : 'تفاصيل المنتج — التسعير والمخزون والخيارات.';
+
+  const badges = (
     <>
-      {onInsights ? (
-        <Pressable
-          onPress={onInsights}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipOutline, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="insights" size={18} color={c.textMuted} />
-          <Text style={[ds.actionChipText, { color: c.text }]}>تحليلات</Text>
-        </Pressable>
+      <AppBadge label={badge.label} tone={badgeTone} />
+      {product.featured ? <AppBadge label="مميز" tone="info" /> : null}
+      {product.category?.name ? (
+        <HeroStatPill label="التصنيف" value={product.category.name} compact />
       ) : null}
-      {canManage && onEdit ? (
-        <Pressable
-          onPress={onEdit}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipPrimary, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="edit" size={18} color={c.primaryForeground} />
-          <Text style={[ds.actionChipText, { color: c.primaryForeground }]}>تعديل</Text>
-        </Pressable>
+      {showSellingPrice ? (
+        <HeroStatPill
+          label={prices.isPromo ? 'سعر العرض' : 'سعر البيع'}
+          value={money(prices.display).replace(' ج.م', '')}
+          tone={prices.isPromo ? 'success' : 'default'}
+          compact
+        />
       ) : null}
-      {canManage && onDelete ? (
-        <Pressable
-          onPress={onDelete}
-          style={({ pressed }) => [ds.actionChip, { backgroundColor: c.surfaceMuted, borderColor: c.danger }, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="delete-outline" size={18} color={c.danger} />
-          <Text style={[ds.actionChipText, { color: c.danger }]}>حذف</Text>
-        </Pressable>
+      {product.track_inventory !== false && product.inventory_mode !== 'non_stock' ? (
+        <HeroStatPill
+          label="المتاح"
+          value={numberText(qty)}
+          tone={badge.tone === 'danger' ? 'danger' : badge.tone === 'warning' ? 'warning' : 'success'}
+          compact
+        />
       ) : null}
     </>
   );
 
+  const hasActions = Boolean(onInsights || (canManage && (onEdit || onDelete)) || onRefresh);
+
   return (
-    <View style={ds.heroOuter}>
-      <View style={ds.heroAccent} />
-      <View style={ds.heroBody}>
-        <View style={local.topRow}>
-          {thumb ? (
-            <Image source={{ uri: thumb }} style={local.thumb} resizeMode="cover" />
-          ) : (
-            <View style={local.thumbPlaceholder}>
-              <MaterialIcons name="inventory-2" size={36} color={c.textCaption} />
-            </View>
-          )}
-          <View style={local.meta}>
-            <Text style={ds.heroEyebrow}>{product.category?.name ?? 'بدون تصنيف'}</Text>
-            <Text style={ds.heroTitle} numberOfLines={2}>
-              {product.name}
-            </Text>
-            <View style={local.badges}>
-              <AppBadge label={badge.label} tone={badgeTone} />
-              {product.featured ? <AppBadge label="مميز" tone="info" /> : null}
-            </View>
+    <View style={styles.container}>
+      <View style={styles.wrap}>
+        {showThumbSkeleton ? (
+          <View style={[styles.thumbWrap, styles.thumbSkeleton]} />
+        ) : thumb ? (
+          <View style={styles.thumbWrap}>
+            <Image source={{ uri: thumb }} style={styles.thumb} resizeMode="cover" />
           </View>
-        </View>
-
-        <View style={local.priceBlock}>
-          <Text style={local.priceLabel}>سعر البيع</Text>
-          <View style={local.priceRow}>
-            <Text style={local.priceValue}>{money(prices.display)}</Text>
-            {prices.compare != null ? <Text style={local.priceOld}>{money(prices.compare)}</Text> : null}
+        ) : (
+          <View style={[styles.thumbWrap, styles.thumbPlaceholder]}>
+            <MaterialIcons name="inventory-2" size={isTablet ? 36 : 32} color={c.textMuted} />
           </View>
-          <Text style={local.stockLine}>المتاح: {numberText(qty)}</Text>
+        )}
+        <View style={styles.panel}>
+          <PremiumHeroPanel
+            eyebrow={isRawMaterial ? 'خامة' : 'المنتج'}
+            title={product.name}
+            subtitle={subtitle}
+            badges={badges}
+            edgeInset={false}
+          />
         </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ds.chipScroll}>
-          {chips}
-        </ScrollView>
       </View>
+
+      {hasActions ? (
+        <View style={styles.actionsBlock}>
+          <View style={styles.actionsRow}>
+            {onInsights ? (
+              <HeroActionChip label="تحليلات" icon="insights" variant="primary" fill onPress={onInsights} />
+            ) : null}
+            {canManage && onEdit ? (
+              <HeroActionChip label="تعديل" icon="edit" fill onPress={onEdit} />
+            ) : null}
+            {canManage && onDelete ? (
+              <HeroActionChip label="حذف" icon="delete-outline" fill onPress={onDelete} />
+            ) : null}
+            {onRefresh ? (
+              <Pressable
+                onPress={onRefresh}
+                disabled={isLoading}
+                style={({ pressed }) => [styles.refreshChip, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityLabel="تحديث"
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={c.sidebarForeground} />
+                ) : (
+                  <MaterialIcons name="refresh" size={20} color={c.sidebarForeground} />
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+          {lastUpdatedLabel ? <Text style={styles.meta}>{lastUpdatedLabel}</Text> : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function createLocalStyles(c: ReturnType<typeof useColors>, large?: boolean) {
-  const thumbSize = large ? 120 : 72;
+function createStyles(c: ReturnType<typeof useColors>, isTablet: boolean) {
+  const thumbSize = isTablet ? 96 : 72;
   return StyleSheet.create({
-    topRow: { ...flexRow, alignItems: 'flex-start', gap: spacing.md },
-    thumb: { width: thumbSize, height: thumbSize, borderRadius: radius.xxl },
-    thumbPlaceholder: {
+    container: {
+      gap: spacing.sm,
+    },
+    wrap: {
+      ...flexRow,
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    thumbWrap: {
       width: thumbSize,
       height: thumbSize,
       borderRadius: radius.xl,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.surfaceMuted,
-    },
-    meta: { flex: 1, minWidth: 0, gap: 4 },
-    badges: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-    priceBlock: {
-      marginTop: spacing.md,
-      padding: spacing.md,
-      borderRadius: radius.xl,
-      backgroundColor: c.surface,
+      overflow: 'hidden',
       borderWidth: 1,
       borderColor: c.borderSubtle,
-      gap: 4,
+      backgroundColor: c.surfaceMuted,
     },
-    priceLabel: { ...textStart, fontSize: typography.tiny, fontFamily: fonts.medium, color: c.textMuted },
-    priceRow: { ...flexRow, alignItems: 'baseline', gap: spacing.sm },
-    priceValue: {
-      fontSize: typography.pageTitle,
-      fontFamily: fonts.extraBold,
-      fontWeight: '800',
-      color: c.accent,
-      writingDirection: 'rtl',
+    thumb: { width: '100%', height: '100%' },
+    thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+    thumbSkeleton: { opacity: 0.7 },
+    panel: { flex: 1, minWidth: 0 },
+    actionsBlock: {
+      gap: spacing.xs,
     },
-    priceOld: {
-      fontSize: typography.small,
+    actionsRow: {
+      ...flexRow,
+      gap: spacing.sm,
+      width: '100%',
+      alignItems: 'stretch',
+    },
+    refreshChip: {
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.xl,
+      backgroundColor: HERO_CHIP_BG_SUBTLE,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: HERO_CHIP_BORDER_STRONG,
+    },
+    meta: {
+      ...textStart,
+      fontSize: typography.micro,
       fontFamily: fonts.medium,
-      color: c.textCaption,
-      textDecorationLine: 'line-through',
-      writingDirection: 'rtl',
+      color: HERO_MUTED_FG,
+      paddingHorizontal: spacing.xs,
     },
-    stockLine: { ...textStart, fontSize: typography.small, fontFamily: fonts.medium, color: c.text },
   });
 }

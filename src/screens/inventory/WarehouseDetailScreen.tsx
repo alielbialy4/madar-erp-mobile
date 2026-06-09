@@ -141,11 +141,11 @@ export function WarehouseDetailScreen({ route, navigation }: { route: Route; nav
               title="بيانات المخزن"
               icon="warehouse"
               fields={[
-                { label: 'الاسم', value: warehouse.name },
-                { label: 'الكود', value: warehouse.code ?? '—', ltr: Boolean(warehouse.code) },
-                { label: 'الموقع', value: warehouse.location ?? '—' },
-                { label: 'الفرع', value: warehouse.branch?.name ?? 'غير مرتبط' },
-                { label: 'الحالة', value: isActive ? 'نشط' : 'غير نشط' },
+                { label: 'الاسم', value: warehouse.name, kind: 'text' },
+                { label: 'الكود', value: warehouse.code ?? '—', kind: 'text' },
+                { label: 'الموقع', value: warehouse.location ?? '—', kind: 'text' },
+                { label: 'الفرع', value: warehouse.branch?.name ?? 'غير مرتبط', kind: 'text' },
+                { label: 'الحالة', value: isActive ? 'نشط' : 'غير نشط', kind: 'text' },
               ]}
             />
 

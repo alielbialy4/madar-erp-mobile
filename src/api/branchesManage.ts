@@ -15,6 +15,11 @@ export type BranchSettingsPatch = {
   receipt_show_branch_name?: boolean;
   print_shift_close_report?: boolean;
   customer_printer_name?: string | null;
+  /** Optional reference to a device-local PrinterProfile used by the mobile app
+   * for actually dispatching the print. The desktop sets customer_printer_name
+   * to a Windows printer name; mobile sets both: the name (for parity with the
+   * server-side audit) and this ID (for resolving the local TCP/BT transport). */
+  customer_printer_profile_id?: string | null;
   print_sequence_max?: number | null;
   receipt_footer?: string | null;
   customer_receipt_footer_message?: string | null;
@@ -38,6 +43,7 @@ export type BranchSettingsPatch = {
   allow_pos_coupon?: boolean;
   customer_receipt_font_size?: number;
   kitchen_ticket_font_size?: number;
+  shift_close_font_size?: number;
 };
 
 export const branchesManageAPI = {

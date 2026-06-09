@@ -3,9 +3,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { diningAPI } from '@/api/dining';
-import { kitchenAPI } from '@/api/kitchen';
-import { getEnabledProfilesByRole } from '@/services/printing/printerProfiles';
-import { printEngine } from '@/services/printing/printEngine';
+import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
@@ -43,7 +41,6 @@ export function TableOrderScreen({ route, navigation }: { route: any; navigation
 function TableOrder({ tableId, tableName, navigation }: { tableId: string; tableName: string; navigation: any }) {
   const c = useColors();
   const activeBranch = useBranchStore((state) => state.activeBranch);
-
   const [order, setOrder] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,30 +212,18 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
       setPrintBlocked('لا يوجد رقم بيع لطباعة فاتورة مبدئية.');
       return;
     }
+    if (!activeBranch?.id) {
+      setPrintBlocked('يجب اختيار فرع قبل الطباعة.');
+      return;
+    }
     setActionLoading(true);
     try {
-      const profiles = await getEnabledProfilesByRole('kitchen');
-      if (!profiles.length) {
-        setPrintBlocked('لا يوجد ملف طابعة مطبخ مفعّل. أضف ملف طابعة من الإعدادات.');
-        return;
-      }
-      const ticketRes = await kitchenAPI.getTicket(saleId);
-      const ticket = (ticketRes.data as Record<string, unknown>) ?? {};
-      const items = Array.isArray(ticket.items) ? ticket.items : order?.items ?? [];
-      await printEngine.printKitchenTicket(
-        {
-          order_label: String(ticket.invoice_number ?? order?.invoice_number ?? saleId),
-          table_name: tableName,
-          items: items.map((it: Record<string, unknown>) => ({
-            name: String((it.product as Record<string, unknown>)?.name ?? it.product_name ?? 'صنف'),
-            quantity: Number(it.quantity ?? 1),
-            notes: it.notes ? String(it.notes) : undefined,
-          })),
-          ticket_type: 'kitchen',
-        },
-        profiles[0],
-      );
-      setMessage('تم إرسال أمر الطباعة');
+      const result = await printSaleReceiptLocal(saleId, activeBranch.id, {
+        isReprint: false,
+        documentTitle: 'فاتورة طاولة',
+        showBarcode: false,
+      });
+      setMessage(result.ok ? result.message : result.message);
     } catch (err) {
       setMessage(normalizeApiError(err).message);
     } finally {

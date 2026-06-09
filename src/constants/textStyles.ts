@@ -1,5 +1,5 @@
 import type { TextStyle } from 'react-native';
-import { textStart } from '@/constants/layout';
+import { textStart, textLtr } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
 
@@ -65,14 +65,14 @@ const presets: Record<TextStylePreset, TextStyle> = {
     fontFamily: fonts.regular,
   },
   metric: {
-    ...textStart,
+    ...textLtr,
     fontSize: typography.metric,
     lineHeight: 34,
     fontFamily: fonts.extraBold,
     fontWeight: '800',
   },
   metricLarge: {
-    ...textStart,
+    ...textLtr,
     fontSize: typography.metricLarge,
     lineHeight: 42,
     fontFamily: fonts.extraBold,

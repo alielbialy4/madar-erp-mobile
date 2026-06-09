@@ -11,6 +11,7 @@ import {
 } from '@/components/pos/posSheetUi';
 import { useColors } from '@/hooks/useColors';
 import { money } from '@/utils/format';
+import { paymentTypeLabel } from '@/utils/paymentLabels';
 import type { CartLine } from '@/store/posStore';
 import type { Coupon } from '@/types/api';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -73,15 +74,6 @@ export function CheckoutReviewSheet({
 }: Props) {
   const c = useColors();
   const s = usePosSheetStyles();
-  const paymentLabels: Record<string, string> = {
-    cash: 'نقدي',
-    card: 'بطاقة',
-    credit: 'آجل',
-    wallet: 'محفظة',
-    split: 'مقسم',
-    gift_card: 'بطاقة هدايا',
-    layaway: 'تقسيط',
-  };
   const couponDiscount = coupon?.discount ?? 0;
   const grandTotal = Math.max(0, total - loyaltyDiscount);
   const giftAmount = paymentType === 'gift_card' && giftCard ? giftCard.amount : 0;
@@ -190,7 +182,7 @@ export function CheckoutReviewSheet({
             <View style={{ flex: 1, gap: 4 }}>
               <View style={s.summaryRow}>
                 <Text style={s.summaryLabel}>طريقة الدفع</Text>
-                <Text style={s.summaryValue}>{paymentLabels[paymentType] ?? paymentType}</Text>
+                <Text style={s.summaryValue}>{paymentTypeLabel(paymentType)}</Text>
               </View>
               {paymentType === 'gift_card' && giftCard ? (
                 <View style={s.summaryRow}>

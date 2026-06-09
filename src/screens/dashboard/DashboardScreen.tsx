@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
+import { DashboardShortcutsHub } from '@/components/dashboard/DashboardShortcutsHub';
 import { BranchDashboardView, type BranchOperationalPayload } from '@/components/dashboard/BranchDashboardView';
 import { GlobalDashboardView, type GlobalAnalyticsPayload } from '@/components/dashboard/GlobalDashboardView';
 import { CashierDashboardView } from '@/components/dashboard/CashierDashboardView';
@@ -10,7 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { canAccessBranchOperationalDashboard } from '@/utils/permissions';
-import { dashboardGreeting } from '@/utils/dashboardGreeting';
+import { spacing } from '@/constants/spacing';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 
@@ -85,17 +86,13 @@ export function DashboardScreen({ navigation }: Props) {
     void refreshNow({ silent: true });
   }, [refreshNow]);
 
-  const greeting = useMemo(() => dashboardGreeting(user), [user]);
-
   const shell = useMemo(
     () => ({
       lastUpdatedLabel,
       isLoading: loading || refreshing,
       onRefresh: () => void refreshNow({ silent: true }),
-      quickActions: <DashboardQuickActions navigation={navigation} />,
-      greeting,
     }),
-    [lastUpdatedLabel, loading, refreshing, navigation, refreshNow, greeting],
+    [lastUpdatedLabel, loading, refreshing, refreshNow],
   );
 
   const pageTitle = 'لوحة التحكم';
@@ -114,6 +111,7 @@ export function DashboardScreen({ navigation }: Props) {
       scroll
       refreshing={refreshing}
       onRefresh={onRefresh}
+      contentStyle={{ padding: 0, gap: spacing.md }}
     >
       {isGlobalView ? (
         <GlobalDashboardView
@@ -135,6 +133,9 @@ export function DashboardScreen({ navigation }: Props) {
           onRetry={() => void refreshNow()}
         />
       )}
+      <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
+        <DashboardShortcutsHub navigation={navigation} />
+      </View>
     </AppScreen>
   );
 }

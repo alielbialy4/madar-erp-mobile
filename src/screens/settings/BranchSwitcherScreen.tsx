@@ -5,13 +5,12 @@ import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/c
 import { AppEmptyState } from '@/components/feedback';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
-import { usePermissions } from '@/hooks/usePermissions';
+import { canUseGlobalView } from '@/utils/permissions';
 import { spacing } from '@/constants/spacing';
 import { normalizeApiError } from '@/utils/errors';
 
 export function BranchSwitcherScreen({ onDone }: { onDone?: () => void }) {
   const user = useAuthStore((state) => state.user);
-  const { can } = usePermissions();
   const branches = useBranchStore((state) => state.branches);
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const viewMode = useBranchStore((state) => state.viewMode);
@@ -50,7 +49,7 @@ export function BranchSwitcherScreen({ onDone }: { onDone?: () => void }) {
           />
         ))}
       </AppCard>
-      {user?.can_use_global_view || can('access_admin_routes') ? (
+      {canUseGlobalView(user) ? (
         <AppButton title="التحويل إلى العرض العام" variant="secondary" onPress={() => handleSwitch(null)} />
       ) : null}
     </AppScreen>

@@ -17,11 +17,34 @@ EXPO_PUBLIC_DEFAULT_TENANT_SLUG=
 
 ## Development Commands
 
+### UI only (Expo Go — no TCP / Bluetooth printing)
+
 ```bash
 npm start
-npm run ios
 npm run android
+npm run ios
 npm run web
+```
+
+### Printing + native modules (Dev Client — recommended on device)
+
+Build the dev client **once**, install the APK, then use Metro for live reload:
+
+```bash
+# One-time
+npm run build:dev-client
+
+# Daily development (phone + Mac on same Wi-Fi)
+npm run start:dev
+# or open directly on Android:
+npm run android:dev
+```
+
+Expo Go cannot load `react-native-tcp-socket` or Bluetooth ESC/POS. Use the dev client APK for printer testing.
+
+### Other
+
+```bash
 npm run typecheck
 npm run lint
 npx expo export --platform web
@@ -59,9 +82,10 @@ npm start -- --clear
 
 ```bash
 npx eas login
-npx eas build:configure
+npx eas init   # first time only — links projectId in app.json (requires eas-cli in devDependencies)
+npm run build:dev-client   # dev APK + Metro (printing works, live reload)
+npm run build:apk          # standalone preview APK (no Metro needed)
 npx eas build --profile preview --platform ios
-npx eas build --profile preview --platform android
 ```
 
 Do not run remote builds until Apple/Google credentials and production API env are confirmed.

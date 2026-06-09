@@ -5,7 +5,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui';
 import { PosOrderModeToggle } from '@/components/pos/PosOrderModeToggle';
 import { AppEmptyState } from '@/components/feedback';
-import { flexRow, rtlDirection, textStart } from '@/constants/layout';
+import { flexRow, rtlDirection, textLtr, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
@@ -42,6 +42,7 @@ type Props = {
   onRemoveLine: (lineKey: string) => void;
   onPrintKitchen?: () => void;
   kitchenPrintEnabled?: boolean;
+  onPrintTableInvoice?: () => void;
   /** Tablet split layout: denser cart chrome, utilities in top bar. */
   variant?: 'default' | 'tablet';
 };
@@ -144,6 +145,7 @@ export function PosOrderPanel({
   onRemoveLine,
   onPrintKitchen,
   kitchenPrintEnabled = false,
+  onPrintTableInvoice,
   variant = 'default',
 }: Props) {
   const isTablet = variant === 'tablet';
@@ -152,6 +154,7 @@ export function PosOrderPanel({
   const styles = useMemo(() => createStyles(c, isTablet), [c, isTablet]);
 
   const showKitchenPrint = Boolean(onPrintKitchen) && kitchenPrintEnabled;
+  const showTableInvoice = Boolean(onPrintTableInvoice) && Boolean(selectedTableId);
   const isDineIn = Boolean(selectedTableId);
 
   const handleClearCart = () => {
@@ -346,6 +349,16 @@ export function PosOrderPanel({
               disabled={cart.length === 0}
               tone="danger"
             />
+            {showTableInvoice ? (
+              <PosCartIconBtn
+                size="lg"
+                icon="receipt"
+                accessibilityLabel="طباعة فاتورة الطاولة"
+                onPress={onPrintTableInvoice!}
+                disabled={cart.length === 0}
+                tone="accent"
+              />
+            ) : null}
             {showKitchenPrint ? (
               <PosCartIconBtn
                 size="lg"
@@ -504,13 +517,12 @@ function createStyles(c: AppColors, isTablet: boolean) {
       paddingHorizontal: spacing.xs,
     },
     lineTotal: {
+      ...textLtr,
       color: c.text,
       fontFamily: fonts.bold,
       fontWeight: '700',
       fontSize: typography.small,
-      writingDirection: 'rtl',
       flexShrink: 0,
-      textAlign: 'left',
       marginStart: spacing.xs,
     },
     qtyBtn: {

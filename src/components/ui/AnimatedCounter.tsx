@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
 import { fontFamilyForWeight } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
+import { AppText } from './AppText';
 
 interface AnimatedCounterProps {
   value: number;
@@ -62,7 +63,8 @@ export function AnimatedCounter({
   });
 
   return (
-    <Text
+    <AppText
+      numeric
       style={[
         {
           fontFamily: fontFamilyForWeight(fontWeight),
@@ -75,6 +77,6 @@ export function AnimatedCounter({
       {prefix}
       {fmt.format(display)}
       {suffix}
-    </Text>
+    </AppText>
   );
 }

@@ -1,66 +1,66 @@
 import { shiftsAPI } from '@/api/shifts';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
+import { usePosStore } from '@/store/posStore';
 import { extractData } from '@/utils/data';
-import { money, numberText, dateText } from '@/utils/format';
-import type { ShiftSummaryPayload } from '@/types/printing';
+import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
+import type { ShiftCloseReportPayload } from '@/types/printing';
 import { getConnectionCapability } from './printerCapabilities';
+import { resolveReceiptProfile } from './branchPrintBinding';
 import { getEnabledProfilesByRole } from './printerProfiles';
 import { printEngine } from './printEngine';
+import { mapShiftSummaryToPrintPayload } from './mapShiftSummaryToPrintPayload';
 
 export type ShiftPrintResult = { ok: boolean; message: string; jobId?: string };
 
+async function resolveShiftPrintProfile(branchId: string, catalogSettings: Record<string, unknown>) {
+  const serverProfileId = String(catalogSettings.customer_printer_profile_id ?? '');
+  const receiptProfile = await resolveReceiptProfile(branchId, serverProfileId || null);
+  if (receiptProfile) return receiptProfile;
+  const shiftProfiles = await getEnabledProfilesByRole('shift', branchId);
+  if (shiftProfiles[0]) return shiftProfiles[0];
+  const reportProfiles = await getEnabledProfilesByRole('report', branchId);
+  if (reportProfiles[0]) return reportProfiles[0];
+  const cashierProfiles = await getEnabledProfilesByRole('cashier', branchId);
+  return cashierProfiles[0] ?? null;
+}
+
 export async function printShiftSummaryForShift(shiftId: string): Promise<ShiftPrintResult> {
-  const profiles = await getEnabledProfilesByRole('shift');
-  const fallback = profiles.length ? profiles : await getEnabledProfilesByRole('report');
-  const profile = fallback[0] ?? (await getEnabledProfilesByRole('cashier'))[0];
+  const catalogSettings = usePosStore.getState().catalogSettings;
+  const printSettings = normalizeBranchPrintSettings(catalogSettings);
+  if (!printSettings.print_shift_close_report) {
+    return { ok: true, message: 'طباعة تقرير الوردية معطّلة في إعدادات الفرع.' };
+  }
+
+  const branch = useBranchStore.getState().activeBranch;
+  const profile = branch?.id
+    ? await resolveShiftPrintProfile(branch.id, catalogSettings)
+    : null;
   if (!profile) {
-    return { ok: false, message: 'لم يتم إعداد طابعة لملخص الوردية.' };
+    return { ok: false, message: 'لم يتم إعداد طابعة لتقرير الوردية.' };
   }
   const cap = getConnectionCapability(profile.connection_type);
   if (!cap.supported) {
     return { ok: false, message: cap.reasonAr ?? 'نوع الطباعة غير مدعوم على هذا الجهاز.' };
   }
 
-  const branch = useBranchStore.getState().activeBranch;
-  const user = useAuthStore.getState().user;
-  let summary: Record<string, unknown> = {};
+  let payload: ShiftCloseReportPayload;
   try {
     const res = await shiftsAPI.getSummary(shiftId, branch?.id ? { branch_id: branch.id } : undefined);
-    summary = (extractData<Record<string, unknown>>(res) ?? {}) as Record<string, unknown>;
+    const raw = (extractData<Record<string, unknown>>(res) ?? {}) as Record<string, unknown>;
+    payload = mapShiftSummaryToPrintPayload(raw, branch?.name);
+    const user = useAuthStore.getState().user;
+    if (user?.name && !payload.cashier_name) {
+      payload = { ...payload, cashier_name: user.name };
+    }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : 'تعذر تحميل ملخص الوردية' };
   }
 
-  const shift = (summary.shift ?? summary) as Record<string, unknown>;
-  const totals = (summary.totals ?? summary) as Record<string, unknown>;
-  const payload: ShiftSummaryPayload = {
-    branch_name: branch?.name,
-    shift_label: `وردية ${shift.shift_no ?? shift.id ?? shiftId}`,
-    opened_at: shift.opened_at ? dateText(String(shift.opened_at)) : undefined,
-    closed_at: shift.closed_at ? dateText(String(shift.closed_at)) : undefined,
-    totals: [
-      { label: 'إجمالي المبيعات', value: money(totals.gross_sales ?? totals.total_sales ?? totals.sales_total ?? 0) },
-      { label: 'مبيعات نقدية', value: money(totals.cash_sales ?? 0) },
-      ...(Number(totals.card_payments ?? 0) > 0
-        ? [{ label: 'بطاقات', value: money(totals.card_payments ?? 0) }]
-        : []),
-      { label: 'إنستا باي', value: money(totals.instapay_payments ?? 0) },
-      { label: 'محافظ إلكترونية', value: money(totals.electronic_wallet_payments ?? 0) },
-      { label: 'المصروفات', value: money(totals.total_expenses ?? 0) },
-      { label: 'المرتجعات', value: money(totals.total_refunds ?? totals.refunds_total ?? 0) },
-      { label: 'النقدية المتوقعة (الدرج)', value: money(totals.expected_cash ?? shift.expected_cash ?? 0) },
-      { label: 'النقدية الفعلية', value: money(totals.actual_cash ?? shift.actual_cash ?? '—') },
-      { label: 'الفرق', value: money(totals.discrepancy ?? shift.discrepancy ?? 0) },
-      { label: 'عدد العمليات', value: numberText(totals.total_transactions ?? totals.sales_count ?? 0) },
-      { label: 'الكاشير', value: String(user?.name ?? shift.cashier_name ?? '—') },
-    ],
-  };
-
   try {
     const job = await printEngine.printShiftSummary(payload, profile);
     if (job.status === 'printed') {
-      return { ok: true, message: 'تم إرسال ملخص الوردية للطابعة', jobId: job.id };
+      return { ok: true, message: 'تم إرسال تقرير الوردية للطابعة', jobId: job.id };
     }
     return {
       ok: false,

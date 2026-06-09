@@ -4,6 +4,7 @@ import type { PrintDiagnosticState } from '@/services/printing/printDiagnostics'
 import { countPrintJobs, getPrintJobs } from '@/services/printing/printQueue';
 import { getPrinterProfiles } from '@/services/printing/printerProfiles';
 import { getPrintDiagnostics } from '@/services/printing/printDiagnostics';
+import { useBranchStore } from '@/store/branchStore';
 
 type PrintState = {
   jobs: PrintJobRecord[];
@@ -24,13 +25,17 @@ export const usePrintStore = create<PrintState>((set) => ({
     last_success_at: null,
     last_profile_id: null,
     last_profile_name: null,
+    last_print_path: null,
+    capture_failed_reason: null,
+    capture_ok_at: null,
   },
   pendingCount: 0,
   failedCount: 0,
   refresh: async () => {
+    const branchId = useBranchStore.getState().activeBranch?.id ?? null;
     const [jobs, profiles, diagnostics] = await Promise.all([
       getPrintJobs(),
-      getPrinterProfiles(),
+      getPrinterProfiles(branchId),
       getPrintDiagnostics(),
     ]);
     const counts = countPrintJobs(jobs);
@@ -52,6 +57,9 @@ export const usePrintStore = create<PrintState>((set) => ({
         last_success_at: null,
         last_profile_id: null,
         last_profile_name: null,
+        last_print_path: null,
+        capture_failed_reason: null,
+        capture_ok_at: null,
       },
       pendingCount: 0,
       failedCount: 0,

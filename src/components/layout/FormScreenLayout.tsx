@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { RefObject } from 'react';
+import { ScrollView, View } from 'react-native';
 import { AppScreen } from './AppScreen';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
@@ -28,6 +28,7 @@ type Props = {
   deleteLabel?: string;
   onDelete?: () => void;
   scroll?: boolean;
+  scrollRef?: RefObject<ScrollView | null>;
 };
 
 export function FormScreenLayout({
@@ -50,6 +51,7 @@ export function FormScreenLayout({
   deleteLabel,
   onDelete,
   scroll = true,
+  scrollRef,
 }: Props) {
   const c = useColors();
   const styles = createModuleStyles(c);
@@ -57,7 +59,7 @@ export function FormScreenLayout({
   const showFooter = Boolean(footer ?? onSave ?? onCancel ?? onDelete);
 
   return (
-    <AppScreen title={title} subtitle={subtitle} onBack={onBack} headerRight={headerRight} scroll={scroll} contentStyle={{ padding: 0, gap: 0 }}>
+    <AppScreen title={title} subtitle={subtitle} onBack={onBack} headerRight={headerRight} scroll={scroll} scrollRef={scrollRef} contentStyle={{ padding: 0, gap: 0 }}>
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.lg, paddingBottom: showFooter ? tabInset + 80 : tabInset }}>
         {(heroTitle || heroSubtitle || heroAmount || heroBadge) ? (
           <View style={styles.detailHero}>

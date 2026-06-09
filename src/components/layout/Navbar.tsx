@@ -2,17 +2,17 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Text } from '@/components/ui/AppText';
 import {
   ActivityIndicator,
-  I18nManager,
   Modal,
-  Platform,
   Pressable,
+  StyleSheet,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, isRtl, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
-import { spacing, radius } from '@/constants/spacing';
+import { spacing, radius, shadows } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
@@ -21,28 +21,70 @@ import { useNetworkStore } from '@/store/networkStore';
 import { useAuthStore } from '@/store/authStore';
 import { usePosStore } from '@/store/posStore';
 import { notificationsAPI } from '@/api/notifications';
+import { useToast } from '@/components/feedback';
 import { syncAll } from '@/services/sync/syncService';
+import { notifySyncResult } from '@/services/sync/notifySyncResult';
 import { extractData } from '@/utils/data';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
+import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
+import { BranchSwitcher, getBranchDisplayLabel } from '@/components/layout/BranchSwitcher';
 
-const HEADER_HEIGHT = 48;
-const badgeCorner = I18nManager.isRTL ? { left: 2 } : { right: 2 };
+const HEADER_HEIGHT_PHONE = 48;
+const HEADER_HEIGHT_TABLET = 52;
+const badgeCorner = isRtl ? { end: 2 } : { end: 2 };
 
 type Props = {
   onMenuPress: () => void;
   onNavigate: (action: SidebarNavAction) => void;
   onOpenCommandPalette?: () => void;
+  menuAccessibilityLabel?: string;
 };
 
-export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props) {
+type IconButtonProps = {
+  onPress?: () => void;
+  disabled?: boolean;
+  accessibilityLabel: string;
+  children: React.ReactNode;
+  style?: object;
+};
+
+function NavbarIconButton({ onPress, disabled, accessibilityLabel, children, style }: IconButtonProps) {
   const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        {
+          width: 40,
+          height: 40,
+          borderRadius: radius.lg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.surfaceMuted,
+          borderWidth: 1,
+          borderColor: c.borderSubtle,
+          opacity: disabled ? 0.5 : 1,
+        },
+        style,
+      ]}
+      accessibilityLabel={accessibilityLabel}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette, menuAccessibilityLabel = 'فتح القائمة' }: Props) {
+  const c = useColors();
+  const toast = useToast();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const headerHeight = isTablet ? HEADER_HEIGHT_TABLET : HEADER_HEIGHT_PHONE;
 
   const activeBranch = useBranchStore((s) => s.activeBranch);
-  const branches = useBranchStore((s) => s.branches);
   const viewMode = useBranchStore((s) => s.viewMode);
-  const switchBranch = useBranchStore((s) => s.switchBranch);
-  const branchLoading = useBranchStore((s) => s.loading);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const user = useAuthStore((s) => s.user);
   const refreshPendingOrders = usePosStore((s) => s.refreshPendingOrders);
@@ -50,12 +92,11 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  const [branchOpen, setBranchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const userName = user?.name ?? 'المستخدم';
   const attentionCount = pendingOrders.length;
-  const branchLabel = viewMode === 'global' ? 'كل الفروع' : activeBranch?.name ?? 'اختر الفرع';
+  const branchLabel = getBranchDisplayLabel(viewMode, activeBranch);
 
   const loadUnread = useCallback(async () => {
     try {
@@ -69,106 +110,58 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
   useEffect(() => { void loadUnread(); void refreshPendingOrders(); }, [loadUnread, refreshPendingOrders]);
 
   const handleSync = useCallback(async () => {
-    if (!isOnline || syncing) return;
+    if (syncing) return;
+    if (!isOnline) {
+      toast.show('لا يوجد اتصال بالإنترنت', 'warning');
+      return;
+    }
+    if (viewMode === 'global' || !activeBranch?.id) {
+      toast.show('يجب اختيار فرع قبل المزامنة', 'warning');
+      return;
+    }
     setSyncing(true);
-    try { await syncAll(); await refreshPendingOrders(); await loadUnread(); } finally { setSyncing(false); }
-  }, [isOnline, syncing, refreshPendingOrders, loadUnread]);
+    try {
+      const res = await syncAll();
+      notifySyncResult(res, toast);
+      await refreshPendingOrders();
+      await loadUnread();
+    } catch {
+      toast.error('فشلت المزامنة');
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncing, isOnline, viewMode, activeBranch?.id, toast, refreshPendingOrders, loadUnread]);
 
   return (
     <>
-      <View style={{
-        backgroundColor: c.surfaceHeader,
-        borderBottomWidth: 1,
-        borderBottomColor: c.borderSubtle,
-        paddingHorizontal: spacing.md,
-        paddingTop: insets.top,
-        zIndex: 30,
-        ...Platform.select({
-          ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 2 },
-          android: { elevation: 2 },
-          default: {},
-        }),
-      }}>
-        <View style={{ ...flexRow, alignItems: 'center', minHeight: HEADER_HEIGHT, gap: spacing.sm }}>
-          <Pressable
-            onPress={onMenuPress}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.lg,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: c.surfaceMuted,
-              borderWidth: 1,
-              borderColor: c.borderSubtle,
-            }}
-            accessibilityLabel="فتح القائمة"
-          >
+      <View
+        style={{
+          backgroundColor: c.surfaceHeader,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: c.borderSubtle,
+          paddingHorizontal: isTablet ? spacing.lg : spacing.md,
+          paddingTop: insets.top,
+          zIndex: 30,
+          ...shadows.sm,
+        }}
+      >
+        <View style={{ ...flexRow, alignItems: 'center', minHeight: headerHeight, gap: spacing.sm }}>
+          <NavbarIconButton onPress={onMenuPress} accessibilityLabel={menuAccessibilityLabel}>
             <MaterialIcons name="menu" size={22} color={c.text} />
-          </Pressable>
+          </NavbarIconButton>
 
-          <Pressable
-            onPress={() => setBranchOpen(true)}
-            style={{
-              ...flexRow,
-              flex: 1,
-              minWidth: 0,
-              maxWidth: '58%',
-              alignItems: 'center',
-              gap: spacing.xs,
-              paddingHorizontal: spacing.md,
-              paddingVertical: 7,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: c.primarySoftBorder,
-              backgroundColor: c.primarySoftMuted,
-              opacity: branchLoading ? 0.7 : 1,
-            }}
-          >
-            <MaterialIcons name={viewMode === 'global' ? 'public' : 'store'} size={15} color={c.primarySoftForeground} />
-            <Text
-              style={{
-                ...textStart,
-                flex: 1,
-                fontSize: typography.caption,
-                fontFamily: fonts.bold,
-                fontWeight: '600',
-                color: c.text,
-              }}
-              numberOfLines={1}
-            >
-              {branchLabel}
-            </Text>
-            <MaterialIcons name="expand-more" size={16} color={c.textMuted} />
-          </Pressable>
+          <BranchSwitcher />
 
-          <View
-            style={{
-              ...flexRow,
-              alignItems: 'center',
-              gap: 0,
-              flexShrink: 0,
-              paddingHorizontal: 2,
-              paddingVertical: 2,
-              borderRadius: radius.xl,
-              backgroundColor: c.surfaceMuted,
-              borderWidth: 1,
-              borderColor: c.borderSubtle,
-            }}
-          >
-            <Pressable
+          <View style={{ ...flexRow, alignItems: 'center', gap: spacing.xs, flexShrink: 0 }}>
+            <NavbarIconButton
               onPress={() => void handleSync()}
-              disabled={!isOnline || syncing}
+              disabled={syncing}
+              accessibilityLabel={isOnline ? 'متصل — مزامنة' : 'غير متصل'}
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: radius.md,
-                alignItems: 'center',
-                justifyContent: 'center',
                 backgroundColor: isOnline ? `${c.success}14` : c.softDanger,
+                borderColor: isOnline ? `${c.success}33` : c.softDangerBorder,
                 position: 'relative',
               }}
-              accessibilityLabel={isOnline ? 'متصل — مزامنة' : 'غير متصل'}
             >
               {syncing ? (
                 <ActivityIndicator size="small" color={c.accent} />
@@ -196,22 +189,18 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
                   </Text>
                 </View>
               ) : null}
-            </Pressable>
+            </NavbarIconButton>
 
             {onOpenCommandPalette ? (
-              <Pressable
-                onPress={onOpenCommandPalette}
-                style={{ width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' }}
-                accessibilityLabel="بحث سريع"
-              >
+              <NavbarIconButton onPress={onOpenCommandPalette} accessibilityLabel="بحث سريع">
                 <MaterialIcons name="search" size={20} color={c.text} />
-              </Pressable>
+              </NavbarIconButton>
             ) : null}
 
-            <Pressable
+            <NavbarIconButton
               onPress={() => onNavigate({ kind: 'more', screen: 'Notifications' })}
-              style={{ width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', position: 'relative' }}
               accessibilityLabel="الإشعارات"
+              style={{ position: 'relative' }}
             >
               <MaterialIcons name="notifications-none" size={20} color={c.text} />
               {unreadCount > 0 ? (
@@ -235,22 +224,23 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
                   </Text>
                 </View>
               ) : null}
-            </Pressable>
+            </NavbarIconButton>
 
             <Pressable
               onPress={() => setProfileOpen(true)}
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
                 backgroundColor: c.primary,
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderWidth: 2,
-                borderColor: c.surface,
+                borderColor: c.primarySoftBorder,
               }}
+              accessibilityLabel="الملف الشخصي"
             >
-              <Text style={{ color: c.primaryForeground, fontSize: 12, fontFamily: fonts.bold }}>
+              <Text style={{ color: c.primaryForeground, fontSize: 13, fontFamily: fonts.bold }}>
                 {userName.charAt(0) || 'U'}
               </Text>
             </Pressable>
@@ -258,25 +248,8 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
         </View>
       </View>
 
-      <Modal visible={branchOpen} transparent animationType="fade" onRequestClose={() => setBranchOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' }} onPress={() => setBranchOpen(false)}>
-          <View style={{ backgroundColor: c.surface, borderTopLeftRadius: radius.xxxl, borderTopRightRadius: radius.xxxl, padding: spacing.xl, gap: spacing.sm, paddingBottom: insets.bottom + spacing.lg }}>
-            <Text style={{ ...textStart, fontSize: typography.sectionTitle, fontFamily: fonts.bold, color: c.text, marginBottom: spacing.sm }}>تبديل الفرع</Text>
-            {user?.can_use_global_view ? (
-              <Pressable style={{ ...flexRow, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.lg, backgroundColor: viewMode === 'global' ? c.softPrimary : 'transparent' }} onPress={() => void switchBranch(null).then(() => setBranchOpen(false))}>
-                <Text style={{ ...textStart, flex: 1, fontSize: typography.body, fontFamily: fonts.medium, color: c.text }}>عرض عام — كل الفروع</Text>
-              </Pressable>
-            ) : null}
-            {branches.map((b) => (
-              <Pressable key={String(b.id)} style={{ ...flexRow, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.lg, backgroundColor: activeBranch?.id === b.id && viewMode === 'branch' ? c.softPrimary : 'transparent' }} onPress={() => void switchBranch(String(b.id)).then(() => setBranchOpen(false))}>
-                <Text style={{ ...textStart, flex: 1, fontSize: typography.body, fontFamily: fonts.medium, color: c.text }}>{b.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
       <Modal visible={profileOpen} transparent animationType="fade" onRequestClose={() => setProfileOpen(false)}>
+        <RtlModalRoot>
         <Pressable style={{ flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' }} onPress={() => setProfileOpen(false)}>
           <Pressable
             style={{
@@ -359,6 +332,7 @@ export function Navbar({ onMenuPress, onNavigate, onOpenCommandPalette }: Props)
             </View>
           </Pressable>
         </Pressable>
+        </RtlModalRoot>
       </Modal>
     </>
   );

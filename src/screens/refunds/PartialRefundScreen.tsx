@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { textStart } from '@/constants/layout';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -14,6 +14,9 @@ import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { Sale } from '@/types/api';
+import { createUuid } from '@/utils/uuid';
+import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
+import { useBranchStore } from '@/store/branchStore';
 
 type RefundLine = {
   saleItemId: number;
@@ -35,6 +38,7 @@ export function PartialRefundScreen({ route, navigation }: { route: any; navigat
 
 function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any }) {
   const c = useColors();
+  const branchId = useBranchStore((s) => s.activeBranch?.id);
   const loader = useCallback(() => salesAPI.getById(saleId), [saleId]);
   const { data: sale, loading, error, reload } = useAsyncResource<Sale>(loader);
 
@@ -46,6 +50,8 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const submitLockRef = useRef(false);
+  const clientUuidRef = useRef<string | null>(null);
 
   const styles = useMemo(() => StyleSheet.create({
     emptyText: { ...textStart, color: c.textMuted, fontSize: typography.body },
@@ -117,6 +123,11 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     : [{ label: 'نقدي', value: 'cash' }];
 
   const submit = async () => {
+    if (submitLockRef.current || submitting) return;
+    submitLockRef.current = true;
+    if (!clientUuidRef.current) {
+      clientUuidRef.current = createUuid();
+    }
     setSubmitting(true);
     setSubmitMessage(null);
     try {
@@ -128,6 +139,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         .filter((i) => i.quantity > 0);
 
       const response = await salesAPI.partialRefund(saleId, {
+        client_uuid: clientUuidRef.current,
         items: refundItems,
         reason: reason || undefined,
         notes: notes || undefined,
@@ -137,9 +149,20 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       setSubmitMessage(response.message || 'تم تسجيل الاسترداد الجزئي بنجاح');
       setConfirmOpen(false);
       await reload();
+      if (branchId) {
+        const printResult = await printSaleReceiptLocal(saleId, branchId, {
+          isReprint: true,
+          documentTitle: 'فاتورة مرتجع',
+          asRefund: true,
+        });
+        if (printResult.ok) {
+          setSubmitMessage(`${response.message || 'تم تسجيل الاسترداد الجزئي بنجاح'} — ${printResult.message}`);
+        }
+      }
     } catch (err) {
       setSubmitMessage(normalizeApiError(err).message);
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };

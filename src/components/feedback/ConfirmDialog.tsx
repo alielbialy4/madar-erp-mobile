@@ -7,6 +7,7 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppButton } from '@/components/ui';
+import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 
 type Props = {
   visible: boolean;
@@ -24,7 +25,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel = 'تأك�
   const c = useColors();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={{ flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: spacing.xl }}>
+      <RtlModalRoot style={{ backgroundColor: c.overlay, justifyContent: 'center', padding: spacing.xl }}>
         <View style={{
           backgroundColor: c.surface,
           borderRadius: radius.xxl,
@@ -50,7 +51,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel = 'تأك�
             <AppButton title={confirmLabel} onPress={onConfirm} variant={variant} style={{ minWidth: 100 }} loading={loading} />
           </View>
         </View>
-      </View>
+      </RtlModalRoot>
     </Modal>
   );
 }

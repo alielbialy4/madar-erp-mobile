@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
 import { elevation } from '@/constants/elevation';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -68,12 +68,14 @@ export function createModuleStyles(c: AppColors) {
       borderColor: c.borderSubtle,
     },
     statPillValue: {
+      ...textLtr,
       fontSize: typography.body,
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,
     },
     statPillLabel: {
+      ...textStart,
       fontSize: typography.tiny,
       fontFamily: fonts.regular,
       color: c.textMuted,

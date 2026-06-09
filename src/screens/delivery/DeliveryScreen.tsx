@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { ListParams } from '@/types/api';
-import { ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppSelect } from '@/components/ui';
+import { HeroActionChip, ListScreenLayout } from '@/components/layout';
+import { AppDomainCard, AppSelect } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
@@ -27,6 +27,7 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
     <ListScreenLayout
       title="التوصيل"
       subtitle="طلبات وسائقون ومناطق ومالية"
+      noHeader
       searchValue={query}
       onSearchChange={setQuery}
       onRefresh={refresh}
@@ -53,10 +54,10 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
         stats: [{ label: 'الطلبات', value: items.length }],
         actions: (
           <>
-            <AppButton title="السائقون" variant="secondary" onPress={() => navigation.navigate('DriversList')} />
-            <AppButton title="المناطق" variant="secondary" onPress={() => navigation.navigate('DeliveryZonesList')} />
-            <AppButton title="تسويات السائقين" variant="secondary" onPress={() => navigation.navigate('DriverSettlements')} />
-            <AppButton title="مالية التوصيل" variant="secondary" onPress={() => navigation.navigate('DeliveryFinanceDashboard')} />
+            <HeroActionChip label="السائقون" icon="people" onPress={() => navigation.navigate('DriversList')} />
+            <HeroActionChip label="المناطق" icon="map" onPress={() => navigation.navigate('DeliveryZonesList')} />
+            <HeroActionChip label="تسويات السائقين" icon="account-balance-wallet" onPress={() => navigation.navigate('DriverSettlements')} />
+            <HeroActionChip label="مالية التوصيل" icon="account-balance" onPress={() => navigation.navigate('DeliveryFinanceDashboard')} />
           </>
         ),
         compact: true,

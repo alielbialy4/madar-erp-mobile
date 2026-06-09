@@ -170,7 +170,11 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
       await loadBranches();
       toast.success(isEdit ? 'تم تحديث الفرع' : 'تم إنشاء الفرع');
       void hapticSuccess();
-      navigation.goBack();
+      if (isEdit && id) {
+        navigation.navigate('BranchDetail', { id });
+      } else {
+        navigation.goBack();
+      }
     } catch (err) {
       const msg = normalizeApiError(err).message;
       setError(msg);

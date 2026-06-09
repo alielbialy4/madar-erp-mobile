@@ -334,7 +334,7 @@ export function PosCatalogPanel({
           bottom: 0,
           zIndex: 6,
           paddingHorizontal: spacing.sm + 2,
-          paddingLeft: spacing.xl + 8,
+          paddingStart: spacing.xl + 8,
           paddingBottom: spacing.sm + 2,
           paddingTop: spacing.xl,
           gap: 3,

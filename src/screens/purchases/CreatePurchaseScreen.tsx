@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -22,6 +22,7 @@ import { extractArray } from '@/utils/data';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { hapticError, hapticSuccess } from '@/utils/haptics';
+import { createUuid } from '@/utils/uuid';
 
 type PurchaseItem = {
   product_id: number;
@@ -80,6 +81,8 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
 
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
+  const clientUuidRef = useRef<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
@@ -187,12 +190,18 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   const paidAmount = Number(paid) || 0;
 
   const handleSubmit = async () => {
+    if (submitLockRef.current || submitting) return;
     if (!selectedSupplier) { setErrorMsg('اختر المورد'); void hapticError(); return; }
     if (items.length === 0) { setErrorMsg('أضف صنفاً واحداً على الأقل'); void hapticError(); return; }
+    submitLockRef.current = true;
+    if (!clientUuidRef.current) {
+      clientUuidRef.current = createUuid();
+    }
     setSubmitting(true);
     setErrorMsg(null);
     try {
       const payload: PurchasePayload = {
+        client_uuid: clientUuidRef.current,
         supplier_id: Number(selectedSupplier.id),
         purchase_date: purchaseDate,
         items: items.map((item) => ({
@@ -215,12 +224,14 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
       await purchasesAPI.create(payload);
       void hapticSuccess();
       toast.success('تم إنشاء الشراء بنجاح');
+      clientUuidRef.current = null;
       navigation.goBack();
     } catch (err) {
       setErrorMsg(normalizeApiError(err).message);
       void hapticError();
       toast.error(normalizeApiError(err).message);
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };

@@ -1,28 +1,127 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { productsAPI } from '@/api/products';
-import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { AppErrorState, ConfirmDialog } from '@/components/feedback';
 import { AppScreen } from '@/components/layout';
 import { ProductDetailHero } from '@/components/products/ProductDetailHero';
 import { DetailInfoCard } from '@/components/products/DetailInfoCard';
-import { ProductInsightBlock } from '@/components/products/ProductInsightBlock';
+import { ProductDetailSkeleton } from '@/components/products/ProductDetailSkeleton';
+import { ProductInsightsSectionGroup } from '@/components/products/ProductInsightsSectionGroup';
+import { ProductDetailRecipeSection } from '@/components/products/ProductDetailRecipeSection';
+import { ProductDetailVariantsSection } from '@/components/products/ProductDetailVariantsSection';
+import { ProductDetailOptionGroupsSection } from '@/components/products/ProductDetailOptionGroupsSection';
+import { ProductDetailSpecsSection } from '@/components/products/ProductDetailSpecsSection';
+import {
+  buildDescriptionField,
+  buildIdentityFields,
+  buildPricingFields,
+  buildStockFields,
+  buildUnitsFields,
+} from '@/components/products/productDetailSections';
+import {
+  getProductDetailSections,
+  type DetailSectionKey,
+  type DetailSectionMeta,
+} from '@/components/products/productDetailLayout';
 import { hasPermission } from '@/utils/permissions';
 import { useAuthStore } from '@/store/authStore';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import type { Product } from '@/types/api';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
 import type { ProductsStackParamList } from '@/types/navigation';
-import { money, numberText } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
-import { useColors } from '@/hooks/useColors';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductDetail'>;
 type Route = RouteProp<ProductsStackParamList, 'ProductDetail'>;
 
+type SectionRenderCtx = {
+  product: Product;
+  isRawMaterial: boolean;
+};
+
+function renderSectionContent(key: DetailSectionKey, ctx: SectionRenderCtx): React.ReactNode {
+  const { product, isRawMaterial } = ctx;
+  const flat = { variant: 'flat' as const };
+
+  switch (key) {
+    case 'stock':
+      return (
+        <DetailInfoCard
+          title="المخزون"
+          icon="inventory"
+          fields={buildStockFields(product)}
+          columns={2}
+          {...flat}
+        />
+      );
+    case 'pricing':
+      return (
+        <DetailInfoCard
+          title={isRawMaterial ? 'التكلفة' : 'التسعير'}
+          icon="sell"
+          fields={buildPricingFields(product, isRawMaterial)}
+          columns={2}
+          {...flat}
+        />
+      );
+    case 'identity':
+      return (
+        <DetailInfoCard title="التعريف" icon="qr-code-2" fields={buildIdentityFields(product)} columns={2} {...flat} />
+      );
+    case 'pos': {
+      const unitsFields = buildUnitsFields(product);
+      return (
+        <>
+          <ProductDetailVariantsSection product={product} flat />
+          <ProductDetailOptionGroupsSection product={product} flat />
+          {unitsFields.length > 0 ? (
+            <DetailInfoCard title="وحدات المنتج" icon="straighten" fields={unitsFields} columns={2} {...flat} />
+          ) : null}
+        </>
+      );
+    }
+    case 'recipe':
+      return <ProductDetailRecipeSection product={product} flat />;
+    case 'extra': {
+      const descriptionField = buildDescriptionField(product);
+      return (
+        <>
+          {descriptionField ? (
+            <DetailInfoCard title="نص المنتج" icon="description" fields={[descriptionField]} {...flat} />
+          ) : null}
+          <ProductDetailSpecsSection product={product} flat />
+        </>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+function ProductDetailSections({ product, isRawMaterial }: SectionRenderCtx) {
+  const sections = useMemo(() => getProductDetailSections(product, isRawMaterial), [product, isRawMaterial]);
+
+  return (
+    <>
+      {sections.map((section: DetailSectionMeta, index) => (
+        <ProductInsightsSectionGroup
+          key={section.key}
+          step={section.step}
+          isFirst={index === 0}
+          title={section.title}
+          subtitle={section.subtitle}
+          columns={section.columns}
+        >
+          {renderSectionContent(section.key, { product, isRawMaterial })}
+        </ProductInsightsSectionGroup>
+      ))}
+    </>
+  );
+}
+
 export function ProductDetailScreen({ route, navigation }: { route: Route; navigation: Nav }) {
-  const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
   const user = useAuthStore((s) => s.user);
@@ -32,28 +131,35 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
   const [deleting, setDeleting] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
-  const load = useCallback(async () => {
-    if (!rawId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await productsAPI.getById(Number(rawId));
-      const p = extractData<Product>(res);
-      setProduct(p ?? null);
-    } catch (err) {
-      setError(normalizeApiError(err).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [rawId]);
+  const load = useCallback(
+    async (opts: { silent?: boolean } = {}) => {
+      if (!rawId) return;
+      if (opts.silent) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const res = await productsAPI.getById(Number(rawId));
+        const p = extractData<Product>(res);
+        setProduct(p ?? null);
+        setLastUpdatedAt(new Date());
+      } catch (err) {
+        setError(normalizeApiError(err).message);
+        if (!opts.silent) setProduct(null);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [rawId],
+  );
 
-  React.useEffect(() => {
+  useEffect(() => {
     void load();
   }, [load]);
-
-  const contentGap = useMemo(() => ({ gap: spacing.md }), []);
 
   if (!rawId) {
     return (
@@ -76,176 +182,98 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
     }
   };
 
-  if (loading && !product) {
-    return (
-      <AppScreen title="تفاصيل المنتج" onBack={navigation.goBack}>
-        <AppLoadingState />
-      </AppScreen>
-    );
-  }
-  if (error && !product) {
-    return (
-      <AppScreen title="تفاصيل المنتج" onBack={navigation.goBack}>
-        <AppErrorState message={error} onRetry={() => void load()} />
-      </AppScreen>
-    );
-  }
-  if (!product) {
-    return (
-      <AppScreen title="تفاصيل المنتج" onBack={navigation.goBack}>
-        <AppErrorState message="المنتج غير موجود" onRetry={navigation.goBack} />
-      </AppScreen>
-    );
-  }
+  const isRawMaterial =
+    route.params?.mode === 'raw_material' ||
+    ['raw_material', 'packaging_material', 'semi_finished'].includes(String(product?.product_role ?? ''));
 
-  const bc = ((product.barcodes ?? []).filter(Boolean).join('، ') || product.barcode) ?? '—';
-  const sku = (product as Product & { sku?: string; code?: string }).sku ?? (product as Product & { code?: string }).code ?? '—';
-  const isRawMaterial = route.params?.mode === 'raw_material'
-    || ['raw_material', 'packaging_material', 'semi_finished'].includes(String(product.product_role ?? ''));
+  const isInitialLoad = loading && !product;
+  const isStaleRefresh = (loading || refreshing) && Boolean(product);
+  const screenTitle = product?.name ?? (isRawMaterial ? 'تفاصيل الخامة' : 'تفاصيل المنتج');
 
-  const pricingCard = (
-    <DetailInfoCard
-      title={isRawMaterial ? 'التكلفة' : 'التسعير'}
-      icon="sell"
-      fields={isRawMaterial
-        ? [
-            { label: 'تكلفة الشراء', value: money(product.cost_price ?? 0) },
-            { label: 'قابل للشراء', value: product.is_purchasable === false ? 'لا' : 'نعم' },
-            { label: 'مكون وصفة', value: product.is_recipe_ingredient === false ? 'لا' : 'نعم' },
-          ]
-        : [
-            { label: 'سعر البيع', value: money(product.selling_price ?? 0) },
-            { label: 'سعر ترويجي', value: product.is_promotional ? money(product.promotional_price ?? 0) : '—' },
-            { label: 'التكلفة', value: money(product.cost_price ?? 0) },
-            { label: 'هامش تقريبي', value: money(Math.max(0, Number(product.selling_price ?? 0) - Number(product.cost_price ?? 0))) },
-          ]}
-    />
-  );
-
-  const identityCard = (
-    <DetailInfoCard
-      title="التعريف"
-      icon="qr-code-2"
-      fields={[
-        { label: 'SKU / الكود', value: String(sku), ltr: true },
-        { label: 'الباركود', value: bc, ltr: true },
-        { label: 'التصنيف', value: product.category?.name ?? '—' },
-        {
-          label: 'الوحدة الأساسية',
-          value:
-            (product as Product & { base_unit?: { name?: string }; unit?: { name?: string } }).base_unit?.name ??
-            (product as Product & { unit?: { name?: string } }).unit?.name ??
-            '—',
-        },
-      ]}
-    />
-  );
-
-  const stockCard = (
-    <DetailInfoCard
-      title="المخزون والحالة"
-      icon="inventory"
-      fields={[
-        {
-          label: 'نوع المخزون',
-          value:
-            product.inventory_mode === 'recipe_product'
-              ? 'منتج بوصفة'
-              : product.inventory_mode === 'non_stock' || product.track_inventory === false
-                ? 'غير مخزني'
-                : 'منتج مخزني',
-        },
-        { label: 'تتبع الصلاحية', value: product.track_expiry ? 'نعم' : 'لا' },
-        { label: 'حد التنبيه', value: numberText(product.min_stock_alert ?? 0) },
-        {
-          label: 'المتاح',
-          value: numberText(
-            product.branch_available_quantity ?? product.available_quantity ?? product.stock_quantity ?? 0,
-          ),
-        },
-        { label: 'الحالة', value: product.active === false || product.is_active === false ? 'غير نشط' : 'نشط' },
-        { label: 'مميز', value: product.featured ? 'نعم' : 'لا' },
-      ]}
-    />
-  );
-
-  const insights = (
-    <>
-      <ProductInsightBlock
-        title="الوحدات"
-        icon="straighten"
-        emptyMessage="لا توجد وحدات"
-        rows={(product.units ?? []).map((u) => ({
-          key: String(u.id),
-          label: u.name,
-          value: `${u.is_base ? 'أساسية • ' : ''}معامل ${numberText(u.factor_to_base ?? 1)}`,
-        }))}
-      />
-      <ProductInsightBlock
-        title="خيارات / موديفايرز"
-        icon="tune"
-        emptyMessage="لا توجد مجموعات خيارات"
-        rows={(product.option_groups ?? []).map((g) => ({
-          key: String(g.id),
-          label: g.title ?? g.name ?? '—',
-          value: `${g.is_required ? 'إلزامي' : 'اختياري'}: ${(g.options ?? []).map((o) => o.name).join('، ')}`,
-        }))}
-      />
-    </>
+  const contentStyle = useMemo(
+    () => [styles.content, isTablet && styles.contentTablet],
+    [isTablet],
   );
 
   return (
     <>
-      <AppScreen title={isRawMaterial ? 'تفاصيل الخامة' : 'تفاصيل المنتج'} onBack={navigation.goBack} scroll contentStyle={{ padding: 0, gap: 0 }}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: spacing.xxxl, backgroundColor: c.background }}
-        >
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+      <AppScreen
+        title={screenTitle}
+        onBack={navigation.goBack}
+        scroll
+        onRefresh={() => void load({ silent: true })}
+        refreshing={refreshing}
+        contentStyle={{ padding: 0, gap: 0 }}
+      >
+        <View style={contentStyle}>
+          {product ? (
             <ProductDetailHero
               product={product}
               canManage={canManage}
+              isRawMaterial={isRawMaterial}
               onInsights={() => navigation.navigate('ProductInsights', { id, name: product.name })}
-              onEdit={canManage ? () => navigation.navigate('ProductForm', { id, mode: isRawMaterial ? 'raw_material' : 'product' }) : undefined}
+              onEdit={
+                canManage
+                  ? () =>
+                      navigation.navigate('ProductForm', {
+                        id,
+                        mode: isRawMaterial ? 'raw_material' : 'product',
+                      })
+                  : undefined
+              }
               onDelete={canManage ? () => setDeleteOpen(true) : undefined}
-              large={isTablet}
+              onRefresh={() => void load({ silent: true })}
+              isLoading={refreshing}
+              loading={isInitialLoad}
+              lastUpdatedAt={lastUpdatedAt}
             />
-          </View>
+          ) : null}
 
-          {isTablet ? (
-            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.lg }}>
-              <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'flex-start' }}>
-                <View style={{ flex: 1, ...contentGap }}>{pricingCard}{identityCard}</View>
-                <View style={{ flex: 1, ...contentGap }}>{stockCard}</View>
-              </View>
-              {product.description ? (
-                <DetailInfoCard title="الوصف" icon="description" fields={[{ label: 'نص المنتج', value: product.description }]} />
-              ) : null}
-              <View style={{ flexDirection: 'row', gap: spacing.lg }}>
-                <View style={{ flex: 1 }}>{insights}</View>
-              </View>
+          {isInitialLoad ? <ProductDetailSkeleton /> : null}
+          {error && !product ? <AppErrorState message={error} onRetry={() => void load()} /> : null}
+
+          {product ? (
+            <View
+              style={[styles.dataWrap, isStaleRefresh && styles.dataStale]}
+              pointerEvents={isStaleRefresh ? 'none' : 'auto'}
+            >
+              <ProductDetailSections product={product} isRawMaterial={isRawMaterial} />
             </View>
-          ) : (
-            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, ...contentGap }}>
-              {pricingCard}
-              {identityCard}
-              {stockCard}
-              {product.description ? (
-                <DetailInfoCard title="الوصف" icon="description" fields={[{ label: 'نص', value: product.description }]} />
-              ) : null}
-              {insights}
-            </View>
-          )}
-        </ScrollView>
+          ) : null}
+        </View>
       </AppScreen>
-      <ConfirmDialog
-        visible={deleteOpen}
-        title={isRawMaterial ? 'حذف الخامة' : 'حذف المنتج'}
-        message={`هل أنت متأكد من حذف «${product.name}»؟`}
-        loading={deleting}
-        onConfirm={() => void remove()}
-        onCancel={() => setDeleteOpen(false)}
-      />
+
+      {product ? (
+        <ConfirmDialog
+          visible={deleteOpen}
+          title={isRawMaterial ? 'حذف الخامة' : 'حذف المنتج'}
+          message={`هل أنت متأكد من حذف «${product.name}»؟`}
+          loading={deleting}
+          onConfirm={() => void remove()}
+          onCancel={() => setDeleteOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxxl,
+  },
+  contentTablet: {
+    gap: spacing.xl,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  dataWrap: {
+    gap: spacing.sm,
+  },
+  dataStale: {
+    opacity: 0.6,
+  },
+});

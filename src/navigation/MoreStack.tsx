@@ -87,6 +87,11 @@ import { BranchesListScreen } from '@/screens/settings/BranchesListScreen';
 import { BranchDetailScreen } from '@/screens/settings/BranchDetailScreen';
 import { BranchFormScreen } from '@/screens/settings/branches/BranchFormScreen';
 import { BranchSettingsScreen } from '@/screens/settings/branches/BranchSettingsScreen';
+import { BranchPosSettingsScreen } from '@/screens/settings/branches/BranchPosSettingsScreen';
+import { BranchPrintHubScreen } from '@/screens/settings/branches/BranchPrintHubScreen';
+import { BranchPrintSettingsScreen } from '@/screens/settings/branches/BranchPrintSettingsScreen';
+import { BranchKitchenPrintersScreen } from '@/screens/settings/branches/BranchKitchenPrintersScreen';
+import { BranchKitchenRoutingScreen } from '@/screens/settings/branches/BranchKitchenRoutingScreen';
 import { TenantSettingsScreen } from '@/screens/settings/TenantSettingsScreen';
 import { ActivityLogsScreen } from '@/screens/settings/ActivityLogsScreen';
 import { ActivityLogDetailScreen } from '@/screens/settings/ActivityLogDetailScreen';
@@ -96,6 +101,8 @@ import { PrinterProfilesScreen } from '@/screens/settings/PrinterProfilesScreen'
 import { PrinterProfileFormScreen } from '@/screens/settings/PrinterProfileFormScreen';
 import { PrinterDiagnosticsScreen } from '@/screens/settings/PrinterDiagnosticsScreen';
 import { PrintQueueScreen } from '@/screens/settings/PrintQueueScreen';
+import { KitchenRoutingScreen } from '@/screens/settings/KitchenRoutingScreen';
+import { KitchenRoutingFormScreen } from '@/screens/settings/KitchenRoutingFormScreen';
 import { BarcodePrintInfoScreen } from '@/screens/products/BarcodePrintInfoScreen';
 import { ParityModuleScreen } from '@/screens/shared/ParityModuleScreen';
 import type { MoreStackParamList } from '@/types/navigation';
@@ -186,6 +193,11 @@ export function MoreStack() {
       <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
       <Stack.Screen name="BranchForm" component={BranchFormScreen} />
       <Stack.Screen name="BranchSettings" component={BranchSettingsScreen} />
+      <Stack.Screen name="BranchPosSettings" component={BranchPosSettingsScreen} />
+      <Stack.Screen name="BranchPrintHub" component={BranchPrintHubScreen} />
+      <Stack.Screen name="BranchPrintSettings" component={BranchPrintSettingsScreen} />
+      <Stack.Screen name="BranchKitchenPrinters" component={BranchKitchenPrintersScreen} />
+      <Stack.Screen name="BranchKitchenRouting" component={BranchKitchenRoutingScreen} />
       <Stack.Screen name="TenantSettings" component={TenantSettingsScreen} />
       <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
       <Stack.Screen name="ActivityLogDetail" component={ActivityLogDetailScreen} />
@@ -203,6 +215,8 @@ export function MoreStack() {
       <Stack.Screen name="PrinterProfileForm" component={PrinterProfileFormScreen} />
       <Stack.Screen name="PrinterDiagnostics" component={PrinterDiagnosticsScreen} />
       <Stack.Screen name="PrintQueue" component={PrintQueueScreen} />
+      <Stack.Screen name="KitchenRouting" component={KitchenRoutingScreen} />
+      <Stack.Screen name="KitchenRoutingForm" component={KitchenRoutingFormScreen} />
       <Stack.Screen name="ParityModule" component={ParityModuleScreen} />
     </Stack.Navigator>
   );

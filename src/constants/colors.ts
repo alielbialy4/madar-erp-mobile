@@ -54,7 +54,6 @@ export type AppColors = {
   posShellBg: string;
   tabBarActive: string;
   tabBarInactive: string;
-  glass: string;
   gradientStart: string;
   gradientEnd: string;
   premiumGold: string;
@@ -79,15 +78,10 @@ export type AppColors = {
   shiftAlertBorder: string;
   shiftAlertFg: string;
   shiftInfoBg: string;
-  glassBorder: string;
-  glassHighlight: string;
   meshGradient1: string;
   meshGradient2: string;
   meshGradient3: string;
   shadowColored: string;
-  glassSurface: string;
-  glassOverlay: string;
-  glassTabBar: string;
   navDot: string;
 };
 
@@ -158,7 +152,6 @@ export const lightColors: AppColors = {
   tabBarActive: '#0F172A',
   tabBarInactive: '#94A3B8',
 
-  glass: 'rgba(255, 255, 255, 0.72)',
   gradientStart: '#0F172A',
   gradientEnd: '#1E293B',
   premiumGold: '#D4A843',
@@ -183,15 +176,10 @@ export const lightColors: AppColors = {
   shiftAlertBorder: '#FECACA',
   shiftAlertFg: '#B91C1C',
   shiftInfoBg: '#EFF6FF',
-  glassBorder: 'rgba(15, 23, 42, 0.05)',
-  glassHighlight: 'rgba(255, 255, 255, 0.90)',
   meshGradient1: '#E0E7FF',
   meshGradient2: '#F0F9FF',
   meshGradient3: '#FDF4FF',
   shadowColored: 'rgba(15, 23, 42, 0.08)',
-  glassSurface: 'rgba(255, 255, 255, 0.55)',
-  glassOverlay: 'rgba(255, 255, 255, 0.35)',
-  glassTabBar: 'rgba(255, 255, 255, 0.75)',
   navDot: '#0F172A',
 };
 
@@ -262,7 +250,6 @@ export const darkColors: AppColors = {
   tabBarActive: '#F1F5F9',
   tabBarInactive: '#64748B',
 
-  glass: 'rgba(17, 24, 39, 0.80)',
   gradientStart: '#0B1120',
   gradientEnd: '#1E293B',
   premiumGold: '#D4A843',
@@ -287,15 +274,10 @@ export const darkColors: AppColors = {
   shiftAlertBorder: '#7A1A1A',
   shiftAlertFg: '#FCA5A5',
   shiftInfoBg: '#152040',
-  glassBorder: 'rgba(255, 255, 255, 0.08)',
-  glassHighlight: 'rgba(255, 255, 255, 0.06)',
   meshGradient1: '#0F172A',
   meshGradient2: '#1E1B4B',
   meshGradient3: '#0B1120',
   shadowColored: 'rgba(0, 0, 0, 0.50)',
-  glassSurface: 'rgba(30, 41, 59, 0.72)',
-  glassOverlay: 'rgba(30, 41, 59, 0.50)',
-  glassTabBar: 'rgba(11, 17, 32, 0.82)',
   navDot: '#FFFFFF',
 };
 

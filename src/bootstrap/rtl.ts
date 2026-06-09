@@ -1,6 +1,6 @@
 /**
  * RTL bootstrap — must load before any UI (imported first from App.tsx).
- * Arabic-only app: native layout mirroring + document direction on web.
+ * Arabic-only app: forceRTL for layout mirroring + document direction on web.
  */
 import { I18nManager, Platform } from 'react-native';
 
@@ -13,7 +13,6 @@ function applyWebDocumentRtl() {
   html.setAttribute('dir', 'rtl');
   html.setAttribute('lang', 'ar');
   body?.setAttribute('dir', 'rtl');
-  // Expo web root
   const root = document.getElementById('root');
   root?.setAttribute('dir', 'rtl');
 }
@@ -23,10 +22,7 @@ function applyNativeRtl() {
   if (!I18nManager.isRTL) {
     I18nManager.forceRTL(true);
   }
-  // Swaps left/right in native layout engine so flex rows and margins mirror correctly.
-  if (typeof I18nManager.swapLeftAndRightInRTL === 'function') {
-    I18nManager.swapLeftAndRightInRTL(true);
-  }
+  // Do not enable swapLeftAndRightInRTL — stacks with forceRTL on some builds.
 }
 
 applyNativeRtl();

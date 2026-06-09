@@ -1,19 +1,24 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
-import { radius, spacing } from '@/constants/spacing';
+import { radius, shadows, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { glassTokens } from '@/constants/glass';
+import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { Text } from '@/components/ui/AppText';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { phosphorIconMap } from '@/constants/iconMap';
 import { createDashboardStyles, KPI_TONE_STYLES, type KpiTone } from './dashboardStyles';
+import {
+  primaryKpiDensity,
+  primaryKpiSizing,
+  useDashboardContentWidth,
+  usePrimaryKpiSlotWidth,
+} from './dashboardLayout';
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
 
@@ -24,10 +29,11 @@ type Props = {
   icon: string;
   tone?: KpiTone;
   wide?: boolean;
+  tier?: 'primary' | 'secondary';
   index?: number;
 };
 
-export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wide, index = 0 }: Props) {
+export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wide, tier = 'primary', index = 0 }: Props) {
   const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
@@ -35,8 +41,17 @@ export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wi
   const toneStyle = KPI_TONE_STYLES[tone];
   const gradientColor = c[toneStyle.icon as keyof AppColors] as string;
 
+  const contentWidth = useDashboardContentWidth();
+  const primarySlotWidth = usePrimaryKpiSlotWidth(contentWidth);
+  const primaryDensity = primaryKpiDensity(primarySlotWidth);
+  const primarySize = primaryKpiSizing(primaryDensity);
+  const isDensePrimary = tier === 'primary' && !wide && primaryDensity !== 'full';
+
   const rawNum = parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
   const hasNumber = !isNaN(rawNum) && value.match(/\d/);
+
+  const valueFontSize = tier === 'secondary' ? 20 : isDensePrimary ? primarySize.value : 26;
+  const labelFontSize = tier === 'secondary' ? typography.tiny : isDensePrimary ? primarySize.label : typography.label;
 
   return (
     <MotiView
@@ -49,50 +64,76 @@ export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wi
         delay: index * 60,
       }}
       style={[
-        ds.kpiCell,
-        isTablet && !wide ? ds.kpiCellTablet : undefined,
+        tier === 'secondary' ? ds.kpiCellSecondary : ds.kpiCellPrimary,
+        isTablet && !wide && tier === 'secondary' ? ds.kpiCellSecondaryTablet : undefined,
         wide ? ds.kpiCellWide : undefined,
       ]}
     >
-      <View style={styles.cardWrap}>
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFillObject} />
-        ) : null}
-        <LinearGradient
-          colors={Platform.OS === 'ios' ? ['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.35)'] : ['#FFFFFF', '#FAFBFF']}
-          style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-        <View style={[styles.card, { borderColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.50)' : 'rgba(15,23,42,0.04)' }]}>
-          <View style={styles.top}>
-            <View style={styles.iconBadge}>
+      <View style={[styles.cardWrap, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+        <View style={[styles.card, isDensePrimary && { padding: primarySize.padding, gap: 2 }]}>
+          <View style={[styles.labelRow, isDensePrimary && { gap: spacing.xs }]}>
+            <View
+              style={[
+                styles.iconBadge,
+                isDensePrimary && {
+                  width: primarySize.iconBox,
+                  height: primarySize.iconBox,
+                  borderRadius: primarySize.iconBox * 0.3,
+                },
+              ]}
+            >
               <LinearGradient
                 colors={[gradientColor, gradientColor + 'BB']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.iconBadgeGradient}
+                style={[
+                  styles.iconBadgeGradient,
+                  isDensePrimary && {
+                    width: primarySize.iconBox,
+                    height: primarySize.iconBox,
+                    borderRadius: primarySize.iconBox * 0.3,
+                  },
+                ]}
               >
-                <AppIcon name={(phosphorIconMap[icon as keyof typeof phosphorIconMap] ?? icon) as IconName} size={20} weight="duotone" color="#FFFFFF" />
+                <AppIcon
+                  name={(phosphorIconMap[icon as keyof typeof phosphorIconMap] ?? icon) as IconName}
+                  size={isDensePrimary ? primarySize.icon : 20}
+                  weight="duotone"
+                  color="#FFFFFF"
+                />
               </LinearGradient>
             </View>
+            <Text
+              style={[
+                styles.label,
+                { color: c.textMuted, fontSize: labelFontSize },
+                tier === 'secondary' && styles.labelSecondary,
+              ]}
+              numberOfLines={2}
+            >
+              {label}
+            </Text>
           </View>
-          <Text style={[styles.label, { color: c.textMuted }]}>{label}</Text>
           {hasNumber ? (
             <AnimatedCounter
               value={rawNum}
-              fontSize={26}
+              fontSize={valueFontSize}
               fontWeight="800"
               prefix={value.startsWith('₪') || value.startsWith('ج.م') ? '' : ''}
               suffix=""
               style={styles.value}
             />
           ) : (
-            <Text style={[styles.value, { color: c.text }]} numberOfLines={1}>
+            <Text
+              style={[styles.valueText, { color: c.text, fontSize: valueFontSize }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.65}
+            >
               {value}
             </Text>
           )}
-          {hint ? <Text style={[styles.hint, { color: c.textCaption }]}>{hint}</Text> : null}
+          {hint ? <Text style={[styles.hint, { color: c.textCaption }]} numberOfLines={1}>{hint}</Text> : null}
         </View>
       </View>
     </MotiView>
@@ -101,27 +142,29 @@ export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wi
 
 const styles = StyleSheet.create({
   cardWrap: {
+    width: '100%',
     borderRadius: radius.card,
     overflow: 'hidden',
-    ...glassTokens.shadow.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...shadows.card,
   },
   card: {
     borderRadius: radius.card,
     padding: spacing.lg,
     gap: spacing.xs,
-    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  labelRow: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   iconBadge: {
     width: 40,
     height: 40,
     borderRadius: 12,
     overflow: 'hidden',
-    ...glassTokens.shadow.sm,
+    ...shadows.sm,
   },
   iconBadgeGradient: {
     width: 40,
@@ -131,15 +174,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: typography.label,
+    ...textStart,
+    flex: 1,
     fontFamily: fonts.bold,
+    lineHeight: 16,
+  },
+  labelSecondary: {
+    fontSize: typography.tiny,
   },
   value: {
-    fontSize: 26,
+    ...textLtr,
+    marginTop: -2,
+  },
+  valueText: {
+    ...textStart,
     fontFamily: fonts.extraBold,
     marginTop: -2,
   },
   hint: {
+    ...textStart,
     fontSize: typography.caption,
     fontFamily: fonts.regular,
   },

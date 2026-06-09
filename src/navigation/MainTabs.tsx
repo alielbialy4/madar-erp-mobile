@@ -18,8 +18,7 @@ import { buildMobileSidebarMenu } from './buildSidebarMenu';
 import { findCatalogEntry, flattenNavCatalog } from './navCatalog';
 import { NavShellProvider } from './NavShellContext';
 import { isPosFullscreen } from './posFullscreen';
-import { pushRecentRoute, getRecentRoutes, type RecentRoute } from '@/services/navigation/recentRoutes';
-import { rootRtl, screenRtl } from '@/constants/layout';
+import { contentAreaRtl, flexRow, tabletShellRow } from '@/constants/layout';
 import {
   BOTTOM_NAV_HEIGHT,
   TAB_BAR_FLOAT_GAP,
@@ -48,14 +47,22 @@ export function MainTabs() {
   const isSuperAdmin = Boolean(user?.is_super_admin);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tabletSidebarCollapsed, setTabletSidebarCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [activeSidebarRoute, setActiveSidebarRoute] = useState<string>('DashboardTab');
   const [activeTab, setActiveTab] = useState<keyof MainTabParamList>('DashboardTab');
-  const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>([]);
   const tabNavigationRef = useRef<BottomTabNavigationProp<MainTabParamList> | null>(null);
 
   const posFullscreen = isPosFullscreen(activeTab);
-  const showTabletSidebar = isTablet && !posFullscreen;
+  const showTabletSidebar = isTablet && !posFullscreen && !tabletSidebarCollapsed;
+
+  useEffect(() => {
+    if (!isTablet) setTabletSidebarCollapsed(false);
+  }, [isTablet]);
+
+  useEffect(() => {
+    if (showTabletSidebar) setSidebarOpen(false);
+  }, [showTabletSidebar]);
 
   const menu = useMemo(
     () => buildMobileSidebarMenu(isSuperAdmin, (perm) => hasPermission(user, perm), viewMode, (feature) => hasFeature(user, feature)),
@@ -64,34 +71,17 @@ export function MainTabs() {
 
   const catalog = useMemo(() => flattenNavCatalog(menu), [menu]);
 
-  const loadRecent = React.useCallback(async () => { setRecentRoutes(await getRecentRoutes()); }, []);
-
-  useEffect(() => {
-    if (sidebarOpen || isTablet) void loadRecent();
-  }, [sidebarOpen, isTablet, loadRecent]);
-
-  const recordRecent = React.useCallback(
-    (action: SidebarNavAction) => {
-      const entry = findCatalogEntry(catalog, action);
-      const id = entry?.id ?? sidebarActionKey(action);
-      const label = entry?.label ?? id;
-      void pushRecentRoute(id, label).then(() => loadRecent());
-    },
-    [catalog, loadRecent],
-  );
-
   const handleSidebarNavigate = React.useCallback(
     (action: SidebarNavAction) => {
       setSidebarOpen(false);
       setCommandOpen(false);
       const entry = findCatalogEntry(catalog, action);
       setActiveSidebarRoute(entry?.id ?? sidebarActionKey(action));
-      recordRecent(action);
       const navigation = tabNavigationRef.current;
       if (!navigation) return;
       navigateSidebarAction(navigation, action);
     },
-    [catalog, recordRecent],
+    [catalog],
   );
 
   const handleCatalogSelect = React.useCallback(
@@ -113,29 +103,46 @@ export function MainTabs() {
   );
 
   const shellActions = useMemo(
-    () => ({ openDrawer: () => setSidebarOpen(true), openCommandPalette: () => setCommandOpen(true) }),
-    [],
+    () => ({
+      openDrawer: () => {
+        if (isTablet) {
+          setTabletSidebarCollapsed(false);
+          setSidebarOpen(false);
+        } else {
+          setSidebarOpen(true);
+        }
+      },
+      openCommandPalette: () => setCommandOpen(true),
+    }),
+    [isTablet],
   );
+
+  const handleMenuPress = React.useCallback(() => {
+    if (isTablet) {
+      setTabletSidebarCollapsed((collapsed) => !collapsed);
+      setSidebarOpen(false);
+      return;
+    }
+    setSidebarOpen(true);
+  }, [isTablet]);
 
   return (
     <NavShellProvider value={shellActions}>
-      <View style={[styles.shell, rootRtl, screenRtl, { backgroundColor: c.background }]}>
-        <View style={styles.mainRow}>
-          {showTabletSidebar ? (
-            <PersistentTabletSidebar
-              activeRoute={activeSidebarRoute}
-              onNavigate={handleSidebarNavigate}
-              recentRoutes={recentRoutes}
-              catalog={catalog}
-              onOpenCommandPalette={() => setCommandOpen(true)}
-            />
-          ) : null}
-          <View style={styles.mainContent}>
+      <View style={[styles.shell, { backgroundColor: c.background }]}>
+        <View style={showTabletSidebar ? styles.tabletShellRow : styles.mainRow}>
+          <View style={[styles.mainContent, showTabletSidebar ? contentAreaRtl : undefined]}>
             {!posFullscreen ? (
               <Navbar
-                onMenuPress={() => (isTablet ? setCommandOpen(true) : setSidebarOpen(true))}
+                onMenuPress={handleMenuPress}
                 onNavigate={handleSidebarNavigate}
                 onOpenCommandPalette={() => setCommandOpen(true)}
+                menuAccessibilityLabel={
+                  isTablet
+                    ? tabletSidebarCollapsed
+                      ? 'إظهار القائمة الجانبية'
+                      : 'إخفاء القائمة الجانبية'
+                    : 'فتح القائمة'
+                }
               />
             ) : null}
             <Tab.Navigator
@@ -168,14 +175,19 @@ export function MainTabs() {
           />
             </Tab.Navigator>
           </View>
+          {showTabletSidebar ? (
+            <PersistentTabletSidebar
+              activeRoute={activeSidebarRoute}
+              onNavigate={handleSidebarNavigate}
+              onOpenCommandPalette={() => setCommandOpen(true)}
+            />
+          ) : null}
         </View>
         <Sidebar
           visible={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           activeRoute={activeSidebarRoute}
           onNavigate={handleSidebarNavigate}
-          recentRoutes={recentRoutes}
-          catalog={catalog}
           onOpenCommandPalette={() => { setSidebarOpen(false); setCommandOpen(true); }}
         />
         <CommandPalette
@@ -191,7 +203,8 @@ export function MainTabs() {
 
 const styles = StyleSheet.create({
   shell: { flex: 1, overflow: 'visible' },
-  mainRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
+  mainRow: { flex: 1, ...flexRow, minHeight: 0 },
+  tabletShellRow,
   mainContent: { flex: 1, minWidth: 0, minHeight: 0 },
   tabBarOverlay: {
     position: 'absolute',

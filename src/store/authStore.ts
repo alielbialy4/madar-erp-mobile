@@ -10,7 +10,7 @@ import { useBranchStore } from './branchStore';
 import { useThemeStore } from './themeStore';
 
 type LoginInput = {
-  identifier: string;
+  email: string;
   password: string;
   tenant_slug?: string;
 };
@@ -79,18 +79,17 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
-    login: async ({ identifier, password, tenant_slug }) => {
+    login: async ({ email, password, tenant_slug }) => {
       set({ loading: true, error: null });
       try {
         await clearLocalSessionData();
         set({ token: null, user: null, tenantSlug: null });
         const slug = tenant_slug?.trim();
         if (slug) await storageSet(storageKeys.tenantSlug, slug);
-        const cleanIdentifier = identifier.trim();
-        const looksLikeEmail = cleanIdentifier.includes('@');
+        const cleanEmail = email.trim();
         const response = await authAPI.login(
           {
-            ...(looksLikeEmail ? { email: cleanIdentifier } : { phone: cleanIdentifier }),
+            email: cleanEmail,
             password,
           },
           slug ? { 'X-Tenant-Slug': slug } : undefined,

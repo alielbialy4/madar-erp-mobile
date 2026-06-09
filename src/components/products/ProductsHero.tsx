@@ -1,20 +1,12 @@
-import React, { useMemo } from 'react';
-import { Text } from '@/components/ui/AppText';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  View,
-  useWindowDimensions,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { flexRow, textStart } from '@/constants/layout';
-import { spacing, radius } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
-import { useColors } from '@/hooks/useColors';
-import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
-import { createCategoryStyles } from '@/components/categories/categoryStyles';
-import { fonts } from '@/constants/fonts';
+import React from 'react';
+import { ScrollView, View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { PremiumHeroPanel } from '@/components/layout/PremiumHeroPanel';
+import { HeroActionChip } from '@/components/layout/HeroActionChip';
+import { HeroStatPill } from '@/components/layout/HeroStatPill';
+import { HeroRefreshFooter } from '@/components/layout/HeroRefreshFooter';
+import { flexRow } from '@/constants/layout';
+import { spacing } from '@/constants/spacing';
 
 type Props = {
   totalCount: number;
@@ -39,8 +31,11 @@ type Props = {
     promo?: string;
     metaSuffix?: string;
   };
-  /** Flatter header for phone list — less vertical padding */
   compact?: boolean;
+  /** Light stats row only — no PremiumHeroPanel (phone list header). */
+  statsOnly?: boolean;
+  /** Show action chips under stats row when statsOnly. */
+  showActions?: boolean;
 };
 
 export function ProductsHero({
@@ -61,172 +56,84 @@ export function ProductsHero({
   addLabel = 'منتج جديد',
   statLabels,
   compact: compactProp,
+  statsOnly = false,
+  showActions = false,
 }: Props) {
-  const c = useColors();
   const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
   const compact = compactProp ?? width < 600;
-  const ds = useMemo(() => createDashboardStyles(c), [c]);
-  const cs = useMemo(() => createCategoryStyles(c), [c]);
 
-  const chips = (
+  const resolvedSubtitle =
+    subtitle ??
+    (categoryHint
+      ? `عرض منتجات تصنيف «${categoryHint}» — الأسعار والمخزون حسب الفرع الحالي.`
+      : 'إدارة الأسعار والباركود والمخزون — الترتيب يظهر في نقطة البيع.');
+
+  const badges = (
     <>
-      {onCategories ? (
-        <Pressable
-          onPress={onCategories}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipOutline, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="category" size={18} color={c.textMuted} />
-          <Text style={[ds.actionChipText, { color: c.text }]}>التصنيفات</Text>
-        </Pressable>
-      ) : null}
-      {canManage && onReorder ? (
-        <Pressable
-          onPress={onReorder}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipOutline, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="swap-vert" size={18} color={c.textMuted} />
-          <Text style={[ds.actionChipText, { color: c.text }]}>ترتيب POS</Text>
-        </Pressable>
-      ) : null}
-      {canManage && onAdd ? (
-        <Pressable
-          onPress={onAdd}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipPrimary, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="add" size={18} color={c.primaryForeground} />
-          <Text style={[ds.actionChipText, { color: c.primaryForeground }]}>{addLabel}</Text>
-        </Pressable>
-      ) : null}
+      <HeroStatPill label={statLabels?.total ?? 'محمّل'} value={totalCount} compact />
+      <HeroStatPill label={statLabels?.low ?? 'منخفض'} value={lowStockCount} tone="warning" compact />
+      <HeroStatPill label={statLabels?.out ?? 'نفد'} value={outOfStockCount} tone="danger" compact />
+      <HeroStatPill label={statLabels?.promo ?? 'عروض'} value={promoCount} tone="success" compact />
     </>
   );
 
-  if (compact) {
+  const actions = (
+    <ScrollView
+      horizontal={!isTablet}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ ...flexRow, gap: spacing.sm, flexWrap: isTablet ? 'wrap' : undefined }}
+    >
+      {onCategories ? (
+        <HeroActionChip label="التصنيفات" icon="category" onPress={onCategories} />
+      ) : null}
+      {canManage && onReorder ? (
+        <HeroActionChip label="ترتيب POS" icon="swap-vert" onPress={onReorder} />
+      ) : null}
+      {canManage && onAdd ? (
+        <HeroActionChip label={addLabel} icon="add" variant="primary" onPress={onAdd} />
+      ) : null}
+    </ScrollView>
+  );
+
+  const metaSuffix = statLabels?.metaSuffix ?? 'منتج في القائمة';
+
+  if (statsOnly) {
     return (
       <View style={{ gap: spacing.sm }}>
-        <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text
-              style={{
-                ...textStart,
-                fontSize: typography.pageTitle,
-                fontFamily: fonts.extraBold,
-                fontWeight: '800',
-                color: c.text,
-              }}
-            >
-              {title}
-            </Text>
-            {categoryHint ? (
-              <Text style={{ ...textStart, fontSize: typography.tiny, color: c.textMuted }} numberOfLines={1}>
-                {categoryHint}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable
-            onPress={onRefresh}
-            disabled={isLoading}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: radius.lg,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: c.surfaceMuted,
-              borderWidth: 1,
-              borderColor: c.borderSubtle,
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={c.accent} />
-            ) : (
-              <MaterialIcons name="refresh" size={20} color={c.accent} />
-            )}
-          </Pressable>
-        </View>
-
-        <View style={cs.statsRow}>
-          <View style={[cs.statBox, cs.statBoxCompact]}>
-            <Text style={[cs.statValue, cs.statValueCompact]}>{totalCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.total ?? 'محمّل'}</Text>
-          </View>
-          <View style={[cs.statBox, cs.statBoxCompact]}>
-            <Text style={[cs.statValue, cs.statValueCompact, { color: c.warning }]}>{lowStockCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.low ?? 'منخفض'}</Text>
-          </View>
-          <View style={[cs.statBox, cs.statBoxCompact]}>
-            <Text style={[cs.statValue, cs.statValueCompact, { color: c.danger }]}>{outOfStockCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.out ?? 'نفد'}</Text>
-          </View>
-          <View style={[cs.statBox, cs.statBoxCompact]}>
-            <Text style={[cs.statValue, cs.statValueCompact, { color: c.success }]}>{promoCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.promo ?? 'عروض'}</Text>
-          </View>
-        </View>
-
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
-          {chips}
+          {badges}
         </ScrollView>
+        {showActions ? actions : null}
+        <HeroRefreshFooter
+          metaText={`${totalCount} ${metaSuffix}`}
+          onRefresh={onRefresh}
+          isLoading={isLoading}
+        />
       </View>
     );
   }
 
-  return (
-    <View style={ds.heroOuter}>
-      <View style={ds.heroAccent} />
-      <View style={ds.heroBody}>
-        <Text style={ds.heroEyebrow}>{eyebrow}</Text>
-        <Text style={ds.heroTitle}>{title}</Text>
-        <Text style={ds.heroSubtitle}>
-          {subtitle ??
-          (categoryHint
-            ? `عرض منتجات تصنيف «${categoryHint}» — الأسعار والمخزون حسب الفرع الحالي.`
-            : 'إدارة الأسعار والباركود والمخزون — الترتيب يظهر في نقطة البيع.')}
-        </Text>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ds.chipScroll}>
-          {chips}
-        </ScrollView>
-
-        <View style={cs.statsRow}>
-          <View style={cs.statBox}>
-            <Text style={cs.statValue}>{totalCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.total ?? 'محمّل'}</Text>
-          </View>
-          <View style={cs.statBox}>
-            <Text style={[cs.statValue, { color: c.warning }]}>{lowStockCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.low ?? 'منخفض'}</Text>
-          </View>
-          <View style={cs.statBox}>
-            <Text style={[cs.statValue, { color: c.danger }]}>{outOfStockCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.out ?? 'نفد'}</Text>
-          </View>
-          <View style={cs.statBox}>
-            <Text style={[cs.statValue, { color: c.success }]}>{promoCount}</Text>
-            <Text style={cs.statLabel}>{statLabels?.promo ?? 'عروض'}</Text>
-          </View>
-        </View>
-
-        <View style={ds.heroMetaRow}>
-          <View style={[ds.refreshPill, flexRow]}>
-            <MaterialIcons name="inventory-2" size={14} color={c.textCaption} />
-            <Text style={ds.refreshText}>{totalCount} {statLabels?.metaSuffix ?? 'منتج في القائمة'}</Text>
-          </View>
-          <Pressable
-            onPress={onRefresh}
-            disabled={isLoading}
-            style={({ pressed }) => [ds.refreshPill, flexRow, pressed && { opacity: 0.85 }]}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={c.accent} />
-            ) : (
-              <MaterialIcons name="refresh" size={18} color={c.accent} />
-            )}
-            <Text style={[ds.refreshText, { color: c.accent, fontFamily: fonts.bold }]}>تحديث</Text>
-          </Pressable>
-        </View>
-      </View>
+  const rail = (
+    <View style={{ width: '100%', gap: spacing.sm }}>
+      <View style={{ width: '100%' }}>{actions}</View>
+      <HeroRefreshFooter
+        metaText={`${totalCount} ${metaSuffix}`}
+        onRefresh={onRefresh}
+        isLoading={isLoading}
+      />
     </View>
+  );
+
+  return (
+    <PremiumHeroPanel
+      eyebrow={eyebrow}
+      title={title}
+      subtitle={resolvedSubtitle}
+      badges={badges}
+      rail={rail}
+      compact={compact}
+      edgeInset={false}
+    />
   );
 }

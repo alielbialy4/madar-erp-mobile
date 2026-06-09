@@ -43,7 +43,7 @@ export function createDashboardStyles(c: AppColors) {
   });
 
   return StyleSheet.create({
-    page: { gap: spacing.xl },
+    page: { gap: spacing.xl, paddingHorizontal: spacing.lg },
     sectionBlock: { gap: spacing.md },
 
     heroOuter: {
@@ -194,9 +194,42 @@ export function createDashboardStyles(c: AppColors) {
     },
 
     kpiGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
+    kpiGridPrimary: { ...flexRow, flexWrap: 'nowrap', gap: spacing.sm, alignItems: 'flex-start', width: '100%' },
+    kpiGridSecondary: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
     kpiCell: { flexGrow: 1, flexBasis: '47%', minWidth: 156 },
+    kpiCellPrimary: { flex: 1, flexBasis: 0, minWidth: 0, maxWidth: '25%', alignSelf: 'flex-start' },
     kpiCellTablet: { flexBasis: '23%', minWidth: 140 },
+    kpiCellSecondary: { flexGrow: 1, flexBasis: '31%', minWidth: 100 },
+    kpiCellSecondaryTablet: { flexBasis: '15%', minWidth: 96 },
     kpiCellWide: { flexBasis: '100%', minWidth: '100%' },
+    sectionLabel: {
+      ...textStart,
+      fontSize: 11,
+      fontFamily: fonts.bold,
+      color: c.textMuted,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    widgetStack: {
+      gap: spacing.xl,
+      width: '100%',
+    },
+    widgetGridTablet: {
+      ...flexRow,
+      direction: 'ltr',
+      alignItems: 'stretch',
+      gap: spacing.md,
+      width: '100%',
+    },
+    widgetMain: { flex: 2, minWidth: 0, direction: 'rtl', width: '100%' },
+    widgetSide: { flex: 1, minWidth: 0, maxWidth: 360, gap: spacing.md, direction: 'rtl', width: '100%' },
+    dataGridTablet: {
+      ...flexRow,
+      direction: 'ltr',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    dataGridCell: { flex: 1, minWidth: 0, direction: 'rtl' },
 
     kpiCard: {
       borderRadius: radius.xxl,

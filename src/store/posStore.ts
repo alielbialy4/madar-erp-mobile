@@ -12,6 +12,8 @@ import { loadPosCatalog, savePosCatalog } from '@/services/offline/catalogCache'
 import { getPendingOrders } from '@/services/offline/posOrders';
 import type { OfflinePosOrderRecord } from '@/types/offline';
 import { saveOfflinePosOrder, OFFLINE_SAVE_MESSAGE } from '@/services/offline/offlineCheckout';
+import { getPaymentPrintLabel } from '@/constants/printLabels';
+import { runPostCheckoutPrint } from '@/services/pos/posCheckoutPrint';
 import { syncAll } from '@/services/sync/syncEngine';
 import { normalizeApiError } from '@/utils/errors';
 import { useAuthStore } from './authStore';
@@ -65,7 +67,13 @@ type PosState = {
     couponData?: { coupon_id: string | null; coupon_discount: number },
     manualDiscount?: number,
     extras?: SubmitSaleExtras,
-  ) => Promise<{ ok: boolean; message: string; saleId?: number; queued?: boolean }>;
+  ) => Promise<{
+    ok: boolean;
+    message: string;
+    saleId?: number;
+    queued?: boolean;
+    printFeedback?: import('@/services/pos/posCheckoutPrint').PostCheckoutPrintResult;
+  }>;
   refreshPendingOrders: () => Promise<void>;
   setWalletBalance: (balance: number | null) => void;
   setPointsBalance: (points: number | null) => void;
@@ -90,11 +98,76 @@ export type SubmitSaleExtras = {
   deliveryPhone?: string;
   deliveryZoneId?: string | null;
   diningTableId?: string | null;
+  tableName?: string | null;
   shiftId?: string | null;
   warehouseId?: string | null;
   /** When set, settle an existing table order instead of creating a new sale. */
   settleTable?: { tableId: string; orderId?: number | string | null };
 };
+
+async function triggerPostCheckoutPrint(input: {
+  branchId: string;
+  saleId?: number;
+  invoiceNumber?: string | null;
+  printSequence?: number | string | null;
+  cart: CartLine[];
+  catalogSettings: Record<string, unknown>;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  deliveryFee?: number;
+  total: number;
+  paid: number;
+  change?: number;
+  balance?: number;
+  paymentType: string;
+  paymentBreakdown?: Array<{ label: string; amount: number }>;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  notes?: string | null;
+  customerName?: string | null;
+  orderType?: string | null;
+  tableName?: string | null;
+  products: Product[];
+  categories?: { id: number; name: string }[];
+}): Promise<import('@/services/pos/posCheckoutPrint').PostCheckoutPrintResult | null> {
+  const branch = useBranchStore.getState().activeBranch;
+  const user = useAuthStore.getState().user;
+  try {
+    return await runPostCheckoutPrint({
+      branchId: input.branchId,
+      branchName: branch?.name,
+      cashierName: user?.name,
+      customerName: input.customerName,
+      saleId: input.saleId,
+      invoiceNumber: input.invoiceNumber,
+      printSequence: input.printSequence,
+      cartLines: input.cart,
+      products: input.products.map((p) => ({ id: p.id, name: p.name, category_id: p.category_id ?? null })),
+      categories: input.categories,
+      catalogSettings: input.catalogSettings,
+      orderType: input.orderType,
+      tableName: input.tableName,
+      receipt: {
+        subtotal: input.subtotal,
+        discount: input.discount,
+        tax: input.tax,
+        deliveryFee: input.deliveryFee,
+        total: input.total,
+        paid: input.paid,
+        change: input.change,
+        balance: input.balance,
+        payment_type: input.paymentType,
+        payment_breakdown: input.paymentBreakdown,
+        coupon_code: input.couponCode,
+        coupon_discount: input.couponDiscount,
+        notes: input.notes,
+      },
+    });
+  } catch {
+    return null;
+  }
+}
 
 function resolveDefaultWarehouseId(catalog: import('@/types/api').PosCatalog): string | null {
   const settings = catalog.settings as Record<string, unknown> | undefined;
@@ -450,9 +523,48 @@ export const usePosStore = create<PosState>((set, get) => ({
               };
             }
           }
+          const saleData = (settleRes.data ?? {}) as import('@/types/api').Sale;
+          const change = salePaid > saleTotal ? salePaid - saleTotal : 0;
+          const balance = paymentType === 'credit' ? Math.max(0, saleTotal - salePaid) : 0;
+          const printFeedback = await triggerPostCheckoutPrint({
+            branchId,
+            saleId,
+            invoiceNumber: saleData.invoice_number ?? null,
+            printSequence: saleData.print_sequence ?? null,
+            cart,
+            catalogSettings: get().catalogSettings,
+            subtotal: checkout.gross,
+            discount: checkout.invoiceDiscount,
+            tax: checkout.tax,
+            deliveryFee: checkout.deliveryFee,
+            total: saleTotal,
+            paid: salePaid,
+            change,
+            balance,
+            paymentType,
+            paymentBreakdown: splitLines
+              ?.filter((r) => (parseFloat(r.amount) || 0) > 0)
+              .map((r) => ({
+                label: getPaymentPrintLabel(r.payment_method ?? 'cash'),
+                amount: parseFloat(r.amount) || 0,
+              })),
+            couponCode: get().appliedCoupon?.coupon?.code ?? null,
+            couponDiscount: checkout.couponDiscount,
+            notes: notes ?? null,
+            customerName: get().selectedCustomer?.name ?? null,
+            orderType: orderType,
+            tableName: extras?.tableName ?? null,
+            products: get().products,
+            categories: get().categories.map((c) => ({ id: c.id, name: c.name })),
+          });
           get().clearCart();
           void syncAll();
-          return { ok: true, message: settleRes.message || 'تم تحصيل طلب الطاولة بنجاح', saleId };
+          return {
+            ok: true,
+            message: settleRes.message || 'تم تحصيل طلب الطاولة بنجاح',
+            saleId,
+            printFeedback: printFeedback ?? undefined,
+          };
         }
         return { ok: false, message: settleRes.message || 'تعذر تحصيل طلب الطاولة' };
       }
@@ -478,9 +590,48 @@ export const usePosStore = create<PosState>((set, get) => ({
             };
           }
         }
+        const saleData = (response.data ?? {}) as import('@/types/api').Sale;
+        const change = salePaid > saleTotal ? salePaid - saleTotal : 0;
+        const balance = paymentType === 'credit' ? Math.max(0, saleTotal - salePaid) : 0;
+        const printFeedback = await triggerPostCheckoutPrint({
+          branchId,
+          saleId,
+          invoiceNumber: saleData.invoice_number ?? null,
+          printSequence: saleData.print_sequence ?? null,
+          cart,
+          catalogSettings: get().catalogSettings,
+          subtotal: checkout.gross,
+          discount: checkout.invoiceDiscount,
+          tax: checkout.tax,
+          deliveryFee: checkout.deliveryFee,
+          total: saleTotal,
+          paid: salePaid,
+          change,
+          balance,
+          paymentType,
+          paymentBreakdown: splitLines
+            ?.filter((r) => (parseFloat(r.amount) || 0) > 0)
+            .map((r) => ({
+              label: getPaymentPrintLabel(r.payment_method ?? 'cash'),
+              amount: parseFloat(r.amount) || 0,
+            })),
+          couponCode: get().appliedCoupon?.coupon?.code ?? null,
+          couponDiscount: checkout.couponDiscount,
+          notes: notes ?? null,
+          customerName: get().selectedCustomer?.name ?? null,
+          orderType: orderType,
+          tableName: extras?.tableName ?? null,
+          products: get().products,
+          categories: get().categories.map((c) => ({ id: c.id, name: c.name })),
+        });
         get().clearCart();
         void syncAll();
-        return { ok: true, message: response.message || 'تمت عملية البيع بنجاح', saleId };
+        return {
+          ok: true,
+          message: response.message || 'تمت عملية البيع بنجاح',
+          saleId,
+          printFeedback: printFeedback ?? undefined,
+        };
       }
       return { ok: false, message: response.message || 'لا يمكن تنفيذ هذه العملية حالياً' };
     } catch (error) {

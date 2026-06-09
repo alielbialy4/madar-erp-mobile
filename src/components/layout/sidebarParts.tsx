@@ -5,6 +5,13 @@ import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import {
+  SIDEBAR_BORDER,
+  SIDEBAR_ICON_ACTIVE_BG,
+  SIDEBAR_ICON_IDLE_BG,
+  SIDEBAR_ITEM_ACTIVE_BG,
+  SIDEBAR_ITEM_PRESSED_BG,
+} from '@/constants/sidebarLayout';
 import { resolveSidebarIcon } from '@/constants/sidebarIcons';
 import type { MobileSidebarMenuItem } from '@/navigation/buildSidebarMenu';
 import { isNavItemActive } from '@/navigation/sidebarNavMap';
@@ -26,7 +33,7 @@ export function SidebarSectionHeader({ label, muted, border }: { label: string; 
   return (
     <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs }}>
       <View style={{ flex: 1, height: 1, backgroundColor: border }} />
-      <Text style={{ fontSize: 10, fontFamily: fonts.bold, color: muted }}>{label}</Text>
+      <Text style={{ ...textStart, fontSize: 10, fontFamily: fonts.bold, color: muted }}>{label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: border }} />
     </View>
   );
@@ -42,7 +49,7 @@ export function SidebarNavItem({
   onPress,
   fg,
   muted,
-  border,
+  border: _border,
   accent,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -74,8 +81,8 @@ export function SidebarNavItem({
           borderStartColor: 'transparent',
         },
         nested ? { marginStart: spacing.lg, minHeight: 40 } : undefined,
-        active ? { backgroundColor: 'rgba(255,255,255,0.1)', borderStartColor: accent } : undefined,
-        pressed ? { backgroundColor: 'rgba(255,255,255,0.06)' } : undefined,
+        active ? { backgroundColor: SIDEBAR_ITEM_ACTIVE_BG, borderStartColor: accent } : undefined,
+        pressed ? { backgroundColor: SIDEBAR_ITEM_PRESSED_BG } : undefined,
       ]}
     >
       <View
@@ -85,7 +92,7 @@ export function SidebarNavItem({
           borderRadius: radius.md,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: active ? 'rgba(51, 102, 255, 0.28)' : 'rgba(255,255,255,0.04)',
+          backgroundColor: active ? SIDEBAR_ICON_ACTIVE_BG : SIDEBAR_ICON_IDLE_BG,
         }}
       >
         <MaterialIcons name={icon} size={18} color={active ? fg : muted} />
@@ -121,7 +128,7 @@ export function SidebarTree({
   onNavigate,
   fg,
   muted,
-  border,
+  border = SIDEBAR_BORDER,
   accent,
 }: {
   item: MobileSidebarMenuItem;
@@ -133,7 +140,7 @@ export function SidebarTree({
   onNavigate: (action: SidebarNavAction) => void;
   fg: string;
   muted: string;
-  border: string;
+  border?: string;
   accent: string;
 }) {
   const menuKey = getMenuKey(item, index);

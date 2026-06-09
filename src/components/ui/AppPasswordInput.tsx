@@ -1,0 +1,99 @@
+import React, { useState } from 'react';
+import { Pressable, TextInputProps, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { flexRow, inputTextAlign, textStart } from '@/constants/layout';
+import { useColors } from '@/hooks/useColors';
+import { radius, spacing } from '@/constants/spacing';
+import { typography } from '@/constants/typography';
+import { fonts } from '@/constants/fonts';
+import { AppText } from './AppText';
+import { AppTextInput } from './AppTextInput';
+
+type Props = Omit<TextInputProps, 'secureTextEntry'> & {
+  label?: string;
+  error?: string;
+  required?: boolean;
+};
+
+export function AppPasswordInput({
+  label,
+  error,
+  required,
+  style,
+  textAlign,
+  onFocus,
+  onBlur,
+  ...props
+}: Props) {
+  const c = useColors();
+  const [focused, setFocused] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <View style={{ gap: spacing.xs }}>
+      {label ? (
+        <View style={{ ...flexRow, alignItems: 'center', gap: 2 }}>
+          <AppText style={{ color: c.text, fontSize: typography.label, fontFamily: fonts.medium, fontWeight: '600' }}>
+            {label}
+          </AppText>
+          {required ? <AppText style={{ color: c.danger, fontSize: typography.label }}>*</AppText> : null}
+        </View>
+      ) : null}
+      <View style={{ position: 'relative' }}>
+        <AppTextInput
+          placeholderTextColor={c.textCaption}
+          textAlign={textAlign ?? inputTextAlign}
+          secureTextEntry={!visible}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          style={[
+            {
+              minHeight: 44,
+              borderWidth: focused ? 2 : 1,
+              borderColor: error ? c.danger : focused ? c.ring : c.borderSubtle,
+              borderRadius: radius.input,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              paddingEnd: spacing.xxxl + spacing.sm,
+              color: c.text,
+              backgroundColor: c.surface,
+              fontSize: typography.body,
+              fontFamily: fonts.medium,
+              ...textStart,
+            },
+            props.editable === false && { backgroundColor: c.surfaceMuted, opacity: 0.7 },
+            style,
+          ]}
+          {...props}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+          onPress={() => setVisible((v) => !v)}
+          hitSlop={8}
+          style={{
+            position: 'absolute',
+            end: spacing.sm,
+            top: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            paddingHorizontal: spacing.xs,
+          }}
+        >
+          <MaterialIcons
+            name={visible ? 'visibility-off' : 'visibility'}
+            size={20}
+            color={c.textCaption}
+          />
+        </Pressable>
+      </View>
+      {error ? <AppText style={{ color: c.danger, fontSize: typography.tiny }}>{error}</AppText> : null}
+    </View>
+  );
+}

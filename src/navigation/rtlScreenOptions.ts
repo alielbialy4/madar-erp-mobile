@@ -1,9 +1,10 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { isRtl } from '@/utils/rtl';
 
-/** Shared stack options — gestures follow RTL when I18nManager.isRTL is true */
+/** Shared stack options — back gesture follows app reading direction. */
 export const rtlStackScreenOptions: NativeStackNavigationOptions = {
   headerShown: false,
-  animation: 'slide_from_right',
+  animation: isRtl ? 'slide_from_left' : 'slide_from_right',
   gestureEnabled: true,
   fullScreenGestureEnabled: true,
   gestureDirection: 'horizontal',

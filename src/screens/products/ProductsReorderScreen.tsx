@@ -8,7 +8,6 @@ import { ReorderList } from '@/components/lists/ReorderList';
 import { AppButton, AppSelect } from '@/components/ui';
 import { AppText as UiText, Text } from '@/components/ui/AppText';
 import { AppLoadingState } from '@/components/feedback';
-import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hasPermission } from '@/utils/permissions';
@@ -25,7 +24,6 @@ type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductsReorder'>;
 
 export function ProductsReorderScreen({ navigation }: { navigation: Nav }) {
   const c = useColors();
-  const ds = useMemo(() => createDashboardStyles(c), [c]);
   const styles = useMemo(() => createStyles(c), [c]);
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_products');
@@ -89,24 +87,19 @@ export function ProductsReorderScreen({ navigation }: { navigation: Nav }) {
     );
   }
 
-  return (
-    <AppScreen title="ترتيب المنتجات" onBack={navigation.goBack} scroll={false} contentStyle={{ padding: 0 }}>
-      <View style={styles.page}>
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <View style={ds.heroOuter}>
-            <View style={ds.heroAccent} />
-            <View style={ds.heroBody}>
-              <Text style={ds.heroEyebrow}>نقطة البيع</Text>
-              <Text style={ds.heroTitle}>ترتيب المنتجات</Text>
-              <Text style={ds.heroSubtitle}>
-                {categoryName
-                  ? `ترتيب منتجات «${categoryName}» — استخدم ↑ ↓ ثم احفظ.`
-                  : 'اختر تصنيفاً ثم رتّب المنتجات كما تظهر في نقطة البيع.'}
-              </Text>
-            </View>
-          </View>
-        </View>
+  const subtitle = categoryName
+    ? `ترتيب منتجات «${categoryName}» — استخدم ↑ ↓ ثم احفظ.`
+    : 'اختر تصنيفاً ثم رتّب المنتجات كما تظهر في نقطة البيع.';
 
+  return (
+    <AppScreen
+      title="ترتيب المنتجات"
+      subtitle={subtitle}
+      onBack={navigation.goBack}
+      scroll={false}
+      contentStyle={{ padding: 0 }}
+    >
+      <View style={styles.page}>
         <View style={styles.toolbar}>
           <AppSelect
             label="التصنيف"
@@ -139,8 +132,7 @@ function createStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     page: { flex: 1 },
     toolbar: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.md,
+      padding: spacing.lg,
       gap: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: c.borderSubtle,

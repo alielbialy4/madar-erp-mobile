@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppInput, AppText as Text } from '@/components/ui';
+import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { flexRow, textStart } from '@/constants/layout';
 import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
@@ -41,7 +42,7 @@ export function CommandPalette({ visible, onClose, entries, onSelect }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={[styles.overlay, { paddingTop: insets.top + spacing.md }]}>
+      <RtlModalRoot style={{ ...styles.overlay, paddingTop: insets.top + spacing.md }}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet}>
           <Text style={styles.title}>بحث سريع</Text>
@@ -74,7 +75,7 @@ export function CommandPalette({ visible, onClose, entries, onSelect }: Props) {
             )}
           />
         </View>
-      </View>
+      </RtlModalRoot>
     </Modal>
   );
 }

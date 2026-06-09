@@ -21,6 +21,11 @@ export function hasRole(user: User | null | undefined, roles: string[]): boolean
   });
 }
 
+/** Matches server-computed `UserBranchAccess::canUseGlobalView()` on login/me. */
+export function canUseGlobalView(user: User | null | undefined): boolean {
+  return Boolean(user?.can_use_global_view);
+}
+
 export function canAccessBranchOperationalDashboard(user: User | null | undefined): boolean {
   if (!user) return false;
   if (user.is_super_admin) return true;

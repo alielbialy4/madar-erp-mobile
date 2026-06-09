@@ -1,7 +1,10 @@
 import './src/bootstrap/rtl';
+import { applyEarlyRtlDefaults } from './src/bootstrap/typography';
+applyEarlyRtlDefaults();
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useMemo } from 'react';
 import { Platform, StyleSheet } from 'react-native';
+import { rootRtl } from './src/constants/layout';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,6 +15,7 @@ import { useThemeStore } from './src/store/themeStore';
 import { FontProvider } from './src/providers/FontProvider';
 import { RtlProvider } from './src/components/layout/RtlProvider';
 import { AppToastProvider } from './src/components/feedback/AppToast';
+import { PrintCaptureHost } from './src/components/printing/PrintCaptureHost';
 import { getColors } from './src/constants/colors';
 import { fonts } from './src/constants/fonts';
 
@@ -62,6 +66,7 @@ export default function App() {
         <FontProvider>
           <SafeAreaProvider>
             <AppToastProvider>
+              <PrintCaptureHost />
               <NavigationContainer direction="rtl" theme={navTheme}>
                 <RootNavigator />
                 <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
@@ -75,5 +80,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { ...rootRtl },
 });

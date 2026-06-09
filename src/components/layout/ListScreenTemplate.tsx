@@ -9,6 +9,22 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { moduleIcons, type ModuleIconKey } from '@/constants/iconMap';
 
+const MODULE_EYEBROW: Partial<Record<ModuleIconKey, string>> = {
+  delivery: 'العمليات',
+  expenses: 'المالية',
+  coupons: 'التسويق',
+  promotions: 'التسويق',
+  purchases: 'المشتريات',
+  kitchen: 'المطبخ',
+  refunds: 'العمليات',
+  users: 'الإعدادات',
+};
+
+function defaultHeroEyebrow(moduleIcon?: ModuleIconKey): string {
+  if (moduleIcon && MODULE_EYEBROW[moduleIcon]) return MODULE_EYEBROW[moduleIcon]!;
+  return 'القائمة';
+}
+
 type Badge = { label: string; tone?: 'default' | 'success' | 'warning' | 'danger' | 'info' };
 
 type Props<T extends Record<string, unknown>> = {
@@ -31,6 +47,7 @@ type Props<T extends Record<string, unknown>> = {
   onBack?: () => void;
   moduleIcon?: ModuleIconKey;
   heroEyebrow?: string;
+  heroCompact?: boolean;
   heroStats?: Array<{ label: string; value: string | number }>;
   fab?: { onPress: () => void; label?: string };
   swipeActions?: (item: T) => { edit?: () => void; delete?: () => void };
@@ -56,6 +73,7 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
   onBack,
   moduleIcon,
   heroEyebrow,
+  heroCompact = true,
   heroStats,
   fab,
   swipeActions,
@@ -71,7 +89,7 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
     <ListScreenLayout
       title={title}
       subtitle={subtitle}
-      noHeader={noHeader}
+      noHeader={noHeader ?? true}
       onBack={onBack}
       headerRight={headerRight}
       searchValue={query}
@@ -80,11 +98,11 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
       refreshing={refreshing}
       fab={fab}
       hero={{
-        eyebrow: heroEyebrow ?? subtitle,
+        eyebrow: heroEyebrow ?? defaultHeroEyebrow(moduleIcon),
         title,
         subtitle,
         stats,
-        compact: false,
+        compact: heroCompact,
       }}
     >
       <ResourceList

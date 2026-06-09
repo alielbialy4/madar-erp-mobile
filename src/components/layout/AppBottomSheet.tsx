@@ -7,6 +7,7 @@ import { textStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
 import { AppText } from '@/components/ui/AppText';
+import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 
 type Props = {
   visible: boolean;
@@ -68,7 +69,7 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
       animationType="none"
       onRequestClose={dismissable ? handleClose : undefined}
     >
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <RtlModalRoot style={{ justifyContent: 'flex-end' }}>
         <Animated.View
           style={{
             position: 'absolute',
@@ -143,7 +144,7 @@ export function AppBottomSheet({ visible, onClose, children, title, dismissable 
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
-      </View>
+      </RtlModalRoot>
     </Modal>
   );
 }

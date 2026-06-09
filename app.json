@@ -39,7 +39,10 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+        "android.permission.NEARBY_WIFI_DEVICES"
       ]
     },
     "web": {
@@ -47,11 +50,16 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "timezone": "Africa/Cairo"
+      "timezone": "Africa/Cairo",
+      "eas": {
+        "projectId": "e0696f4d-1542-4ccc-bfd0-748b4b0791c5"
+      }
     },
     "plugins": [
       "expo-font",
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      "expo-dev-client"
+    ],
+    "owner": "alialiky"
   }
 }

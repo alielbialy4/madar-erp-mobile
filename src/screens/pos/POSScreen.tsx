@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppEmptyState, AppErrorState, AppLoadingState, useToast } from '@/components/feedback';
+import { notifyPostCheckoutPrint } from '@/services/pos/notifyPostCheckoutPrint';
 import {
   PosCatalogPanel,
   PosOrderPanel,
@@ -52,6 +53,7 @@ import {
 } from '@/utils/errors';
 import { getLocallyOccupiedTables, markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
+import { printTablePreInvoiceFromCart } from '@/services/pos/posTablePreInvoicePrint';
 
 type ProductVariantSelection = { id: string; name?: string | null };
 
@@ -65,6 +67,7 @@ function productHasVariants(product: Product | null): boolean {
 
 export function POSScreen({ navigation }: { navigation: any }) {
   const c = useColors();
+  const toast = useToast();
   const { width } = useWindowDimensions();
   const isTablet = width >= responsive.tabletMinSplit;
   const tabBarInset = useTabBarBottomInset(spacing.sm);
@@ -127,6 +130,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [posNotice, setPosNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const checkoutLockRef = useRef(false);
   const [shift, setShift] = useState<ActiveShift | null>(null);
   const [shiftError, setShiftError] = useState<string | null>(null);
   const [shiftLoading, setShiftLoading] = useState(true);
@@ -881,7 +885,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
   };
 
   const handleCheckout = async () => {
-    if (submitting) return;
+    if (checkoutLockRef.current || submitting) return;
+    checkoutLockRef.current = true;
+    try {
     setCheckoutMessage(null);
     if (!shift) {
       setCheckoutMessage('يجب فتح وردية قبل إتمام البيع.');
@@ -982,6 +988,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         deliveryPhone: needsDelivery ? deliveryPhone.trim() : undefined,
         deliveryZoneId: needsDelivery ? deliveryZoneId || null : null,
         diningTableId: selectedTable?.id ?? null,
+        tableName: selectedTable?.name ?? null,
         shiftId: shift?.id ?? null,
         settleTable:
           selectedTable && orderType === 'dine_in'
@@ -989,9 +996,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
             : undefined,
       },
     );
-    setSubmitting(false);
     setCheckoutMessage(result.message);
     if (result.ok || result.queued) {
+      if (result.printFeedback) {
+        void notifyPostCheckoutPrint(result.printFeedback, toast, () => {
+          navigation.getParent?.()?.navigate('MoreTab', { screen: 'PrintQueue' });
+        });
+      }
       setPosNotice(result.message);
       setCheckoutOpen(false);
       setReviewOpen(false);
@@ -1019,6 +1030,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setAppliedGiftCard(null);
       setGiftCardMessage(null);
       setPaymentType('cash');
+    }
+    } finally {
+      checkoutLockRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -1092,6 +1107,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         cart,
         products,
         branchId: activeBranch.id,
+        branchName: activeBranch.name,
         tableName: selectedTableName,
         catalogSettings,
       });
@@ -1100,6 +1116,54 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setPosNotice(normalizeApiError(err).message);
     }
   }, [activeBranch?.id, cart, products, selectedTableName, catalogSettings]);
+
+  const handlePrintTableInvoice = useCallback(async () => {
+    if (!activeBranch?.id) {
+      setPosNotice('اختر فرعاً أولاً.');
+      return;
+    }
+    if (!selectedTable) {
+      setPosNotice('اختر طاولة أولاً.');
+      return;
+    }
+    if (cart.length === 0) {
+      setPosNotice('السلة فارغة.');
+      return;
+    }
+    try {
+      const result = await printTablePreInvoiceFromCart({
+        branchId: activeBranch.id,
+        branchName: activeBranch.name,
+        cashierName: user?.name,
+        cartLines: cart,
+        products,
+        categories,
+        catalogSettings: catalogSettings ?? {},
+        subtotal: checkoutTotals.gross,
+        discount: checkoutTotals.invoiceDiscount,
+        tax: checkoutTotals.tax,
+        total: effectiveTotal,
+        tableName: selectedTableName,
+      });
+      setPosNotice(result.message);
+    } catch (err) {
+      setPosNotice(normalizeApiError(err).message);
+    }
+  }, [
+    activeBranch?.id,
+    activeBranch?.name,
+    cart,
+    categories,
+    catalogSettings,
+    checkoutTotals.gross,
+    checkoutTotals.invoiceDiscount,
+    checkoutTotals.tax,
+    effectiveTotal,
+    products,
+    selectedTable,
+    selectedTableName,
+    user?.name,
+  ]);
 
   const cartPanelProps = {
     cart,
@@ -1134,6 +1198,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     onUpdateQty: updateQuantity,
     onRemoveLine: removeLine,
     onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
+    onPrintTableInvoice: selectedTable ? () => void handlePrintTableInvoice() : undefined,
     kitchenPrintEnabled,
   };
 

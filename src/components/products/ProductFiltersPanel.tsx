@@ -16,6 +16,7 @@ type Props = {
   resultCount: number;
   layout?: 'inline' | 'sidebar';
   rawMaterialMode?: boolean;
+  showResultCount?: boolean;
 };
 
 const RAW_ROLE_PILLS: { key: string | null; label: string }[] = [
@@ -32,7 +33,7 @@ const RAW_STATUS_PILLS: { key: ProductListFilters['raw_status'] | 'all'; label: 
   { key: 'inactive', label: 'غير نشط' },
 ];
 
-export function ProductFiltersPanel({ categories, filters, onChange, resultCount, layout = 'inline', rawMaterialMode = false }: Props) {
+export function ProductFiltersPanel({ categories, filters, onChange, resultCount, layout = 'inline', rawMaterialMode = false, showResultCount = true }: Props) {
   const c = useColors();
   const cs = useMemo(() => createCategoryStyles(c), [c]);
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
@@ -158,20 +159,22 @@ export function ProductFiltersPanel({ categories, filters, onChange, resultCount
       </View>
       ) : null}
 
-      <View
-        style={{
-          marginTop: spacing.sm,
-          padding: spacing.md,
-          borderRadius: 12,
-          backgroundColor: c.softPrimary,
-          borderWidth: 1,
-          borderColor: c.primarySoftBorder,
-        }}
-      >
-        <Text style={[cs.sectionLabel, { color: c.primary, textAlign: 'center' }]}>
-          {resultCount} {rawMaterialMode ? 'خامة' : 'منتج'}
-        </Text>
-      </View>
+      {showResultCount ? (
+        <View
+          style={{
+            marginTop: spacing.sm,
+            padding: spacing.md,
+            borderRadius: 12,
+            backgroundColor: c.softPrimary,
+            borderWidth: 1,
+            borderColor: c.primarySoftBorder,
+          }}
+        >
+          <Text style={[cs.sectionLabel, { color: c.primary, textAlign: 'center' }]}>
+            {resultCount} {rawMaterialMode ? 'خامة' : 'منتج'}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }

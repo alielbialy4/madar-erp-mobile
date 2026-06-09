@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAuthStore } from '@/store/authStore';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
@@ -8,6 +8,8 @@ import { hasPermission } from '@/utils/permissions';
 import { flexRow } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
+import { HERO_ACTIONS_CONTAINER_BG, HERO_ACTIONS_CONTAINER_BORDER } from '@/constants/dashboardHeroTheme';
+import { HeroActionChip } from '@/components/layout/HeroActionChip';
 import { AppIcon } from '@/components/ui/AppIcon';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
@@ -15,21 +17,28 @@ import { Text } from '@/components/ui/AppText';
 
 type Props = {
   navigation: BottomTabNavigationProp<MainTabParamList>;
+  variant?: 'default' | 'hero';
 };
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
+
+type HeroIconName = keyof typeof MaterialIcons.glyphMap;
 
 type Action = {
   key: string;
   label: string;
   icon: IconName;
+  heroIcon: HeroIconName;
   primary?: boolean;
   onPress: () => void;
 };
 
-export function DashboardQuickActions({ navigation }: Props) {
+export function DashboardQuickActions({ navigation, variant = 'default' }: Props) {
   const c = useColors();
-  const styles = useMemo(() => createStyles(c), [c]);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const isHero = variant === 'hero';
+  const styles = useMemo(() => createStyles(c, isHero, isTablet), [c, isHero, isTablet]);
   const user = useAuthStore((s) => s.user);
   const isSuperAdmin = Boolean(user?.is_super_admin);
 
@@ -39,6 +48,7 @@ export function DashboardQuickActions({ navigation }: Props) {
       key: 'pos',
       label: 'نقطة البيع',
       icon: 'storefront',
+      heroIcon: 'store',
       primary: true,
       onPress: () => navigation.navigate('POSTab'),
     });
@@ -48,6 +58,7 @@ export function DashboardQuickActions({ navigation }: Props) {
       key: 'reports',
       label: 'التقارير',
       icon: 'chart-bar',
+      heroIcon: 'bar-chart',
       onPress: () => navigation.navigate('MoreTab', { screen: 'Reports' }),
     });
   }
@@ -56,36 +67,49 @@ export function DashboardQuickActions({ navigation }: Props) {
       key: 'settings',
       label: 'الإعدادات',
       icon: 'gear',
+      heroIcon: 'settings',
       onPress: () => navigation.navigate('MoreTab', { screen: 'Settings' }),
     });
   }
 
   if (actions.length === 0) return null;
 
+  if (isHero) {
+    const chips = (
+      <>
+        {actions.map((action) => (
+          <HeroActionChip
+            key={action.key}
+            label={action.label}
+            icon={action.heroIcon}
+            variant={action.primary ? 'primary' : 'secondary'}
+            onPress={action.onPress}
+          />
+        ))}
+      </>
+    );
+
+    return (
+      <View style={styles.chipRow}>
+        {!isTablet ? <View style={styles.heroContainer}>{chips}</View> : chips}
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.chipRow, flexRow]}>
+    <View style={styles.chipRow}>
       {actions.map((action) => {
         if (action.primary) {
           return (
             <Pressable
               key={action.key}
               onPress={action.onPress}
-              style={({ pressed }) => [
-                styles.chip,
-                pressed && { transform: [{ scale: 0.96 }] },
-              ]}
+              style={({ pressed }) => [styles.chip, styles.chipPrimaryDefault, pressed && { transform: [{ scale: 0.96 }] }]}
               accessibilityRole="button"
               accessibilityLabel={action.label}
             >
-              <LinearGradient
-                colors={[c.accent, c.accent + 'DD']}
-                style={styles.chipGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <AppIcon name={action.icon} size={18} color="#FFFFFF" weight="bold" />
-                <Text style={styles.chipTextPrimary}>{action.label}</Text>
-              </LinearGradient>
+              <AppIcon name={action.icon} size={18} color="#FFFFFF" weight="bold" />
+              <Text style={styles.chipTextPrimaryDefault}>{action.label}</Text>
             </Pressable>
           );
         }
@@ -93,11 +117,7 @@ export function DashboardQuickActions({ navigation }: Props) {
           <Pressable
             key={action.key}
             onPress={action.onPress}
-            style={({ pressed }) => [
-              styles.chip,
-              styles.chipOutline,
-              pressed && { transform: [{ scale: 0.96 }] },
-            ]}
+            style={({ pressed }) => [styles.chip, styles.chipOutlineDefault, pressed && { transform: [{ scale: 0.96 }] }]}
             accessibilityRole="button"
             accessibilityLabel={action.label}
           >
@@ -110,36 +130,42 @@ export function DashboardQuickActions({ navigation }: Props) {
   );
 }
 
-function createStyles(c: AppColors) {
+function createStyles(c: AppColors, isHero: boolean, isTablet: boolean) {
   return StyleSheet.create({
     chipRow: {
+      ...flexRow,
       gap: spacing.sm,
       flexWrap: 'wrap',
+      ...(isHero && isTablet ? { justifyContent: 'flex-end' } : {}),
+    },
+    heroContainer: {
+      ...flexRow,
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: HERO_ACTIONS_CONTAINER_BORDER,
+      backgroundColor: HERO_ACTIONS_CONTAINER_BG,
+      borderRadius: radius.xl,
+      padding: spacing.sm,
+      width: '100%',
     },
     chip: {
-      borderRadius: radius.xl,
-      overflow: 'hidden',
-    },
-    chipGradient: {
       ...flexRow,
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm + 2,
       borderRadius: radius.xl,
       alignItems: 'center',
+    },
+    chipPrimaryDefault: {
+      backgroundColor: c.accent,
       shadowColor: c.accent,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 4,
     },
-    chipOutline: {
-      ...flexRow,
-      gap: spacing.xs,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm + 2,
-      borderRadius: radius.xl,
-      alignItems: 'center',
+    chipOutlineDefault: {
       backgroundColor: c.surfaceMuted,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
@@ -149,7 +175,7 @@ function createStyles(c: AppColors) {
       fontFamily: fonts.medium,
       color: c.text,
     },
-    chipTextPrimary: {
+    chipTextPrimaryDefault: {
       fontSize: 13,
       fontFamily: fonts.bold,
       color: '#FFFFFF',

@@ -1,28 +1,47 @@
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppSwipeRow } from '@/components/ui';
+import { AppDomainCard, AppSwipeRow, AppText as Text } from '@/components/ui';
 import { ResourceList } from '@/components/lists';
-import { getPrinterProfiles, deletePrinterProfile } from '@/services/printing/printerProfiles';
+import { roleLabel, connectionLabel } from '@/constants/printerFormOptions';
+import {
+  deletePrinterProfile,
+  getPrinterProfilesStrict,
+  migrateLegacyProfilesToBranch,
+  migratePrinterEncodingV2,
+} from '@/services/printing/printerProfiles';
+import { useBranchStore } from '@/store/branchStore';
 import type { PrinterProfile } from '@/types/printing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'PrinterProfiles'>;
 
-export function PrinterProfilesScreen({ navigation }: Props) {
+export function PrinterProfilesScreen({ navigation, route }: Props) {
+  const routeBranchId = route.params?.branchId;
+  const activeBranch = useBranchStore((s) => s.activeBranch);
+  const branchId = routeBranchId ?? activeBranch?.id ?? '';
+  const c = useColors();
   const [profiles, setProfiles] = useState<PrinterProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    if (!branchId) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      setProfiles(await getPrinterProfiles());
+      await migrateLegacyProfilesToBranch(branchId);
+      await migratePrinterEncodingV2();
+      setProfiles(await getPrinterProfilesStrict(branchId));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   React.useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
@@ -32,43 +51,70 @@ export function PrinterProfilesScreen({ navigation }: Props) {
     return unsub;
   }, [navigation, load]);
 
+  const branchMismatch = routeBranchId && activeBranch?.id && routeBranchId !== activeBranch.id;
+
+  if (!branchId) {
+    return (
+      <ListScreenLayout title="طابعات الفرع" onBack={navigation.goBack}>
+        <Text style={{ color: c.textMuted }}>اختر فرعاً من قائمة الفروع أولاً.</Text>
+      </ListScreenLayout>
+    );
+  }
+
   return (
     <ListScreenLayout
-      title="ملفات الطابعات"
-      subtitle="Rongta / Xprinter شبكة — بلوتوث Android"
+      title="طابعات الفرع"
+      subtitle={branchMismatch ? 'POS يعمل على فرع آخر' : undefined}
+      onBack={navigation.goBack}
       onRefresh={load}
       refreshing={loading}
-      fab={{ onPress: () => navigation.navigate('PrinterProfileForm', {}), label: 'إضافة طابعة' }}
+      fab={{
+        onPress: () => navigation.navigate('PrinterProfileForm', { branchId }),
+        label: 'إضافة طابعة',
+      }}
       hero={{
-        eyebrow: 'النظام',
-        title: 'ملفات الطابعات',
-        subtitle: 'Rongta / Xprinter شبكة — بلوتوث Android',
+        eyebrow: 'الفرع',
+        title: 'طابعات الفرع',
         stats: [{ label: 'الطابعات', value: profiles.length }],
         compact: true,
       }}
     >
+      {branchMismatch ? (
+        <View style={{ marginBottom: spacing.sm, padding: spacing.sm, backgroundColor: c.surfaceMuted, borderRadius: 8 }}>
+          <Text style={{ color: c.warning }}>
+            أنت تعدّل طابعات فرع مختلف عن الفرع النشط في POS ({activeBranch?.name}).
+          </Text>
+        </View>
+      ) : null}
       <ResourceList
         data={profiles}
         loading={loading}
-        emptyTitle="لا توجد طابعات"
+        emptyTitle="لا توجد طابعات لهذا الفرع"
         emptyCtaLabel="إضافة طابعة"
-        onEmptyCta={() => navigation.navigate('PrinterProfileForm', {})}
+        onEmptyCta={() => navigation.navigate('PrinterProfileForm', { branchId })}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const card = (
             <AppDomainCard
               title={item.name}
-              subtitle={`${item.role} · ${item.connection_type} · ${item.paper_width}${item.ip ? ` · ${item.ip}:${item.port}` : ''}`}
+              subtitle={`${roleLabel(item.role)} · ${connectionLabel(item.connection_type)} · ${item.paper_width}${item.ip ? ` · ${item.ip}:${item.port}` : ''}`}
               badgeLabel={item.enabled ? undefined : 'معطّلة'}
               badgeTone={item.enabled ? undefined : 'warning'}
               leadingIcon="print"
-              onPress={() => navigation.navigate('PrinterProfileForm', { id: item.id })}
+              onPress={() => navigation.navigate('PrinterProfileForm', { id: item.id, branchId })}
             />
           );
           return (
             <AppSwipeRow
               rightActions={[
-                { label: 'حذف', icon: 'delete', tone: 'danger', onPress: () => { void deletePrinterProfile(item.id).then(load); } },
+                {
+                  label: 'حذف',
+                  icon: 'delete',
+                  tone: 'danger',
+                  onPress: () => {
+                    void deletePrinterProfile(item.id).then(load);
+                  },
+                },
               ]}
             >
               {card}
@@ -76,10 +122,6 @@ export function PrinterProfilesScreen({ navigation }: Props) {
           );
         }}
       />
-      <View style={{ gap: spacing.sm, paddingTop: spacing.md }}>
-        <AppButton title="تشخيص الطباعة" variant="outline" onPress={() => navigation.navigate('PrinterDiagnostics')} />
-        <AppButton title="قائمة انتظار الطباعة" variant="outline" onPress={() => navigation.navigate('PrintQueue')} />
-      </View>
     </ListScreenLayout>
   );
 }

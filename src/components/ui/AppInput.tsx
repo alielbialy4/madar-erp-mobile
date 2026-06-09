@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, TextInputProps, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { inputTextAlign, textStart } from '@/constants/layout';
+import { flexRow, inputTextAlign, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -23,7 +23,7 @@ export function AppInput({ label, error, required, style, textAlign, prefixIcon,
   return (
     <View style={{ gap: spacing.xs }}>
       {label ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+        <View style={{ ...flexRow, alignItems: 'center', gap: 2 }}>
           <AppText style={{ color: c.text, fontSize: typography.label, fontFamily: fonts.medium, fontWeight: '600' }}>{label}</AppText>
           {required ? <AppText style={{ color: c.danger, fontSize: typography.label }}>*</AppText> : null}
         </View>

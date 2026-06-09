@@ -1,17 +1,32 @@
 import React from 'react';
-import { TextInput as RNTextInput, TextInputProps, type StyleProp, type TextStyle } from 'react-native';
-import { inputTextAlign, textStart } from '@/constants/layout';
-import { fonts, resolveTajawalStyle } from '@/constants/fonts';
+import { StyleSheet, TextInput as RNTextInput, TextInputProps, type StyleProp, type TextStyle } from 'react-native';
+import { inputTextAlign, inputTextAlignNumeric, textAlignStart, textLtr, textRtlBase } from '@/constants/layout';
+import { fonts, resolveTajawalFontOnly } from '@/constants/fonts';
 
-/** TextInput with Tajawal applied by default */
-export function AppTextInput({ style, textAlign, ...props }: TextInputProps) {
-  const resolved = resolveTajawalStyle(style as StyleProp<TextStyle>, fonts.medium);
+type AppTextInputProps = TextInputProps & {
+  numeric?: boolean;
+};
+
+export function AppTextInput({ style, textAlign, numeric, ...props }: AppTextInputProps) {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  const fontStyle = resolveTajawalFontOnly(style as StyleProp<TextStyle>, fonts.medium);
+
+  const writingDirection =
+    flat?.writingDirection ?? (numeric ? 'ltr' : textRtlBase.writingDirection);
+
+  const trailingStyle: TextStyle | undefined = (() => {
+    if (textAlign != null) return undefined;
+    if (numeric) return flat?.textAlign == null ? textLtr : undefined;
+    if (flat?.textAlign === 'center') return undefined;
+    return textAlignStart;
+  })();
 
   return (
     <RNTextInput
       {...props}
-      textAlign={textAlign ?? inputTextAlign}
-      style={[textStart, resolved]}
+      textAlign={textAlign ?? (numeric ? inputTextAlignNumeric : inputTextAlign)}
+      {...(numeric ? { 'data-numeric': 'true' } : undefined)}
+      style={[fontStyle, { writingDirection }, trailingStyle]}
     />
   );
 }

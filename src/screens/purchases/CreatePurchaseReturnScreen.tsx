@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -11,6 +11,7 @@ import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { createUuid } from '@/utils/uuid';
 
 type PurchaseItemData = {
   id: number;
@@ -49,6 +50,8 @@ function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; 
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
+  const clientUuidRef = useRef<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
@@ -108,11 +111,17 @@ function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; 
   const selectedItems = returnItems.filter((i) => i.selected && i.quantity > 0);
 
   const handleSubmit = async () => {
+    if (submitLockRef.current || submitting) return;
     if (selectedItems.length === 0) { setErrorMsg('اختر صنفاً واحداً على الأقل'); return; }
+    submitLockRef.current = true;
+    if (!clientUuidRef.current) {
+      clientUuidRef.current = createUuid();
+    }
     setSubmitting(true);
     setErrorMsg(null);
     try {
       await purchaseReturnsAPI.create({
+        client_uuid: clientUuidRef.current,
         purchase_id: purchaseId,
         items: selectedItems.map((item) => ({
           purchase_item_id: item.purchase_item_id,
@@ -125,6 +134,7 @@ function CreatePurchaseReturn({ purchaseId, navigation }: { purchaseId: number; 
     } catch (err) {
       setErrorMsg(normalizeApiError(err).message);
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };

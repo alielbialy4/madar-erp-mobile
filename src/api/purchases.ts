@@ -2,6 +2,7 @@ import type { ListParams } from '@/types/api';
 import { del, get, post, put } from './client';
 
 export type PurchasePayload = {
+  client_uuid?: string;
   supplier_id: number;
   purchase_date: string;
   items: { product_id: number; quantity: number; cost_price: number; unit_id?: number; production_date?: string; expiry_date?: string; batch_number?: string; variant_id?: string | null }[];
@@ -30,6 +31,6 @@ export const purchaseReturnsAPI = {
   getAll: (params?: ListParams) => get<Record<string, unknown>[]>('/purchase-returns', params),
   getById: (id: number) => get<Record<string, unknown>>(`/purchase-returns/${id}`),
   getByPurchase: (purchaseId: number) => get<Record<string, unknown>[]>(`/purchases/${purchaseId}/returns`),
-  create: (data: { purchase_id: number; items: { purchase_item_id: number; quantity: number }[]; reason?: string; notes?: string }) => post('/purchase-returns', data),
+  create: (data: { client_uuid?: string; purchase_id: number; items: { purchase_item_id: number; quantity: number }[]; reason?: string; notes?: string }) => post('/purchase-returns', data),
   delete: (id: number) => del(`/purchase-returns/${id}`),
 };

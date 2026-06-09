@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { flexRow } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
@@ -32,8 +33,8 @@ function ActionButton({ action, align }: { action: Action; align: 'start' | 'end
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
         borderRadius: radius.lg,
-        marginLeft: align === 'end' ? spacing.sm : 0,
-        marginRight: align === 'start' ? spacing.sm : 0,
+        marginStart: align === 'end' ? spacing.sm : 0,
+        marginEnd: align === 'start' ? spacing.sm : 0,
         minWidth: 72,
       }}
       accessibilityLabel={action.label}
@@ -48,7 +49,7 @@ export function AppSwipeRow({ children, rightActions, leftActions }: Props) {
   const ref = useRef<Swipeable>(null);
 
   const renderActions = (actions: Action[], align: 'start' | 'end') => (
-    <View style={{ flexDirection: align === 'end' ? 'row' : 'row-reverse', alignItems: 'center', marginVertical: spacing.xs }}>
+    <View style={{ ...flexRow, alignItems: 'center', marginVertical: spacing.xs }}>
       {actions.map((action) => (
         <ActionButton key={action.label} action={action} align={align} />
       ))}

@@ -23,6 +23,8 @@ export type ProductsStackParamList = {
   ProductsHome: { category_id?: number; scope?: 'raw_materials' } | undefined;
   ProductDetail: { id: number; name?: string; mode?: 'product' | 'raw_material' };
   ProductForm: { id?: number; mode?: 'product' | 'raw_material' };
+  ProductFormRecipe: undefined;
+  ProductFormModifiers: undefined;
   ProductInsights: { id: number; name?: string };
   Categories: undefined;
   CategoryForm: { id?: number };
@@ -127,6 +129,11 @@ export type MoreStackParamList = {
   BranchDetail: { id: string };
   BranchForm: { id?: string };
   BranchSettings: { id: string };
+  BranchPosSettings: { id: string };
+  BranchPrintHub: { id: string };
+  BranchPrintSettings: { id: string };
+  BranchKitchenPrinters: { branchId: string };
+  BranchKitchenRouting: { branchId: string };
   TenantSettings: undefined;
   ActivityLogs: undefined;
   ActivityLogDetail: { id: number };
@@ -140,10 +147,12 @@ export type MoreStackParamList = {
   Settings: undefined;
   Profile: undefined;
   SyncStatus: undefined;
-  PrinterProfiles: undefined;
-  PrinterProfileForm: { id?: string };
-  PrinterDiagnostics: undefined;
+  PrinterProfiles: { branchId?: string } | undefined;
+  PrinterProfileForm: { id?: string; branchId?: string; presetRole?: import('@/types/printing').PrinterRole };
+  PrinterDiagnostics: { branchId?: string } | undefined;
   PrintQueue: undefined;
+  KitchenRouting: { branchId?: string } | undefined;
+  KitchenRoutingForm: { branchId?: string; id?: string } | undefined;
   ParityModule: {
     title: string;
     webRoute: string;

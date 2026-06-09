@@ -1,8 +1,8 @@
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, RefObject } from 'react';
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { APP_HEADER_HEIGHT, OFFLINE_BANNER_HEIGHT, rootRtl, screenRtl } from '@/constants/layout';
+import { APP_HEADER_HEIGHT, OFFLINE_BANNER_HEIGHT } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
@@ -23,9 +23,10 @@ type Props = PropsWithChildren<{
   headerRight?: React.ReactNode;
   noHeader?: boolean;
   safeEdges?: ('top' | 'bottom' | 'left' | 'right')[];
+  scrollRef?: RefObject<ScrollView | null>;
 }>;
 
-export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, onRefresh, children, contentStyle, headerRight, noHeader, safeEdges }: Props) {
+export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, onRefresh, children, contentStyle, headerRight, noHeader, safeEdges, scrollRef }: Props) {
   const c = useColors();
   const tabBarInset = useTabBarBottomInset(spacing.md);
   const keyboardHeight = useKeyboardHeight();
@@ -69,7 +70,7 @@ export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, 
           locations={[0, 0.33, 0.66, 1]}
         />
       ) : null}
-      <SafeAreaView style={[styles.safeArea, rootRtl, screenRtl]} edges={edges}>
+      <SafeAreaView style={styles.safeArea} edges={edges}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.select({ ios: 'padding', android: undefined })}
@@ -79,6 +80,7 @@ export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, 
           <OfflineBanner />
           {scroll ? (
             <ScrollView
+              ref={scrollRef}
               style={{ flex: 1 }}
               contentContainerStyle={{ flexGrow: 1, paddingBottom: scrollPaddingBottom }}
               refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}

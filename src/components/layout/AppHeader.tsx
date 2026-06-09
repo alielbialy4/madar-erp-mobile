@@ -1,7 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View, Platform, useWindowDimensions } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { flexRow } from '@/constants/layout';
 import { backArrowIcon } from '@/utils/rtl';
 import { useColors } from '@/hooks/useColors';
@@ -29,89 +27,73 @@ export function AppHeader({ title, subtitle, breadcrumb, onBack, right }: Props)
   const isOnline = useNetworkStore((state) => state.isOnline);
 
   return (
-    <View style={styles.wrapper}>
-      {Platform.OS === 'ios' ? (
-        <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
-      ) : (
-        <LinearGradient
-          colors={['#FFFFFF', '#FAFBFF']}
-          style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-      )}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.45)' : 'transparent',
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: 'rgba(15,23,42,0.04)',
-          },
-        ]}
-      >
-        <View style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
-          {onBack ? (
-            <Pressable
-              onPress={onBack}
-              style={[styles.backBtn, { backgroundColor: c.surfaceMuted }]}
-              accessibilityRole="button"
-              accessibilityLabel="رجوع"
-            >
-              <AppIcon name={backArrowIcon()} size={20} color={c.text} />
-            </Pressable>
-          ) : null}
-          <View style={{ flex: 1 }}>
-            {breadcrumb ? (
-              <Text style={{ ...textStyle('caption', c.textCaption), marginBottom: 2 }} numberOfLines={1}>
-                {breadcrumb}
-              </Text>
-            ) : null}
-            <Text style={{ ...textStyle('pageTitle', c.text) }} numberOfLines={1}>
-              {title}
+    <View
+      style={[
+        styles.header,
+        {
+          backgroundColor: c.surface,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: c.borderSubtle,
+        },
+      ]}
+    >
+      <View style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
+        {onBack ? (
+          <Pressable
+            onPress={onBack}
+            style={[styles.backBtn, { backgroundColor: c.surfaceMuted }]}
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
+          >
+            <AppIcon name={backArrowIcon()} size={20} color={c.text} />
+          </Pressable>
+        ) : null}
+        <View style={{ flex: 1 }}>
+          {breadcrumb ? (
+            <Text style={{ ...textStyle('caption', c.textCaption), marginBottom: 2 }} numberOfLines={1}>
+              {breadcrumb}
             </Text>
-            {subtitle ? (
-              <Text style={{ ...textStyle('caption', c.textMuted), marginTop: 2 }} numberOfLines={1}>
-                {subtitle}
-              </Text>
-            ) : null}
-          </View>
-          {showBranchPill ? (
+          ) : null}
+          <Text style={{ ...textStyle('pageTitle', c.text) }} numberOfLines={1}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={{ ...textStyle('caption', c.textMuted), marginTop: 2 }} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {showBranchPill ? (
+          <View
+            style={[
+              styles.branchPill,
+              {
+                backgroundColor: c.surfaceMuted,
+                borderColor: c.borderSubtle,
+              },
+            ]}
+          >
             <View
               style={[
-                styles.branchPill,
-                {
-                  backgroundColor: c.surfaceMuted,
-                  borderColor: c.borderSubtle,
-                },
+                styles.statusDot,
+                { backgroundColor: isOnline ? c.success : c.danger },
               ]}
+            />
+            <Text
+              style={{ color: c.textMuted, ...textStyle('caption', c.textMuted), fontFamily: undefined }}
+              numberOfLines={1}
             >
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: isOnline ? c.success : c.danger },
-                ]}
-              />
-              <Text
-                style={{ color: c.textMuted, ...textStyle('caption', c.textMuted), fontFamily: undefined }}
-                numberOfLines={1}
-              >
-                {viewMode === 'global' ? 'عرض عام' : activeBranch?.name || ''}
-              </Text>
-            </View>
-          ) : null}
-          {right ? <View>{right}</View> : null}
-        </View>
+              {viewMode === 'global' ? 'عرض عام' : activeBranch?.name || ''}
+            </Text>
+          </View>
+        ) : null}
+        {right ? <View>{right}</View> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
   header: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -125,7 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   branchPill: {
-    flexDirection: 'row',
+    ...flexRow,
     alignItems: 'center',
     gap: spacing.xs,
     borderRadius: radius.pill,

@@ -107,15 +107,8 @@ const DELIVERY_FINANCE_PERM: string[] = [
  'manage_deliveries',
 ]
 
-export function buildSidebarMenu(
- isSuperAdmin: boolean,
- hasPermission: HasPermission,
- viewMode?: string,
- hasFeature: HasFeature = () => true,
-): SidebarMenuItem[] {
- const mode = normalizeViewMode(viewMode)
-
- const menu: SidebarMenuItem[] = [
+/** Unfiltered sidebar definition — shared with viewModeRoutePolicy. */
+export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  {
  id: 'nav-dashboard',
  label: 'الرئيسية',
@@ -160,7 +153,7 @@ export function buildSidebarMenu(
  },
  {
  id: 'nav-sales-layaway',
- label: 'البيع الآجل',
+ label: 'خطط التقسيط',
  icon: 'ri-time-line',
  link: '/sales/layaway',
  perm: 'process_sales',
@@ -584,9 +577,16 @@ export function buildSidebarMenu(
  },
  ],
  },
- ]
+ ];
 
- return filterItems(menu, isSuperAdmin, hasPermission, hasFeature, mode)
+export function buildSidebarMenu(
+ isSuperAdmin: boolean,
+ hasPermission: HasPermission,
+ viewMode?: string,
+ hasFeature: HasFeature = () => true,
+): SidebarMenuItem[] {
+ const mode = normalizeViewMode(viewMode)
+ return filterItems(SIDEBAR_MENU_TEMPLATE, isSuperAdmin, hasPermission, hasFeature, mode)
 }
 
 export type MobileSidebarMenuItem = {

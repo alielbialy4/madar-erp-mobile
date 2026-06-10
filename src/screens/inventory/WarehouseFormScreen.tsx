@@ -79,11 +79,22 @@ export function WarehouseFormScreen({ navigation, route }: { navigation: Nav; ro
       status,
     };
     try {
-      if (isEdit && id) await warehousesAPI.update(id, payload);
-      else await warehousesAPI.create(payload);
-      toast.success(isEdit ? 'تم تحديث المخزن' : 'تم إنشاء المخزن');
-      void hapticSuccess();
-      navigation.goBack();
+      if (isEdit && id) {
+        await warehousesAPI.update(id, payload);
+        toast.success('تم تحديث المخزن');
+        void hapticSuccess();
+        navigation.goBack();
+      } else {
+        const res = await warehousesAPI.create(payload);
+        const created = extractData<Warehouse>(res);
+        toast.success('تم إنشاء المخزن');
+        void hapticSuccess();
+        if (created?.id) {
+          navigation.replace('WarehouseDetail', { id: created.id, name: created.name });
+        } else {
+          navigation.navigate('Warehouses');
+        }
+      }
     } catch (err) {
       const msg = normalizeApiError(err).message;
       setFormError(msg);

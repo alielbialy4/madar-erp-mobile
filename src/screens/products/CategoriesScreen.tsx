@@ -1,57 +1,64 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Text } from '@/components/ui/AppText';
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { FlatList, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { categoriesAPI } from '@/api/categories';
 import { AppScreen } from '@/components/layout';
 import { CategoriesHero } from '@/components/categories/CategoriesHero';
 import { CategoryListCard } from '@/components/categories/CategoryListCard';
-import { createCategoryStyles } from '@/components/categories/categoryStyles';
-import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
-import { AppEmptyState, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
-import { AppInput } from '@/components/ui';
+import { CategoriesListToolbar } from '@/components/categories/CategoriesListToolbar';
+import { CategoryFiltersPanel } from '@/components/categories/CategoryFiltersPanel';
+import { CategoryFiltersSheet } from '@/components/categories/CategoryFiltersSheet';
+import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { useAuthStore } from '@/store/authStore';
 import { useColors } from '@/hooks/useColors';
 import { hasPermission } from '@/utils/permissions';
-import { normalizeApiError } from '@/utils/errors';
+import { contentAreaRtl, sidebarAreaRtl, tabletShellRow } from '@/constants/layout';
+import {
+  CATEGORIES_FILTER_SIDEBAR_WIDTH,
+  categoryFiltersToApiParams,
+  categoryListStats,
+  EMPTY_CATEGORY_FILTERS,
+  getCategoryGridColumns,
+  type CategoryListFilters,
+} from '@/constants/categoriesLayout';
 import type { Category } from '@/types/api';
 import type { ProductsStackParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'Categories'>;
-type StatusFilter = 'all' | 'active' | 'inactive';
 
 export function CategoriesScreen({ navigation }: { navigation: Nav }) {
   const c = useColors();
-  const cs = useMemo(() => createCategoryStyles(c), [c]);
-  const ui = useMemo(() => createInventoryUiStyles(c), [c]);
-  const tabBarInset = useTabBarBottomInset(spacing.lg);
+  const { width, height } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const gridColumns = getCategoryGridColumns(width, height);
+  const isGrid = gridColumns > 1;
+  const tabBarInset = useTabBarBottomInset(spacing.sm);
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_categories');
 
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<CategoryListFilters>({ ...EMPTY_CATEGORY_FILTERS });
+
   const debounced = useDebouncedValue(query);
-  const params = { search: debounced || undefined, per_page: 50 };
+  const listParams = useMemo(
+    () => ({
+      search: debounced || undefined,
+      ...categoryFiltersToApiParams(filters),
+      per_page: 50,
+    }),
+    [debounced, filters],
+  );
 
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Category & Record<string, unknown>>(
     categoriesAPI.getAll,
-    params,
+    listParams,
   );
-
-  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,135 +66,154 @@ export function CategoriesScreen({ navigation }: { navigation: Nav }) {
     }, [refresh]),
   );
 
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (statusFilter === 'active') return item.active !== false;
-      if (statusFilter === 'inactive') return item.active === false;
-      return true;
-    });
-  }, [items, statusFilter]);
+  const stats = useMemo(() => categoryListStats(items), [items]);
 
-  const stats = useMemo(() => {
-    const activeCount = items.filter((i) => i.active !== false).length;
-    return { total: items.length, active: activeCount };
-  }, [items]);
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await categoriesAPI.delete(deleteTarget.id);
-      setDeleteTarget(null);
-      await refresh();
-    } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
-    } finally {
-      setDeleting(false);
-    }
+  const heroProps = {
+    totalCount: stats.total,
+    activeCount: stats.active,
+    inactiveCount: stats.inactive,
+    productsTotal: stats.productsTotal,
+    isLoading: loading || refreshing,
+    onRefresh: () => void refresh(),
+    canManage,
+    onAdd: canManage ? () => navigation.navigate('CategoryForm', {}) : undefined,
+    onReorder: canManage ? () => navigation.navigate('CategoriesReorder') : undefined,
+    onProducts: () => navigation.navigate('ProductsHome'),
   };
 
-  const filters: { key: StatusFilter; label: string }[] = [
-    { key: 'all', label: 'الكل' },
-    { key: 'active', label: 'نشط' },
-    { key: 'inactive', label: 'غير نشط' },
-  ];
+  const navigateDetail = useCallback(
+    (item: Category) => {
+      navigation.navigate('CategoryDetail', { id: item.id, name: item.name });
+    },
+    [navigation],
+  );
+
+  const navigateEdit = useCallback(
+    (item: Category) => {
+      navigation.navigate('CategoryForm', { id: item.id });
+    },
+    [navigation],
+  );
+
+  const cardVariant = isGrid ? ('grid' as const) : ('compact' as const);
 
   const listHeader = (
-    <View style={cs.pageHeader}>
-      <CategoriesHero
-        totalCount={stats.total}
-        activeCount={stats.active}
-        isLoading={loading || refreshing}
-        onRefresh={() => void refresh()}
-        canManage={canManage}
-        onAdd={canManage ? () => navigation.navigate('CategoryForm', {}) : undefined}
-        onReorder={canManage ? () => navigation.navigate('CategoriesReorder') : undefined}
-        onProducts={() => navigation.navigate('ProductsHome')}
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xs }}>
+      {isTablet ? (
+        <CategoriesHero {...heroProps} showActions />
+      ) : (
+        <CategoriesHero
+          {...heroProps}
+          statsOnly
+          showActions={Boolean(heroProps.onAdd || heroProps.onReorder || heroProps.onProducts)}
+          compact
+        />
+      )}
+      <CategoriesListToolbar
+        query={query}
+        onQueryChange={setQuery}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onOpenFilters={isTablet ? undefined : () => setFiltersOpen(true)}
+        canManage={canManage && !isTablet}
+        onAdd={!isTablet && canManage ? heroProps.onAdd : undefined}
       />
-
-      <View style={cs.searchWrap}>
-        <MaterialIcons name="search" size={22} color={c.textCaption} />
-        <View style={cs.searchInput}>
-          <AppInput value={query} onChangeText={setQuery} placeholder="بحث باسم التصنيف..." />
-        </View>
-        {query.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8}>
-            <MaterialIcons name="close" size={20} color={c.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
-
-      <View style={{ gap: spacing.sm }}>
-        <View style={ui.chipsWrap}>
-          {filters.map((f) => {
-            const active = statusFilter === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => setStatusFilter(f.key)}
-                style={[cs.filterPill, active && cs.filterPillActive]}
-              >
-                <Text style={[cs.filterText, active && cs.filterTextActive]}>{f.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={cs.sectionLabel}>
-          {filteredItems.length} تصنيف{statusFilter !== 'all' ? ' (مفلتر)' : ''}
-        </Text>
-      </View>
     </View>
+  );
+
+  const renderCategoryItem = useCallback(
+    ({ item }: { item: Category & Record<string, unknown> }) => {
+      const category = item as Category;
+      const card = (
+        <CategoryListCard
+          category={category}
+          canManage={canManage}
+          variant={cardVariant}
+          onPress={() => navigateDetail(category)}
+          onEdit={canManage ? () => navigateEdit(category) : undefined}
+        />
+      );
+      if (isGrid) {
+        return <View style={{ flex: 1, paddingHorizontal: spacing.xs }}>{card}</View>;
+      }
+      return card;
+    },
+    [canManage, cardVariant, isGrid, navigateDetail, navigateEdit],
+  );
+
+  const listBody = (
+    <FlatList
+      key={isGrid ? `categories-grid-${gridColumns}` : 'categories-list'}
+      data={items}
+      numColumns={gridColumns}
+      keyExtractor={(item, index) => `cat-${String(item.id)}-${index}`}
+      ListHeaderComponent={listHeader}
+      contentContainerStyle={{
+        paddingBottom: tabBarInset,
+        ...(isGrid ? { paddingHorizontal: spacing.md } : { paddingHorizontal: spacing.lg }),
+      }}
+      columnWrapperStyle={isGrid ? { gap: spacing.sm, marginBottom: spacing.sm } : undefined}
+      ItemSeparatorComponent={isGrid ? undefined : () => <View style={{ height: spacing.sm }} />}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={c.accent} />
+      }
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.35}
+      ListEmptyComponent={
+        <AppEmptyState
+          title="لا توجد تصنيفات"
+          message={canManage ? 'أنشئ أول تصنيف أو غيّر الفلاتر' : undefined}
+        />
+      }
+      renderItem={renderCategoryItem}
+    />
   );
 
   return (
     <AppScreen title="التصنيفات" onBack={() => navigation.goBack()} scroll={false} contentStyle={{ padding: 0, gap: 0 }}>
       {loading && items.length === 0 ? (
-        <AppLoadingState />
+        <AppLoadingState variant="skeleton" skeletonRows={8} />
       ) : error && items.length === 0 ? (
         <AppErrorState message={error} onRetry={() => void refresh()} />
+      ) : isTablet ? (
+        <View style={tabletShellRow}>
+          <View style={contentAreaRtl}>{listBody}</View>
+          <View
+            style={{
+              ...sidebarAreaRtl,
+              width: CATEGORIES_FILTER_SIDEBAR_WIDTH,
+              borderLeftWidth: 1,
+              borderLeftColor: c.borderSubtle,
+              backgroundColor: c.surface,
+            }}
+          >
+            <ScrollView
+              contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <CategoryFiltersPanel
+                filters={filters}
+                onChange={setFilters}
+                resultCount={items.length}
+                layout="sidebar"
+              />
+            </ScrollView>
+          </View>
+        </View>
       ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item, index) => `cat-${String(item.id)}-${index}`}
-          ListHeaderComponent={listHeader}
-          contentContainerStyle={[cs.listContent, { paddingBottom: tabBarInset }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={c.accent} />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.35}
-          ListEmptyComponent={
-            <AppEmptyState
-              title="لا توجد تصنيفات"
-              message={canManage ? 'أنشئ أول تصنيف لتنظيم المنتجات في نقطة البيع' : undefined}
-            />
-          }
-          renderItem={({ item }) => (
-            <CategoryListCard
-              category={item}
-              canManage={canManage}
-              onPress={() =>
-                canManage
-                  ? navigation.navigate('CategoryForm', { id: item.id })
-                  : navigation.navigate('ProductsHome', { category_id: item.id })
-              }
-              onProducts={() => navigation.navigate('ProductsHome', { category_id: item.id })}
-              onEdit={() => navigation.navigate('CategoryForm', { id: item.id })}
-              onDelete={() => setDeleteTarget(item)}
-            />
-          )}
-        />
+        <>
+          <View style={{ ...contentAreaRtl, flex: 1 }}>{listBody}</View>
+          <CategoryFiltersSheet
+            visible={filtersOpen}
+            filters={filters}
+            resultCount={items.length}
+            onClose={() => setFiltersOpen(false)}
+            onApply={setFilters}
+          />
+        </>
       )}
-
-      <ConfirmDialog
-        visible={Boolean(deleteTarget)}
-        title="حذف التصنيف"
-        message={`هل تريد حذف «${deleteTarget?.name ?? ''}»؟ لا يمكن التراجع.`}
-        loading={deleting}
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setDeleteTarget(null)}
-      />
     </AppScreen>
   );
 }

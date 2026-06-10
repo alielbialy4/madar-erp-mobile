@@ -46,6 +46,8 @@ export type ClosePreview = {
   wallet_payments?: string;
   credit_payments?: string;
   layaway_payments?: string;
+  debt_collections?: string;
+  layaway_collections?: string;
 };
 
 export type ShiftDetailedSummary = {
@@ -78,6 +80,8 @@ export type ShiftDetailedSummary = {
     wallet_payments?: string;
     credit_payments?: string;
     layaway_payments?: string;
+    debt_collections?: string;
+    layaway_collections?: string;
     cash_refunds: string;
     cash_deposits: string;
     cash_withdrawals: string;

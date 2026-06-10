@@ -33,6 +33,19 @@ export type PrintTimingSnapshot = {
   total_print_ms: number | null;
   receipt_print_mode: ReceiptPrintModeDiagnostic;
   direct_checkout: boolean | null;
+  native_decode_ms: number | null;
+  native_bitmap_ms: number | null;
+  native_raster_ms: number | null;
+  native_connect_ms: number | null;
+  native_transfer_ms: number | null;
+  native_settle_ms: number | null;
+  native_total_ms: number | null;
+  print_path: 'js' | 'js_strip' | 'native_android' | null;
+  strip_count: number | null;
+  strip_height_px: number | null;
+  strip_inter_delay_ms: number | null;
+  strip_stream_ms: number | null;
+  native_fallback_reason: string | null;
 };
 
 export const emptyTiming: PrintTimingSnapshot = {
@@ -60,6 +73,19 @@ export const emptyTiming: PrintTimingSnapshot = {
   total_print_ms: null,
   receipt_print_mode: null,
   direct_checkout: null,
+  native_decode_ms: null,
+  native_bitmap_ms: null,
+  native_raster_ms: null,
+  native_connect_ms: null,
+  native_transfer_ms: null,
+  native_settle_ms: null,
+  native_total_ms: null,
+  print_path: null,
+  strip_count: null,
+  strip_height_px: null,
+  strip_inter_delay_ms: null,
+  strip_stream_ms: null,
+  native_fallback_reason: null,
 };
 
 export function mergePrintTiming(

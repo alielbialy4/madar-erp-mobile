@@ -1,6 +1,7 @@
 import type { EscPosEncoding, PaperWidth, PrinterProfile } from '@/types/printing';
 import { encodeForPrinter } from './arabicTextEncode';
 import { resolveCodePageTable, type CodePageTable } from './codePageTables';
+import { thermalCellCount } from './thermalTextLayout';
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -12,6 +13,7 @@ export type EscPosBuilderOptions = {
 export class EscPosBuilder {
   private chunks: number[] = [];
   private readonly codePageTable: CodePageTable;
+  private activeSbcsEncoding: EscPosEncoding | null = null;
 
   constructor(options?: EscPosBuilderOptions) {
     this.codePageTable = options?.codePageTable ?? resolveCodePageTable();
@@ -23,6 +25,16 @@ export class EscPosBuilder {
 
   init(): this {
     this.chunks.push(ESC, 0x40);
+    return this;
+  }
+
+  /**
+   * ESC @ (init) then ESC t n before any Arabic SBCS bytes.
+   * W1256 default n=22 — see ARABIC_WINDOWS1256_CODE_PAGE / WINDOWS1256_ESC_T_FALLBACKS.
+   */
+  initArabicTextSession(encoding: EscPosEncoding = 'windows1256'): this {
+    this.chunks.push(ESC, 0x40);
+    this.codePage(encoding);
     return this;
   }
 
@@ -49,6 +61,7 @@ export class EscPosBuilder {
     if (encoding === 'cp864') this.chunks.push(ESC, 0x74, table.cp864);
     else if (encoding === 'cp720') this.chunks.push(ESC, 0x74, table.cp720);
     else if (encoding === 'windows1256') this.chunks.push(ESC, 0x74, table.windows1256);
+    this.activeSbcsEncoding = encoding;
     return this;
   }
 
@@ -90,7 +103,13 @@ export class EscPosBuilder {
   }
 
   separator(charsPerLine: number, char = '-'): this {
-    return this.textLine(char.repeat(charsPerLine), charsPerLine, 'utf8');
+    const line = char.repeat(charsPerLine);
+    if (this.activeSbcsEncoding) {
+      this.codePage(this.activeSbcsEncoding);
+      this.appendEncodedLine(line, this.activeSbcsEncoding);
+      return this;
+    }
+    return this.textLine(line, charsPerLine, 'utf8');
   }
 
   feed(lines = 3): this {
@@ -115,15 +134,33 @@ export class EscPosBuilder {
 }
 
 function wrapText(text: string, max: number): string[] {
-  const words = text.split(/\s+/);
+  if (max <= 0) return [''];
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [''];
+
   const lines: string[] = [];
   let current = '';
+
+  const pushLongToken = (token: string) => {
+    const chars = [...token];
+    while (chars.length > max) {
+      lines.push(chars.splice(0, max).join(''));
+    }
+    if (chars.length) lines.push(chars.join(''));
+  };
+
   for (const word of words) {
     const next = current ? `${current} ${word}` : word;
-    if (next.length <= max) current = next;
-    else {
-      if (current) lines.push(current);
-      current = word.length > max ? word.slice(0, max) : word;
+    if (thermalCellCount(next) <= max) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    if (thermalCellCount(word) > max) {
+      pushLongToken(word);
+      current = '';
+    } else {
+      current = word;
     }
   }
   if (current) lines.push(current);

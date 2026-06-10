@@ -1,12 +1,13 @@
 import type {
   KitchenTicketPayload,
+  PrintCaptureJob,
   PrinterProfile,
   PrintJobRecord,
   ReceiptPrintPayload,
   ShiftCloseReportPayload,
 } from '@/types/printing';
 import { getConnectionCapability } from './printerCapabilities';
-import { buildCodePageReferenceEscPos, buildEncodingTestEscPos, buildReceiptTextLines } from './receiptTemplates';
+import { buildCodePageReferenceEscPos, buildEncodingTestEscPos, buildReceiptTextLines, buildArabicTestEscPos, buildTestPageEscPos } from './receiptTemplates';
 import { buildShiftSummaryTextLines } from './shiftSummaryTemplate';
 import { buildKitchenTicketTextLines } from './kitchenTicketTemplates';
 import { getPrinterProfile } from './printerProfiles';
@@ -23,6 +24,7 @@ import { sendPngBase64OverBluetooth, sendTextLinesOverBluetooth } from './androi
 import { escPosBufferToHtml, escPosToSimpleHtml, printHtmlViaAirPrint } from './iosAirPrintPrinter';
 import { sendEscPosOverTcp, testTcpConnection } from './networkTcpPrinter';
 import {
+  getPrintDiagnostics,
   recordPrintError,
   recordPrintErrorSync,
   recordPrintSuccess,
@@ -32,17 +34,18 @@ import {
   recordReceiptPrintPath,
   recordReceiptPrintPathSync,
   resetPendingPrintDiagnostics,
-  scheduleFlushPrintDiagnostics,
+  flushPrintDiagnostics,
 } from './printDiagnostics';
 import { printArabicTextFast } from './arabicFastTextPrint';
 import {
+  coerceReceiptPrintMode,
   effectiveKitchenProfileForCheckout,
   effectiveReceiptProfile,
   type ReceiptPrintMode,
 } from './resolvePrintPath';
 import {
+  buildAndMaybeDispatchReceipt,
   buildArabicTestBuffer,
-  buildReceiptBuffer,
   buildTestPageBuffer,
   usesRasterEncoding,
 } from './receiptRaster';
@@ -52,8 +55,9 @@ import {
   buildShiftBuffer,
   captureDocument,
 } from './documentRaster';
-import { monoToPngBase64, type MonoRaster } from './escposRaster';
-import type { PrintCaptureJob } from '@/types/printing';
+import { ensureCaptureMono, ensurePngBase64 } from './captureAssets';
+import type { PrintCaptureResult } from './printCaptureRegistry';
+import { monoToPngBase64 } from './escposRaster';
 
 export async function sendRawEscPos(profile: PrinterProfile, buffer: Uint8Array): Promise<void> {
   const cap = getConnectionCapability(profile.connection_type);
@@ -83,6 +87,7 @@ export async function sendRawEscPos(profile: PrinterProfile, buffer: Uint8Array)
 }
 
 async function dispatchBuffer(profile: PrinterProfile, buffer: Uint8Array): Promise<void> {
+  if (buffer.length === 0) return;
   await sendRawEscPos(profile, buffer);
 }
 
@@ -90,20 +95,21 @@ async function dispatchBluetoothText(profile: PrinterProfile, lines: string[]): 
   await sendTextLinesOverBluetooth(profile.bluetoothAddress ?? '', lines, profile);
 }
 
-async function dispatchBluetoothRaster(
+async function dispatchBluetoothRasterFromCapture(
   profile: PrinterProfile,
-  mono: MonoRaster,
-  pngBase64Fallback: string,
+  captured: PrintCaptureResult,
 ): Promise<void> {
+  const mono = await ensureCaptureMono(captured, profile.paper_width);
+  const pngBase64 = await ensurePngBase64(captured);
   const base64 =
-    mono.width > 0 && mono.height > 0 ? monoToPngBase64(mono) : pngBase64Fallback;
+    mono.width > 0 && mono.height > 0 ? monoToPngBase64(mono) : pngBase64;
   await sendPngBase64OverBluetooth(profile.bluetoothAddress ?? '', base64, profile);
 }
 
 async function dispatchBluetoothDocument(job: PrintCaptureJob): Promise<void> {
   if (usesRasterEncoding(job.profile)) {
     const captured = await captureDocument(job);
-    await dispatchBluetoothRaster(job.profile, captured.mono, captured.pngBase64);
+    await dispatchBluetoothRasterFromCapture(job.profile, captured);
     return;
   }
   if (job.kind === 'kitchen') {
@@ -147,21 +153,27 @@ async function dispatchJob(profile: PrinterProfile, job: PrintJobRecord): Promis
       });
       return;
     }
-    const buffer = await buildTestPageBuffer(profile);
-    await dispatchBuffer(profile, buffer);
+    await dispatchBuffer(profile, buildTestPageEscPos(effectiveReceiptProfile(profile, 'fast_text')));
     return;
   }
 
   let buffer: Uint8Array;
+  let alreadySent = false;
   if (job.type === 'receipt' || job.type === 'refund') {
-    buffer = await buildReceiptBuffer(job.payload_snapshot as ReceiptPrintPayload, profile);
+    const built = await buildAndMaybeDispatchReceipt(
+      job.payload_snapshot as ReceiptPrintPayload,
+      profile,
+    );
+    buffer = built.buffer;
+    alreadySent = built.alreadySent;
   } else if (job.type === 'kitchen') {
     buffer = await buildKitchenBuffer(job.payload_snapshot as KitchenTicketPayload, profile);
   } else if (job.type === 'shift_summary') {
     buffer = await buildShiftBuffer(job.payload_snapshot as ShiftCloseReportPayload, profile);
   } else {
-    buffer = await buildTestPageBuffer(profile);
+    buffer = buildTestPageEscPos(effectiveReceiptProfile(profile, 'fast_text'));
   }
+  if (alreadySent) return;
   await dispatchBuffer(profile, buffer);
 }
 
@@ -242,40 +254,44 @@ export const printEngine = {
     profile: PrinterProfile,
     mode: ReceiptPrintMode,
   ): Promise<PrintJobRecord> {
-    const effectiveProfile = effectiveReceiptProfile(profile, mode);
+    const forcedMode = coerceReceiptPrintMode(mode);
+  const effectiveProfile = effectiveReceiptProfile(profile, forcedMode);
     const snapshot = payload as unknown as Record<string, unknown>;
     resetPendingPrintDiagnostics();
     const totalStartedAt = Date.now();
     try {
       const buildStartedAt = Date.now();
-      const buffer = await buildReceiptBuffer(payload, effectiveProfile);
+      const { buffer, alreadySent } = await buildAndMaybeDispatchReceipt(payload, effectiveProfile);
       const buildMs = Date.now() - buildStartedAt;
-      await dispatchDirect(effectiveProfile, buffer);
+      if (!alreadySent) {
+        await dispatchDirect(effectiveProfile, buffer);
+      }
       const totalMs = Date.now() - totalStartedAt;
+      const diag = await getPrintDiagnostics();
       recordPrintTimingSync({
         dispatch_ms: buildMs,
         tcp_ms: totalMs,
         storage_ms: 0,
-        receipt_print_mode: mode,
+        receipt_print_mode: forcedMode,
         direct_checkout: true,
         total_print_ms: totalMs,
-        raster_payload_bytes: buffer.length,
+        raster_payload_bytes: diag.timing.raster_payload_bytes ?? buffer.length,
       });
-      if (mode === 'fast_text') {
+      if (forcedMode === 'fast_text') {
         recordReceiptPrintPathSync(profile.id, profile.name, 'text_windows1256', null);
       }
       recordPrintSuccessSync(profile.id, profile.name);
-      scheduleFlushPrintDiagnostics();
+      await flushPrintDiagnostics();
       return syntheticCheckoutJob('receipt', profile, snapshot, 'printed');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'فشلت الطباعة';
       recordPrintErrorSync(profile.id, profile.name, message);
       recordPrintTimingSync({
-        receipt_print_mode: mode,
+        receipt_print_mode: forcedMode,
         direct_checkout: true,
         total_print_ms: Date.now() - totalStartedAt,
       });
-      scheduleFlushPrintDiagnostics();
+      await flushPrintDiagnostics();
       return syntheticCheckoutJob('receipt', profile, snapshot, 'failed', message);
     }
   },
@@ -371,7 +387,7 @@ export const printEngine = {
           branch_name: 'MADAR POS TEST',
         },
       });
-      await dispatchBluetoothRaster(profile, captured.mono, captured.pngBase64);
+      await dispatchBluetoothRasterFromCapture(profile, captured);
     } else if (profile.connection_type === 'bluetooth_android') {
       await dispatchBluetoothText(profile, [
         'MADAR POS TEST',
@@ -380,8 +396,8 @@ export const printEngine = {
         new Date().toLocaleString('ar-EG-u-nu-latn'),
       ]);
     } else {
-      const buffer = await buildTestPageBuffer(profile);
-      await dispatchBuffer(profile, buffer);
+      const { buffer, alreadySent } = await buildTestPageBuffer(profile);
+      if (!alreadySent) await dispatchBuffer(profile, buffer);
     }
     await recordPrintSuccess(profile.id, profile.name);
   },
@@ -406,7 +422,7 @@ export const printEngine = {
           branch_name: 'اختبار عربي',
         },
       });
-      await dispatchBluetoothRaster(profile, captured.mono, captured.pngBase64);
+      await dispatchBluetoothRasterFromCapture(profile, captured);
     } else if (profile.connection_type === 'bluetooth_android') {
       await dispatchBluetoothText(profile, [
         'فاتورة بيع',
@@ -415,8 +431,9 @@ export const printEngine = {
         'اختبار الطباعة العربية',
       ]);
     } else {
-      const buffer = await buildArabicTestBuffer(profile);
-      await dispatchBuffer(profile, buffer);
+      const { buffer, alreadySent } = await buildArabicTestBuffer(profile);
+      if (!alreadySent) await dispatchBuffer(profile, buffer);
+      recordReceiptPrintPathSync(profile.id, profile.name, 'raster', null);
     }
     await recordPrintSuccess(profile.id, profile.name);
   },
@@ -478,7 +495,7 @@ export const printEngine = {
             payload: testPayload,
             profile: sampleProfile,
           });
-          await dispatchBluetoothRaster(sampleProfile, captured.mono, captured.pngBase64);
+          await dispatchBluetoothRasterFromCapture(sampleProfile, captured);
         } else {
           const buffer = await buildDocumentBuffer({
             kind: 'receipt',

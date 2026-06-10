@@ -12,6 +12,7 @@ export function StockTransfersListScreen({ navigation }: { navigation: Nav }) {
     <ResourceListScreen
       title="تحويلات المخزون"
       subtitle="سجل التحويلات بين المخازن."
+      surface="transfers"
       loader={(params) => stockTransfersAPI.list(params)}
       onBack={navigation.goBack}
       headerAction={{ label: 'تحويل جديد', onPress: () => navigation.navigate('StockTransfer') }}

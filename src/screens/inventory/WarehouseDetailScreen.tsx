@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ScrollView, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -52,11 +53,17 @@ export function WarehouseDetailScreen({ route, navigation }: { route: Route; nav
     void load();
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
   const remove = async () => {
     setDeleting(true);
     try {
       await warehousesAPI.delete(id);
-      navigation.goBack();
+      navigation.navigate('Warehouses');
     } catch {
       setDeleteOpen(false);
     } finally {
@@ -167,7 +174,25 @@ export function WarehouseDetailScreen({ route, navigation }: { route: Route; nav
               <View style={{ gap: spacing.sm }}>
                 {balances.slice(0, 12).map((row, index) => {
                   const model = mapInventoryRow('balances', row as Record<string, unknown>);
-                  return <InventoryListCard key={String(row.id ?? index)} {...model} icon="inventory-2" />;
+                  return (
+                    <InventoryListCard
+                      key={String(row.id ?? index)}
+                      {...model}
+                      icon="inventory-2"
+                      variant="compact"
+                      onPress={() =>
+                        navigation.navigate('StockBalanceDetail', {
+                          product_id: Number(row.product_id ?? (row.product as Record<string, unknown>)?.id),
+                          warehouse_id: id,
+                          product_name: String(
+                            (row as Record<string, unknown>).product_name ??
+                              (row.product as Record<string, unknown>)?.name ??
+                              '',
+                          ),
+                        })
+                      }
+                    />
+                  );
                 })}
               </View>
             ) : null}

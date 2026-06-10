@@ -6,13 +6,22 @@ import { usesRasterEncoding } from './receiptRasterFallback';
 
 export type { ReceiptPrintMode };
 
+/** Force fast_text on all receipt prints — keep false; RP326 has no Arabic ROM (raster only). */
+export const TEMP_FORCE_FAST_TEXT = false;
+
+export function coerceReceiptPrintMode(mode: ReceiptPrintMode): ReceiptPrintMode {
+  if (TEMP_FORCE_FAST_TEXT) return 'fast_text';
+  return mode;
+}
+
 export function normalizeReceiptPrintMode(raw: unknown): ReceiptPrintMode {
+  if (TEMP_FORCE_FAST_TEXT) return 'fast_text';
   return raw === 'fast_text' ? 'fast_text' : DEFAULT_RECEIPT_PRINT_MODE;
 }
 
 /** Applies branch speed mode to the cashier profile used for buffer building. */
 export function effectiveReceiptProfile(profile: PrinterProfile, mode: ReceiptPrintMode): PrinterProfile {
-  if (mode !== 'fast_text') return profile;
+  if (coerceReceiptPrintMode(mode) !== 'fast_text') return profile;
   return {
     ...profile,
     encoding: 'windows1256',
@@ -26,7 +35,8 @@ export function effectiveReceiptProfile(profile: PrinterProfile, mode: ReceiptPr
 }
 
 export function shouldUseRasterForReceipt(profile: PrinterProfile, mode: ReceiptPrintMode): boolean {
-  if (mode === 'fast_text') return false;
+  if (TEMP_FORCE_FAST_TEXT) return false;
+  if (coerceReceiptPrintMode(mode) === 'fast_text') return false;
   return usesRasterEncoding(profile);
 }
 
@@ -46,5 +56,5 @@ export function effectiveKitchenProfileForCheckout(profile: PrinterProfile): Pri
 }
 
 export function receiptPrintPathForMode(mode: ReceiptPrintMode): 'raster' | 'text_windows1256' {
-  return mode === 'fast_text' ? 'text_windows1256' : 'raster';
+  return coerceReceiptPrintMode(mode) === 'fast_text' ? 'text_windows1256' : 'raster';
 }

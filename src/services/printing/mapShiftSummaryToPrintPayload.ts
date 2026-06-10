@@ -39,6 +39,18 @@ export function buildShiftCloseReportPayload(
         ...(t.electronic_wallet_payments
           ? [{ label: 'محافظ إلكترونية', value: money(t.electronic_wallet_payments) }]
           : []),
+        ...(Number(t.credit_payments ?? 0) > 0
+          ? [{ label: labels.creditSalesDeferred, value: money(t.credit_payments ?? 0) }]
+          : []),
+        ...(Number(t.layaway_payments ?? 0) > 0
+          ? [{ label: labels.layawaySalesDeferred, value: money(t.layaway_payments ?? 0) }]
+          : []),
+        ...(Number(t.debt_collections ?? 0) > 0
+          ? [{ label: labels.debtCollections, value: money(t.debt_collections ?? 0) }]
+          : []),
+        ...(Number(t.layaway_collections ?? 0) > 0
+          ? [{ label: labels.layawayCollections, value: money(t.layaway_collections ?? 0) }]
+          : []),
         { label: labels.invoiceCount, value: numberText(t.invoice_count) },
       ],
     },
@@ -98,6 +110,12 @@ export function buildShiftCloseReportPayload(
   sections.push({
     title: labels.finalAccounting,
     rows: [
+      ...(Number(t.debt_collections ?? 0) > 0
+        ? [{ label: labels.debtCollections, value: money(t.debt_collections ?? 0) }]
+        : []),
+      ...(Number(t.layaway_collections ?? 0) > 0
+        ? [{ label: labels.layawayCollections, value: money(t.layaway_collections ?? 0) }]
+        : []),
       { label: labels.expectedCash, value: money(t.expected_cash), bold: true },
       { label: labels.actualCash, value: money(t.actual_cash ?? '—') },
       { label: labels.variance, value: money(t.variance ?? 0), bold: true },

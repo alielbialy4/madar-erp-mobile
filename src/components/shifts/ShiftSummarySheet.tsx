@@ -157,6 +157,18 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             {Number(data.totals.electronic_wallet_payments ?? 0) > 0 ? (
               <ShiftKpiRow label="محافظ إلكترونية" value={fmt(data.totals.electronic_wallet_payments ?? 0)} />
             ) : null}
+            {Number(data.totals.credit_payments ?? 0) > 0 ? (
+              <ShiftKpiRow label="مبيعات آجل (إجمالي الفواتير)" value={fmt(data.totals.credit_payments ?? 0)} tone="warning" />
+            ) : null}
+            {Number(data.totals.layaway_payments ?? 0) > 0 ? (
+              <ShiftKpiRow label="مبيعات تقسيط (إجمالي الفواتير)" value={fmt(data.totals.layaway_payments ?? 0)} tone="warning" />
+            ) : null}
+            {Number(data.totals.debt_collections ?? 0) > 0 ? (
+              <ShiftKpiRow label="تحصيل ديون عملاء" value={fmt(data.totals.debt_collections ?? 0)} tone="success" />
+            ) : null}
+            {Number(data.totals.layaway_collections ?? 0) > 0 ? (
+              <ShiftKpiRow label="تحصيل أقساط تقسيط" value={fmt(data.totals.layaway_collections ?? 0)} tone="success" />
+            ) : null}
             <ShiftKpiRow label="عدد الفواتير" value={numberText(data.totals.invoice_count)} tone="info" />
           </ShiftSectionCard>
 
@@ -254,6 +266,12 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             <ShiftKpiRow label="- مرتجعات نقدية" value={fmt(data.totals.cash_refunds)} tone="warning" />
             <ShiftKpiRow label="- مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
             <ShiftKpiRow label="- مسحوبات" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
+            {Number(data.totals.debt_collections ?? 0) > 0 ? (
+              <ShiftKpiRow label="تحصيل ديون عملاء" value={fmt(data.totals.debt_collections ?? 0)} tone="success" />
+            ) : null}
+            {Number(data.totals.layaway_collections ?? 0) > 0 ? (
+              <ShiftKpiRow label="تحصيل أقساط تقسيط" value={fmt(data.totals.layaway_collections ?? 0)} tone="success" />
+            ) : null}
             {Number(data.totals.card_payments ?? 0) > 0 ? (
               <ShiftKpiRow label="بطاقات (معلوماتي)" value={fmt(data.totals.card_payments ?? 0)} />
             ) : null}

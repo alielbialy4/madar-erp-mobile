@@ -9,6 +9,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { useAuthStore } from './src/store/authStore';
 import { useNetworkStore } from './src/store/networkStore';
 import { useThemeStore } from './src/store/themeStore';
@@ -67,7 +68,7 @@ export default function App() {
           <SafeAreaProvider>
             <AppToastProvider>
               <PrintCaptureHost />
-              <NavigationContainer direction="rtl" theme={navTheme}>
+              <NavigationContainer ref={navigationRef} direction="rtl" theme={navTheme}>
                 <RootNavigator />
                 <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
               </NavigationContainer>

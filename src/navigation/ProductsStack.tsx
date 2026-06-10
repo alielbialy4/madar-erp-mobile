@@ -8,6 +8,7 @@ import { ProductFormRecipeScreen } from '@/screens/products/ProductFormRecipeScr
 import { ProductFormModifiersScreen } from '@/screens/products/ProductFormModifiersScreen';
 import { ProductInsightsScreen } from '@/screens/products/ProductInsightsScreen';
 import { CategoriesScreen } from '@/screens/products/CategoriesScreen';
+import { CategoryDetailScreen } from '@/screens/products/CategoryDetailScreen';
 import { CategoryFormScreen } from '@/screens/products/CategoryFormScreen';
 import { CategoriesReorderScreen } from '@/screens/products/CategoriesReorderScreen';
 import { ProductsReorderScreen } from '@/screens/products/ProductsReorderScreen';
@@ -27,6 +28,7 @@ export function ProductsStack() {
         <Stack.Screen name="ProductFormModifiers" component={ProductFormModifiersScreen} options={{ title: 'الموديفايرز' }} />
         <Stack.Screen name="ProductInsights" component={ProductInsightsScreen} />
         <Stack.Screen name="Categories" component={CategoriesScreen} />
+        <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
         <Stack.Screen name="CategoryForm" component={CategoryFormScreen} />
         <Stack.Screen name="CategoriesReorder" component={CategoriesReorderScreen} />
         <Stack.Screen name="ProductsReorder" component={ProductsReorderScreen} />

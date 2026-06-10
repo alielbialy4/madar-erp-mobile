@@ -4,7 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { purchasesAPI, type PurchasePayload } from '@/api/purchases';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppButton, AppCard, AppDatePicker, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { money, numberText } from '@/utils/format';
@@ -150,16 +150,14 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
                 editable={false}
                 placeholder="YYYY-MM-DD"
               />
-              <AppInput
+              <AppDatePicker
                 label="تاريخ الصلاحية"
                 value={line.expiry_date ?? ''}
-                editable={false}
-                onChangeText={(v) => {
+                onChange={(v) => {
                   const next = [...lines];
                   next[index] = { ...line, expiry_date: v };
                   setLines(next);
                 }}
-                placeholder="YYYY-MM-DD"
               />
               </>
             ) : null}

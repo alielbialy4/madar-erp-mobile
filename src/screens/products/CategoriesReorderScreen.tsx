@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { categoriesAPI } from '@/api/categories';
 import { AppScreen } from '@/components/layout';
 import { ReorderList } from '@/components/lists/ReorderList';
 import { AppButton } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppLoadingState } from '@/components/feedback';
+import { AppLoadingState, useToast } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hasPermission } from '@/utils/permissions';
@@ -18,8 +19,18 @@ import { useColors } from '@/hooks/useColors';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'CategoriesReorder'>;
 
+function sortByPosOrder(rows: Category[]): Category[] {
+  return [...rows].sort((a, b) => {
+    const ao = a.sort_order ?? 0;
+    const bo = b.sort_order ?? 0;
+    if (ao !== bo) return ao - bo;
+    return String(a.name).localeCompare(String(b.name), 'ar');
+  });
+}
+
 export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
   const c = useColors();
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_categories');
   const [items, setItems] = useState<Category[]>([]);
@@ -40,7 +51,7 @@ export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
     setError(null);
     try {
       const res = await categoriesAPI.getAll({ per_page: 200 });
-      setItems(extractArray<Category>(res));
+      setItems(sortByPosOrder(extractArray<Category>(res)));
     } catch (err) {
       setError(normalizeApiError(err).message);
     } finally {
@@ -48,15 +59,19 @@ export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const save = async () => {
+    if (items.length === 0) return;
     setSaving(true);
     setError(null);
     try {
-      await categoriesAPI.reorder(items.map((c, i) => ({ id: c.id, sort_order: i })));
+      await categoriesAPI.reorder(items.map((cat, index) => ({ id: cat.id, sort_order: index + 1 })));
+      toast.success('تم حفظ ترتيب التصنيفات');
       navigation.goBack();
     } catch (err) {
       setError(normalizeApiError(err).message);
@@ -89,7 +104,7 @@ export function CategoriesReorderScreen({ navigation }: { navigation: Nav }) {
         items={items}
         keyExtractor={(item) => String(item.id)}
         title={(item) => item.name}
-        subtitle={() => 'اضغط ↑ أو ↓ لتغيير الترتيب'}
+        subtitle={(item) => `ترتيب POS: ${item.sort_order ?? '—'}`}
         onChange={setItems}
         emptyMessage="لا توجد تصنيفات"
       />

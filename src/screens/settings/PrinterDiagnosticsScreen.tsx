@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppInlineAlert } from '@/components/feedback';
 import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppText as Text } from '@/components/ui';
@@ -12,7 +12,20 @@ import {
   type PrintTimingSnapshot,
 } from '@/services/printing/printDiagnostics';
 import { formatBenchmarkTable, runPrintBenchmark } from '@/services/printing/printBenchmark';
+import { getBenchmarkHistory } from '@/services/printing/printBenchmarkHistory';
+import {
+  describeNativeModuleStatus,
+  isNativeThermalPrintAvailable,
+  ThermalPrinter,
+} from '@/services/printing/androidNativeThermalPrinter';
+import { testTcpConnection } from '@/services/printing/networkTcpPrinter';
+import {
+  formatBaselineSummary,
+  runBaselineBenchmark,
+} from '@/services/printing/nativePrintBenchmark';
 import { testReceiptCapture } from '@/services/printing/receiptCaptureTest';
+import { capturePrint } from '@/services/printing/printCaptureRegistry';
+import { Platform } from 'react-native';
 import { usePrintStore } from '@/store/printStore';
 import { useBranchStore } from '@/store/branchStore';
 import type { PrinterProfile } from '@/types/printing';
@@ -23,6 +36,12 @@ import { useColors } from '@/hooks/useColors';
 import { isViewShotAvailable, VIEW_SHOT_UNAVAILABLE_MESSAGE } from '@/utils/viewShotAvailability';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'PrinterDiagnostics'>;
+
+const PRINT_PATH_LABELS: Record<string, string> = {
+  js: 'JS (buffer واحد)',
+  js_strip: 'JS strip (GS v 0)',
+  native_android: 'Kotlin native',
+};
 
 const PATH_LABELS: Record<string, string> = {
   raster: 'صورة (GS v 0)',
@@ -67,6 +86,22 @@ function TimingBreakdown({ timing, muted }: { timing: PrintTimingSnapshot; muted
       <TimingRow label="flush تشخيص" value={ms(timing.diagnostics_flush_ms)} muted={muted} />
       <TimingRow label="حجم الإرسال" value={bytes(timing.raster_payload_bytes)} muted={muted} />
       <TimingRow label="ارتفاع الإيصال" value={timing.receipt_height_px == null ? '—' : `${timing.receipt_height_px}px`} muted={muted} />
+      <TimingRow label="مسار المعالجة" value={PRINT_PATH_LABELS[timing.print_path ?? ''] ?? timing.print_path ?? '—'} muted={muted} />
+      <TimingRow
+        label="سبب رجوع native"
+        value={timing.native_fallback_reason ?? '—'}
+        muted={muted}
+      />
+      <TimingRow label="strip count" value={timing.strip_count == null ? '—' : String(timing.strip_count)} muted={muted} />
+      <TimingRow label="strip height" value={timing.strip_height_px == null ? '—' : `${timing.strip_height_px}px`} muted={muted} />
+      <TimingRow label="strip inter-delay" value={ms(timing.strip_inter_delay_ms)} muted={muted} />
+      <TimingRow label="strip stream" value={ms(timing.strip_stream_ms)} muted={muted} />
+      <TimingRow label="native decode" value={ms(timing.native_decode_ms)} muted={muted} />
+      <TimingRow label="native bitmap" value={ms(timing.native_bitmap_ms)} muted={muted} />
+      <TimingRow label="native raster" value={ms(timing.native_raster_ms)} muted={muted} />
+      <TimingRow label="native connect" value={ms(timing.native_connect_ms)} muted={muted} />
+      <TimingRow label="native transfer" value={ms(timing.native_transfer_ms)} muted={muted} />
+      <TimingRow label="native total" value={ms(timing.native_total_ms)} muted={muted} />
       <TimingRow label="محاولات التقاط" value={timing.capture_attempts == null ? '—' : String(timing.capture_attempts)} muted={muted} />
       <TimingRow label="فشل حبر" value={timing.ink_fail_count == null ? '—' : String(timing.ink_fail_count)} muted={muted} />
       <TimingRow label="تخزين" value={ms(timing.storage_ms)} muted={muted} />
@@ -104,6 +139,14 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
   });
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const scrollRef = React.useRef<ScrollView>(null);
+
+  React.useEffect(() => {
+    if (!result) return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [result]);
 
   const load = useCallback(async () => {
     const branchId = routeBranchId ?? useBranchStore.getState().activeBranch?.id ?? null;
@@ -150,7 +193,7 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
   const viewShotReady = isViewShotAvailable();
 
   return (
-    <AppScreen title="تشخيص الطابعات">
+    <AppScreen title="تشخيص الطابعات" scrollRef={scrollRef}>
       {!viewShotReady ? (
         <AppInlineAlert tone="warning" message={VIEW_SHOT_UNAVAILABLE_MESSAGE} />
       ) : null}
@@ -199,7 +242,6 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
           آخر قياس ({diag.timing.measured_at ?? '—'}):
         </Text>
         <TimingBreakdown timing={diag.timing} muted={c.textMuted} />
-        {result ? <Text style={{ ...textStart, color: c.info, marginTop: 8 }}>{result}</Text> : null}
       </AppCard>
       <View style={{ gap: 8 }}>
         <AppButton title="اختبار التقاط صورة" onPress={() => run('capture')} loading={busy} disabled={!selected} />
@@ -207,26 +249,192 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
         <AppButton title="صفحة تجريبية" variant="outline" onPress={() => run('page')} loading={busy} disabled={!selected} />
         <AppButton title="اختبار عربي" variant="outline" onPress={() => run('arabic')} loading={busy} disabled={!selected} />
         {__DEV__ ? (
-          <AppButton
-            title="قياس أداء (3 طباعات)"
-            variant="outline"
-            onPress={async () => {
-              if (!selected) return;
-              setBusy(true);
-              setResult(null);
-              try {
-                const runs = await runPrintBenchmark(selected, { iterations: 3 });
-                setResult(`انتهى القياس — راجع console\n${formatBenchmarkTable(runs)}`);
-                setDiag(await getPrintDiagnostics());
-              } catch (e) {
-                setResult(e instanceof Error ? e.message : 'فشل القياس');
-              } finally {
-                setBusy(false);
-              }
-            }}
-            loading={busy}
-            disabled={!selected || selected.connection_type !== 'network_tcp'}
-          />
+          <>
+            <AppButton
+              title="قياس أداء (3 طباعات)"
+              variant="outline"
+              onPress={async () => {
+                if (!selected) return;
+                setBusy(true);
+                setResult(null);
+                try {
+                  const runs = await runPrintBenchmark(selected, { iterations: 3 });
+                  setResult(`انتهى القياس — راجع console\n${formatBenchmarkTable(runs)}`);
+                  setDiag(await getPrintDiagnostics());
+                } catch (e) {
+                  setResult(e instanceof Error ? e.message : 'فشل القياس');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              loading={busy}
+              disabled={!selected || selected.connection_type !== 'network_tcp'}
+            />
+            <AppButton
+              title="Baseline 10× (JS vs Native)"
+              variant="outline"
+              onPress={async () => {
+                if (!selected) return;
+                setBusy(true);
+                setResult(null);
+                try {
+                  const comparison = await runBaselineBenchmark(selected, 10);
+                  setResult(formatBaselineSummary(comparison));
+                  setDiag(await getPrintDiagnostics());
+                } catch (e) {
+                  setResult(e instanceof Error ? e.message : 'فشل القياس');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              loading={busy}
+              disabled={!selected || selected.connection_type !== 'network_tcp'}
+            />
+            {Platform.OS === 'android' ? (
+              <AppButton
+                title="تشخيص Native (TCP)"
+                variant="outline"
+                onPress={async () => {
+                  if (!selected) {
+                    setResult('اختر طابعة أولاً');
+                    return;
+                  }
+                  if (!selected.ip?.trim()) {
+                    setResult('الطابعة المحددة بدون عنوان IP — أضف IP من إعدادات الطابعة.');
+                    return;
+                  }
+                  setBusy(true);
+                  setResult('جاري تشخيص Native…');
+                  try {
+                    const port = selected.port ?? 9100;
+                    const moduleStatus = describeNativeModuleStatus();
+                    const available = await isNativeThermalPrintAvailable();
+                    const lines = [
+                      moduleStatus,
+                      `Native module: ${available ? 'متاح ✓' : 'غير متاح ✗'}`,
+                    ];
+
+                    let jsTcpOk = false;
+                    try {
+                      await testTcpConnection(selected.ip, port);
+                      jsTcpOk = true;
+                      lines.push(`TCP (JS) ${selected.ip}:${port}: متصل ✓`);
+                    } catch (jsErr) {
+                      lines.push(
+                        `TCP (JS) ${selected.ip}:${port}: فشل ✗ — ${
+                          jsErr instanceof Error ? jsErr.message : 'خطأ شبكة'
+                        }`,
+                      );
+                    }
+
+                    if (available) {
+                      const diagResult = await ThermalPrinter.diagnosePrinter(selected.ip, port);
+                      lines.push(
+                        `TCP (Kotlin) ${selected.ip}:${port}: ${diagResult.reachable ? 'متصل ✓' : 'فشل ✗'}`,
+                        diagResult.message,
+                        `وقت اتصال Kotlin: ${diagResult.connectMs}ms`,
+                      );
+                    }
+
+                    if (!available) {
+                      lines.push(
+                        '',
+                        '── الحل ──',
+                        '1. من الكمبيوتر: npm run build:dev-client',
+                        '2. ثبّت الـ APK الجديد (احذف القديم أولاً)',
+                        '3. افتح التطبيق من الأيقونة — ليس Expo Go',
+                      );
+                    } else if (!jsTcpOk) {
+                      lines.push(
+                        '',
+                        '── الشبكة ──',
+                        'الطابعة غير reachable من التابلت.',
+                        'تحقق: IP صحيح؟ نفس الشبكة (مثلاً 192.168.2.x)؟ الطابعة شغالة؟',
+                      );
+                    } else {
+                      lines.push('', 'Kotlin جاهز ✓ — الطباعة ستستخدم المسار الأصلي.');
+                    }
+
+                    setResult(lines.join('\n'));
+                  } catch (e) {
+                    setResult(e instanceof Error ? e.message : 'فشل التشخيص');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                loading={busy}
+                disabled={!selected?.ip}
+              />
+            ) : null}
+            {Platform.OS === 'android' ? (
+              <AppButton
+                title="Chunk benchmark (512–8192)"
+                variant="outline"
+                onPress={async () => {
+                  if (!selected?.ip) return;
+                  setBusy(true);
+                  try {
+                    const captured = await capturePrint({
+                      kind: 'receipt',
+                      payload: {
+                        date: new Date().toLocaleString('ar-EG-u-nu-latn'),
+                        items: [{ name: 'Chunk test', quantity: 1, unit_price: 1 }],
+                        subtotal: 1,
+                        discount: 0,
+                        tax: 0,
+                        total: 1,
+                        paid: 1,
+                        payment_type: 'test',
+                        branch_name: 'Chunk',
+                      },
+                      profile: selected,
+                    });
+                    const { ensurePngBase64 } = await import('@/services/printing/captureAssets');
+                    const pngBase64 = await ensurePngBase64(captured);
+                    const chunks = await ThermalPrinter.benchmarkChunks(
+                      selected.ip,
+                      pngBase64,
+                      selected.paper_width,
+                      selected.port ?? 9100,
+                    );
+                    setResult(
+                      chunks
+                        .map(
+                          (c) =>
+                            `${c.chunkSize}: ${c.success ? `${c.transferMs}ms` : c.error}`,
+                        )
+                        .join('\n'),
+                    );
+                  } catch (e) {
+                    setResult(e instanceof Error ? e.message : 'فشل chunk benchmark');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                loading={busy}
+                disabled={!selected?.ip}
+              />
+            ) : null}
+            <AppButton
+              title="سجل القياسات"
+              variant="outline"
+              onPress={async () => {
+                const history = await getBenchmarkHistory();
+                setResult(
+                  history.length === 0
+                    ? 'لا يوجد سجل'
+                    : history
+                        .slice(0, 5)
+                        .map(
+                          (h) =>
+                            `${h.recorded_at.slice(11, 19)} ${h.label} total=${h.timing.total_print_ms}ms path=${h.path}`,
+                        )
+                        .join('\n'),
+                );
+              }}
+              loading={busy}
+            />
+          </>
         ) : null}
         <AppButton
           title="اختبار نص سريع (TCP)"
@@ -250,6 +458,15 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
         />
         <AppButton title="قائمة انتظار الطباعة" variant="secondary" onPress={() => navigation.navigate('PrintQueue')} />
       </View>
+      {result ? (
+        <AppCard>
+          <AppSectionHeader title="نتيجة الاختبار" />
+          <AppInlineAlert
+            tone={result.includes('✗') || result.includes('فشل') || result.includes('غير متاح') ? 'warning' : 'success'}
+            message={result}
+          />
+        </AppCard>
+      ) : null}
     </AppScreen>
   );
 }

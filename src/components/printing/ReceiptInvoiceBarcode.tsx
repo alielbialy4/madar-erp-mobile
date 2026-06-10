@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import Barcode from 'react-native-barcode-svg';
 import { View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
+import { useReceiptCaptureLite } from '@/components/printing/receiptCaptureLite';
 import { receiptPrintLabels } from '@/constants/printLabels';
 
 type Props = {
@@ -13,9 +14,14 @@ type Props = {
 };
 
 export function ReceiptInvoiceBarcode({ value, width = 280, height = 40, fontSize = 10, onReady }: Props) {
+  const captureLite = useReceiptCaptureLite();
   const trimmed = value.trim();
   useEffect(() => {
     if (!trimmed || !onReady) return;
+    if (captureLite) {
+      onReady();
+      return;
+    }
     let frame = 0;
     const step = () => {
       frame += 1;
@@ -23,7 +29,7 @@ export function ReceiptInvoiceBarcode({ value, width = 280, height = 40, fontSiz
       else requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
-  }, [trimmed, onReady]);
+  }, [captureLite, trimmed, onReady]);
 
   if (!trimmed) return null;
   return (

@@ -33,6 +33,7 @@ import type { MainTabParamList } from '@/types/navigation';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NavCatalogEntry } from './navCatalog';
 import { popTabStackToRoot } from './nestedTabNavigation';
+import { registerScopeResetListener } from './navigationRef';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -55,6 +56,13 @@ export function MainTabs() {
 
   const posFullscreen = isPosFullscreen(activeTab);
   const showTabletSidebar = isTablet && !posFullscreen && !tabletSidebarCollapsed;
+
+  useEffect(() => {
+    return registerScopeResetListener(() => {
+      setActiveSidebarRoute('DashboardTab');
+      setActiveTab('DashboardTab');
+    });
+  }, []);
 
   useEffect(() => {
     if (!isTablet) setTabletSidebarCollapsed(false);

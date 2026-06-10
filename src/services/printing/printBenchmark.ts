@@ -62,7 +62,7 @@ export function averageTiming(runs: BenchmarkRun[]): PrintTimingSnapshot {
   const keys = Object.keys(emptyTiming) as (keyof PrintTimingSnapshot)[];
   const avg: PrintTimingSnapshot = { ...emptyTiming };
   for (const key of keys) {
-    if (key === 'measured_at' || key === 'receipt_print_mode' || key === 'direct_checkout') continue;
+    if (key === 'measured_at' || key === 'receipt_print_mode' || key === 'direct_checkout' || key === 'print_path') continue;
     const nums = runs
       .map((r) => r.timing[key])
       .filter((v): v is number => typeof v === 'number');

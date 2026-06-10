@@ -11,6 +11,8 @@ import { DetailScreen } from '@/screens/shared/DetailScreen';
 import type { Sale } from '@/types/api';
 import { dateText, money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { paymentTypeLabel } from '@/utils/paymentLabels';
+import { saleStatusLabel } from '@/utils/saleStatus';
 import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { useBranchStore } from '@/store/branchStore';
 
@@ -90,8 +92,8 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
           { label: 'رقم الفاتورة', value: (item) => item.invoice_number, ltr: true },
           { label: 'التاريخ', value: (item) => dateText(item.created_at) },
           { label: 'العميل', value: (item) => item.customer?.name ?? 'عميل نقدي' },
-          { label: 'طريقة الدفع', value: (item) => item.payment_type },
-          { label: 'الحالة', value: (item) => item.status },
+          { label: 'طريقة الدفع', value: (item) => paymentTypeLabel(item.payment_type) },
+          { label: 'الحالة', value: (item) => saleStatusLabel(item.status) },
           { label: 'الإجمالي', value: (item) => money(item.total ?? 0) },
           { label: 'المدفوع', value: (item) => money(item.paid ?? 0) },
         ]}

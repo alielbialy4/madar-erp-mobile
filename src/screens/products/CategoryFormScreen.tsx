@@ -73,11 +73,22 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
     setSubmitting(true);
     setFormError(null);
     try {
-      if (isEdit && id) await categoriesAPI.update(id, payload());
-      else await categoriesAPI.create(payload());
-      toast.success(isEdit ? 'تم تحديث التصنيف' : 'تم إنشاء التصنيف');
-      void hapticSuccess();
-      navigation.goBack();
+      if (isEdit && id) {
+        await categoriesAPI.update(id, payload());
+        toast.success('تم تحديث التصنيف');
+        void hapticSuccess();
+        navigation.goBack();
+      } else {
+        const res = await categoriesAPI.create(payload());
+        const created = extractData<Category>(res);
+        toast.success('تم إنشاء التصنيف');
+        void hapticSuccess();
+        if (created?.id) {
+          navigation.replace('CategoryDetail', { id: created.id, name: created.name });
+        } else {
+          navigation.navigate('Categories');
+        }
+      }
     } catch (err) {
       setFormError(normalizeApiError(err).message);
       toast.error(normalizeApiError(err).message);
@@ -92,9 +103,13 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
     setSubmitting(true);
     try {
       await categoriesAPI.delete(id);
-      navigation.goBack();
+      toast.success('تم حذف التصنيف');
+      void hapticSuccess();
+      navigation.navigate('Categories');
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      const message = normalizeApiError(err).message;
+      toast.error(message);
+      Alert.alert('خطأ', message);
     } finally {
       setSubmitting(false);
       setDeleteOpen(false);

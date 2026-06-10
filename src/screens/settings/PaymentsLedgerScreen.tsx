@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { paymentsAPI, type PaymentLedgerRow } from '@/api/payments';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput, AppStatCard } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppDateRangePicker, AppInput, AppStatCard } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -127,8 +127,12 @@ export function PaymentsLedgerScreen({ navigation }: { navigation: any }) {
         <View style={{ gap: spacing.md }}>
           <AppInput label="رقم الفاتورة" value={invoiceNumber} onChangeText={setInvoiceNumber} />
           <AppInput label="رقم الهاتف" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
-          <AppInput label="من تاريخ" value={fromDate} onChangeText={setFromDate} placeholder="YYYY-MM-DD" />
-          <AppInput label="إلى تاريخ" value={toDate} onChangeText={setToDate} placeholder="YYYY-MM-DD" />
+          <AppDateRangePicker
+            fromDate={fromDate}
+            toDate={toDate}
+            onChangeFrom={setFromDate}
+            onChangeTo={setToDate}
+          />
           <View style={styles.actions}>
             <AppButton title="مسح" variant="outline" onPress={() => { setInvoiceNumber(''); setPhoneNumber(''); setFromDate(''); setToDate(''); }} />
             <AppButton title="تطبيق" onPress={() => { setFiltersOpen(false); void refreshAll(); }} />

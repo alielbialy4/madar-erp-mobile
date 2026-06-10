@@ -11,6 +11,8 @@ export function RequisitionsListScreen({ navigation }: { navigation: Nav }) {
     <ResourceListScreen
       title="طلبات الشراء الداخلية"
       subtitle="طلبات التوريد بين الفروع."
+      surface="requisitions"
+      searchEnabled={false}
       loader={(params) => requisitionsAPI.list(params)}
       onBack={navigation.goBack}
       headerAction={{ label: 'طلب جديد', onPress: () => navigation.navigate('RequisitionCreate') }}

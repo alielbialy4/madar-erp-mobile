@@ -12,6 +12,8 @@ export function ReorderRulesListScreen({ navigation }: { navigation: Nav }) {
     <ResourceListScreen
       title="قواعد إعادة الطلب"
       subtitle="حدود إعادة التوريد لكل منتج."
+      surface="reorderRules"
+      searchEnabled={false}
       loader={(params) => reorderRulesAPI.list(params)}
       onBack={navigation.goBack}
       headerAction={{ label: 'قاعدة جديدة', onPress: () => navigation.navigate('ReorderRuleForm', {}) }}

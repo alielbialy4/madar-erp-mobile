@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
+import { useReceiptCaptureLite } from '@/components/printing/receiptCaptureLite';
 import { useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 
 type MetaRowProps = {
@@ -12,13 +13,14 @@ type MetaRowProps = {
 
 export function PrintMetaRow({ label, value, valueLtr, fontSize }: MetaRowProps) {
   const lineHeight = useReceiptLineHeight();
+  const captureLite = useReceiptCaptureLite();
   if (!value?.trim()) return null;
   return (
     <View style={styles.metaRow}>
       <Text style={[styles.metaLabel, { fontSize, lineHeight: fontSize * lineHeight }]}>
         {label}
       </Text>
-      <View style={styles.metaLeader} />
+      <View style={[styles.metaLeader, captureLite ? styles.metaLeaderLite : null]} />
       <Text
         style={[styles.metaValue, { fontSize, lineHeight: fontSize * lineHeight }]}
         numeric={valueLtr}
@@ -40,10 +42,11 @@ type OrderHeroProps = {
 
 export function PrintOrderHero({ label, value, labelFontSize, valueFontSize, fontSize }: OrderHeroProps) {
   const lineHeight = useReceiptLineHeight();
+  const captureLite = useReceiptCaptureLite();
   const labelFs = labelFontSize ?? (fontSize != null ? fontSize * 0.85 : 10);
   const valueFs = valueFontSize ?? (fontSize != null ? fontSize * 1.5 : 21);
   return (
-    <View style={styles.orderHero}>
+    <View style={[styles.orderHero, captureLite ? styles.orderHeroLite : null]}>
       <Text
         style={[
           styles.orderHeroLabel,
@@ -56,6 +59,7 @@ export function PrintOrderHero({ label, value, labelFontSize, valueFontSize, fon
         style={[
           styles.orderHeroValue,
           { fontSize: valueFs, lineHeight: valueFs * 1.1 },
+          captureLite ? styles.orderHeroValueLite : null,
         ]}
         numeric
       >
@@ -107,8 +111,9 @@ type GrandTotalProps = {
 };
 
 export function PrintGrandTotalBox({ label, value, fontSize }: GrandTotalProps) {
+  const captureLite = useReceiptCaptureLite();
   return (
-    <View style={styles.grandTotalBox}>
+    <View style={[styles.grandTotalBox, captureLite ? styles.grandTotalBoxLite : null]}>
       <PrintTotalRow label={label} value={value} fontSize={fontSize} bold />
     </View>
   );
@@ -167,8 +172,9 @@ type DocumentTitleProps = {
 
 export function PrintDocumentTitle({ title, fontSize }: DocumentTitleProps) {
   const lineHeight = useReceiptLineHeight();
+  const captureLite = useReceiptCaptureLite();
   return (
-    <View style={styles.documentTitle}>
+    <View style={[styles.documentTitle, captureLite ? styles.documentTitleLite : null]}>
       <Text
         style={[
           styles.documentTitleText,
@@ -188,8 +194,9 @@ type ReprintBannerProps = {
 
 export function PrintReprintBanner({ text, fontSize }: ReprintBannerProps) {
   const lineHeight = useReceiptLineHeight();
+  const captureLite = useReceiptCaptureLite();
   return (
-    <View style={styles.reprintBanner}>
+    <View style={[styles.reprintBanner, captureLite ? styles.reprintBannerLite : null]}>
       <Text
         style={[
           styles.reprintText,
@@ -220,6 +227,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginBottom: 2,
   },
+  metaLeaderLite: {
+    borderStyle: 'solid',
+  },
   metaValue: {
     color: '#000',
     fontWeight: '500',
@@ -236,6 +246,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
+  orderHeroLite: {
+    borderRadius: 0,
+    backgroundColor: '#ffffff',
+  },
   orderHeroLabel: {
     color: '#000',
     fontWeight: '500',
@@ -245,6 +259,9 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '500',
     letterSpacing: 1.7,
+  },
+  orderHeroValueLite: {
+    letterSpacing: 0,
   },
   totalRow: {
     flexDirection: 'row',
@@ -275,6 +292,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 2,
   },
+  grandTotalBoxLite: {
+    borderRadius: 0,
+  },
   divider: {
     height: 1,
     backgroundColor: '#111',
@@ -299,6 +319,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     marginTop: 4,
   },
+  documentTitleLite: {
+    borderRadius: 0,
+  },
   documentTitleText: {
     color: '#000',
     fontWeight: '500',
@@ -311,6 +334,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: 'center',
     marginBottom: 4,
+  },
+  reprintBannerLite: {
+    borderStyle: 'solid',
   },
   reprintText: {
     color: '#000',

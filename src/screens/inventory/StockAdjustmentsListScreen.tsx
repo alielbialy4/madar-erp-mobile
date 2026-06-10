@@ -11,6 +11,7 @@ export function StockAdjustmentsListScreen({ navigation }: { navigation: Nav }) 
     <ResourceListScreen
       title="تسويات المخزون"
       subtitle="سجل التسويات — إنشاء تسوية جديدة من الزر أدناه."
+      surface="adjustments"
       loader={(params) => stockAdjustmentsAPI.list(params)}
       onBack={navigation.goBack}
       headerAction={{ label: 'تسوية جديدة', onPress: () => navigation.navigate('StockAdjustment') }}

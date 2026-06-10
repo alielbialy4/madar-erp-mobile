@@ -23,6 +23,7 @@ import {
   thermalPaddingPx,
 } from '@/constants/printThermalLayout';
 import { ReceiptPrintLayoutProvider, useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
+import { useReceiptCaptureLite } from '@/components/printing/receiptCaptureLite';
 
 type Props = {
   payload: ReceiptPrintPayload;
@@ -39,6 +40,7 @@ export function ReceiptPrintContent({ payload, paperWidth, onAssetsReady }: Prop
 }
 
 function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props) {
+  const captureLite = useReceiptCaptureLite();
   const lineHeight = useReceiptLineHeight();
   const vm = useMemo(() => buildReceiptViewModel(payload), [payload]);
   const t = useMemo(() => scaledReceiptTokens(vm, paperWidth), [vm, paperWidth]);
@@ -59,12 +61,13 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
   }, [onAssetsReady]);
 
   useEffect(() => {
+    if (captureLite) return;
     pendingRef.current = { logo: needsLogo, barcode: needsBarcode };
     notifiedRef.current = false;
     if (!needsLogo && !needsBarcode) {
       tryNotifyReady();
     }
-  }, [needsLogo, needsBarcode, payload, tryNotifyReady]);
+  }, [captureLite, needsLogo, needsBarcode, payload, tryNotifyReady]);
 
   const markLogoReady = useCallback(() => {
     pendingRef.current.logo = false;
@@ -77,7 +80,7 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
   }, [tryNotifyReady]);
 
   return (
-    <View style={[styles.root, { width, padding }]}>
+    <View style={[styles.root, captureLite ? styles.rootLite : null, { width, padding }]}>
       <View style={styles.header}>
         <PrintLogo
           uri={vm.logoUri}
@@ -139,7 +142,7 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
               valueFontSize={t.orderHeroValue}
             />
           ) : null}
-          <View style={styles.metaCard}>
+          <View style={[styles.metaCard, captureLite ? styles.metaCardLite : null]}>
             <PrintMetaRow label={vm.labels.date} value={vm.date} fontSize={t.metaRow} />
             {vm.showInvoiceInMeta ? (
               <PrintMetaRow
@@ -245,7 +248,7 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
       </View>
 
       {vm.notes ? (
-        <View style={styles.notesBox}>
+        <View style={[styles.notesBox, captureLite ? styles.notesBoxLite : null]}>
           <Text
             style={[
               styles.notes,
@@ -267,7 +270,7 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
         />
       ) : null}
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, captureLite ? styles.footerLite : null]}>
         {vm.footerMessage ? (
           <Text
             style={[
@@ -322,6 +325,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     direction: 'rtl',
   },
+  rootLite: {
+    backgroundColor: '#ffffff',
+  },
   header: {
     alignItems: 'center',
     borderBottomWidth: 2,
@@ -358,6 +364,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingBottom: 5,
   },
+  metaCardLite: {
+    borderRadius: 0,
+  },
   totals: {
     marginTop: 4,
     paddingTop: 4,
@@ -373,6 +382,10 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: 4,
   },
+  notesBoxLite: {
+    borderStyle: 'solid',
+    borderRadius: 0,
+  },
   notes: {
     color: '#000',
     fontWeight: '500',
@@ -384,6 +397,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#999',
     borderStyle: 'dashed',
+  },
+  footerLite: {
+    borderStyle: 'solid',
   },
   footerText: {
     color: '#000',

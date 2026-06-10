@@ -1,3 +1,4 @@
+import { normalizeReceiptPrintMode } from '@/services/printing/resolvePrintPath';
 import {
   DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE,
   DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE,
@@ -69,9 +70,7 @@ export function normalizeBranchPrintSettings(
     ? legacyReceiptFooter
     : DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE;
 
-  const rawMode = r.receipt_print_mode;
-  const receiptPrintMode: ReceiptPrintMode =
-    rawMode === 'fast_text' ? 'fast_text' : DEFAULT_RECEIPT_PRINT_MODE;
+  const receiptPrintMode = normalizeReceiptPrintMode(r.receipt_print_mode);
 
   return {
     receipt_print_mode: receiptPrintMode,

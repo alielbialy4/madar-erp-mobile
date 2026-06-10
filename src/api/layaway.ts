@@ -41,4 +41,5 @@ export const layawayAPI = {
   installments: (id: string) => get<LayawayInstallment[]>(`/layaway/${id}/installments`),
   payInstallment: (id: string, installmentId: string, payload: LayawayPaymentPayload) =>
     post<LayawayPlan>(`/layaway/${id}/installments/${installmentId}/pay`, payload),
+  cancel: (id: string, payload?: { notes?: string }) => post<LayawayPlan>(`/layaway/${id}/cancel`, payload ?? {}),
 };

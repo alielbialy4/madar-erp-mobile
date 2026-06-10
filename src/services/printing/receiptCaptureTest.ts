@@ -1,4 +1,5 @@
 import { capturePrint } from './printCaptureRegistry';
+import { ensureCaptureMono } from './captureAssets';
 import { monoHasInk } from './escposRaster';
 import { recordCaptureFailure, recordCaptureSuccess } from './printDiagnostics';
 import type { PrinterProfile } from '@/types/printing';
@@ -26,12 +27,13 @@ export async function testReceiptCapture(profile: PrinterProfile): Promise<Recei
 
   try {
     const captured = await capturePrint({ kind: 'receipt', payload, profile });
-    if (!captured.pngBase64) {
+    if (!captured.pngUri?.trim()) {
       const message = 'فشل التقاط PNG — مكوّن التقاط غير جاهز';
       await recordCaptureFailure(profile.id, profile.name, message);
       return { ok: false, message };
     }
-    if (!monoHasInk(captured.mono)) {
+    const mono = await ensureCaptureMono(captured, profile.paper_width);
+    if (!monoHasInk(mono)) {
       const message = 'PNG فارغ — لن يعمل utf8_image على هذا الجهاز';
       await recordCaptureFailure(profile.id, profile.name, message);
       return { ok: false, message };

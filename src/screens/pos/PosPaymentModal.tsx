@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { AppButton, AppDatePicker, AppInput, AppSelect } from '@/components/ui';
 import type { Coupon, Customer, Vault } from '@/types/api';
 import { PosPaymentDeliverySection } from './PosPaymentDeliverySection';
 import type { SplitLine } from './SplitPaymentSheet';
@@ -289,6 +289,7 @@ export function PosPaymentModal({
         brandTile: { backgroundColor: c.paymentInstapayFg, textColor: c.onPrimary, title: 'InstaPay' },
       },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
+      { key: 'layaway', label: 'تقسيط', icon: 'event' },
     ];
     return base.map((opt) => ({
       key: opt.key,
@@ -323,6 +324,7 @@ export function PosPaymentModal({
       appliedGiftCard &&
       cashDue > 0.01 &&
       (Number(paid) || 0) < cashDue - 0.01) ||
+    (paymentType === 'credit' && !hasCustomer) ||
     (paymentType === 'layaway' && (!hasCustomer || !isOnline)) ||
     (paymentType === 'layaway' && (parseInt(layawayTermMonths, 10) || 0) < 1) ||
     (paymentType === 'layaway' && !layawayFirstDueDate.trim()) ||
@@ -735,11 +737,12 @@ export function PosPaymentModal({
                 </InputRow>
                 <InputRow>
                   <InputCol>
-                    <AppInput
+                    <AppDatePicker
                       label="تاريخ أول قسط *"
                       value={layawayFirstDueDate}
-                      onChangeText={onLayawayFirstDueDateChange}
-                      placeholder="YYYY-MM-DD"
+                      onChange={onLayawayFirstDueDateChange}
+                      minimumDate={new Date()}
+                      required
                     />
                   </InputCol>
                   <InputCol>

@@ -3,7 +3,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppBottomSheet } from '@/components/layout';
-import { AppButton, AppInput } from '@/components/ui';
+import { AppButton, AppDatePicker, AppInput } from '@/components/ui';
 import {
   PosPaymentMethodGrid,
   PosSheetHeader,
@@ -463,11 +463,12 @@ export function PosCheckoutSheet({
                 </InputRow>
                 <InputRow>
                   <InputCol>
-                    <AppInput
+                    <AppDatePicker
                       label="تاريخ أول قسط *"
                       value={layawayFirstDueDate}
-                      onChangeText={onLayawayFirstDueDateChange}
-                      placeholder="YYYY-MM-DD"
+                      onChange={onLayawayFirstDueDateChange}
+                      minimumDate={new Date()}
+                      required
                     />
                   </InputCol>
                   <InputCol>

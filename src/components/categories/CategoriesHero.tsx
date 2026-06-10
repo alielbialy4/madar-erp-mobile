@@ -1,122 +1,113 @@
-import React, { useMemo } from 'react';
-import { Text } from '@/components/ui/AppText';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import React from 'react';
+import { ScrollView, View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { PremiumHeroPanel } from '@/components/layout/PremiumHeroPanel';
+import { HeroActionChip } from '@/components/layout/HeroActionChip';
+import { HeroStatPill } from '@/components/layout/HeroStatPill';
+import { HeroRefreshFooter } from '@/components/layout/HeroRefreshFooter';
 import { flexRow } from '@/constants/layout';
-import { useColors } from '@/hooks/useColors';
-import { createDashboardStyles } from '@/components/dashboard/dashboardStyles';
-import { fonts } from '@/constants/fonts';
-import { createCategoryStyles } from './categoryStyles';
+import { spacing } from '@/constants/spacing';
 
 type Props = {
   totalCount: number;
   activeCount: number;
+  inactiveCount: number;
+  productsTotal?: number;
   isLoading?: boolean;
   onRefresh: () => void;
   canManage: boolean;
   onAdd?: () => void;
   onReorder?: () => void;
   onProducts?: () => void;
+  compact?: boolean;
+  statsOnly?: boolean;
+  showActions?: boolean;
 };
 
 export function CategoriesHero({
   totalCount,
   activeCount,
+  inactiveCount,
+  productsTotal = 0,
   isLoading,
   onRefresh,
   canManage,
   onAdd,
   onReorder,
   onProducts,
+  compact: compactProp,
+  statsOnly = false,
+  showActions = false,
 }: Props) {
-  const c = useColors();
-  const ds = useMemo(() => createDashboardStyles(c), [c]);
-  const cs = useMemo(() => createCategoryStyles(c), [c]);
-  const inactiveCount = Math.max(0, totalCount - activeCount);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const compact = compactProp ?? width < 600;
 
-  const chips = (
+  const badges = (
     <>
-      {canManage && onAdd ? (
-        <Pressable
-          onPress={onAdd}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipPrimary, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="add" size={18} color={c.primaryForeground} />
-          <Text style={[ds.actionChipText, { color: c.primaryForeground }]}>تصنيف جديد</Text>
-        </Pressable>
-      ) : null}
-      {canManage && onReorder ? (
-        <Pressable
-          onPress={onReorder}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipOutline, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="swap-vert" size={18} color={c.textMuted} />
-          <Text style={[ds.actionChipText, { color: c.text }]}>ترتيب POS</Text>
-        </Pressable>
-      ) : null}
-      {onProducts ? (
-        <Pressable
-          onPress={onProducts}
-          style={({ pressed }) => [ds.actionChip, ds.actionChipOutline, pressed && { opacity: 0.9 }]}
-        >
-          <MaterialIcons name="inventory-2" size={18} color={c.textMuted} />
-          <Text style={[ds.actionChipText, { color: c.text }]}>المنتجات</Text>
-        </Pressable>
+      <HeroStatPill label="إجمالي" value={totalCount} compact />
+      <HeroStatPill label="نشط" value={activeCount} tone="success" compact />
+      <HeroStatPill label="غير نشط" value={inactiveCount} tone="warning" compact />
+      {productsTotal > 0 ? (
+        <HeroStatPill label="منتجات" value={productsTotal} compact />
       ) : null}
     </>
   );
 
-  return (
-    <View style={ds.heroOuter}>
-      <View style={ds.heroAccent} />
-      <View style={ds.heroBody}>
-        <Text style={ds.heroEyebrow}>المخزون</Text>
-        <Text style={ds.heroTitle}>التصنيفات</Text>
-        <Text style={ds.heroSubtitle}>نظّم كتالوج المنتجات — الترتيب هنا يظهر في نقطة البيع.</Text>
+  const actions = (
+    <ScrollView
+      horizontal={!isTablet}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ ...flexRow, gap: spacing.sm, flexWrap: isTablet ? 'wrap' : undefined }}
+    >
+      {onProducts ? (
+        <HeroActionChip label="المنتجات" icon="inventory-2" onPress={onProducts} />
+      ) : null}
+      {canManage && onReorder ? (
+        <HeroActionChip label="ترتيب POS" icon="swap-vert" onPress={onReorder} />
+      ) : null}
+      {canManage && onAdd ? (
+        <HeroActionChip label="تصنيف جديد" icon="add" variant="primary" onPress={onAdd} />
+      ) : null}
+    </ScrollView>
+  );
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ds.chipScroll}>
-          {chips}
+  if (statsOnly) {
+    return (
+      <View style={{ gap: spacing.sm }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+          {badges}
         </ScrollView>
-
-        <View style={cs.statsRow}>
-          <View style={cs.statBox}>
-            <Text style={cs.statValue}>{totalCount}</Text>
-            <Text style={cs.statLabel}>إجمالي</Text>
-          </View>
-          <View style={cs.statBox}>
-            <Text style={[cs.statValue, { color: c.success }]}>{activeCount}</Text>
-            <Text style={cs.statLabel}>نشط</Text>
-          </View>
-          <View style={cs.statBox}>
-            <Text style={[cs.statValue, { color: c.warning }]}>{inactiveCount}</Text>
-            <Text style={cs.statLabel}>غير نشط</Text>
-          </View>
-        </View>
-
-        <View style={ds.heroMetaRow}>
-          <View style={[ds.refreshPill, flexRow]}>
-            <MaterialIcons name="category" size={14} color={c.textCaption} />
-            <Text style={ds.refreshText}>{totalCount} تصنيف</Text>
-          </View>
-          <Pressable
-            onPress={onRefresh}
-            disabled={isLoading}
-            style={({ pressed }) => [ds.refreshPill, flexRow, pressed && { opacity: 0.85 }]}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={c.accent} />
-            ) : (
-              <MaterialIcons name="refresh" size={18} color={c.accent} />
-            )}
-            <Text style={[ds.refreshText, { color: c.accent, fontFamily: fonts.bold }]}>تحديث</Text>
-          </Pressable>
-        </View>
+        {showActions ? actions : null}
+        <HeroRefreshFooter
+          metaText={`${totalCount} تصنيف في القائمة`}
+          onRefresh={onRefresh}
+          isLoading={isLoading}
+        />
       </View>
+    );
+  }
+
+  const rail = (
+    <View style={{ width: '100%', gap: spacing.sm }}>
+      <View style={{ width: '100%' }}>{actions}</View>
+      <HeroRefreshFooter
+        metaText={`${totalCount} تصنيف في القائمة`}
+        onRefresh={onRefresh}
+        isLoading={isLoading}
+      />
     </View>
+  );
+
+  return (
+    <PremiumHeroPanel
+      eyebrow="الكتالوج"
+      title="التصنيفات"
+      subtitle="نظّم كتالوج المنتجات — الترتيب هنا يظهر في نقطة البيع."
+      badges={badges}
+      rail={rail}
+      compact={compact}
+      edgeInset={false}
+    />
   );
 }

@@ -1,80 +1,39 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Text } from '@/components/ui/AppText';
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useFocusEffect } from '@react-navigation/native';
+import { Alert, useWindowDimensions } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { warehousesAPI } from '@/api/inventory';
-import { AppScreen } from '@/components/layout';
 import { WarehousesHero } from '@/components/inventory/WarehousesHero';
-import { WarehouseListCard } from '@/components/inventory/WarehouseListCard';
-import { createCategoryStyles } from '@/components/categories/categoryStyles';
-import { AppEmptyState, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
-import { AppInput } from '@/components/ui';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useListResource } from '@/hooks/useListResource';
-import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
-import { useInventoryDirectoryAccess } from '@/hooks/useInventoryDirectoryAccess';
-import { useColors } from '@/hooks/useColors';
-import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
+import { InventoryListShell } from '@/components/inventory/InventoryListShell';
+import { ConfirmDialog } from '@/components/feedback';
+import { useInventoryScope } from '@/hooks/useInventoryScope';
+import { warehouseListStats } from '@/constants/inventoryLayout';
+import { INVENTORY_LIST_PRESETS } from '@/components/inventory/inventoryListPresets';
 import { normalizeApiError } from '@/utils/errors';
 import type { Warehouse } from '@/types/api';
 import type { MoreStackParamList } from '@/types/navigation';
-import { spacing } from '@/constants/spacing';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Warehouses'>;
-type StatusFilter = 'all' | 'active' | 'inactive';
+
+const preset = INVENTORY_LIST_PRESETS.warehouses;
 
 export function WarehousesScreen({ navigation }: { navigation: Nav }) {
-  const c = useColors();
-  const cs = useMemo(() => createCategoryStyles(c), [c]);
-  const ui = useMemo(() => createInventoryUiStyles(c), [c]);
-  const tabBarInset = useTabBarBottomInset(spacing.lg);
-  const { canManage, readOnlyHint } = useInventoryDirectoryAccess();
-
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const debounced = useDebouncedValue(query);
-  const listParams = useMemo(
-    () => ({
-      search: debounced || undefined,
-      status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 'active' : 'inactive',
-      per_page: 50,
-    }),
-    [debounced, statusFilter],
-  );
-
-  const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Warehouse & Record<string, unknown>>(
-    warehousesAPI.list,
-    listParams,
-  );
-
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 900;
+  const { canManageDirectory, directoryReadOnlyHint } = useInventoryScope();
   const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [listItems, setListItems] = useState<(Warehouse & Record<string, unknown>)[]>([]);
+  const [refreshingHero, setRefreshingHero] = useState(false);
+  const [shellRefreshKey, setShellRefreshKey] = useState(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      void refresh();
-    }, [refresh]),
+  const stats = useMemo(() => warehouseListStats(listItems), [listItems]);
+
+  const navigateDetail = useCallback(
+    (item: Warehouse) => {
+      navigation.navigate('WarehouseDetail', { id: item.id, name: item.name });
+    },
+    [navigation],
   );
-
-  const filteredItems = useMemo(() => {
-    if (statusFilter === 'all') return items;
-    return items.filter((w) =>
-      statusFilter === 'active' ? w.status !== 'inactive' : w.status === 'inactive',
-    );
-  }, [items, statusFilter]);
-
-  const stats = useMemo(() => {
-    const active = items.filter((w) => w.status !== 'inactive').length;
-    return { total: items.length, active };
-  }, [items]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -82,7 +41,7 @@ export function WarehousesScreen({ navigation }: { navigation: Nav }) {
     try {
       await warehousesAPI.delete(deleteTarget.id);
       setDeleteTarget(null);
-      await refresh();
+      setShellRefreshKey((k) => k + 1);
     } catch (err) {
       setDeleteTarget(null);
       Alert.alert('خطأ', normalizeApiError(err).message);
@@ -91,95 +50,48 @@ export function WarehousesScreen({ navigation }: { navigation: Nav }) {
     }
   };
 
-  const filters: { key: StatusFilter; label: string }[] = [
-    { key: 'all', label: 'الكل' },
-    { key: 'active', label: 'نشط' },
-    { key: 'inactive', label: 'غير نشط' },
-  ];
-
-  const listHeader = (
-    <View style={cs.pageHeader}>
-      <WarehousesHero
-        totalCount={stats.total}
-        activeCount={stats.active}
-        isLoading={loading || refreshing}
-        onRefresh={() => void refresh()}
-        canManage={canManage}
-        onAdd={canManage ? () => navigation.navigate('WarehouseForm', {}) : undefined}
-        readOnlyHint={readOnlyHint}
-      />
-      <View style={cs.searchWrap}>
-        <MaterialIcons name="search" size={22} color={c.textCaption} />
-        <View style={cs.searchInput}>
-          <AppInput value={query} onChangeText={setQuery} placeholder="بحث بالاسم أو الكود..." />
-        </View>
-        {query.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8}>
-            <MaterialIcons name="close" size={20} color={c.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={ui.chipsWrap}>
-        {filters.map((f) => {
-          const active = statusFilter === f.key;
-          return (
-            <Pressable
-              key={f.key}
-              onPress={() => setStatusFilter(f.key)}
-              style={[cs.filterPill, active && cs.filterPillActive]}
-            >
-              <Text style={[cs.filterText, active && cs.filterTextActive]}>{f.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={cs.sectionLabel}>{filteredItems.length} مخزن</Text>
-    </View>
+  const hero = (
+    <WarehousesHero
+      totalCount={stats.total}
+      activeCount={stats.active}
+      inactiveCount={stats.inactive}
+      productsTotal={stats.productsTotal}
+      isLoading={refreshingHero}
+      onRefresh={() => {
+        setRefreshingHero(true);
+        setShellRefreshKey((k) => k + 1);
+        setTimeout(() => setRefreshingHero(false), 400);
+      }}
+      canManage={canManageDirectory}
+      onAdd={canManageDirectory ? () => navigation.navigate('WarehouseForm', {}) : undefined}
+      readOnlyHint={directoryReadOnlyHint}
+      statsOnly={!isTablet}
+      showActions={Boolean(canManageDirectory && !isTablet)}
+      compact
+    />
   );
 
   return (
-    <AppScreen title="المخازن" onBack={navigation.goBack} scroll={false} contentStyle={{ padding: 0, gap: 0 }}>
-      {loading && items.length === 0 ? (
-        <AppLoadingState />
-      ) : error && items.length === 0 ? (
-        <AppErrorState message={error} onRetry={() => void refresh()} />
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item, index) => `wh-${String(item.id)}-${index}`}
-          ListHeaderComponent={listHeader}
-          contentContainerStyle={[cs.listContent, { paddingBottom: tabBarInset }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={c.accent} />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.35}
-          ListEmptyComponent={
-            <AppEmptyState
-              title="لا توجد مخازن"
-              message={canManage ? 'أنشئ أول مخزن لتنظيم الأرصدة والتحويلات' : undefined}
-            />
-          }
-          renderItem={({ item }) => (
-            <WarehouseListCard
-              warehouse={item as Warehouse}
-              canManage={canManage}
-              onPress={() => navigation.navigate('WarehouseDetail', { id: item.id, name: item.name })}
-              onBalances={() =>
-                navigation.navigate('InventoryList', {
-                  preset: 'balances',
-                  warehouse_id: String(item.id),
-                  warehouse_name: item.name,
-                })
-              }
-              onEdit={canManage ? () => navigation.navigate('WarehouseForm', { id: item.id }) : undefined}
-              onDelete={canManage ? () => setDeleteTarget(item as Warehouse) : undefined}
-            />
-          )}
-        />
-      )}
-
+    <>
+      <InventoryListShell
+        key={`warehouses-${shellRefreshKey}`}
+        title="المخازن"
+        onBack={navigation.goBack}
+        surface="warehouses"
+        loader={warehousesAPI.list}
+        searchParam="search"
+        searchPlaceholder="بحث بالاسم أو الكود..."
+        supportedFilters={preset.supportedFilters ?? []}
+        listHeader={hero}
+        canManage={canManageDirectory}
+        onAdd={canManageDirectory ? () => navigation.navigate('WarehouseForm', {}) : undefined}
+        emptyTitle={preset.emptyTitle}
+        emptyMessage={canManageDirectory ? 'أنشئ أول مخزن لتنظيم الأرصدة والتحويلات' : preset.emptyMessage}
+        scopeBannerVariant="directory"
+        onItemsChange={setListItems}
+        layout="table"
+        onItemPress={(item) => navigateDetail(item as Warehouse)}
+      />
       <ConfirmDialog
         visible={Boolean(deleteTarget)}
         title="حذف المخزن"
@@ -188,6 +100,6 @@ export function WarehousesScreen({ navigation }: { navigation: Nav }) {
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleteTarget(null)}
       />
-    </AppScreen>
+    </>
   );
 }

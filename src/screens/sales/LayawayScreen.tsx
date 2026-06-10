@@ -1,6 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { layawayAPI, type LayawayInstallment, type LayawayPlan } from '@/api/layaway';
+import { vaultsAPI } from '@/api/vaults';
+import { useBranchStore } from '@/store/branchStore';
 import { AppBottomSheet } from '@/components/layout';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { AppBadge, AppButton, AppCard, AppInput } from '@/components/ui';
@@ -52,6 +54,23 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
   const [payAmount, setPayAmount] = useState('');
   const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [vaults, setVaults] = useState<{ id: string; name: string }[]>([]);
+  const [payVaultId, setPayVaultId] = useState('');
+  const [cancelPlan, setCancelPlan] = useState<LayawayPlan | null>(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const activeBranch = useBranchStore((s) => s.activeBranch);
+
+  useEffect(() => {
+    if (!activeBranch?.id) return;
+    vaultsAPI.list({ active_only: true, branch_id: activeBranch.id })
+      .then((response) => {
+        const rows = (response.data ?? []) as { id: string; name: string }[];
+        setVaults(rows);
+        if (rows[0]?.id) setPayVaultId(rows[0].id);
+      })
+      .catch(() => setVaults([]));
+  }, [activeBranch?.id]);
 
   const openDetails = useCallback(async (plan: LayawayPlan) => {
     setDetailsPlan(plan);
@@ -78,6 +97,23 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
     setPayAmount(installmentRemaining(installment).toFixed(2));
   }, []);
 
+  const submitCancel = useCallback(async () => {
+    if (!cancelPlan) return;
+    setCancelSubmitting(true);
+    try {
+      await layawayAPI.cancel(cancelPlan.id);
+      setCancelConfirmOpen(false);
+      setCancelPlan(null);
+      void hapticSuccess();
+      toast.success('تم إلغاء خطة التقسيط');
+      await refresh();
+    } catch (err) {
+      setDetailsError(normalizeApiError(err).message);
+    } finally {
+      setCancelSubmitting(false);
+    }
+  }, [cancelPlan, refresh, toast]);
+
   const submitPayment = useCallback(async () => {
     if (!paymentTarget) return;
     const parsed = Number(payAmount);
@@ -85,9 +121,9 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
     setSubmitting(true);
     try {
       if (paymentTarget.type === 'plan') {
-        await layawayAPI.addPayment(paymentTarget.plan.id, { amount: parsed, payment_method: 'cash' });
+        await layawayAPI.addPayment(paymentTarget.plan.id, { amount: parsed, payment_method: 'cash', vault_id: payVaultId || null });
       } else {
-        await layawayAPI.payInstallment(paymentTarget.plan.id, paymentTarget.installment.id, { amount: parsed, payment_method: 'cash' });
+        await layawayAPI.payInstallment(paymentTarget.plan.id, paymentTarget.installment.id, { amount: parsed, payment_method: 'cash', vault_id: payVaultId || null });
       }
       setPaymentConfirmOpen(false);
       const planToReload = paymentTarget.plan;
@@ -113,15 +149,15 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
   return (
     <>
     <ListScreenLayout
-      title="البيع الآجل"
-      subtitle="خطط الأقساط وجدولة الدفعات"
+      title="خطط التقسيط"
+      subtitle="جدولة الأقساط وتحصيل الدفعات"
       onBack={navigation.goBack}
       onRefresh={refresh}
       refreshing={refreshing}
       hero={{
         eyebrow: 'المبيعات',
-        title: 'البيع الآجل',
-        subtitle: 'خطط الأقساط وجدولة الدفعات',
+        title: 'خطط التقسيط',
+        subtitle: 'جدولة الأقساط وتحصيل الدفعات',
         stats: [{ label: 'خطط', value: items.length }],
         compact: true,
       }}
@@ -133,7 +169,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
         error={error}
         onRefresh={refresh}
         onEndReached={loadMore}
-        emptyTitle="لا توجد خطط بيع آجل"
+        emptyTitle="لا توجد خطط تقسيط"
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const canPay = item.status === 'active' && remaining(item) > 0.01;
@@ -152,6 +188,9 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
               <View style={styles.actions}>
                 <AppButton title="الجدول" size="sm" variant="secondary" onPress={() => void openDetails(item)} />
                 <AppButton title="تسجيل دفعة" size="sm" disabled={!canPay} onPress={() => startPlanPayment(item)} />
+                {item.status === 'active' ? (
+                  <AppButton title="إلغاء" size="sm" variant="danger" onPress={() => { setCancelPlan(item); setCancelConfirmOpen(true); }} />
+                ) : null}
               </View>
             </AppCard>
           );
@@ -174,6 +213,13 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
             {detailsError ? <AppEmptyState title="تعذر تحميل الجدول" message={detailsError} /> : null}
             {detailsLoading ? <AppEmptyState title="جاري تحميل جدول الأقساط..." /> : null}
             {!detailsLoading && installments.length === 0 && !detailsError ? <AppEmptyState title="لا توجد أقساط مسجلة" /> : null}
+            {detailsPlan.status === 'active' ? (
+              <AppButton
+                title="إلغاء الخطة"
+                variant="danger"
+                onPress={() => { setCancelPlan(detailsPlan); setCancelConfirmOpen(true); }}
+              />
+            ) : null}
             {installments.map((row) => {
               const canPay = detailsPlan.status === 'active' && row.status !== 'paid' && installmentRemaining(row) > 0.01;
               return (
@@ -199,23 +245,48 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
       >
         <View style={{ gap: spacing.md }}>
           <AppInput label="المبلغ" value={payAmount} onChangeText={setPayAmount} keyboardType="decimal-pad" />
-          <AppEmptyState
-            title="طريقة الدفع: نقدي"
-            message="مطابقة للويب الحالي: دفعات البيع الآجل تسجل نقداً. اربطها بالخزنة من الويب إذا احتجت سياسة خزنة تفصيلية."
-          />
+          {vaults.length > 0 ? (
+            <View style={{ gap: spacing.xs }}>
+              <AppText style={styles.meta}>الخزينة</AppText>
+              <View style={styles.actions}>
+                {vaults.map((vault) => (
+                  <AppButton
+                    key={vault.id}
+                    title={vault.name}
+                    size="sm"
+                    variant={payVaultId === vault.id ? 'primary' : 'outline'}
+                    onPress={() => setPayVaultId(vault.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : (
+            <AppText style={styles.meta}>طريقة الدفع: نقدي (بدون خزينة محددة)</AppText>
+          )}
           <AppButton title="متابعة" onPress={() => setPaymentConfirmOpen(true)} disabled={!Number(payAmount) || Number(payAmount) <= 0} />
         </View>
       </AppBottomSheet>
 
       <ConfirmDialog
         visible={paymentConfirmOpen}
-        title="تأكيد دفعة البيع الآجل"
+        title="تأكيد دفعة التقسيط"
         message={`سيتم تسجيل دفعة بقيمة ${money(payAmount)}. تأكد من استلام النقد قبل المتابعة.`}
         confirmLabel="تسجيل الدفعة"
         loading={submitting}
         variant="primary"
         onConfirm={() => void submitPayment()}
         onCancel={() => setPaymentConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={cancelConfirmOpen}
+        title="إلغاء خطة التقسيط"
+        message="سيتم إلغاء الخطة وتخفيض دين العميل بالمتبقي. لا يُسترجع المخزون تلقائياً."
+        confirmLabel="إلغاء الخطة"
+        loading={cancelSubmitting}
+        variant="danger"
+        onConfirm={() => void submitCancel()}
+        onCancel={() => { setCancelConfirmOpen(false); setCancelPlan(null); }}
       />
     </>
   );

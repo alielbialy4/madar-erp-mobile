@@ -10,6 +10,7 @@ export { AppResourceRow } from './AppResourceRow';
 export { AppFAB } from './AppFAB';
 export { AppAmountInput } from './AppAmountInput';
 export { AppDatePicker } from './AppDatePicker';
+export { AppDateRangePicker } from './AppDateRangePicker';
 export { AppDomainCard } from './AppDomainCard';
 export { AppSwipeRow } from './AppSwipeRow';
 export { AppSelect } from './AppSelect';

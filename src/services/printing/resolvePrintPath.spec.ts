@@ -7,6 +7,7 @@ import {
   normalizeReceiptPrintMode,
   receiptPrintPathForMode,
   shouldUseRasterForReceipt,
+  TEMP_FORCE_FAST_TEXT,
 } from './resolvePrintPath';
 
 const cashierImage: PrinterProfile = {
@@ -26,6 +27,11 @@ const cashierImage: PrinterProfile = {
 
 describe('resolvePrintPath', () => {
   it('normalizes receipt print mode', () => {
+    if (TEMP_FORCE_FAST_TEXT) {
+      assert.equal(normalizeReceiptPrintMode('quality_image'), 'fast_text');
+      assert.equal(normalizeReceiptPrintMode(undefined), 'fast_text');
+      return;
+    }
     assert.equal(normalizeReceiptPrintMode('fast_text'), 'fast_text');
     assert.equal(normalizeReceiptPrintMode('quality_image'), 'quality_image');
     assert.equal(normalizeReceiptPrintMode(undefined), 'quality_image');
@@ -36,11 +42,12 @@ describe('resolvePrintPath', () => {
     assert.equal(effective.encoding, 'windows1256');
     assert.equal(effective.mode, 'escpos_text');
     assert.equal(effective.ip, cashierImage.ip);
-    assert.equal(effective.code_page_table?.windows1256, 17);
+    assert.equal(effective.code_page_table?.windows1256, 22);
     assert.equal(effective.code_page_table?.cp864, 22);
   });
 
   it('keeps image profile for quality_image mode', () => {
+    if (TEMP_FORCE_FAST_TEXT) return;
     const effective = effectiveReceiptProfile(cashierImage, 'quality_image');
     assert.equal(effective.encoding, 'utf8_image');
     assert.equal(effective.mode, 'escpos_image');
@@ -48,7 +55,7 @@ describe('resolvePrintPath', () => {
 
   it('shouldUseRasterForReceipt respects mode', () => {
     assert.equal(shouldUseRasterForReceipt(cashierImage, 'fast_text'), false);
-    assert.equal(shouldUseRasterForReceipt(cashierImage, 'quality_image'), true);
+    assert.equal(shouldUseRasterForReceipt(cashierImage, 'quality_image'), !TEMP_FORCE_FAST_TEXT);
   });
 
   it('forces text kitchen profile at checkout when image encoding', () => {
@@ -60,6 +67,6 @@ describe('resolvePrintPath', () => {
 
   it('maps print path labels by mode', () => {
     assert.equal(receiptPrintPathForMode('fast_text'), 'text_windows1256');
-    assert.equal(receiptPrintPathForMode('quality_image'), 'raster');
+    assert.equal(receiptPrintPathForMode('quality_image'), TEMP_FORCE_FAST_TEXT ? 'text_windows1256' : 'raster');
   });
 });

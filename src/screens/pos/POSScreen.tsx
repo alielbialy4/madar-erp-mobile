@@ -1120,7 +1120,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     setPaymentType((current) =>
       current === 'layaway' || current === 'split' || current === 'wallet' ? 'cash' : current,
     );
-    setPaid(String(effectiveTotal));
+    setPaid(paymentType === 'credit' || paymentType === 'layaway' ? '0' : String(effectiveTotal));
     setCheckoutOpen(true);
   };
 
@@ -1465,7 +1465,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         paymentType={paymentType}
         onPaymentTypeChange={(value) => {
           setPaymentType(value);
-          if (value === 'layaway') setPaid('0');
+          if (value === 'layaway' || value === 'credit') setPaid('0');
         }}
         paid={paid}
         onPaidChange={setPaid}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSelect, AppText } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppDateRangePicker, AppListItem, AppSelect, AppText } from '@/components/ui';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { reportsAPI } from '@/api/reports';
 import { useBranchStore } from '@/store/branchStore';
@@ -191,10 +191,12 @@ export function RecipeReportsScreen({ navigation }: { navigation: { goBack: () =
           <AppText style={{ ...textStart, color: c.textMuted }}>الفرع: {activeBranch.name}</AppText>
         ) : null}
         {showDateFilter ? (
-          <>
-            <AppInput label="من تاريخ" value={fromDate} onChangeText={setFromDate} placeholder="YYYY-MM-DD" />
-            <AppInput label="إلى تاريخ" value={toDate} onChangeText={setToDate} placeholder="YYYY-MM-DD" />
-          </>
+          <AppDateRangePicker
+            fromDate={fromDate}
+            toDate={toDate}
+            onChangeFrom={setFromDate}
+            onChangeTo={setToDate}
+          />
         ) : null}
         <AppButton title="تطبيق" onPress={() => void fetchData()} loading={loading} />
         {costPolicy ? <AppBadge label={`سياسة التكلفة: ${costPolicy}`} tone="info" /> : null}

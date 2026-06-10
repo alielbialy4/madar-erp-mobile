@@ -21,7 +21,7 @@ const ESC = 0x1b;
 /**
  * Raw ESC/POS command: ESC t n — select character code table.
  * CP22 (PC864): [0x1B, 0x74, 0x16]
- * CP17 (Arabic): [0x1B, 0x74, 0x11]
+ * CP22 (PC864 / W1256 on clone): [0x1B, 0x74, 0x16]
  */
 export function escPosSelectCodePageCommand(tableNumber: number): Uint8Array {
   return Uint8Array.from([ESC, 0x74, tableNumber & 0xff]);
@@ -55,7 +55,7 @@ export function buildFastArabicTextBuffer(
   };
 
   const b = new EscPosBuilder({ codePageTable: table });
-  b.init().align(options.align ?? 'right');
+  b.initArabicTextSession(encoding).align(options.align ?? 'right');
 
   const lines = rawArabicText.split('\n');
   for (const line of lines) {

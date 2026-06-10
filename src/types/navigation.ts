@@ -27,6 +27,7 @@ export type ProductsStackParamList = {
   ProductFormModifiers: undefined;
   ProductInsights: { id: number; name?: string };
   Categories: undefined;
+  CategoryDetail: { id: number; name?: string };
   CategoryForm: { id?: number };
   CategoriesReorder: undefined;
   ProductsReorder: undefined;
@@ -65,6 +66,7 @@ export type MoreStackParamList = {
   KitchenStationForm: { id?: string; name?: string };
   KitchenPrintJobs: undefined;
   Inventory: undefined;
+  InventoryProducts: undefined;
   Warehouses: undefined;
   WarehouseDetail: { id: string; name?: string };
   WarehouseForm: { id?: string };

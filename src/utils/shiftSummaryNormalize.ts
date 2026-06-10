@@ -62,6 +62,14 @@ export function normalizeShiftSummary(raw: Record<string, unknown>): ShiftDetail
           : byMethod.electronic_wallet != null
             ? String(byMethod.electronic_wallet)
             : undefined,
+      credit_payments:
+        totalsRaw.credit_payments != null ? String(totalsRaw.credit_payments) : undefined,
+      layaway_payments:
+        totalsRaw.layaway_payments != null ? String(totalsRaw.layaway_payments) : undefined,
+      debt_collections:
+        totalsRaw.debt_collections != null ? String(totalsRaw.debt_collections) : undefined,
+      layaway_collections:
+        totalsRaw.layaway_collections != null ? String(totalsRaw.layaway_collections) : undefined,
       cash_refunds: String(totalRefunds),
       cash_deposits: String(cashIn),
       cash_withdrawals: String(cashOut),

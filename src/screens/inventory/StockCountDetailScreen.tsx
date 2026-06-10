@@ -21,6 +21,7 @@ import {
   stockCountLineKey,
   type StockCountLineDraft,
 } from '@/services/inventory/stockCountLines';
+import { upsertStockCountItemsChunked } from '@/services/inventory/stockCountChunkedUpsert';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockCountDetail'>;
 type Route = RouteProp<MoreStackParamList, 'StockCountDetail'>;
@@ -109,15 +110,13 @@ function StockCountBody({
   const saveItems = async () => {
     setSaving(true);
     try {
-      await stockCountsAPI.upsertItems(
-        id,
-        lines.map((l) => ({
-          product_id: l.product_id,
-          counted_quantity: Number(l.counted_quantity) || 0,
-          variant_id: l.variant_id,
-          batch_id: l.batch_id,
-        })),
-      );
+      const payload = lines.map((l) => ({
+        product_id: l.product_id,
+        counted_quantity: Number(l.counted_quantity) || 0,
+        variant_id: l.variant_id,
+        batch_id: l.batch_id,
+      }));
+      await upsertStockCountItemsChunked(id, payload);
       Alert.alert('تم', 'تم حفظ بنود الجرد');
       refresh();
     } catch (err) {

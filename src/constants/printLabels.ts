@@ -135,6 +135,10 @@ export type ShiftClosePrintLabels = {
   netRevenue: string;
   cashSales: string;
   nonCashSales: string;
+  creditSalesDeferred: string;
+  layawaySalesDeferred: string;
+  debtCollections: string;
+  layawayCollections: string;
   invoiceCount: string;
   soldProducts: string;
   expenses: string;
@@ -165,6 +169,10 @@ export const shiftClosePrintLabels: ShiftClosePrintLabels = {
   netRevenue: 'صافي الإيراد',
   cashSales: 'مبيعات نقدية',
   nonCashSales: 'مبيعات غير نقدية',
+  creditSalesDeferred: 'مبيعات آجل (إجمالي الفواتير)',
+  layawaySalesDeferred: 'مبيعات تقسيط (إجمالي الفواتير)',
+  debtCollections: 'تحصيل ديون عملاء',
+  layawayCollections: 'تحصيل أقساط تقسيط',
   invoiceCount: 'عدد الفواتير',
   soldProducts: 'المنتجات المباعة',
   expenses: 'المصروفات',

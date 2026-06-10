@@ -285,6 +285,7 @@ export type Customer = {
   email?: string | null;
   balance?: number | string | null;
   debt?: number | string | null;
+  credit_limit?: number | string | null;
   wallet_balance?: number | string | null;
   points_balance?: number;
   addresses?: CustomerAddress[];

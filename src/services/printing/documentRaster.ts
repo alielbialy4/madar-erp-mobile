@@ -5,6 +5,7 @@ import type {
   ReceiptPrintPayload,
   ShiftCloseReportPayload,
 } from '@/types/printing';
+import { ensureCaptureMono, ensurePngBase64 } from './captureAssets';
 import { capturePrint, type PrintCaptureResult } from './printCaptureRegistry';
 import { buildEscPosFromMono, monoHasInk } from './escposRaster';
 import { buildKitchenTicketEscPos } from './kitchenTicketTemplates';
@@ -20,10 +21,14 @@ import { pickFallbackStep, usesRasterEncoding } from './receiptRasterFallback';
 
 export { usesRasterEncoding };
 
-function tryBuildRasterFromMono(captured: PrintCaptureResult, profile: PrinterProfile): Uint8Array | null {
+async function tryBuildRasterFromMono(
+  captured: PrintCaptureResult,
+  profile: PrinterProfile,
+): Promise<Uint8Array | null> {
   const rasterStart = Date.now();
-  if (!monoHasInk(captured.mono)) return null;
-  const buffer = buildEscPosFromMono(captured.mono, profile.cut_paper);
+  const mono = await ensureCaptureMono(captured, profile.paper_width);
+  if (!monoHasInk(mono)) return null;
+  const buffer = buildEscPosFromMono(mono, profile.cut_paper);
   recordPrintTimingSync({ raster_ms: Date.now() - rasterStart });
   return buffer;
 }
@@ -36,7 +41,7 @@ async function buildRasterBuffer(job: PrintCaptureJob): Promise<Uint8Array> {
         ? warmupTcpPrinter(job.profile.ip, job.profile.port)
         : Promise.resolve();
     const [captured] = await Promise.all([capturePrint(job), warmup]);
-    const raster = tryBuildRasterFromMono(captured, job.profile);
+    const raster = await tryBuildRasterFromMono(captured, job.profile);
     if (raster) {
       recordReceiptPrintPathSync(job.profile.id, job.profile.name, 'raster', null);
       return raster;
@@ -107,5 +112,5 @@ export async function captureDocument(job: PrintCaptureJob): Promise<PrintCaptur
 /** @deprecated Use captureDocument */
 export async function captureDocumentPngBase64(job: PrintCaptureJob): Promise<string> {
   const result = await captureDocument(job);
-  return result.pngBase64;
+  return ensurePngBase64(result);
 }

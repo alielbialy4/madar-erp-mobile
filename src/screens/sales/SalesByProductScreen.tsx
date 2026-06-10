@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { salesAPI } from '@/api/sales';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppDateRangePicker, AppInput } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
 import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -191,8 +191,12 @@ export function SalesByProductScreen({ navigation }: { navigation: any }) {
 
       <AppBottomSheet visible={filterOpen} onClose={() => setFilterOpen(false)} title="تصفية مبيعات المنتجات">
         <View style={{ gap: spacing.md }}>
-          <AppInput label="من تاريخ" value={fromDate} onChangeText={setFromDate} placeholder="YYYY-MM-DD" />
-          <AppInput label="إلى تاريخ" value={toDate} onChangeText={setToDate} placeholder="YYYY-MM-DD" />
+          <AppDateRangePicker
+            fromDate={fromDate}
+            toDate={toDate}
+            onChangeFrom={setFromDate}
+            onChangeTo={setToDate}
+          />
           <View style={styles.actions}>
             <AppButton title="مسح" variant="outline" onPress={() => { setFromDate(''); setToDate(''); }} />
             <AppButton title="تطبيق" onPress={() => { setFilterOpen(false); void load('refresh'); }} />

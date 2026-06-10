@@ -27,16 +27,13 @@ export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; 
 
   useEffect(() => {
     if (!editId) return;
-    void reorderRulesAPI.list({ per_page: 200 }).then((res) => {
-      const rows = (res as { data?: Record<string, unknown>[] }).data ?? [];
-      const row = (Array.isArray(rows) ? rows : []).find((r) => Number(r.id) === editId);
-      if (row) {
-        setProductId(Number(row.product_id));
-        const p = row.product as Record<string, unknown> | undefined;
-        setProductName(String(p?.name ?? row.product_name ?? ''));
-        setThreshold(String(row.threshold ?? 10));
-        setReorderTo(String(row.reorder_to ?? 50));
-      }
+    void reorderRulesAPI.findById(editId).then((row) => {
+      if (!row) return;
+      setProductId(Number(row.product_id));
+      const p = row.product as Record<string, unknown> | undefined;
+      setProductName(String(p?.name ?? row.product_name ?? ''));
+      setThreshold(String(row.threshold ?? 10));
+      setReorderTo(String(row.reorder_to ?? 50));
     });
   }, [editId]);
 

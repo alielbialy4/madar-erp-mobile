@@ -1,4 +1,5 @@
-import type { NavigationState, PartialState } from '@react-navigation/native';
+import { CommonActions, type NavigationState, type PartialState } from '@react-navigation/native';
+import { navigationRef, notifyScopeResetListeners } from './navigationRef';
 
 export function getNestedStackIndex(
   state: NavigationState | PartialState<NavigationState> | undefined,
@@ -21,4 +22,36 @@ export function popTabStackToRoot(navigation: TabNavigate, tabName: string, root
   if (index == null || index <= 0) return false;
   navigation.navigate(tabName, { screen: rootScreen });
   return true;
+}
+
+/** Full app navigation reset after global↔branch scope change (mirrors web `window.location.reload`). */
+export function resetAppNavigationOnScopeChange(): void {
+  if (!navigationRef.isReady()) return;
+
+  navigationRef.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [
+        { name: 'DashboardTab' },
+        {
+          name: 'POSTab',
+          state: { index: 0, routes: [{ name: 'POSHome' }] },
+        },
+        {
+          name: 'ProductsTab',
+          state: { index: 0, routes: [{ name: 'ProductsHome' }] },
+        },
+        {
+          name: 'SalesTab',
+          state: { index: 0, routes: [{ name: 'SalesHome' }] },
+        },
+        {
+          name: 'MoreTab',
+          state: { index: 0, routes: [{ name: 'MoreHome' }] },
+        },
+      ],
+    }),
+  );
+
+  notifyScopeResetListeners();
 }

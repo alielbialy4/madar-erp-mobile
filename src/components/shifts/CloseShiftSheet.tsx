@@ -20,12 +20,20 @@ function closingPaymentBanners(
     card_payments?: string;
     instapay_payments?: string;
     electronic_wallet_payments?: string;
+    credit_payments?: string;
+    layaway_payments?: string;
+    debt_collections?: string;
+    layaway_collections?: string;
   } | null,
   expectedCash: string | number | null | undefined,
   showExpected: boolean,
 ) {
   if (!totals) return null;
   const card = Number(totals.card_payments ?? 0);
+  const credit = Number(totals.credit_payments ?? 0);
+  const layaway = Number(totals.layaway_payments ?? 0);
+  const debtCollections = Number(totals.debt_collections ?? 0);
+  const layawayCollections = Number(totals.layaway_collections ?? 0);
   return (
     <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
       {card > 0 ? (
@@ -40,8 +48,37 @@ function closingPaymentBanners(
         value={money(totals.electronic_wallet_payments ?? 0)}
         variant="ewallet"
       />
+      {credit > 0 ? (
+        <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+          <AppText style={{ ...textStart, opacity: 0.85 }}>مبيعات آجل (إجمالي الفواتير)</AppText>
+          <AppText style={{ fontWeight: '800' }}>{money(credit)}</AppText>
+        </View>
+      ) : null}
+      {layaway > 0 ? (
+        <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+          <AppText style={{ ...textStart, opacity: 0.85 }}>مبيعات تقسيط (إجمالي الفواتير)</AppText>
+          <AppText style={{ fontWeight: '800' }}>{money(layaway)}</AppText>
+        </View>
+      ) : null}
+      {debtCollections > 0 ? (
+        <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+          <AppText style={textStart}>تحصيل ديون عملاء</AppText>
+          <AppText style={{ fontWeight: '800' }}>{money(debtCollections)}</AppText>
+        </View>
+      ) : null}
+      {layawayCollections > 0 ? (
+        <View style={{ ...flexRow, justifyContent: 'space-between' }}>
+          <AppText style={textStart}>تحصيل أقساط تقسيط</AppText>
+          <AppText style={{ fontWeight: '800' }}>{money(layawayCollections)}</AppText>
+        </View>
+      ) : null}
       {showExpected ? (
         <ShiftClosingAmountBanner label="النقد المتوقع" value={money(expectedCash ?? 0)} variant="cash" />
+      ) : null}
+      {(credit > 0 || layaway > 0 || debtCollections > 0 || layawayCollections > 0) ? (
+        <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>
+          إجمالي الفاتورة عند البيع — التحصيل اللاحق يظهر أعلاه
+        </AppText>
       ) : null}
     </View>
   );

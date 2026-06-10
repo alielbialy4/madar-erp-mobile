@@ -4,6 +4,11 @@ import type { EscPosEncoding, PrinterProfile, ReceiptPrintPayload } from '@/type
 import type { BranchPrintSettingsNormalized } from '@/utils/branchPrintSettings';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
 import { EscPosBuilder, charsForPaper } from './escposBuilder';
+import { formatReceiptItemLine } from './thermalTextLayout';
+import {
+  buildCodePageArabicDiagnosticEscPos,
+  TEMP_CODE_PAGE_DIAGNOSTIC_LOOP,
+} from './codePageDiagnosticEscPos';
 import {
   CP864_CODE_PAGE_CANDIDATES,
   WINDOWS1256_CODE_PAGE_CANDIDATES,
@@ -12,6 +17,13 @@ import {
 function effectiveTextEncoding(profile: PrinterProfile): EscPosEncoding {
   if (profile.encoding === 'utf8_image') return 'windows1256';
   return profile.encoding;
+}
+
+function startTextJob(b: EscPosBuilder, enc: EscPosEncoding): EscPosBuilder {
+  if (enc === 'windows1256' || enc === 'cp864' || enc === 'cp720') {
+    return b.initArabicTextSession(enc);
+  }
+  return b.init().codePage(enc);
 }
 
 function fontScale(size: number, paperWidth: PrinterProfile['paper_width']): { w: boolean; h: boolean } {
@@ -123,21 +135,29 @@ export function buildReceiptTextLines(payload: ReceiptPrintPayload, profile: Pri
 }
 
 export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: PrinterProfile): Uint8Array {
+  if (TEMP_CODE_PAGE_DIAGNOSTIC_LOOP) {
+    return buildCodePageArabicDiagnosticEscPos(profile);
+  }
+
   const vm = buildReceiptViewModel(payload);
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
+  const isSbcsArabic = enc === 'windows1256' || enc === 'cp864' || enc === 'cp720';
   const brand = payload._printSettings;
   const receiptFontSize = brand?.customer_receipt_font_size ?? 12;
   const bodyScale = bodyFontScale(receiptFontSize, profile.paper_width);
   const heroScale = fontScale(receiptFontSize, profile.paper_width);
-  const b = EscPosBuilder.forProfile(profile).init().codePage(enc);
+  const b = startTextJob(EscPosBuilder.forProfile(profile), enc);
 
   if (brand) {
     applyBrandedHeader(b, cols, enc, brand, payload, profile.paper_width);
   } else {
     b.align('center').bold(true).size(true, true);
-    b.textLine((vm.storeName || payload.branch_name) ?? 'Madar ERP', cols, enc).size(false, false).bold(false).align('left');
+    b.textLine((vm.storeName || payload.branch_name) ?? 'Madar ERP', cols, enc).size(false, false).bold(false);
   }
+
+  if (isSbcsArabic) b.align('right');
+  else b.align('left');
 
   if (vm.isOffline) {
     b.bold(true).textLine('*** غير مزامنة ***', cols, enc).bold(false);
@@ -165,9 +185,9 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
   b.separator(cols);
 
   for (const item of vm.items) {
-    b.textLine(`${item.name} x${item.quantity}`, cols, enc);
     const lineTotal = item.line_total ?? item.quantity * item.unit_price - (item.discount ?? 0);
-    b.textLine(vm.formatCurrency(lineTotal), cols, enc);
+    const priceLabel = vm.formatCurrency(lineTotal);
+    b.textLine(formatReceiptItemLine(item.name, item.quantity, priceLabel, cols), cols, enc);
     if (item.notes) b.textLine(`  ${item.notes}`, cols, enc);
   }
 
@@ -211,11 +231,16 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
 }
 
 export function buildArabicTestEscPos(profile: PrinterProfile): Uint8Array {
+  if (TEMP_CODE_PAGE_DIAGNOSTIC_LOOP) {
+    return buildCodePageArabicDiagnosticEscPos(profile);
+  }
+
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
-  const b = EscPosBuilder.forProfile(profile).init().codePage(enc).align('center').bold(true);
+  const b = startTextJob(EscPosBuilder.forProfile(profile), enc).align('right').bold(true);
   b.textLine('فاتورة بيع', cols, enc);
   b.textLine('منتج تجريبي', cols, enc);
+  b.textLine(formatReceiptItemLine('منتج تجريبي', 2, '123.45 ج.م', cols), cols, enc);
   b.textLine('الإجمالي 123.45 ج.م', cols, enc);
   b.textLine('رقم الفاتورة', cols, enc);
   b.textLine(new Date().toLocaleString('ar-EG-u-nu-latn'), cols, enc);
@@ -281,7 +306,7 @@ export function buildEncodingTestEscPos(profile: PrinterProfile, sampleEncoding:
 export function buildTestPageEscPos(profile: PrinterProfile): Uint8Array {
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
-  const b = EscPosBuilder.forProfile(profile).init().codePage(enc).align('center').bold(true).size(true, true);
+  const b = startTextJob(EscPosBuilder.forProfile(profile), enc).align('center').bold(true).size(true, true);
   b.textLine('MADAR POS TEST', cols, enc).size(false, false).bold(false);
   b.separator(cols);
   b.align('left');

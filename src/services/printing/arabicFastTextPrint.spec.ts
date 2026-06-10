@@ -31,7 +31,7 @@ describe('arabicFastTextPrint', () => {
 
     const cpIndex = buf.findIndex((b, i) => b === 0x74 && buf[i - 1] === 0x1b);
     assert.ok(cpIndex >= 0, 'ESC t code page command must be present');
-    assert.equal(buf[cpIndex + 1], 17, 'windows1256 table 17');
+    assert.equal(buf[cpIndex + 1], 22, 'windows1256 table 22 (ESC t n)');
 
     const hasCut = buf.includes(0x56) && buf.includes(0x1d);
     assert.ok(hasCut, 'GS V cut command expected');

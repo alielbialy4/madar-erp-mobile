@@ -15,12 +15,24 @@ export const EPSON_CODE_PAGE_TABLE: CodePageTable = {
   windows1256: 50,
 };
 
-/** Arabic Windows-1256 table on this firmware (ESC t 17 = 0x11). */
-export const ARABIC_WINDOWS1256_CODE_PAGE = 17;
+/**
+ * Primary ESC t n for Windows-1256 Arabic on Rongta / Xprinter / Epson-clone firmware.
+ * Command bytes: [0x1B, 0x40] then [0x1B, 0x74, 22]
+ *
+ * If Arabic prints as PC437 box glyphs (π, µ, ╟), swap n to one of:
+ *   WINDOWS1256_ESC_T_FALLBACKS → 42, 50, 70, 72
+ */
+export const ARABIC_WINDOWS1256_CODE_PAGE = 22;
+
+/** Alternate ESC t n values when primary (22) does not match firmware. */
+export const WINDOWS1256_ESC_T_FALLBACKS = [42, 50, 70, 72] as const;
+
+/** Legacy label on some self-test slips (CP17 = 0x11) — kept for diagnostics sweep only. */
+export const ARABIC_SELF_TEST_CP17 = 17;
 
 /** Arabic code pages from printer self-test (use for sweep / diagnostics). */
 export const ARABIC_SELF_TEST_CODE_PAGES = {
-  arabic: 17,
+  arabic: ARABIC_SELF_TEST_CP17,
   pc864: 22,
   ansi1256: 106,
   ibm20420: 128,

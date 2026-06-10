@@ -11,6 +11,7 @@ export function StockCountsListScreen({ navigation }: { navigation: Nav }) {
     <ResourceListScreen
       title="جرد المخزون"
       subtitle="جلسات الجرد — إنشاء جلسة ثم إدخال الكميات وترحيلها."
+      surface="stockCounts"
       loader={(params) => stockCountsAPI.list(params)}
       onBack={navigation.goBack}
       headerAction={{ label: 'جرد جديد', onPress: () => navigation.navigate('StockCountCreate') }}

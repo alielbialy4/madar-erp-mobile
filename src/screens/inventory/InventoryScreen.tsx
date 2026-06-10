@@ -1,15 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI, warehousesAPI } from '@/api/inventory';
 import { AppScreen } from '@/components/layout';
+import { HeroActionChip } from '@/components/layout/HeroActionChip';
 import { InventoryHero } from '@/components/inventory/InventoryHero';
 import { InventoryListCard } from '@/components/inventory/InventoryListCard';
+import { InventoryScopeBanner } from '@/components/inventory/InventoryScopeBanner';
 import { mapInventoryRow } from '@/components/inventory/inventoryRowUtils';
 import { WarehouseListCard } from '@/components/inventory/WarehouseListCard';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
-import { useInventoryDirectoryAccess } from '@/hooks/useInventoryDirectoryAccess';
+import { useInventoryScope } from '@/hooks/useInventoryScope';
 import type { Warehouse } from '@/types/api';
 import { createCategoryStyles } from '@/components/categories/categoryStyles';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
@@ -17,8 +20,10 @@ import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
+import { flexRow } from '@/constants/layout';
 import type { InventoryListPresetKey, MoreStackParamList } from '@/types/navigation';
 import { Text } from '@/components/ui/AppText';
+import { ScrollView } from 'react-native';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Inventory'>;
 
@@ -27,13 +32,15 @@ type HubScreen =
   | 'RequisitionsList'
   | 'StockCountsList'
   | 'StockAdjustmentsList'
-  | 'StockTransfersList';
+  | 'StockTransfersList'
+  | 'InventoryProducts';
 
 type HubLink =
   | { preset: InventoryListPresetKey; label: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }
   | { screen: HubScreen; label: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] };
 
 const HUB_LINKS: HubLink[] = [
+  { screen: 'InventoryProducts', label: 'منتجات المخزون', icon: 'category' },
   { preset: 'balances', label: 'أرصدة المخزون', icon: 'inventory-2' },
   { preset: 'movements', label: 'حركات المخزون', icon: 'sync-alt' },
   { preset: 'expiry', label: 'تنبيهات الصلاحية', icon: 'event-busy' },
@@ -48,7 +55,7 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
   const c = useColors();
   const cs = useMemo(() => createCategoryStyles(c), [c]);
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
-  const { canManage: canManageWarehouses } = useInventoryDirectoryAccess();
+  const { canManageDirectory } = useInventoryScope();
   const [balances, setBalances] = useState<Record<string, unknown>[]>([]);
   const [expiry, setExpiry] = useState<Record<string, unknown>[]>([]);
   const [warehouses, setWarehouses] = useState<Record<string, unknown>[]>([]);
@@ -74,9 +81,11 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const outCount = balances.filter((r) => Number(r.quantity ?? 0) <= 0).length;
 
@@ -95,29 +104,31 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
   return (
     <AppScreen title="المخزون" onBack={navigation.goBack} scroll onRefresh={() => void load()} refreshing={loading}>
       <View style={{ gap: spacing.lg, paddingBottom: spacing.xxl }}>
-        <InventoryHero
-          eyebrow="المخزون"
-          title="مركز المخازن"
-          subtitle="أرصدة، حركات، تسويات، تحويلات، وصلاحية — كلها من مكان واحد."
-          stats={[
-            { label: 'مخازن', value: warehouses.length },
-            { label: 'أرصدة', value: balances.length },
-            { label: 'نفد', value: outCount, tone: 'danger' },
-            { label: 'صلاحية', value: expiry.length, tone: 'warning' },
-          ]}
-          chips={[
-            { label: 'المخازن', icon: 'warehouse', onPress: () => navigation.navigate('Warehouses') },
-            { label: 'تسوية مخزون', icon: 'edit', onPress: () => navigation.navigate('StockAdjustment'), primary: true },
-            { label: 'تحويل مخزون', icon: 'swap-horiz', onPress: () => navigation.navigate('StockTransfer') },
-            { label: 'سجل التسويات', icon: 'history', onPress: () => navigation.navigate('StockAdjustmentsList') },
-            { label: 'سجل التحويلات', icon: 'history', onPress: () => navigation.navigate('StockTransfersList') },
-          ]}
-          metaLabel="نظرة سريعة"
-          isLoading={loading}
-          onRefresh={() => void load()}
-        />
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+          <InventoryScopeBanner />
+          <InventoryHero
+            eyebrow="المخزون"
+            title="مركز المخازن"
+            subtitle="أرصدة، حركات، تسويات، تحويلات، وصلاحية — كلها من مكان واحد."
+            stats={[
+              { label: 'مخازن', value: warehouses.length },
+              { label: 'أرصدة', value: balances.length },
+              { label: 'نفد', value: outCount, tone: 'danger' },
+              { label: 'صلاحية', value: expiry.length, tone: 'warning' },
+            ]}
+            statsOnly
+            metaLabel="نظرة سريعة"
+            isLoading={loading}
+            onRefresh={() => void load()}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...flexRow, gap: spacing.sm }}>
+            <HeroActionChip label="المخازن" icon="warehouse" onPress={() => navigation.navigate('Warehouses')} />
+            <HeroActionChip label="تسوية مخزون" icon="edit" variant="primary" onPress={() => navigation.navigate('StockAdjustment')} />
+            <HeroActionChip label="تحويل مخزون" icon="swap-horiz" onPress={() => navigation.navigate('StockTransfer')} />
+          </ScrollView>
+        </View>
 
-        {loading && balances.length === 0 ? <AppLoadingState /> : null}
+        {loading && balances.length === 0 && warehouses.length === 0 ? <AppLoadingState variant="skeleton" skeletonRows={4} /> : null}
         {error ? <AppErrorState message={error} onRetry={() => void load()} /> : null}
 
         {!error ? (
@@ -152,17 +163,11 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
                   <WarehouseListCard
                     key={`wh-${index}`}
                     warehouse={row as Warehouse}
-                    canManage={canManageWarehouses}
+                    canManage={canManageDirectory}
+                    variant="compact"
                     onPress={() => navigation.navigate('WarehouseDetail', { id: String(row.id), name: String(row.name) })}
-                    onBalances={() =>
-                      navigation.navigate('InventoryList', {
-                        preset: 'balances',
-                        warehouse_id: String(row.id),
-                        warehouse_name: String(row.name),
-                      })
-                    }
                     onEdit={
-                      canManageWarehouses
+                      canManageDirectory
                         ? () => navigation.navigate('WarehouseForm', { id: String(row.id) })
                         : undefined
                     }
@@ -188,6 +193,7 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
                       key={`bal-${index}`}
                       {...model}
                       icon="inventory-2"
+                      variant="compact"
                       onPress={() =>
                         navigation.navigate('StockBalanceDetail', {
                           product_id: Number(row.product_id ?? (row.product as Record<string, unknown>)?.id),
@@ -213,7 +219,21 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
               ) : (
                 expiry.map((row, index) => {
                   const model = mapInventoryRow('expiry', row);
-                  return <InventoryListCard key={`exp-${index}`} {...model} icon="event-busy" onPress={() => goList('expiry')} />;
+                  return (
+                    <InventoryListCard
+                      key={`exp-${index}`}
+                      {...model}
+                      icon="event-busy"
+                      variant="compact"
+                      onPress={() =>
+                        navigation.navigate('StockBalanceDetail', {
+                          product_id: Number(row.product_id ?? (row.product as Record<string, unknown>)?.id),
+                          warehouse_id: String(row.warehouse_id ?? ''),
+                          product_name: String(row.product_name ?? (row.product as Record<string, unknown>)?.name ?? ''),
+                        })
+                      }
+                    />
+                  );
                 })
               )}
             </View>

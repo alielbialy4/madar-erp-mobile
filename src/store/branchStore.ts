@@ -135,15 +135,17 @@ export const useBranchStore = create<BranchState>((set, get) => ({
         await storageSet(storageKeys.branchViewMode, 'global');
         await storageDelete(storageKeys.activeBranch);
         set({ activeBranch: null, viewMode: 'global', loading: false });
-        return;
+      } else {
+        const branch = get().branches.find((item) => item.id === branchId) ?? null;
+        if (branch) await storageSet(storageKeys.activeBranch, branch);
+        await storageSet(storageKeys.branchViewMode, 'branch');
+        set({ activeBranch: branch, viewMode: 'branch', loading: false });
       }
-      const branch = get().branches.find((item) => item.id === branchId) ?? null;
-      if (branch) await storageSet(storageKeys.activeBranch, branch);
-      await storageSet(storageKeys.branchViewMode, 'branch');
-      set({ activeBranch: branch, viewMode: 'branch', loading: false });
       void import('./authStore').then(({ useAuthStore }) => {
         void useAuthStore.getState().refreshMe();
       });
+      const { onBranchScopeChanged } = await import('./branchScopeEffects');
+      onBranchScopeChanged();
     } catch (error) {
       set({ loading: false });
       throw error;

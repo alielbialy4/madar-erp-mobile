@@ -1,17 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
 import { View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { KitchenPrintContent } from '@/components/printing/KitchenPrintContent';
+import { ReceiptCaptureLiteProvider } from '@/components/printing/receiptCaptureLite';
 import { ReceiptPrintContent } from '@/components/printing/ReceiptPrintContent';
 import { ShiftClosePrintContent } from '@/components/printing/ShiftClosePrintContent';
-import { resolvePrintLogoUri } from '@/services/printing/printLogoCache';
+import { clearUriMonoCache } from '@/services/printing/captureAssets';
 import { registerPrintCapture, type PrintCaptureResult } from '@/services/printing/printCaptureRegistry';
-import {
-  cacheMonoForBase64,
-  clearMonoCache,
-  dotsForPaper,
-  monoHasInk,
-} from '@/services/printing/escposRaster';
+import { clearMonoCache } from '@/services/printing/escposRaster';
 import {
   recordCaptureFailureSync,
   recordCaptureSuccessSync,
@@ -25,7 +22,7 @@ import type {
   ReceiptPrintPayload,
   ShiftCloseReportPayload,
 } from '@/types/printing';
-import { waitForFontsReady } from '@/utils/fontReady';
+import type { PaperWidth } from '@/types/printing';
 import { assertViewShotAvailable } from '@/utils/viewShotAvailability';
 
 type InternalJob = PrintCaptureJob & {
@@ -33,12 +30,11 @@ type InternalJob = PrintCaptureJob & {
   reject: (err: Error) => void;
 };
 
-const MAX_CAPTURE_ATTEMPTS = 2;
-const INK_RETRY_MS = [80, 120];
-const ASSETS_READY_TIMEOUT_MS = 1_500;
-const LAYOUT_FALLBACK_MS = 50;
-const CAPTURE_QUALITY = 0.5;
-const PRE_CAPTURE_FRAMES = 1;
+/** Thermal width in px — must match escposRaster.dotsForPaper (scale-1 capture grid). */
+const CAPTURE_WIDTH_PX: Record<PaperWidth, number> = {
+  '80mm': 576,
+  '58mm': 384,
+};
 
 const PLACEHOLDER_RECEIPT: ReceiptPrintPayload = {
   date: ' ',
@@ -76,25 +72,33 @@ const PLACEHOLDER_PROFILE: PrinterProfile = {
   enabled: true,
 };
 
-function waitFrames(count: number): Promise<void> {
-  return new Promise((resolve) => {
-    let remaining = count;
-    const step = () => {
-      remaining -= 1;
-      if (remaining <= 0) resolve();
-      else requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  });
+function thermalCaptureWidth(paperWidth: PaperWidth): number {
+  return CAPTURE_WIDTH_PX[paperWidth];
 }
 
-function CaptureContent({
-  job,
-  onAssetsReady,
-}: {
-  job: PrintCaptureJob;
-  onAssetsReady?: () => void;
-}) {
+function captureHeightPx(paperWidth: PaperWidth, layout: { width: number; height: number }): number {
+  const targetW = thermalCaptureWidth(paperWidth);
+  if (layout.height <= 0) return 1;
+  if (layout.width <= 0 || Math.abs(layout.width - targetW) < 2) {
+    return Math.max(1, Math.round(layout.height));
+  }
+  return Math.max(1, Math.round(layout.height * (targetW / layout.width)));
+}
+
+/** Lock output to thermal pixel grid — avoids Retina 2×/3× oversampling on Android. */
+function buildCaptureOptions(
+  paperWidth: PaperWidth,
+  layout: { width: number; height: number },
+): Parameters<typeof captureRef>[1] {
+  return {
+    format: 'png',
+    result: 'tmpfile',
+    width: thermalCaptureWidth(paperWidth),
+    height: captureHeightPx(paperWidth, layout),
+  };
+}
+
+function CaptureContent({ job }: { job: PrintCaptureJob }) {
   const paperWidth = job.profile.paper_width;
   if (job.kind === 'kitchen') {
     return <KitchenPrintContent payload={job.payload} paperWidth={paperWidth} />;
@@ -102,33 +106,67 @@ function CaptureContent({
   if (job.kind === 'shift') {
     return <ShiftClosePrintContent payload={job.payload} paperWidth={paperWidth} />;
   }
-  return (
-    <ReceiptPrintContent payload={job.payload} paperWidth={paperWidth} onAssetsReady={onAssetsReady} />
-  );
+  return <ReceiptPrintContent payload={job.payload} paperWidth={paperWidth} />;
 }
 
 /**
  * Unified off-screen host for raster print capture (receipt, kitchen, shift).
+ * tmpfile capture + instant onLayout trigger — no base64 bridge or JS mono on hot path.
  */
 export function PrintCaptureHost() {
   const shotRef = useRef<View>(null);
-  const [job, setJob] = useState<InternalJob | null>(null);
-  const [preparedJob, setPreparedJob] = useState<PrintCaptureJob | null>(null);
+  const layoutSizeRef = useRef({ width: CAPTURE_WIDTH_PX['80mm'], height: 1 });
+  const [renderJob, setRenderJob] = useState<PrintCaptureJob | null>(null);
   const capturingRef = useRef(false);
   const activeJobRef = useRef<InternalJob | null>(null);
   const pendingQueueRef = useRef<InternalJob[]>([]);
-  const layoutReadyRef = useRef(false);
-  const assetsReadyRef = useRef(false);
-  const captureStartedRef = useRef(false);
-  const assetsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layoutReadyForJobRef = useRef(false);
 
-  const resetCaptureGate = useCallback(() => {
-    layoutReadyRef.current = false;
-    assetsReadyRef.current = false;
-    captureStartedRef.current = false;
-    if (assetsTimerRef.current) {
-      clearTimeout(assetsTimerRef.current);
-      assetsTimerRef.current = null;
+  const dequeueNextJobRef = useRef<() => void>(() => {});
+
+  const runCapture = useCallback(async (next: InternalJob) => {
+    if (capturingRef.current) return;
+    capturingRef.current = true;
+    clearMonoCache();
+    clearUriMonoCache();
+    const captureStartedAt = Date.now();
+
+    try {
+      assertViewShotAvailable();
+      const captureGatesMs = Date.now() - captureStartedAt;
+      const viewShotStartedAt = Date.now();
+      const uri = await withCaptureTimeout(
+        captureRef(shotRef, buildCaptureOptions(next.profile.paper_width, layoutSizeRef.current)),
+      );
+      recordPrintTimingSync({ view_shot_ms: Date.now() - viewShotStartedAt });
+
+      if (!uri?.trim()) {
+        throw new Error('فشل التقاط الصورة');
+      }
+
+      recordCaptureSuccessSync(next.profile.id, next.profile.name);
+      recordPrintTimingSync({
+        capture_total_ms: Date.now() - captureStartedAt,
+        capture_gates_ms: captureGatesMs,
+        capture_attempts: 1,
+        ink_fail_count: 0,
+      });
+      next.resolve({ pngUri: uri });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'فشل التقاط الطباعة';
+      recordCaptureFailureSync(next.profile.id, next.profile.name, reason);
+      recordPrintTimingSync({
+        capture_total_ms: Date.now() - captureStartedAt,
+        capture_gates_ms: 0,
+        capture_attempts: 1,
+        ink_fail_count: 0,
+      });
+      next.reject(err instanceof Error ? err : new Error(reason));
+    } finally {
+      capturingRef.current = false;
+      activeJobRef.current = null;
+      setRenderJob(null);
+      queueMicrotask(() => dequeueNextJobRef.current());
     }
   }, []);
 
@@ -137,174 +175,80 @@ export function PrintCaptureHost() {
     const next = pendingQueueRef.current.shift();
     if (!next) return;
     activeJobRef.current = next;
-    resetCaptureGate();
-    assetsReadyRef.current = next.kind !== 'receipt';
+    layoutReadyForJobRef.current = false;
+    layoutSizeRef.current = {
+      width: thermalCaptureWidth(next.profile.paper_width),
+      height: 1,
+    };
     const { resolve: _r, reject: _j, ...captureOnly } = next;
-    setPreparedJob(captureOnly);
-    setJob(next);
-  }, [resetCaptureGate]);
+    setRenderJob(captureOnly);
+  }, []);
 
-  const runCapture = useCallback(
-    async (next: InternalJob) => {
-      if (capturingRef.current) return;
-      capturingRef.current = true;
-      clearMonoCache();
-      const captureStartedAt = Date.now();
-      let inkFailCount = 0;
-      let attempts = 0;
+  useEffect(() => {
+    dequeueNextJobRef.current = dequeueNextJob;
+  }, [dequeueNextJob]);
 
-      try {
-        assertViewShotAvailable();
-        await waitForFontsReady();
-        await waitFrames(PRE_CAPTURE_FRAMES);
-        const captureGatesMs = Date.now() - captureStartedAt;
-
-        let lastError: Error | null = null;
-        for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt += 1) {
-          attempts += 1;
-          if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, INK_RETRY_MS[attempt - 1] ?? 160));
-            await waitFrames(1);
-          }
-          try {
-            const viewShotStartedAt = Date.now();
-            const uri = await withCaptureTimeout(
-              captureRef(shotRef, {
-                format: 'png',
-                quality: CAPTURE_QUALITY,
-                result: 'base64',
-              }),
-            );
-            recordPrintTimingSync({ view_shot_ms: Date.now() - viewShotStartedAt });
-            if (!uri) {
-              lastError = new Error('فشل التقاط الصورة');
-              inkFailCount += 1;
-              continue;
-            }
-            const mono = cacheMonoForBase64(uri, next.profile.paper_width);
-            if (monoHasInk(mono)) {
-              recordCaptureSuccessSync(next.profile.id, next.profile.name);
-              recordPrintTimingSync({
-                capture_total_ms: Date.now() - captureStartedAt,
-                capture_gates_ms: captureGatesMs,
-                capture_attempts: attempts,
-                ink_fail_count: inkFailCount,
-                receipt_height_px: mono.height,
-              });
-              next.resolve({ pngBase64: uri, mono });
-              return;
-            }
-            inkFailCount += 1;
-            lastError = new Error('صورة الطباعة فارغة (لا حبر)');
-          } catch (err) {
-            lastError = err instanceof Error ? err : new Error('فشل التقاط الطباعة');
-          }
-        }
-
-        const reason = lastError?.message ?? 'فشل التقاط الطباعة';
-        recordCaptureFailureSync(next.profile.id, next.profile.name, reason);
-        recordPrintTimingSync({
-          capture_total_ms: Date.now() - captureStartedAt,
-          capture_gates_ms: captureGatesMs,
-          capture_attempts: attempts,
-          ink_fail_count: inkFailCount,
-        });
-        next.reject(lastError ?? new Error(reason));
-      } finally {
-        capturingRef.current = false;
-        activeJobRef.current = null;
-        setJob(null);
-        setPreparedJob(null);
-        resetCaptureGate();
-        queueMicrotask(() => dequeueNextJob());
-      }
-    },
-    [dequeueNextJob, resetCaptureGate],
-  );
-
-  const tryStartCapture = useCallback(
-    (active: InternalJob) => {
-      if (capturingRef.current || captureStartedRef.current) return;
-      if (!layoutReadyRef.current || !assetsReadyRef.current) return;
-      captureStartedRef.current = true;
+  const onLayoutReady = useCallback(
+    (event: LayoutChangeEvent) => {
+      const active = activeJobRef.current;
+      if (!active || capturingRef.current) return;
+      layoutSizeRef.current = {
+        width: event.nativeEvent.layout.width,
+        height: Math.max(1, event.nativeEvent.layout.height),
+      };
+      layoutReadyForJobRef.current = true;
       void runCapture(active);
     },
     [runCapture],
   );
 
-  const onAssetsReady = useCallback(() => {
-    assetsReadyRef.current = true;
-    if (job) tryStartCapture(job);
-  }, [job, tryStartCapture]);
+  useEffect(() => {
+    if (!renderJob || !activeJobRef.current || capturingRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      if (!activeJobRef.current || capturingRef.current || layoutReadyForJobRef.current) return;
+      void runCapture(activeJobRef.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [renderJob, runCapture]);
 
   useEffect(() => {
-    registerPrintCapture(async (captureJob) => {
-      let enriched = captureJob;
-      if (captureJob.kind === 'receipt') {
-        const logoUri = await resolvePrintLogoUri(
-          captureJob.payload.logo_uri ?? captureJob.payload._printSettings?.receipt_logo_url,
-        );
-        enriched = {
-          ...captureJob,
-          payload: { ...captureJob.payload, logo_uri: logoUri },
-        };
-      }
+    registerPrintCapture((captureJob) => {
       return new Promise<PrintCaptureResult>((resolve, reject) => {
-        pendingQueueRef.current.push({ ...enriched, resolve, reject });
+        pendingQueueRef.current.push({ ...captureJob, resolve, reject });
         dequeueNextJob();
       });
     });
     return () => registerPrintCapture(null);
   }, [dequeueNextJob]);
 
-  const onLayoutReady = useCallback(() => {
-    if (!job || capturingRef.current || layoutReadyRef.current) return;
-    layoutReadyRef.current = true;
-    tryStartCapture(job);
-  }, [job, tryStartCapture]);
-
-  useEffect(() => {
-    if (!job || capturingRef.current) return;
-    resetCaptureGate();
-    layoutReadyRef.current = false;
-    assetsReadyRef.current = job.kind !== 'receipt';
-
-    assetsTimerRef.current = setTimeout(() => {
-      assetsReadyRef.current = true;
-      if (job && layoutReadyRef.current) tryStartCapture(job);
-    }, ASSETS_READY_TIMEOUT_MS);
-
-    const layoutTimer = setTimeout(() => {
-      if (!job || capturingRef.current || layoutReadyRef.current) return;
-      layoutReadyRef.current = true;
-      tryStartCapture(job);
-    }, LAYOUT_FALLBACK_MS);
-
-    return () => {
-      clearTimeout(layoutTimer);
-      if (assetsTimerRef.current) {
-        clearTimeout(assetsTimerRef.current);
-        assetsTimerRef.current = null;
-      }
-    };
-  }, [job, resetCaptureGate, tryStartCapture]);
-
-  const renderJob: PrintCaptureJob =
-    preparedJob ??
+  const displayJob: PrintCaptureJob =
+    renderJob ??
     ({ kind: 'receipt', payload: PLACEHOLDER_RECEIPT, profile: PLACEHOLDER_PROFILE } as PrintCaptureJob);
 
-  const captureWidth = dotsForPaper(renderJob.profile.paper_width);
+  const captureWidthPx = thermalCaptureWidth(displayJob.profile.paper_width);
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: -10000, opacity: 1 }} pointerEvents="none" collapsable={false}>
-      <View
-        ref={shotRef}
-        collapsable={false}
-        onLayout={onLayoutReady}
-        style={{ width: captureWidth, alignSelf: 'flex-start', overflow: 'hidden' }}
-      >
-        <CaptureContent job={renderJob} onAssetsReady={onAssetsReady} />
-      </View>
+    <View
+      style={{ position: 'absolute', top: 0, left: -12000, width: captureWidthPx, opacity: 0.01 }}
+      pointerEvents="none"
+      collapsable={false}
+    >
+      <ReceiptCaptureLiteProvider>
+        <View
+          ref={shotRef}
+          collapsable={false}
+          onLayout={onLayoutReady}
+          style={{
+            width: captureWidthPx,
+            maxWidth: captureWidthPx,
+            minWidth: captureWidthPx,
+            backgroundColor: '#ffffff',
+            overflow: 'hidden',
+          }}
+        >
+          <CaptureContent job={displayJob} />
+        </View>
+      </ReceiptCaptureLiteProvider>
     </View>
   );
 }

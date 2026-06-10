@@ -3,10 +3,20 @@ import { salesAPI } from '@/api/sales';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { ResourceList } from '@/components/lists';
 import { SaleInvoiceCard } from '@/components/sales/SaleInvoiceCard';
-import { statusTone } from '@/utils/statusTone';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
+import { money } from '@/utils/format';
 import type { Sale } from '@/types/api';
+
+function amount(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function isCompletedStatus(status: string | null | undefined): boolean {
+  const key = String(status ?? '').trim().toLowerCase();
+  return key === 'completed' || key === 'complete';
+}
 
 export function SalesScreen({ navigation }: { navigation: { navigate: (a: string, b?: object) => void } }) {
   const [query, setQuery] = useState('');
@@ -16,6 +26,20 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
     salesAPI.getAll,
     listParams,
   );
+
+  const heroStats = useMemo(() => {
+    let completed = 0;
+    let pageTotal = 0;
+    for (const item of items) {
+      if (isCompletedStatus(item.status)) completed += 1;
+      pageTotal += amount(item.total);
+    }
+    return [
+      { label: 'الفواتير', value: items.length },
+      { label: 'مكتملة', value: completed, tone: 'success' as const },
+      { label: 'إجمالي الصفحة', value: money(pageTotal), tone: 'default' as const },
+    ];
+  }, [items]);
 
   return (
     <ListScreenLayout
@@ -31,7 +55,7 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
         eyebrow: 'الإيرادات',
         title: 'المبيعات',
         subtitle: 'فواتير، حالات الدفع، وتفاصيل العملاء',
-        stats: [{ label: 'الفواتير', value: items.length }],
+        stats: heroStats,
         compact: true,
       }}
     >
@@ -46,11 +70,9 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
         keyExtractor={(item, index) => `sale-${String(item.id ?? index)}-${index}`}
         renderItem={({ item }) => {
           const sale = item as Sale;
-          const badge = { label: sale.status ?? '—', tone: statusTone(sale.status) };
           return (
             <SaleInvoiceCard
               sale={sale}
-              badge={badge}
               onPress={() => navigation.navigate('SaleDetail', { id: sale.id, invoice: sale.invoice_number })}
             />
           );

@@ -17,6 +17,7 @@ import { KitchenStationsListScreen } from '@/screens/kitchen/KitchenStationsList
 import { KitchenStationFormScreen } from '@/screens/kitchen/KitchenStationFormScreen';
 import { KitchenPrintJobsScreen } from '@/screens/kitchen/KitchenPrintJobsScreen';
 import { InventoryScreen } from '@/screens/inventory/InventoryScreen';
+import { InventoryProductsScreen } from '@/screens/inventory/InventoryProductsScreen';
 import { InventoryListScreen } from '@/screens/inventory/InventoryListScreen';
 import { WarehousesScreen } from '@/screens/inventory/WarehousesScreen';
 import { WarehouseDetailScreen } from '@/screens/inventory/WarehouseDetailScreen';
@@ -104,9 +105,9 @@ import { PrintQueueScreen } from '@/screens/settings/PrintQueueScreen';
 import { KitchenRoutingScreen } from '@/screens/settings/KitchenRoutingScreen';
 import { KitchenRoutingFormScreen } from '@/screens/settings/KitchenRoutingFormScreen';
 import { BarcodePrintInfoScreen } from '@/screens/products/BarcodePrintInfoScreen';
-import { ParityModuleScreen } from '@/screens/shared/ParityModuleScreen';
 import type { MoreStackParamList } from '@/types/navigation';
 import { rtlStackScreenOptions } from './rtlScreenOptions';
+import { GuardedParityModuleScreen, guardMoreScreen } from './moreStackGuards';
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
 
@@ -119,17 +120,18 @@ export function MoreStack() {
       <Stack.Screen name="Refunds" component={RefundsScreen} />
       <Stack.Screen name="SalesByProduct" component={SalesByProductScreen} />
       <Stack.Screen name="Layaway" component={LayawayScreen} />
-      <Stack.Screen name="Dining" component={DiningScreen} />
-      <Stack.Screen name="DiningTableOrder" component={TableOrderScreen} />
-      <Stack.Screen name="WaiterPos" component={WaiterPosScreen} />
-      <Stack.Screen name="DiningHallForm" component={DiningHallFormScreen} />
-      <Stack.Screen name="Kitchen" component={KitchenScreen} />
-      <Stack.Screen name="KitchenOrder" component={KitchenOrderScreen} />
-      <Stack.Screen name="KitchenTicketPreview" component={KitchenTicketPreviewScreen} />
-      <Stack.Screen name="KitchenStationsList" component={KitchenStationsListScreen} />
-      <Stack.Screen name="KitchenStationForm" component={KitchenStationFormScreen} />
-      <Stack.Screen name="KitchenPrintJobs" component={KitchenPrintJobsScreen} />
+      <Stack.Screen name="Dining" component={guardMoreScreen('Dining', DiningScreen)} />
+      <Stack.Screen name="DiningTableOrder" component={guardMoreScreen('DiningTableOrder', TableOrderScreen)} />
+      <Stack.Screen name="WaiterPos" component={guardMoreScreen('WaiterPos', WaiterPosScreen)} />
+      <Stack.Screen name="DiningHallForm" component={guardMoreScreen('DiningHallForm', DiningHallFormScreen)} />
+      <Stack.Screen name="Kitchen" component={guardMoreScreen('Kitchen', KitchenScreen)} />
+      <Stack.Screen name="KitchenOrder" component={guardMoreScreen('KitchenOrder', KitchenOrderScreen)} />
+      <Stack.Screen name="KitchenTicketPreview" component={guardMoreScreen('KitchenTicketPreview', KitchenTicketPreviewScreen)} />
+      <Stack.Screen name="KitchenStationsList" component={guardMoreScreen('KitchenStationsList', KitchenStationsListScreen)} />
+      <Stack.Screen name="KitchenStationForm" component={guardMoreScreen('KitchenStationForm', KitchenStationFormScreen)} />
+      <Stack.Screen name="KitchenPrintJobs" component={guardMoreScreen('KitchenPrintJobs', KitchenPrintJobsScreen)} />
       <Stack.Screen name="Inventory" component={InventoryScreen} />
+      <Stack.Screen name="InventoryProducts" component={InventoryProductsScreen} />
       <Stack.Screen name="InventoryList" component={InventoryListScreen} />
       <Stack.Screen name="StockBalanceDetail" component={StockBalanceDetailScreen} />
       <Stack.Screen name="InventoryMovementDetail" component={InventoryMovementDetailScreen} />
@@ -189,20 +191,20 @@ export function MoreStack() {
       <Stack.Screen name="UserForm" component={UserFormScreen} />
       <Stack.Screen name="Roles" component={RolesScreen} />
       <Stack.Screen name="PaymentsLedger" component={PaymentsLedgerScreen} />
-      <Stack.Screen name="BranchesList" component={BranchesListScreen} />
-      <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
-      <Stack.Screen name="BranchForm" component={BranchFormScreen} />
-      <Stack.Screen name="BranchSettings" component={BranchSettingsScreen} />
-      <Stack.Screen name="BranchPosSettings" component={BranchPosSettingsScreen} />
-      <Stack.Screen name="BranchPrintHub" component={BranchPrintHubScreen} />
-      <Stack.Screen name="BranchPrintSettings" component={BranchPrintSettingsScreen} />
-      <Stack.Screen name="BranchKitchenPrinters" component={BranchKitchenPrintersScreen} />
-      <Stack.Screen name="BranchKitchenRouting" component={BranchKitchenRoutingScreen} />
-      <Stack.Screen name="TenantSettings" component={TenantSettingsScreen} />
+      <Stack.Screen name="BranchesList" component={guardMoreScreen('BranchesList', BranchesListScreen)} />
+      <Stack.Screen name="BranchDetail" component={guardMoreScreen('BranchDetail', BranchDetailScreen)} />
+      <Stack.Screen name="BranchForm" component={guardMoreScreen('BranchForm', BranchFormScreen)} />
+      <Stack.Screen name="BranchSettings" component={guardMoreScreen('BranchSettings', BranchSettingsScreen)} />
+      <Stack.Screen name="BranchPosSettings" component={guardMoreScreen('BranchPosSettings', BranchPosSettingsScreen)} />
+      <Stack.Screen name="BranchPrintHub" component={guardMoreScreen('BranchPrintHub', BranchPrintHubScreen)} />
+      <Stack.Screen name="BranchPrintSettings" component={guardMoreScreen('BranchPrintSettings', BranchPrintSettingsScreen)} />
+      <Stack.Screen name="BranchKitchenPrinters" component={guardMoreScreen('BranchKitchenPrinters', BranchKitchenPrintersScreen)} />
+      <Stack.Screen name="BranchKitchenRouting" component={guardMoreScreen('BranchKitchenRouting', BranchKitchenRoutingScreen)} />
+      <Stack.Screen name="TenantSettings" component={guardMoreScreen('TenantSettings', TenantSettingsScreen)} />
       <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
       <Stack.Screen name="ActivityLogDetail" component={ActivityLogDetailScreen} />
-      <Stack.Screen name="BackupInfo" component={BackupInfoScreen} />
-      <Stack.Screen name="BarcodePrintInfo" component={BarcodePrintInfoScreen} />
+      <Stack.Screen name="BackupInfo" component={guardMoreScreen('BackupInfo', BackupInfoScreen)} />
+      <Stack.Screen name="BarcodePrintInfo" component={guardMoreScreen('BarcodePrintInfo', BarcodePrintInfoScreen)} />
       <Stack.Screen name="Reports" component={ReportsScreen} />
       <Stack.Screen name="ReportViewer" component={ReportViewerScreen} />
       <Stack.Screen name="RecipeReports" component={RecipeReportsScreen} />
@@ -215,9 +217,9 @@ export function MoreStack() {
       <Stack.Screen name="PrinterProfileForm" component={PrinterProfileFormScreen} />
       <Stack.Screen name="PrinterDiagnostics" component={PrinterDiagnosticsScreen} />
       <Stack.Screen name="PrintQueue" component={PrintQueueScreen} />
-      <Stack.Screen name="KitchenRouting" component={KitchenRoutingScreen} />
-      <Stack.Screen name="KitchenRoutingForm" component={KitchenRoutingFormScreen} />
-      <Stack.Screen name="ParityModule" component={ParityModuleScreen} />
+      <Stack.Screen name="KitchenRouting" component={guardMoreScreen('KitchenRouting', KitchenRoutingScreen)} />
+      <Stack.Screen name="KitchenRoutingForm" component={guardMoreScreen('KitchenRoutingForm', KitchenRoutingFormScreen)} />
+      <Stack.Screen name="ParityModule" component={GuardedParityModuleScreen} />
     </Stack.Navigator>
   );
 }

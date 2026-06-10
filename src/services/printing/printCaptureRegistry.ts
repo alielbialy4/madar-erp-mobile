@@ -1,10 +1,15 @@
 import type { PrintCaptureJob } from '@/types/printing';
 import { assertViewShotAvailable } from '@/utils/viewShotAvailability';
+import { ensurePngBase64 } from './captureAssets';
 import type { MonoRaster } from './escposRaster';
 
 export type PrintCaptureResult = {
-  pngBase64: string;
-  mono: MonoRaster;
+  /** file:// URI from view-shot tmpfile capture (primary). */
+  pngUri: string;
+  /** Lazy-filled for Bluetooth / benchmark callers. */
+  pngBase64?: string;
+  /** Lazy-filled for JS strip / single-buffer fallback. */
+  mono?: MonoRaster;
 };
 
 export type PrintCaptureFn = (job: PrintCaptureJob) => Promise<PrintCaptureResult>;
@@ -27,8 +32,8 @@ export function registerReceiptCapture(
     if (job.kind !== 'receipt') {
       throw new Error('Legacy receipt capture handler supports receipt jobs only');
     }
-    const pngBase64 = await fn(job.payload, job.profile);
-    return { pngBase64, mono: { width: 0, height: 0, data: new Uint8Array(0) } };
+    const pngUri = await fn(job.payload, job.profile);
+    return { pngUri };
   });
 }
 
@@ -42,7 +47,7 @@ export async function capturePrint(job: PrintCaptureJob): Promise<PrintCaptureRe
 
 export async function capturePrintPngBase64(job: PrintCaptureJob): Promise<string> {
   const result = await capturePrint(job);
-  return result.pngBase64;
+  return ensurePngBase64(result);
 }
 
 /** @deprecated Use capturePrint */

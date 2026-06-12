@@ -37,6 +37,12 @@ function buildQueryParams(definition: ReportDefinition, filters: ReportFilters, 
     if (filters.expired_only) params.expired_only = true;
     if (filters.near_expiry_only) params.near_expiry_only = true;
   }
+  if (definition.filters.includes('movementType') && filters.type) {
+    params.movement_type = filters.type;
+  }
+  if (definition.useAggregates && page === 1) {
+    params.include_aggregates = true;
+  }
   if (definition.paginated || definition.filters.includes('perPage')) {
     params.page = page;
     params.per_page = filters.per_page;
@@ -69,7 +75,41 @@ function resolveMetrics(definition: ReportDefinition, payload: unknown): Record<
   }
   if (definition.id === 'inventory-valuation') {
     const data = extractData<Record<string, unknown>>(payload as never) ?? summary;
-    return normalizeMetrics({ grand_total_value: data.grand_total_value ?? summary.grand_total_value, ...summary });
+    const normalized = data.summary && typeof data.summary === 'object' ? (data.summary as Record<string, unknown>) : data;
+    return normalizeMetrics({
+      grand_total_value: normalized.grand_total_value ?? data.grand_total_value ?? summary.grand_total_value,
+      total_quantity: normalized.total_quantity ?? summary.total_quantity,
+      warehouse_count: normalized.warehouse_count ?? summary.warehouse_count,
+      product_count: normalized.product_count ?? summary.product_count,
+      avg_value_per_unit: normalized.avg_value_per_unit ?? summary.avg_value_per_unit,
+      ...summary,
+    });
+  }
+  if (definition.id === 'inventory-movements') {
+    const data = extractData<Record<string, unknown>>(payload as never) ?? summary;
+    const s = (data.summary as Record<string, unknown>) ?? summary;
+    return normalizeMetrics({
+      transfers_count: s.transfers_count ?? data.transfers_count ?? 0,
+      adjustments_count: s.adjustments_count ?? data.adjustments_count ?? 0,
+      total_items_moved: s.total_items_moved ?? 0,
+      net_transfers: s.net_transfers ?? 0,
+      ...s,
+    });
+  }
+  if (definition.id === 'inventory-expiry') {
+    const data = extractData<Record<string, unknown>>(payload as never) ?? summary;
+    const s = (data.summary as Record<string, unknown>) ?? summary;
+    return normalizeMetrics({
+      total_qty: s.total_qty ?? 0,
+      expired_qty: s.expired_qty ?? 0,
+      near_expiry_qty: s.near_expiry_qty ?? 0,
+      valid_qty: s.valid_qty ?? 0,
+      batch_count: s.batch_count ?? 0,
+      product_count: s.product_count ?? 0,
+      unbatched_qty: s.unbatched_qty ?? 0,
+      unbatched_product_count: s.unbatched_product_count ?? 0,
+      ...s,
+    });
   }
   if (definition.id === 'sales-layaway') {
     const data = extractData<Record<string, unknown>>(payload as never) ?? {};

@@ -1,19 +1,9 @@
-import type { Product, ProductUnit } from '@/types/api';
-
-function num(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function variantAdditional(product: Product, variantId?: string | null): number {
-  if (!variantId) return 0;
-  const variant = product.variants?.find((v) => String(v.id) === String(variantId));
-  return num(variant?.additional_price);
-}
+import type { Product } from '@/types/api';
+import { effectiveCatalogUnitPrice } from '@/utils/productPromotions';
 
 /** Base catalog unit price (per `is_base` unit, before unit conversion). */
 export function baseCatalogUnitPrice(product: Product, variantId?: string | null): number {
-  return num(product.selling_price) + variantAdditional(product, variantId);
+  return effectiveCatalogUnitPrice(product, variantId);
 }
 
 /** Selling price for the selected sale unit (base price × factor ratio). */

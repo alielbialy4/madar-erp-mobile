@@ -38,9 +38,21 @@ export const reportsAPI = {
   layaway: (params?: ReportQueryParams) => get('/reports/layaway', params),
   hourlySales: (params?: ReportQueryParams) => get('/reports/sales/hourly', params),
   stockMovements: (params?: ReportQueryParams) => get('/reports/stock-movements', params),
+  /** Unified raw materials report — pass `tab`: stock | low | expiry | purchases */
+  rawMaterialsReport: (params?: ReportQueryParams) => get('/reports/raw-materials', params),
+  /** Unified recipes report — pass `tab`: consumption | cost | missing | negative | variance | finished_goods */
+  recipesReport: (params?: ReportQueryParams) => get('/reports/recipes', params),
+  /** Unified inventory movements report */
+  inventoryMovements: (params?: ReportQueryParams) => get('/reports/inventory/movements', params),
+  /** Unified inventory expiry report */
+  inventoryExpiry: (params?: ReportQueryParams) => get('/reports/inventory/expiry', params),
+  /** @deprecated Use rawMaterialsReport with tab=stock */
   rawMaterialStock: (params?: ReportQueryParams) => get('/reports/raw-materials/stock', params),
+  /** @deprecated Use rawMaterialsReport with tab=low */
   lowRawMaterials: (params?: ReportQueryParams) => get('/reports/raw-materials/low-stock', params),
+  /** @deprecated Use rawMaterialsReport with tab=expiry */
   rawMaterialExpiry: (params?: ReportQueryParams) => get('/reports/raw-materials/expiry', params),
+  /** @deprecated Use rawMaterialsReport with tab=purchases */
   rawMaterialPurchases: (params?: ReportQueryParams) => get('/reports/raw-materials/purchases', params),
   customerAging: (params?: ReportQueryParams) => get('/reports/customers/aging', params),
   supplierAging: (params?: ReportQueryParams) => get('/reports/suppliers/aging', params),

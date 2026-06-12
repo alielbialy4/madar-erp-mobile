@@ -72,6 +72,13 @@ const STOCK_ADJUSTMENT_TYPE_OPTIONS = [
   { value: 'subtraction', label: 'خصم' },
 ];
 
+const MOVEMENT_TYPE_OPTIONS = [
+  { value: '', label: 'الكل' },
+  { value: 'transfer', label: 'تحويل' },
+  { value: 'adjustment', label: 'تسوية' },
+  { value: 'all', label: 'الكل (موحّد)' },
+];
+
 const WALLET_TYPE_OPTIONS = [
   { value: '', label: 'الكل' },
   { value: 'deposit', label: 'إيداع' },
@@ -188,6 +195,14 @@ export function ReportFilterSheet({ visible, definition, filters, onClose, onApp
             value={draft.payment_method}
             options={PAYMENT_OPTIONS}
             onChange={(payment_method) => patch({ payment_method })}
+          />
+        ) : null}
+        {definition.filters.includes('movementType') ? (
+          <AppSelect
+            label="نوع الحركة"
+            value={draft.type}
+            options={MOVEMENT_TYPE_OPTIONS}
+            onChange={(type) => patch({ type })}
           />
         ) : null}
         {definition.filters.includes('type') ? (

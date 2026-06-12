@@ -143,6 +143,7 @@ export type MoreStackParamList = {
   BarcodePrintInfo: undefined;
   Reports: undefined;
   ReportViewer: { reportId: ReportId; initialFilters?: Record<string, string | number | boolean | undefined> };
+  RawMaterialsReport: undefined;
   RecipeReports: undefined;
   LegacyReports: undefined;
   Notifications: undefined;

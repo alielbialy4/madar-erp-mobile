@@ -471,6 +471,7 @@ export function PosPaymentModal({
             default: {},
           }),
         },
+        footerErrorBanner: { marginBottom: spacing.xs },
         footerRow: { ...flexRow, gap: spacing.sm, alignItems: 'stretch' },
         footerStack: { gap: spacing.sm },
         confirmBtn: { flex: 2, minWidth: 0, minHeight: 56 },
@@ -903,11 +904,6 @@ export function PosPaymentModal({
           <AppInput label="ملاحظات الطلب" value={notes} onChangeText={onNotesChange} multiline />
         </PosSheetSection>
 
-        {checkoutMessage ? (
-          <View style={s.warningBanner}>
-            <Text style={s.warningText}>{checkoutMessage}</Text>
-          </View>
-        ) : null}
     </View>
   );
 
@@ -984,6 +980,11 @@ export function PosPaymentModal({
           </View>
 
           <View style={modalStyles.footer}>
+            {checkoutMessage ? (
+              <View style={[s.warningBanner, modalStyles.footerErrorBanner]}>
+                <Text style={s.warningText}>{checkoutMessage}</Text>
+              </View>
+            ) : null}
             {useStackFooter ? (
               <View style={modalStyles.footerStack}>
                 <AppButton

@@ -84,8 +84,8 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
       <View style={styles.header}>
         <PrintLogo
           uri={vm.logoUri}
-          maxWidth={logoMaxWidth(paperWidth)}
-          maxHeight={logoMaxHeight(paperWidth)}
+          maxWidth={logoMaxWidth(paperWidth, vm.logoScalePercent)}
+          maxHeight={logoMaxHeight(paperWidth, vm.logoScalePercent)}
           onLoad={markLogoReady}
           onError={markLogoReady}
         />

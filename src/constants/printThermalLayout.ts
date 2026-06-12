@@ -1,4 +1,5 @@
 import type { PaperWidth } from '@/types/printing';
+import { clampLogoScale } from '@/utils/printLogoSize';
 import { dotsForPaper } from '@/services/printing/escposRaster';
 
 export const THERMAL_HORIZONTAL_PADDING_MM = 2.5;
@@ -28,10 +29,12 @@ export const LOGO_MAX_WIDTH = 100;
 /** @deprecated Use logoMaxHeight(paperWidth) */
 export const LOGO_MAX_HEIGHT = 48;
 
-export function logoMaxWidth(paperWidth: PaperWidth): number {
-  return paperWidth === '58mm' ? 90 : 100;
+export function logoMaxWidth(paperWidth: PaperWidth, scalePercent?: number): number {
+  const base = paperWidth === '58mm' ? 90 : 100;
+  return Math.round((base * clampLogoScale(scalePercent)) / 100);
 }
 
-export function logoMaxHeight(paperWidth: PaperWidth): number {
-  return paperWidth === '58mm' ? 40 : 48;
+export function logoMaxHeight(paperWidth: PaperWidth, scalePercent?: number): number {
+  const base = paperWidth === '58mm' ? 40 : 48;
+  return Math.round((base * clampLogoScale(scalePercent)) / 100);
 }

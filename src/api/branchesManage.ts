@@ -45,6 +45,7 @@ export type BranchSettingsPatch = {
   customer_receipt_font_size?: number;
   kitchen_ticket_font_size?: number;
   shift_close_font_size?: number;
+  customer_receipt_logo_scale?: number;
 };
 
 export const branchesManageAPI = {

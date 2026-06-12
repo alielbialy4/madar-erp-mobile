@@ -6,10 +6,6 @@ import { paymentTypeLabel } from '@/utils/paymentLabels';
 import { EscPosBuilder, charsForPaper } from './escposBuilder';
 import { formatReceiptItemLine } from './thermalTextLayout';
 import {
-  buildCodePageArabicDiagnosticEscPos,
-  TEMP_CODE_PAGE_DIAGNOSTIC_LOOP,
-} from './codePageDiagnosticEscPos';
-import {
   CP864_CODE_PAGE_CANDIDATES,
   WINDOWS1256_CODE_PAGE_CANDIDATES,
 } from './codePageTables';
@@ -135,10 +131,6 @@ export function buildReceiptTextLines(payload: ReceiptPrintPayload, profile: Pri
 }
 
 export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: PrinterProfile): Uint8Array {
-  if (TEMP_CODE_PAGE_DIAGNOSTIC_LOOP) {
-    return buildCodePageArabicDiagnosticEscPos(profile);
-  }
-
   const vm = buildReceiptViewModel(payload);
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
@@ -231,10 +223,6 @@ export function buildReceiptEscPos(payload: ReceiptPrintPayload, profile: Printe
 }
 
 export function buildArabicTestEscPos(profile: PrinterProfile): Uint8Array {
-  if (TEMP_CODE_PAGE_DIAGNOSTIC_LOOP) {
-    return buildCodePageArabicDiagnosticEscPos(profile);
-  }
-
   const cols = profile.characters_per_line || charsForPaper(profile.paper_width);
   const enc = effectiveTextEncoding(profile);
   const b = startTextJob(EscPosBuilder.forProfile(profile), enc).align('right').bold(true);

@@ -1,6 +1,7 @@
 import type { CartLine } from '@/store/posStore';
 import type { PosCatalog, Product } from '@/types/api';
 import type { ServiceChargeApplyTo } from '@/utils/branchSettings';
+import { cartLineGross } from '@/utils/cartPricing';
 import { evaluateLocalCartPromotions, type CatalogPromotion } from '@/services/pos/localPromotionEngine';
 
 export type PosOrderType = 'dine_in' | 'takeaway' | 'delivery';
@@ -43,6 +44,42 @@ function truthySetting(value: unknown): boolean {
   return value === true || value === 1 || value === '1';
 }
 
+/** Mirrors backend `branchTaxEnabled`: unset → per-product fallback tax. */
+export function branchTaxMode(settings: Record<string, unknown>): 'enabled' | 'disabled' | 'fallback' {
+  const value = settings.tax_enabled;
+  if (value === undefined || value === null || value === '') return 'fallback';
+  if (truthySetting(value)) return 'enabled';
+  return 'disabled';
+}
+
+function computeCheckoutTax(params: {
+  lines: CartLine[];
+  products: Product[];
+  settings: Record<string, unknown>;
+  afterDiscount: number;
+}): number {
+  const mode = branchTaxMode(params.settings);
+  if (mode === 'disabled') return 0;
+
+  if (mode === 'enabled') {
+    const taxRate = Math.max(0, Number(params.settings.tax_rate ?? 0) || 0);
+    if (taxRate <= 0) return 0;
+    return Math.round(params.afterDiscount * taxRate) / 100;
+  }
+
+  const byId = new Map(params.products.map((p) => [p.id, p]));
+  const tax = params.lines.reduce((sum, line) => {
+    const lineSub = cartLineGross(line);
+    const product = byId.get(line.product_id);
+    const lineRate = Math.max(
+      0,
+      Number((product as Product & { tax_rate?: number | string | null })?.tax_rate ?? 0) || 0,
+    );
+    return sum + (lineSub * lineRate) / 100;
+  }, 0);
+  return Math.round(tax * 100) / 100;
+}
+
 export function posAllowsDiscount(settings: Record<string, unknown>): boolean {
   const value = settings.allow_pos_discount;
   if (value === undefined || value === null || value === '') return true;
@@ -72,7 +109,7 @@ export function computeServiceCharge(
 }
 
 function lineGross(lines: CartLine[]): number {
-  return lines.reduce((sum, line) => sum + Math.max(0, line.unit_price * line.quantity - (line.discount || 0)), 0);
+  return lines.reduce((sum, line) => sum + cartLineGross(line), 0);
 }
 
 export type PosCheckoutTotals = {
@@ -124,9 +161,12 @@ export function computePosCheckoutTotals(params: {
   );
   const afterDiscount = Math.max(0, gross - promotionDiscount - manualDiscount - couponDiscount);
 
-  const taxEnabled = truthySetting(params.settings.tax_enabled);
-  const taxRate = Math.max(0, Number(params.settings.tax_rate ?? 0) || 0);
-  const tax = taxEnabled && taxRate > 0 ? Math.round(afterDiscount * taxRate) / 100 : 0;
+  const tax = computeCheckoutTax({
+    lines: params.lines,
+    products: params.products,
+    settings: params.settings,
+    afterDiscount,
+  });
 
   const serviceCharge = computeServiceCharge(params.settings, params.orderType, afterDiscount);
   const deliveryFee = Math.max(0, params.deliveryFee ?? 0);

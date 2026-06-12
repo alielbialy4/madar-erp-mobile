@@ -2,6 +2,7 @@ import type { ReceiptPrintLabels } from '@/constants/printLabels';
 import { receiptPrintLabels } from '@/constants/printLabels';
 import { clampPrintFontSize, scaleReceiptCssPx } from '@/services/printing/printTypography';
 import type { BranchPrintSettingsNormalized } from '@/utils/branchPrintSettings';
+import { clampLogoScale } from '@/utils/printLogoSize';
 import { money } from '@/utils/format';
 import type {
   ReceiptLineOptionGroup,
@@ -21,6 +22,7 @@ export type ReceiptViewModel = {
   showOrderNumber: boolean;
   showBranchName: boolean;
   logoUri: string | null;
+  logoScalePercent: number;
   storeName: string;
   headerNote: string;
   address: string;
@@ -149,6 +151,7 @@ export function buildReceiptViewModel(payload: ReceiptPrintPayload): ReceiptView
     showOrderNumber,
     showBranchName,
     logoUri: payload.logo_uri ?? brand?.receipt_logo_url ?? null,
+    logoScalePercent: clampLogoScale(brand?.customer_receipt_logo_scale),
     storeName: showBranchName ? branchDisplayName : '',
     headerNote: brand?.receipt_header?.trim() ?? '',
     address: brand?.receipt_address?.trim() ?? '',

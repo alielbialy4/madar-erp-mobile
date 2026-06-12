@@ -40,11 +40,7 @@ export type PrintTimingSnapshot = {
   native_transfer_ms: number | null;
   native_settle_ms: number | null;
   native_total_ms: number | null;
-  print_path: 'js' | 'js_strip' | 'native_android' | null;
-  strip_count: number | null;
-  strip_height_px: number | null;
-  strip_inter_delay_ms: number | null;
-  strip_stream_ms: number | null;
+  print_path: 'native_android' | 'fast_text' | null;
   native_fallback_reason: string | null;
 };
 
@@ -81,10 +77,6 @@ export const emptyTiming: PrintTimingSnapshot = {
   native_settle_ms: null,
   native_total_ms: null,
   print_path: null,
-  strip_count: null,
-  strip_height_px: null,
-  strip_inter_delay_ms: null,
-  strip_stream_ms: null,
   native_fallback_reason: null,
 };
 

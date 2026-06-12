@@ -2,9 +2,6 @@ import UPNG from 'upng-js';
 import type { PaperWidth } from '@/types/printing';
 import { recordPrintTimingSync } from './printTimingBuffer';
 
-const GS = 0x1d;
-const ESC = 0x1b;
-
 export type MonoRaster = { width: number; height: number; data: Uint8Array };
 
 export type MonoRasterTiming = {
@@ -162,44 +159,6 @@ export function rasterHasInk(base64: string, paperWidth: PaperWidth): boolean {
   } catch {
     return false;
   }
-}
-
-/** GS v 0 — raster bit image body (without init/feed/cut). */
-export function buildGsV0Raster(mono: MonoRaster): Uint8Array {
-  const bytesPerRow = Math.ceil(mono.width / 8);
-  const xL = bytesPerRow & 0xff;
-  const xH = (bytesPerRow >> 8) & 0xff;
-  const yL = mono.height & 0xff;
-  const yH = (mono.height >> 8) & 0xff;
-  const header = [GS, 0x76, 0x30, 0x00, xL, xH, yL, yH];
-  const out = new Uint8Array(header.length + mono.data.length);
-  out.set(header, 0);
-  out.set(mono.data, header.length);
-  return out;
-}
-
-export function buildEscPosFromMono(mono: MonoRaster, cut = true): Uint8Array {
-  const gsStart = Date.now();
-  const rasterBody = buildGsV0Raster(mono);
-  const parts: number[] = [
-    ESC, 0x40,
-    ESC, 0x33, 0x00,
-    ...rasterBody,
-    ESC, 0x64, 0x05,
-  ];
-  if (cut) parts.push(GS, 0x56, 0x00);
-  const out = Uint8Array.from(parts);
-  recordPrintTimingSync({
-    gs_v0_build_ms: Date.now() - gsStart,
-    raster_payload_bytes: out.length,
-  });
-  return out;
-}
-
-export function buildEscPosFromPngBase64(base64: string, paperWidth: PaperWidth, cut = true): Uint8Array {
-  const cached = getCachedMonoForBase64(base64);
-  const mono = cached ?? cacheMonoForBase64(base64, paperWidth);
-  return buildEscPosFromMono(mono, cut);
 }
 
 /** Mono raster → compact 1-bit PNG base64 for Bluetooth printPic. */

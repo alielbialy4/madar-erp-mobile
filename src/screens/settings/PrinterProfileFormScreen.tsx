@@ -8,6 +8,7 @@ import {
   CODE_PAGE_PRESET_OPTIONS,
   connectionOptionsForPlatform,
   ENCODING_OPTIONS,
+  normalizeFormEncoding,
   PAPER_WIDTH_OPTIONS,
   PRINTER_ROLE_OPTIONS,
   PRINTER_ROLE_PRIMARY,
@@ -79,7 +80,7 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
       setIp(p.ip ?? '');
       setPort(String(p.port));
       setBluetoothAddress(p.bluetoothAddress ?? '');
-      setEncoding(p.encoding);
+      setEncoding(normalizeFormEncoding(p.encoding));
       setCodePagePreset(p.code_page_preset ?? 'generic_clone');
       setCp864Table(p.code_page_table?.cp864 != null ? String(p.code_page_table.cp864) : '');
       setW1256Table(p.code_page_table?.windows1256 != null ? String(p.code_page_table.windows1256) : '');
@@ -161,34 +162,6 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
     }
   };
 
-  const testCodePageReference = async () => {
-    if (!branchId) return;
-    setTesting(true);
-    try {
-      const profile = await upsertPrinterProfile(buildProfile(), branchId);
-      await printEngine.printCodePageReference(profile);
-      toast.success('تم إرسال جداول code page');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'فشلت العملية');
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const testEncodingSamples = async () => {
-    if (!branchId) return;
-    setTesting(true);
-    try {
-      const profile = await upsertPrinterProfile(buildProfile(), branchId);
-      await printEngine.printEncodingTests(profile);
-      toast.success('تم إرسال عينات الترميز الأربع');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'فشلت العملية');
-    } finally {
-      setTesting(false);
-    }
-  };
-
   const testPrint = async (action: 'connection' | 'page') => {
     if (!branchId) return;
     setTesting(true);
@@ -229,6 +202,28 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
           options={PRINTER_ROLE_OPTIONS}
           onChange={(v) => setRole(v as PrinterRole)}
         />
+      </FormSection>
+
+      <FormSection title="وضع الطباعة" icon="receipt-long" subtitle="صورة (Kotlin native) أو نص سريع">
+        <AppSelect
+          label="مسار الطباعة"
+          value={encoding}
+          options={ENCODING_OPTIONS}
+          onChange={(v) => setEncoding(v as EscPosEncoding)}
+        />
+        <Text style={{ color: c.textMuted, fontSize: 13 }}>
+          {encoding === 'utf8_image'
+            ? 'TCP: capture + Kotlin native. Bluetooth: printPic.'
+            : 'Windows-1256 مباشرة — بدون التقاط صورة.'}
+        </Text>
+        {encoding === 'windows1256' ? (
+          <AppSelect
+            label="جدول code page (ESC t)"
+            value={codePagePreset}
+            options={CODE_PAGE_PRESET_OPTIONS}
+            onChange={(v) => setCodePagePreset(v as CodePagePreset)}
+          />
+        ) : null}
       </FormSection>
 
       <FormSection title="الاتصال" icon="settings-ethernet">
@@ -309,41 +304,11 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
       />
 
       {showAdvanced ? (
-        <FormSection title="ESC/POS متقدم" icon="receipt-long">
-          <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: spacing.xs }}>
-            الترميز الحالي: {encoding} · جدول: {codePagePreset}
-          </Text>
-          <Text style={{ color: c.warning, fontSize: 13, marginBottom: spacing.sm }}>
-            مربعات أو رموز غريبة (± ä ¬)؟ جدول code page خاطئ — جرّب «UTF-8 صورة» أو Clone + CP864.
-            على البلوتوث استخدم «UTF-8 صورة» (printPic).
-          </Text>
+        <FormSection title="ESC/POS متقدم" icon="tune">
           <AppButton
-            title="تطبيق الإعدادات الموصى بها للعربي"
+            title="تطبيق صورة (موصى به للعربي)"
             variant="secondary"
             onPress={applyRecommendedArabic}
-          />
-          <AppSelect
-            label="ترميز / وضع الطباعة"
-            value={encoding}
-            options={ENCODING_OPTIONS}
-            onChange={(v) => setEncoding(v as EscPosEncoding)}
-          />
-          {encoding !== 'utf8' && encoding !== 'utf8_image' ? (
-            <AppSelect
-              label="جدول code page (ESC t)"
-              value={codePagePreset}
-              options={CODE_PAGE_PRESET_OPTIONS}
-              onChange={(v) => setCodePagePreset(v as CodePagePreset)}
-            />
-          ) : null}
-          <AppInput
-            label="جدول CP864 يدوي (0–50)"
-            value={cp864Table}
-            onChangeText={setCp864Table}
-            keyboardType="numeric"
-            placeholder={String(
-              codePagePreset === 'epson' ? EPSON_CODE_PAGE_TABLE.cp864 : CLONE_CODE_PAGE_TABLE.cp864,
-            )}
           />
           <AppInput
             label="جدول Windows-1256 يدوي (0–50)"
@@ -362,30 +327,13 @@ export function PrinterProfileFormScreen({ navigation, route }: Props) {
             onChangeText={setCharsPerLine}
             keyboardType="numeric"
           />
-          <AppButton
-            title="اختبار التقاط صورة (بدون طباعة)"
-            variant="outline"
-            onPress={() => void testCaptureOnly()}
-            loading={testing}
-          />
-          <AppButton
-            title="اختبار الترميزات (4 عينات)"
-            variant="outline"
-            onPress={() => void testEncodingSamples()}
-            loading={testing}
-          />
-          {connectionType === 'network_tcp' ? (
-            <>
-              <AppButton
-                title="طباعة جداول code page"
-                variant="outline"
-                onPress={() => void testCodePageReference()}
-                loading={testing}
-              />
-              <Text style={{ color: c.textMuted, fontSize: 12 }}>
-                بعد الطباعة: اختر رقم الجدول الذي ظهر فيه «اختبار عربي» صحيحاً واحفظه في الحقل اليدوي أعلاه.
-              </Text>
-            </>
+          {encoding === 'utf8_image' ? (
+            <AppButton
+              title="اختبار التقاط صورة (بدون طباعة)"
+              variant="outline"
+              onPress={() => void testCaptureOnly()}
+              loading={testing}
+            />
           ) : null}
         </FormSection>
       ) : null}

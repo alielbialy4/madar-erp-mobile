@@ -22,6 +22,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import type { Product } from '@/types/api';
 import { money, numberText } from '@/utils/format';
+import { unitSellingPrice } from '@/utils/posUnitPrice';
 import { resolveMediaUrl } from '@/utils/media';
 import { buildCategoryThumbnailMap } from '@/utils/posCatalogMedia';
 import { chevronForwardIcon } from '@/utils/rtl';
@@ -694,7 +695,7 @@ export function PosCatalogPanel({
                       {item.name}
                     </Text>
                     <Text style={styles.categoryOverlayMeta} numberOfLines={1}>
-                      {money(item.selling_price)}
+                      {money(unitSellingPrice(item))}
                     </Text>
                   </View>
 

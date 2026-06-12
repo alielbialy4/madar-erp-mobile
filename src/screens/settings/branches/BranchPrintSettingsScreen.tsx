@@ -25,6 +25,7 @@ import {
   PRINT_FONT_SIZE_MIN,
   type BranchSettingsForm,
 } from '@/utils/branchSettings';
+import { isLogoScaleInRange, LOGO_SCALE_MAX, LOGO_SCALE_MIN } from '@/utils/printLogoSize';
 import type { BranchManageRow } from '@/types/branches';
 import type { PickedImage } from '@/types/api';
 import type { PrinterProfile } from '@/types/printing';
@@ -73,6 +74,7 @@ const PRINT_SETTING_KEYS = [
   'customer_receipt_font_size',
   'kitchen_ticket_font_size',
   'shift_close_font_size',
+  'customer_receipt_logo_scale',
   'receipt_footer',
 ] as const;
 
@@ -172,6 +174,11 @@ export function BranchPrintSettingsScreen({ navigation, route }: Props) {
     ];
     if (sizes.some((n) => !isPrintFontSizeInRange(n))) {
       toast.error(`حجم الخط يجب أن يكون بين ${PRINT_FONT_SIZE_MIN} و ${PRINT_FONT_SIZE_MAX}`);
+      return;
+    }
+    const logoScale = parseInt(settings.customer_receipt_logo_scale, 10);
+    if (!isLogoScaleInRange(logoScale)) {
+      toast.error(`حجم اللوجو يجب أن يكون بين ${LOGO_SCALE_MIN} و ${LOGO_SCALE_MAX}٪`);
       return;
     }
     setBusy(true);
@@ -569,6 +576,12 @@ export function BranchPrintSettingsScreen({ navigation, route }: Props) {
           remoteUrl={settings.receipt_logo_url}
           value={logoPick}
           onChange={setLogoPick}
+        />
+        <AppInput
+          label="حجم اللوجو على الإيصال (%)"
+          value={settings.customer_receipt_logo_scale}
+          onChangeText={(t) => setSettings((s) => ({ ...s, customer_receipt_logo_scale: t.replace(/\D/g, '') }))}
+          keyboardType="number-pad"
         />
       </FormSection>
     </FormScreenLayout>

@@ -3,9 +3,9 @@ import {
   DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE,
   DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE,
   DEFAULT_KITCHEN_TICKET_FONT_SIZE,
-  DEFAULT_SHIFT_CLOSE_FONT_SIZE,
   isPrintFontSizeInRange,
 } from '@/utils/branchSettings';
+import { clampLogoScale } from '@/utils/printLogoSize';
 
 export type ReceiptPrintMode = 'quality_image' | 'fast_text';
 
@@ -36,6 +36,7 @@ export type BranchPrintSettingsNormalized = {
   customer_receipt_font_size: number;
   kitchen_ticket_font_size: number;
   shift_close_font_size: number;
+  customer_receipt_logo_scale: number;
 };
 
 export const DEFAULT_CUSTOMER_RECEIPT_DEVELOPER_FOOTER = 'Powered by Madar';
@@ -104,5 +105,6 @@ export function normalizeBranchPrintSettings(
     customer_receipt_font_size: clampPrintFontSize(r.customer_receipt_font_size, 'customer'),
     kitchen_ticket_font_size: clampPrintFontSize(r.kitchen_ticket_font_size, 'kitchen'),
     shift_close_font_size: clampPrintFontSize(r.shift_close_font_size, 'customer'),
+    customer_receipt_logo_scale: clampLogoScale(r.customer_receipt_logo_scale),
   };
 }

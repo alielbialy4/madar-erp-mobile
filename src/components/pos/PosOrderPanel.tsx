@@ -12,6 +12,7 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { cartLineKey, type CartLine } from '@/store/posStore';
+import { cartLineGross } from '@/utils/cartPricing';
 import { POS_HOLD_CARTS_ENABLED } from '@/constants/posFeatures';
 import { money, numberText } from '@/utils/format';
 
@@ -47,13 +48,6 @@ type Props = {
   /** Tablet split layout: denser cart chrome, utilities in top bar. */
   variant?: 'default' | 'tablet';
 };
-
-function lineOptionsPrice(line: CartLine): number {
-  return (line.selected_options ?? []).reduce((sum, group) => {
-    if (group.pricing_type === 'group_price') return sum + (Number(group.group_price) || 0);
-    return sum + group.options.reduce((optionSum, option) => optionSum + (Number(option.option_price) || 0), 0);
-  }, 0);
-}
 
 function splitFeeLabel(label: string): { name: string; value: string } {
   const idx = label.indexOf(':');
@@ -228,8 +222,7 @@ export function PosOrderPanel({
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => {
             const key = cartLineKey(item);
-            const lineGross = (item.unit_price + lineOptionsPrice(item)) * item.quantity;
-            const lineTotal = Math.max(0, lineGross - (item.discount || 0));
+            const lineTotal = cartLineGross(item);
             return (
               <View style={styles.line}>
                 <View style={styles.lineRow}>

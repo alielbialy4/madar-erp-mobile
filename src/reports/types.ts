@@ -22,10 +22,7 @@ export type ReportId =
   | 'inventory-valuation'
   | 'inventory-movements'
   | 'inventory-expiry'
-  | 'raw-material-stock'
-  | 'raw-material-low-stock'
-  | 'raw-material-expiry'
-  | 'raw-material-purchases'
+  | 'raw-materials'
   | 'customers-aging'
   | 'suppliers-aging'
   | 'marketing-coupons'
@@ -70,6 +67,7 @@ export type ReportFilterKey =
   | 'paymentMethod'
   | 'expiryOptions'
   | 'type'
+  | 'movementType'
   | 'perPage';
 
 export type ReportFilters = {
@@ -129,6 +127,7 @@ export type ReportDefinition = {
   apiMethod: string;
   useInventoryExpiry?: boolean;
   usePartnerApi?: boolean;
+  useAggregates?: boolean;
   filters: ReportFilterKey[];
   metrics: ReportMetric[];
   sections: ReportRowSection[];

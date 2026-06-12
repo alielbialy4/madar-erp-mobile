@@ -11,20 +11,13 @@ import {
   type PrintDiagnosticState,
   type PrintTimingSnapshot,
 } from '@/services/printing/printDiagnostics';
-import { formatBenchmarkTable, runPrintBenchmark } from '@/services/printing/printBenchmark';
-import { getBenchmarkHistory } from '@/services/printing/printBenchmarkHistory';
 import {
   describeNativeModuleStatus,
   isNativeThermalPrintAvailable,
   ThermalPrinter,
 } from '@/services/printing/androidNativeThermalPrinter';
 import { testTcpConnection } from '@/services/printing/networkTcpPrinter';
-import {
-  formatBaselineSummary,
-  runBaselineBenchmark,
-} from '@/services/printing/nativePrintBenchmark';
 import { testReceiptCapture } from '@/services/printing/receiptCaptureTest';
-import { capturePrint } from '@/services/printing/printCaptureRegistry';
 import { Platform } from 'react-native';
 import { usePrintStore } from '@/store/printStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -38,9 +31,8 @@ import { isViewShotAvailable, VIEW_SHOT_UNAVAILABLE_MESSAGE } from '@/utils/view
 type Props = NativeStackScreenProps<MoreStackParamList, 'PrinterDiagnostics'>;
 
 const PRINT_PATH_LABELS: Record<string, string> = {
-  js: 'JS (buffer واحد)',
-  js_strip: 'JS strip (GS v 0)',
   native_android: 'Kotlin native',
+  fast_text: 'نص سريع (Windows-1256)',
 };
 
 const PATH_LABELS: Record<string, string> = {
@@ -88,14 +80,10 @@ function TimingBreakdown({ timing, muted }: { timing: PrintTimingSnapshot; muted
       <TimingRow label="ارتفاع الإيصال" value={timing.receipt_height_px == null ? '—' : `${timing.receipt_height_px}px`} muted={muted} />
       <TimingRow label="مسار المعالجة" value={PRINT_PATH_LABELS[timing.print_path ?? ''] ?? timing.print_path ?? '—'} muted={muted} />
       <TimingRow
-        label="سبب رجوع native"
+        label="سبب فشل native"
         value={timing.native_fallback_reason ?? '—'}
         muted={muted}
       />
-      <TimingRow label="strip count" value={timing.strip_count == null ? '—' : String(timing.strip_count)} muted={muted} />
-      <TimingRow label="strip height" value={timing.strip_height_px == null ? '—' : `${timing.strip_height_px}px`} muted={muted} />
-      <TimingRow label="strip inter-delay" value={ms(timing.strip_inter_delay_ms)} muted={muted} />
-      <TimingRow label="strip stream" value={ms(timing.strip_stream_ms)} muted={muted} />
       <TimingRow label="native decode" value={ms(timing.native_decode_ms)} muted={muted} />
       <TimingRow label="native bitmap" value={ms(timing.native_bitmap_ms)} muted={muted} />
       <TimingRow label="native raster" value={ms(timing.native_raster_ms)} muted={muted} />
@@ -250,46 +238,6 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
         <AppButton title="اختبار عربي" variant="outline" onPress={() => run('arabic')} loading={busy} disabled={!selected} />
         {__DEV__ ? (
           <>
-            <AppButton
-              title="قياس أداء (3 طباعات)"
-              variant="outline"
-              onPress={async () => {
-                if (!selected) return;
-                setBusy(true);
-                setResult(null);
-                try {
-                  const runs = await runPrintBenchmark(selected, { iterations: 3 });
-                  setResult(`انتهى القياس — راجع console\n${formatBenchmarkTable(runs)}`);
-                  setDiag(await getPrintDiagnostics());
-                } catch (e) {
-                  setResult(e instanceof Error ? e.message : 'فشل القياس');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              loading={busy}
-              disabled={!selected || selected.connection_type !== 'network_tcp'}
-            />
-            <AppButton
-              title="Baseline 10× (JS vs Native)"
-              variant="outline"
-              onPress={async () => {
-                if (!selected) return;
-                setBusy(true);
-                setResult(null);
-                try {
-                  const comparison = await runBaselineBenchmark(selected, 10);
-                  setResult(formatBaselineSummary(comparison));
-                  setDiag(await getPrintDiagnostics());
-                } catch (e) {
-                  setResult(e instanceof Error ? e.message : 'فشل القياس');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              loading={busy}
-              disabled={!selected || selected.connection_type !== 'network_tcp'}
-            />
             {Platform.OS === 'android' ? (
               <AppButton
                 title="تشخيص Native (TCP)"
@@ -366,74 +314,6 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
                 disabled={!selected?.ip}
               />
             ) : null}
-            {Platform.OS === 'android' ? (
-              <AppButton
-                title="Chunk benchmark (512–8192)"
-                variant="outline"
-                onPress={async () => {
-                  if (!selected?.ip) return;
-                  setBusy(true);
-                  try {
-                    const captured = await capturePrint({
-                      kind: 'receipt',
-                      payload: {
-                        date: new Date().toLocaleString('ar-EG-u-nu-latn'),
-                        items: [{ name: 'Chunk test', quantity: 1, unit_price: 1 }],
-                        subtotal: 1,
-                        discount: 0,
-                        tax: 0,
-                        total: 1,
-                        paid: 1,
-                        payment_type: 'test',
-                        branch_name: 'Chunk',
-                      },
-                      profile: selected,
-                    });
-                    const { ensurePngBase64 } = await import('@/services/printing/captureAssets');
-                    const pngBase64 = await ensurePngBase64(captured);
-                    const chunks = await ThermalPrinter.benchmarkChunks(
-                      selected.ip,
-                      pngBase64,
-                      selected.paper_width,
-                      selected.port ?? 9100,
-                    );
-                    setResult(
-                      chunks
-                        .map(
-                          (c) =>
-                            `${c.chunkSize}: ${c.success ? `${c.transferMs}ms` : c.error}`,
-                        )
-                        .join('\n'),
-                    );
-                  } catch (e) {
-                    setResult(e instanceof Error ? e.message : 'فشل chunk benchmark');
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-                loading={busy}
-                disabled={!selected?.ip}
-              />
-            ) : null}
-            <AppButton
-              title="سجل القياسات"
-              variant="outline"
-              onPress={async () => {
-                const history = await getBenchmarkHistory();
-                setResult(
-                  history.length === 0
-                    ? 'لا يوجد سجل'
-                    : history
-                        .slice(0, 5)
-                        .map(
-                          (h) =>
-                            `${h.recorded_at.slice(11, 19)} ${h.label} total=${h.timing.total_print_ms}ms path=${h.path}`,
-                        )
-                        .join('\n'),
-                );
-              }}
-              loading={busy}
-            />
           </>
         ) : null}
         <AppButton

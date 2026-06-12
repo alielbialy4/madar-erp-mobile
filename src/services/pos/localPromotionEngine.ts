@@ -1,5 +1,6 @@
 import type { CartLine } from '@/store/posStore';
 import type { Product } from '@/types/api';
+import { cartLineGross } from '@/utils/cartPricing';
 
 export type CatalogPromotion = {
   id: string;
@@ -27,7 +28,7 @@ export type EnrichedLine = {
 };
 
 function lineSubtotal(l: CartLine): number {
-  return Math.max(0, l.unit_price * l.quantity - (l.discount || 0));
+  return cartLineGross(l);
 }
 
 export function enrichCartLines(lines: CartLine[], products: Product[]): EnrichedLine[] {

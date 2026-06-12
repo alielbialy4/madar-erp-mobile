@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
 import { cartLineKey, type CartLine } from '@/utils/cartLine';
+import { cartLineGross, lineUnitPriceWithOptions } from '@/utils/cartPricing';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
 import { unitMeta, unitSellingPrice } from '@/utils/posUnitPrice';
 import { giftCardsAPI } from '@/api/giftCards';
@@ -208,24 +209,8 @@ function applyCatalogToState(catalog: import('@/types/api').PosCatalog, lastSync
   };
 }
 
-function computeOptionsPrice(opts?: CartLineSelectedOption[]): number {
-  if (!opts || opts.length === 0) return 0;
-  let total = 0;
-  for (const g of opts) {
-    if (g.pricing_type === 'group_price') {
-      total += Number(g.group_price ?? 0) || 0;
-    } else if (g.pricing_type === 'per_option') {
-      for (const o of g.options) total += Number(o.option_price ?? 0) || 0;
-    }
-  }
-  return Math.round(total * 100) / 100;
-}
-
 export function cartTotals(lines: CartLine[]) {
-  const subtotal = lines.reduce((sum, line) => {
-    const optionsPrice = computeOptionsPrice(line.selected_options);
-    return sum + line.quantity * (line.unit_price + optionsPrice);
-  }, 0);
+  const subtotal = lines.reduce((sum, line) => sum + cartLineGross(line), 0);
   const discount = lines.reduce((sum, line) => sum + (line.discount || 0), 0);
   return { subtotal, discount, total: Math.max(0, subtotal - discount) };
 }
@@ -432,7 +417,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       items: cart.map((line) => ({
         product_id: line.product_id,
         quantity: line.quantity,
-        unit_price: line.unit_price,
+        unit_price: lineUnitPriceWithOptions(line),
         discount: line.discount,
         unit_id: line.unit_id ?? null,
         variant_id: line.variant_id ?? null,

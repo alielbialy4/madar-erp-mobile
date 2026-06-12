@@ -2,6 +2,9 @@ import { Platform } from 'react-native';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import type { EscPosEncoding, PaperWidth, PrinterConnectionType, PrinterRole } from '@/types/printing';
 import { getConnectionCapability } from '@/services/printing/printerCapabilities';
+import { normalizeFormEncoding } from '@/services/printing/printPathUtils';
+
+export { normalizeFormEncoding };
 
 export const PRINTER_ROLE_OPTIONS: SelectOption[] = [
   { label: 'كاشير (إيصالات)', value: 'cashier' },
@@ -19,11 +22,14 @@ export const PAPER_WIDTH_OPTIONS: SelectOption[] = [
 ];
 
 export const ENCODING_OPTIONS: SelectOption[] = [
-  { label: 'UTF-8 صورة (موصى به للعربي)', value: 'utf8_image' },
-  { label: 'Windows-1256 (نص سريع TCP)', value: 'windows1256' },
-  { label: 'CP864 (نص)', value: 'cp864' },
-  { label: 'CP720', value: 'cp720' },
-  { label: 'UTF-8 نص (طابعات ROM عربي فقط)', value: 'utf8' },
+  {
+    label: 'صورة — Kotlin native (TCP) / Bluetooth printPic',
+    value: 'utf8_image',
+  },
+  {
+    label: 'نص سريع — Windows-1256',
+    value: 'windows1256',
+  },
 ];
 
 export const CODE_PAGE_PRESET_OPTIONS: SelectOption[] = [
@@ -67,5 +73,5 @@ export function paperWidthLabel(width: PaperWidth): string {
 }
 
 export function encodingLabel(enc: EscPosEncoding): string {
-  return ENCODING_OPTIONS.find((o) => o.value === enc)?.label ?? enc;
+  return ENCODING_OPTIONS.find((o) => o.value === normalizeFormEncoding(enc))?.label ?? enc;
 }

@@ -48,6 +48,10 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
     const next = [id, ...recent.filter((r) => r !== id)].slice(0, 6);
     setRecent(next);
     void storageSet(RECENT_KEY, next);
+    if (id === 'raw-materials') {
+      navigation.navigate('RawMaterialsReport');
+      return;
+    }
     navigation.navigate('ReportViewer', { reportId: id });
   };
 

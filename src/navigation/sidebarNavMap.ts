@@ -14,7 +14,7 @@ const WEB_REPORT_TO_ID: Record<string, ReportId> = {
   '/reports/inventory/valuation': 'inventory-valuation',
   '/reports/inventory/movements': 'inventory-movements',
   '/reports/inventory/expiry': 'inventory-expiry',
-  '/reports/inventory/raw-materials': 'raw-material-stock',
+  '/reports/inventory/raw-materials': 'raw-materials',
   '/reports/customers/aging': 'customers-aging',
   '/reports/suppliers/aging': 'suppliers-aging',
   '/reports/marketing/coupons': 'marketing-coupons',
@@ -133,7 +133,7 @@ export const WEB_LINK_TO_MOBILE_NAV: Record<string, SidebarNavAction | undefined
   '/reports/sales/hourly': reportNav('/reports/sales/hourly')!,
   '/reports/treasury': reportNav('/reports/treasury')!,
   '/reports/expenses': reportNav('/reports/expenses')!,
-  '/reports/inventory/raw-materials': reportNav('/reports/inventory/raw-materials')!,
+  '/reports/inventory/raw-materials': { kind: 'more', screen: 'RawMaterialsReport' },
   '/reports/inventory/valuation': reportNav('/reports/inventory/valuation')!,
   '/reports/inventory/movements': reportNav('/reports/inventory/movements')!,
   '/reports/customers/aging': reportNav('/reports/customers/aging')!,
@@ -196,6 +196,9 @@ function resolveDynamicWebLink(link: string, label?: string): SidebarNavAction |
   }
   for (const [webRoute, reportId] of Object.entries(WEB_REPORT_TO_ID)) {
     if (link === webRoute) {
+      if (reportId === 'raw-materials') {
+        return { kind: 'more', screen: 'RawMaterialsReport' };
+      }
       return { kind: 'more', screen: 'ReportViewer', params: { reportId } };
     }
   }

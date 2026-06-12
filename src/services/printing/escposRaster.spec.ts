@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import UPNG from 'upng-js';
 import {
-  buildEscPosFromPngBase64,
   dotsForPaper,
   monoToPngBase64,
   pngToMonoRaster,
@@ -54,16 +53,6 @@ function testPngToMonoRasterHasInk() {
 function testRasterHasInk() {
   assert.equal(rasterHasInk(TEST_PNG_BASE64, '58mm'), true);
   assert.equal(rasterHasInk('', '58mm'), false);
-}
-
-function testBuildEscPosFromPngBase64StartsWithInit() {
-  const buf = buildEscPosFromPngBase64(TEST_PNG_BASE64, '58mm', false);
-  assert.equal(buf[0], 0x1b);
-  assert.equal(buf[1], 0x40);
-  assert.equal(buf[2], 0x1b);
-  assert.equal(buf[3], 0x33);
-  assert.equal(buf[4], 0x00);
-  assert.ok(buf.length > 8, 'buffer must include raster payload');
 }
 
 function makeMonoWithBlankMargins(rows: number, inkRow: number): MonoRaster {
@@ -117,7 +106,6 @@ function testMonoToPngBase64RoundTrip() {
 testPngToMonoRasterDimensions();
 testPngToMonoRasterHasInk();
 testRasterHasInk();
-testBuildEscPosFromPngBase64StartsWithInit();
 testTrimMonoVerticalWhitespace();
 testTrimMonoVerticalWhitespaceNoOp();
 testDotsForPaper();

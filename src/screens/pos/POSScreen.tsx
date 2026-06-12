@@ -1078,6 +1078,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
       },
     );
     setCheckoutMessage(result.message);
+    if (!result.ok && !result.queued && result.message) {
+      toast.error(result.message);
+    }
     if (result.ok || result.queued) {
       setPosNotice(result.message);
       setCheckoutOpen(false);

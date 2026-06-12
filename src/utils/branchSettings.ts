@@ -1,4 +1,5 @@
 import type { BranchSettingsPatch } from '@/api/branchesManage';
+import { DEFAULT_LOGO_SCALE } from '@/utils/printLogoSize';
 
 export const PRINT_FONT_SIZE_MIN = 10;
 export const PRINT_FONT_SIZE_MAX = 22;
@@ -49,6 +50,7 @@ export type BranchSettingsForm = {
   customer_receipt_font_size: string;
   kitchen_ticket_font_size: string;
   shift_close_font_size: string;
+  customer_receipt_logo_scale: string;
 };
 
 export function defaultBranchSettingsForm(): BranchSettingsForm {
@@ -89,6 +91,7 @@ export function defaultBranchSettingsForm(): BranchSettingsForm {
     customer_receipt_font_size: String(DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE),
     kitchen_ticket_font_size: String(DEFAULT_KITCHEN_TICKET_FONT_SIZE),
     shift_close_font_size: String(DEFAULT_SHIFT_CLOSE_FONT_SIZE),
+    customer_receipt_logo_scale: String(DEFAULT_LOGO_SCALE),
   };
 }
 
@@ -157,6 +160,7 @@ export function parseBranchSettingsObject(obj?: Record<string, unknown>): Branch
     customer_receipt_font_size: String(obj.customer_receipt_font_size ?? DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE),
     kitchen_ticket_font_size: String(obj.kitchen_ticket_font_size ?? DEFAULT_KITCHEN_TICKET_FONT_SIZE),
     shift_close_font_size: String(obj.shift_close_font_size ?? DEFAULT_SHIFT_CLOSE_FONT_SIZE),
+    customer_receipt_logo_scale: String(obj.customer_receipt_logo_scale ?? DEFAULT_LOGO_SCALE),
   };
 }
 
@@ -207,6 +211,7 @@ export function buildBranchSettingsPayload(form: BranchSettingsForm, keys?: (key
     customer_receipt_font_size: parseInt(form.customer_receipt_font_size, 10),
     kitchen_ticket_font_size: parseInt(form.kitchen_ticket_font_size, 10),
     shift_close_font_size: parseInt(form.shift_close_font_size, 10),
+    customer_receipt_logo_scale: parseInt(form.customer_receipt_logo_scale, 10),
     print_sequence_max: printSequenceMax,
   };
 

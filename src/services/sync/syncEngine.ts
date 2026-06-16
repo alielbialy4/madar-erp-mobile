@@ -107,7 +107,8 @@ export async function syncPendingPosOrders(): Promise<SyncResult> {
       await markOrdersSyncing(clientIds);
 
       try {
-        const apiOrders = branchOrders.map(toApiOfflineOrder);
+        const openShiftId = usePosStore.getState().openShiftId;
+        const apiOrders = branchOrders.map((order) => toApiOfflineOrder(order, openShiftId));
         const response = await posAPI.pushOfflineOrders(apiOrders, branchId);
 
         if (response.status !== 'success' || !Array.isArray(response.data)) {

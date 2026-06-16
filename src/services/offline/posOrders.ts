@@ -255,13 +255,21 @@ export function countByStatus(orders: OfflinePosOrderRecord[]) {
 }
 
 /** Payload shape expected by `/sync/offline-orders`. */
-export function toApiOfflineOrder(order: OfflinePosOrderRecord): LegacyPendingOfflineOrder & { sale_date: string } {
+export function toApiOfflineOrder(
+  order: OfflinePosOrderRecord,
+  shiftIdFallback?: string | null,
+): LegacyPendingOfflineOrder & { sale_date: string } {
   const payload = order.payload ?? ({} as SalePayload);
+  const resolvedShiftId =
+    order.shift_id ??
+    payload.shift_id ??
+    (shiftIdFallback != null && String(shiftIdFallback).trim() !== '' ? String(shiftIdFallback) : undefined);
+
   return {
     ...payload,
     client_uuid: order.client_uuid,
     branch_id: order.branch_id,
-    shift_id: order.shift_id ?? payload.shift_id ?? undefined,
+    shift_id: resolvedShiftId,
     warehouse_id: payload.warehouse_id ?? undefined,
     created_at_local: order.created_at,
     status: order.status === 'failed' ? 'failed' : 'pending',

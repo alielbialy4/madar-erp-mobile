@@ -48,6 +48,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [refundMethod, setRefundMethod] = useState<'cash' | 'wallet'>('cash');
   const [cashRefundSource, setCashRefundSource] = useState<'drawer' | 'vault'>('drawer');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [drawerElectronicConfirmOpen, setDrawerElectronicConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const submitLockRef = useRef(false);
@@ -118,6 +119,42 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
 
   const hasItems = items.some((item) => getLine(Number(item.id)).quantity > 0);
 
+  const isElectronicSale = ['card', 'electronic_wallet', 'instapay', 'vodafone_cash'].includes(
+    String(sale?.payment_type ?? '').toLowerCase(),
+  );
+
+  const electronicChannelLabel = (() => {
+    const type = String(sale?.payment_type ?? '').toLowerCase();
+    if (type === 'instapay') return 'رد عبر إنستا باي';
+    if (type === 'electronic_wallet' || type === 'vodafone_cash') return 'رد عبر المحفظة الإلكترونية';
+    if (type === 'card') return 'رد عبر البطاقة';
+    return 'رد عبر القناة الإلكترونية';
+  })();
+
+  React.useEffect(() => {
+    if (isElectronicSale) {
+      setCashRefundSource('vault');
+    }
+  }, [isElectronicSale]);
+
+  const cashSourceOptions = isElectronicSale
+    ? [
+        { label: 'رد نقدي من درج الوردية', value: 'drawer' },
+        { label: electronicChannelLabel, value: 'vault' },
+      ]
+    : [
+        { label: 'من درج الوردية', value: 'drawer' },
+        { label: 'من الخزنة', value: 'vault' },
+      ];
+
+  const openSubmitConfirm = () => {
+    if (refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer') {
+      setDrawerElectronicConfirmOpen(true);
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
   const methodOptions = hasCustomer
     ? [{ label: 'نقدي', value: 'cash' }, { label: 'محفظة', value: 'wallet' }]
     : [{ label: 'نقدي', value: 'cash' }];
@@ -148,6 +185,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       });
       setSubmitMessage(response.message || 'تم تسجيل الاسترداد الجزئي بنجاح');
       setConfirmOpen(false);
+      setDrawerElectronicConfirmOpen(false);
       await reload();
       if (branchId) {
         const printResult = await printSaleReceiptLocal(saleId, branchId, {
@@ -254,12 +292,19 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
           <AppSelect
             label="مصدر رد النقد"
             value={cashRefundSource}
-            options={[
-              { label: 'من درج الوردية', value: 'drawer' },
-              { label: 'من الخزنة', value: 'vault' },
-            ]}
+            options={cashSourceOptions}
             onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
           />
+        ) : null}
+        {refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer' ? (
+          <Text style={[styles.emptyText, { color: c.warning }]}>
+            يُخصم من النقد المتوقع في الدرج؛ لا يتغير إجمالي إنستا باي/المحفظة في التقرير.
+          </Text>
+        ) : null}
+        {isElectronicSale ? (
+          <Text style={styles.emptyText}>
+            الدفع الأصلي إلكتروني — اختر الدرج للرد نقداً أو القناة الإلكترونية للتسوية.
+          </Text>
         ) : null}
       </AppCard>
 
@@ -281,9 +326,23 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       <AppButton
         title="تنفيذ الاسترداد الجزئي"
         variant="danger"
-        onPress={() => setConfirmOpen(true)}
+        onPress={openSubmitConfirm}
         disabled={!hasItems || submitting}
         loading={submitting}
+      />
+
+      <ConfirmDialog
+        visible={drawerElectronicConfirmOpen}
+        title="تأكيد الرد النقدي من الدرج"
+        message="هذه الفاتورة دُفعت إلكترونياً. الرد من الدرج يُقلّل النقد المتوقع. هل تريد المتابعة؟"
+        confirmLabel="متابعة"
+        onConfirm={() => {
+          setDrawerElectronicConfirmOpen(false);
+          setConfirmOpen(true);
+        }}
+        onCancel={() => setDrawerElectronicConfirmOpen(false)}
+        loading={submitting}
+        variant="primary"
       />
 
       <ConfirmDialog

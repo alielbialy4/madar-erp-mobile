@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Modal, View } from 'react-native';
 import { deliveriesAPI } from '@/api/deliveries';
 import { driversAPI } from '@/api/drivers';
 import { AppScreen } from '@/components/layout';
+import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { ConfirmDialog, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
 import { DELIVERY_NEXT_STATUS, deliveryStatusLabel, deliveryStatusTone } from '@/utils/deliveryStatus';
 import { extractArray, extractData } from '@/utils/data';
 import { asText, dateText, money } from '@/utils/format';
@@ -21,6 +22,8 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
   const [busy, setBusy] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<{ value: string; label: string } | null>(null);
   const [assignConfirm, setAssignConfirm] = useState(false);
+  const [codModalOpen, setCodModalOpen] = useState(false);
+  const [collectedAmount, setCollectedAmount] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,18 +50,57 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
   const status = String(doc?.status ?? '');
   const next = DELIVERY_NEXT_STATUS[status] ?? [];
 
-  const applyStatus = async () => {
+  const isDriverCod = useMemo(() => {
+    if (!doc) return false;
+    return String(doc.collection_method ?? '') === 'driver' && Number(doc.amount_to_collect ?? 0) > 0;
+  }, [doc]);
+
+  const expectedCollect = useMemo(() => Number(doc?.amount_to_collect ?? 0), [doc]);
+
+  const applyStatus = async (payload?: {
+    collected_amount?: number;
+    collection_note?: string;
+    partial_collection_waiver?: boolean;
+  }) => {
     if (!pendingStatus) return;
     setBusy(true);
     try {
-      await deliveriesAPI.updateStatus(id, pendingStatus.value);
+      await deliveriesAPI.updateStatus(id, {
+        status: pendingStatus.value,
+        ...payload,
+      });
       setPendingStatus(null);
+      setCodModalOpen(false);
+      setCollectedAmount('');
       await load();
     } catch (err) {
       setError(normalizeApiError(err).message);
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleStatusPress = (n: { value: string; label: string }) => {
+    if (n.value === 'delivered' && isDriverCod) {
+      setPendingStatus(n);
+      setCollectedAmount(expectedCollect > 0 ? String(expectedCollect) : '');
+      setCodModalOpen(true);
+      return;
+    }
+    setPendingStatus(n);
+  };
+
+  const confirmCodCollection = async () => {
+    const parsed = parseFloat(collectedAmount);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setError('أدخل مبلغاً صالحاً');
+      return;
+    }
+    if (expectedCollect > 0 && parsed > expectedCollect + 0.0001) {
+      setError('المبلغ المحصّل لا يمكن أن يتجاوز المطلوب');
+      return;
+    }
+    await applyStatus({ collected_amount: parsed });
   };
 
   const assign = async () => {
@@ -88,6 +130,17 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
             <AppListItem title="العميل" subtitle={asText((doc.customer as Record<string, unknown>)?.name, '—')} />
             <AppListItem title="السائق" subtitle={asText((doc.driver as Record<string, unknown>)?.name, 'بدون سائق')} />
             <AppListItem title="رسوم التوصيل" meta={money(doc.delivery_fee ?? 0)} />
+            {isDriverCod ? (
+              <>
+                <AppListItem title="تحصيل مع المندوب" meta={money(doc.amount_to_collect ?? 0)} />
+                {doc.collection_status ? (
+                  <AppListItem title="حالة التحصيل" subtitle={asText(doc.collection_status, '—')} />
+                ) : null}
+                {doc.collected_amount != null ? (
+                  <AppListItem title="المبلغ المحصّل" meta={money(doc.collected_amount)} />
+                ) : null}
+              </>
+            ) : null}
           </AppCard>
           {status === 'pending' ? (
             <AppCard>
@@ -100,14 +153,14 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
             <AppCard>
               <AppSectionHeader title="تغيير الحالة" />
               {next.map((n) => (
-                <AppButton key={n.value} title={n.label} variant="secondary" onPress={() => setPendingStatus(n)} />
+                <AppButton key={n.value} title={n.label} variant="secondary" onPress={() => handleStatusPress(n)} />
               ))}
             </AppCard>
           ) : null}
         </View>
       ) : null}
       <ConfirmDialog
-        visible={pendingStatus !== null}
+        visible={pendingStatus !== null && !codModalOpen}
         title="تأكيد تغيير الحالة"
         message={`الانتقال إلى: ${pendingStatus?.label}`}
         confirmLabel="تأكيد"
@@ -124,6 +177,34 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
         onCancel={() => setAssignConfirm(false)}
         loading={busy}
       />
+      <Modal visible={codModalOpen} transparent animationType="fade" onRequestClose={() => setCodModalOpen(false)}>
+        <RtlModalRoot>
+          <View style={{ flex: 1, justifyContent: 'center', padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <AppCard>
+              <AppSectionHeader title="تأكيد التسليم والتحصيل" />
+              <AppListItem title="المبلغ المطلوب" meta={money(expectedCollect)} />
+              <AppInput
+                label="المبلغ المحصّل"
+                value={collectedAmount}
+                onChangeText={setCollectedAmount}
+                keyboardType="decimal-pad"
+              />
+              <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+                <AppButton title="تأكيد التسليم" onPress={() => void confirmCodCollection()} loading={busy} />
+                <AppButton
+                  title="إلغاء"
+                  variant="secondary"
+                  onPress={() => {
+                    setCodModalOpen(false);
+                    setPendingStatus(null);
+                    setCollectedAmount('');
+                  }}
+                />
+              </View>
+            </AppCard>
+          </View>
+        </RtlModalRoot>
+      </Modal>
     </AppScreen>
   );
 }

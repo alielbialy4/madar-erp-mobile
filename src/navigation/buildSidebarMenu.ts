@@ -500,6 +500,8 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  { id: 'nav-rep-sales-hourly', label: 'مبيعات بالساعة', icon: 'ri-file-list-3-line', link: '/reports/sales/hourly', perm: 'view_reports' },
  { id: 'nav-rep-treasury', label: 'الخزائن', icon: 'ri-safe-2-line', link: '/reports/treasury', perm: 'view_reports', feature: 'advanced_reports' },
  { id: 'nav-rep-expenses', label: 'تقرير المصروفات', icon: 'ri-bank-line', link: '/reports/expenses', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-profit-loss', label: 'الأرباح والخسائر', icon: 'ri-line-chart-line', link: '/reports/profit-loss', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-budget-vs-actual', label: 'الموازنة مقابل الفعلي', icon: 'ri-funds-line', link: '/reports/budget-vs-actual', perm: 'view_reports', feature: 'advanced_reports' },
  { id: 'nav-rep-inv-val', label: 'تقييم المخزون', icon: 'las la-boxes', link: '/reports/inventory/valuation', perm: 'view_reports' },
  { id: 'nav-rep-inv-mov', label: 'حركات المخزون', icon: 'ri-clipboard-fill', link: '/reports/inventory/movements', perm: 'view_reports' },
  { id: 'nav-rep-inv-expiry', label: 'تقرير الصلاحية', icon: 'las la-boxes', link: '/reports/inventory/expiry', perm: 'view_reports' },

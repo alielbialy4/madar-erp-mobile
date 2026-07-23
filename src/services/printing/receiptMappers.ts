@@ -100,14 +100,31 @@ export function mapCheckoutToReceiptPayload(input: CheckoutReceiptInput): Receip
 export function mapSalePrintResponseToPayload(
   sale: Record<string, unknown>,
   store: Record<string, unknown>,
-  options?: { isReprint?: boolean; documentTitle?: string; showBarcode?: boolean },
+  options?: {
+    isReprint?: boolean;
+    documentTitle?: string;
+    showBarcode?: boolean;
+    receipt?: {
+      mode?: string;
+      document_number?: string | null;
+      reference_invoice_number?: string | null;
+      lines?: Array<Record<string, unknown>>;
+      totals?: Record<string, unknown>;
+    } | null;
+  },
 ): ReceiptPrintPayload {
   const printSettings = normalizeBranchPrintSettings(store as Record<string, unknown>);
   if (options?.showBarcode === false) {
     printSettings.receipt_show_invoice_barcode = false;
   }
 
-  const items = Array.isArray(sale.items) ? sale.items : [];
+  const receipt = options?.receipt ?? null;
+  const mode = receipt?.mode ?? 'original';
+  const items = Array.isArray(receipt?.lines) && receipt!.lines!.length > 0
+    ? receipt!.lines!
+    : Array.isArray(sale.items)
+      ? sale.items
+      : [];
   const showSubtotal = store.allow_pos_discount !== false || store.allow_pos_coupon !== false;
 
   const paymentBreakdown = Array.isArray(sale.payment_breakdown)
@@ -122,6 +139,11 @@ export function mapSalePrintResponseToPayload(
   const customer = sale.customer as { name?: string } | undefined;
   const user = sale.user as { name?: string } | undefined;
   const diningTable = sale.dining_table as { name?: string } | undefined;
+  const totals = receipt?.totals;
+
+  const documentTitle =
+    options?.documentTitle
+    ?? (mode === 'return' ? 'مستند مرتجع' : mode === 'current' ? 'إيصال المتبقي' : undefined);
 
   return {
     branch_name: printSettings.receipt_show_branch_name ? String(store.name ?? '') : undefined,
@@ -130,11 +152,15 @@ export function mapSalePrintResponseToPayload(
     date: sale.sale_date
       ? new Date(String(sale.sale_date)).toLocaleString('ar-EG-u-nu-latn')
       : new Date().toLocaleString('ar-EG-u-nu-latn'),
-    server_invoice_number: sale.invoice_number != null ? String(sale.invoice_number) : String(sale.id ?? ''),
-    print_sequence: sale.print_sequence as number | string | null,
+    server_invoice_number: receipt?.document_number != null
+      ? String(receipt.document_number)
+      : sale.invoice_number != null
+        ? String(sale.invoice_number)
+        : String(sale.id ?? ''),
+    print_sequence: mode === 'return' ? null : (sale.print_sequence as number | string | null),
     order_type: sale.order_type ? String(sale.order_type) : null,
     table_name: diningTable?.name ?? null,
-    document_title: options?.documentTitle,
+    document_title: documentTitle,
     is_reprint: options?.isReprint,
     show_subtotal: showSubtotal,
     items: items.map((raw) => {
@@ -161,19 +187,22 @@ export function mapSalePrintResponseToPayload(
           : undefined,
       };
     }),
-    subtotal: Number(sale.subtotal ?? 0),
-    discount: Number(sale.discount ?? 0),
-    tax: Number(sale.tax ?? 0),
-    delivery_fee: Number(sale.delivery_fee ?? 0),
-    total: Number(sale.total ?? 0),
-    paid: Number(sale.paid ?? 0),
+    subtotal: Number(totals?.subtotal ?? sale.subtotal ?? 0),
+    discount: Number(totals?.discount ?? sale.discount ?? 0),
+    tax: Number(totals?.tax ?? sale.tax ?? 0),
+    delivery_fee: mode === 'return' || mode === 'current' ? 0 : Number(sale.delivery_fee ?? 0),
+    total: Number(totals?.total ?? sale.total ?? 0),
+    paid: Number(totals?.paid ?? sale.paid ?? 0),
     change: Number(sale.change ?? 0),
     balance: Number(sale.balance ?? 0),
     payment_type: getPaymentPrintLabel(String(sale.payment_type ?? '')),
-    payment_breakdown: paymentBreakdown,
-    coupon_code: sale.coupon_code ? String(sale.coupon_code) : null,
-    coupon_discount: Number(sale.coupon_discount ?? 0),
-    notes: sale.notes ? String(sale.notes) : null,
+    payment_breakdown: mode === 'original' ? paymentBreakdown : undefined,
+    coupon_code: mode === 'original' && sale.coupon_code ? String(sale.coupon_code) : null,
+    coupon_discount: mode === 'original' ? Number(sale.coupon_discount ?? 0) : 0,
+    notes: [
+      sale.notes ? String(sale.notes) : null,
+      receipt?.reference_invoice_number ? `مرجع الفاتورة: ${receipt.reference_invoice_number}` : null,
+    ].filter(Boolean).join('\n') || null,
     _printSettings: printSettings,
   };
 }

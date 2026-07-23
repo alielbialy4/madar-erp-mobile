@@ -38,6 +38,12 @@ export type ShiftCloseBlocker = {
 export type ClosePreview = {
   starting_cash: string;
   expected_cash: string;
+  expected_is_negative?: boolean;
+  requires_close_reason?: boolean;
+  allowed_settlement_directions?: Array<'deposit' | 'withdraw'>;
+  default_settlement_direction?: 'deposit' | 'withdraw';
+  cash_difference?: string | null;
+  counted_cash?: string;
   close_blockers?: ShiftCloseBlocker[];
   can_close?: boolean;
   card_payments?: string;

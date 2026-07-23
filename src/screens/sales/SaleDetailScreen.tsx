@@ -66,10 +66,13 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
       setMessage(response.message || 'تم تسجيل المرتجع');
       setConfirmOpen(false);
       if (branchId) {
+        const refundId = Number((response as any)?.refund?.id ?? (response as any)?.data?.refund?.id ?? 0) || undefined;
         const printResult = await printSaleReceiptLocal(id, branchId, {
           isReprint: true,
-          documentTitle: 'فاتورة مرتجع',
+          documentTitle: 'مستند مرتجع',
           asRefund: true,
+          mode: 'return',
+          refundId,
         });
         if (printResult.ok) {
           setMessage(`${response.message || 'تم تسجيل المرتجع'} — ${printResult.message}`);
@@ -119,8 +122,12 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
                 {canSplitSale(sale) ? (
                   <AppButton title="تقسيم الفاتورة" variant="secondary" onPress={() => setSplitOpen(true)} />
                 ) : null}
-                <AppButton title="استرداد جزئي" variant="secondary" onPress={() => navigation.navigate('PartialRefund', { saleId: id })} />
-                <AppButton title="استرداد كامل" variant="danger" onPress={() => setConfirmOpen(true)} loading={busy} />
+                {sale.status === 'completed' || sale.status === 'partially_refunded' ? (
+                  <>
+                    <AppButton title="استرداد جزئي" variant="secondary" onPress={() => navigation.navigate('PartialRefund', { saleId: id })} />
+                    <AppButton title="استرداد كامل للمتبقي" variant="danger" onPress={() => setConfirmOpen(true)} loading={busy} />
+                  </>
+                ) : null}
               </View>
             </AppCard>
           </>

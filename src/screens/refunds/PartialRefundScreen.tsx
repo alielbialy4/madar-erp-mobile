@@ -188,10 +188,13 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       setDrawerElectronicConfirmOpen(false);
       await reload();
       if (branchId) {
+        const refundId = Number((response as any)?.data?.id ?? 0) || undefined;
         const printResult = await printSaleReceiptLocal(saleId, branchId, {
           isReprint: true,
-          documentTitle: 'فاتورة مرتجع',
+          documentTitle: 'مستند مرتجع',
           asRefund: true,
+          mode: 'return',
+          refundId,
         });
         if (printResult.ok) {
           setSubmitMessage(`${response.message || 'تم تسجيل الاسترداد الجزئي بنجاح'} — ${printResult.message}`);
@@ -216,7 +219,9 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
             const itemId = Number(item.id);
             const originalQty = Number(item.quantity ?? 0);
             const refundedQty = Number(item.refunded_quantity ?? 0);
-            const availableQty = originalQty - refundedQty;
+            const availableQty = item.remaining_quantity != null
+              ? Math.max(0, Number(item.remaining_quantity))
+              : originalQty - refundedQty;
             const line = getLine(itemId);
             const unitPrice = Number(item.unit_price ?? 0);
             const productName = String((item.product as any)?.name ?? item.product_name ?? 'صنف');

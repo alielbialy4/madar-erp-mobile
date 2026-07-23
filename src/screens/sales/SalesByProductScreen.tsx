@@ -14,6 +14,7 @@ import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
 import type { Sale } from '@/types/api';
 import { asText, dateText, money, numberText } from '@/utils/format';
+import { saleStatusBadgeTone, saleStatusLabel } from '@/utils/saleStatus';
 import { normalizeApiError } from '@/utils/errors';
 
 type SoldProductItem = {
@@ -169,7 +170,7 @@ export function SalesByProductScreen({ navigation }: { navigation: any }) {
           renderItem={({ item }) => (
             <AppCard style={styles.card} onPress={() => openSale(item)}>
               <View style={styles.cardTop}>
-                <AppBadge label={item.status === 'completed' ? 'مكتملة' : asText(item.status)} tone="success" />
+                <AppBadge label={saleStatusLabel(item.status)} tone={saleStatusBadgeTone(item.status)} />
                 <AppText style={styles.invoiceText}>{item.invoice_number}</AppText>
               </View>
               <AppText style={styles.title}>{item.product_name}</AppText>
@@ -181,7 +182,9 @@ export function SalesByProductScreen({ navigation }: { navigation: any }) {
               </View>
               <View style={styles.actions}>
                 <AppButton title="فتح الفاتورة" size="sm" variant="secondary" onPress={() => openSale(item)} />
-                <AppButton title="مرتجع كامل" size="sm" variant="danger" onPress={() => setRefundTarget(item)} />
+                {item.status === 'completed' || item.status === 'partially_refunded' ? (
+                  <AppButton title="مرتجع كامل" size="sm" variant="danger" onPress={() => setRefundTarget(item)} />
+                ) : null}
               </View>
             </AppCard>
           )}

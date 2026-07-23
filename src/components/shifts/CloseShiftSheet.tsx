@@ -94,7 +94,6 @@ type Props = {
 export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }: Props) {
   const c = useColors();
   const [actualCash, setActualCash] = useState('');
-  const [vaultSettlementDirection, setVaultSettlementDirection] = useState<'deposit' | 'withdraw'>('withdraw');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositFollowsActual, setDepositFollowsActual] = useState(true);
   const [depositVaultId, setDepositVaultId] = useState<string | null>(null);
@@ -115,9 +114,8 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
       setPreview(null);
       setSummary(null);
       setActualCash('');
-      setVaultSettlementDirection('withdraw');
       setDepositAmount('');
-      setDepositFollowsActual(false);
+      setDepositFollowsActual(true);
       setDepositVaultId(null);
       setVaults([]);
       setNotes('');
@@ -191,6 +189,15 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
       : [];
   const canCloseShift = summary?.can_close ?? preview?.can_close ?? closeBlockers.length === 0;
   const closeBlockerMessage = closeBlockers.map((b) => b.message).join(' ');
+  const expectedCashNum = Number(closeTotals?.expected_cash ?? preview?.expected_cash ?? NaN);
+  const countedCashNum = actualCash.trim() === '' ? null : Number(actualCash.replace(',', '.'));
+  const liveDifference =
+    countedCashNum != null && Number.isFinite(countedCashNum) && Number.isFinite(expectedCashNum)
+      ? countedCashNum - expectedCashNum
+      : null;
+  const expectedIsNegative = Number.isFinite(expectedCashNum) && expectedCashNum < 0;
+  const needsCloseReasonUi =
+    expectedIsNegative || (liveDifference != null && liveDifference !== 0);
 
   const parseNonNegativeMoney = (raw: string): number | null => {
     const trimmed = raw.trim();
@@ -211,6 +218,18 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
       setErrorMsg('أدخل النقدية الفعلية بشكل صحيح');
       return;
     }
+    const drawerLedger = Boolean(shift.drawer_ledger_enabled);
+    const expectedRaw = closeTotals?.expected_cash ?? preview?.expected_cash ?? null;
+    const expectedNum = expectedRaw == null ? null : Number(expectedRaw);
+    const variance =
+      expectedNum != null && Number.isFinite(expectedNum) ? amount - expectedNum : null;
+    const needsReason =
+      (expectedNum != null && Number.isFinite(expectedNum) && expectedNum < 0) ||
+      (variance != null && variance !== 0);
+    if (needsReason && !notes.trim()) {
+      setErrorMsg('أدخل سبب الفرق أو الرصيد المتوقع السالب قبل الإغلاق');
+      return;
+    }
     const vaultIdForNext = shift.vault_id;
     if (openNextShift && !vaultIdForNext) {
       setErrorMsg('لا يمكن فتح وردية تالية بدون خزنة');
@@ -228,17 +247,16 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
 
     const depositParsed = parseNonNegativeMoney(depositAmount);
     if (depositParsed === null) {
-      setErrorMsg(vaultSettlementDirection === 'withdraw' ? 'مبلغ السحب غير صالح' : 'مبلغ الإيداع غير صالح');
+      setErrorMsg('مبلغ الإيداع غير صالح');
       return;
     }
     const deposit = depositParsed;
-    const drawerLedger = Boolean(shift.drawer_ledger_enabled);
-    if (drawerLedger && vaultSettlementDirection === 'deposit' && deposit > amount) {
+    if (drawerLedger && deposit > amount) {
       setErrorMsg('مبلغ الإيداع لا يمكن أن يتجاوز النقد المعدود');
       return;
     }
     if (drawerLedger && deposit > 0 && !depositVaultId) {
-      setErrorMsg(vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع');
+      setErrorMsg('اختر خزنة الإيداع');
       return;
     }
 
@@ -250,7 +268,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
         ...(drawerLedger
           ? {
               deposit_amount: deposit,
-              vault_settlement_direction: vaultSettlementDirection,
+              vault_settlement_direction: 'deposit',
               ...(deposit > 0 && depositVaultId ? { deposit_vault_id: depositVaultId } : {}),
             }
           : {}),
@@ -324,6 +342,20 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
             </AppText>
           </View>
         ) : null}
+        {expectedIsNegative ? (
+          <View style={[styles.hintBox, { backgroundColor: c.softInfo, borderColor: c.softInfoBorder }]}>
+            <AppText style={{ ...textStart, color: c.info, fontSize: 13, fontWeight: '700' }}>
+              الرصيد المتوقع للدرج سالب. أغلق بجرد فعلي (≥ 0) مع سبب إلزامي — الإيداع فقط بدون سحب من الخزنة.
+            </AppText>
+          </View>
+        ) : null}
+        {isAdmin && liveDifference != null && liveDifference !== 0 ? (
+          <View style={[styles.hintBox, { backgroundColor: c.softInfo, borderColor: c.softInfoBorder }]}>
+            <AppText style={{ ...textStart, fontWeight: '800' }}>
+              {liveDifference < 0 ? 'عجز (Shortage)' : 'زيادة (Surplus)'}: {money(liveDifference)}
+            </AppText>
+          </View>
+        ) : null}
 
         {isAdmin && loadingPreview ? (
           <AppText style={{ ...textStart, color: c.textMuted }}>جاري حساب النقد المتوقع…</AppText>
@@ -375,11 +407,7 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
               value={actualCash}
               onChangeText={(v) => {
                 setActualCash(v);
-                if (
-                  shift?.drawer_ledger_enabled &&
-                  depositFollowsActual &&
-                  vaultSettlementDirection === 'deposit'
-                ) {
+                if (shift?.drawer_ledger_enabled && depositFollowsActual) {
                   setDepositAmount(v);
                 }
               }}
@@ -387,31 +415,14 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
             />
             {shift?.drawer_ledger_enabled ? (
               <>
-                <AppText style={{ ...textStart, fontWeight: '700', marginTop: spacing.sm }}>التسوية مع الخزنة</AppText>
-                <View style={{ ...flexRow, gap: spacing.sm, flexWrap: 'wrap' }}>
-                  <AppChip
-                    label="إغلاق مع السحب"
-                    active={vaultSettlementDirection === 'withdraw'}
-                    onPress={() => {
-                      setVaultSettlementDirection('withdraw');
-                      setDepositFollowsActual(false);
-                    }}
-                  />
-                  <AppChip
-                    label="إيداع في الخزنة"
-                    active={vaultSettlementDirection === 'deposit'}
-                    onPress={() => {
-                      setVaultSettlementDirection('deposit');
-                      setDepositFollowsActual(true);
-                    }}
-                  />
-                </View>
+                <AppText style={{ ...textStart, fontWeight: '700', marginTop: spacing.sm }}>
+                  إيداع النقد المعدود إلى الخزنة
+                </AppText>
+                <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>
+                  إغلاق الوردية يتم بإيداع فقط (نمط Till) — السحب من الخزنة غير متاح عند الإغلاق.
+                </AppText>
                 <AppInput
-                  label={
-                    vaultSettlementDirection === 'withdraw'
-                      ? 'مبلغ السحب من الخزنة'
-                      : 'مبلغ الإيداع إلى الخزنة'
-                  }
+                  label="مبلغ الإيداع إلى الخزنة"
                   keyboardType="decimal-pad"
                   value={depositAmount}
                   onChangeText={(v) => {
@@ -421,29 +432,26 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
                   placeholder="0.00"
                 />
                 <AppSelect
-                  label={vaultSettlementDirection === 'withdraw' ? 'خزنة السحب' : 'خزنة الإيداع'}
+                  label="خزنة الإيداع"
                   value={depositVaultId}
                   onChange={setDepositVaultId}
                   options={[
-                    {
-                      value: '',
-                      label:
-                        vaultSettlementDirection === 'withdraw' ? 'اختر خزنة السحب' : 'اختر خزنة الإيداع',
-                    },
+                    { value: '', label: 'اختر خزنة الإيداع' },
                     ...vaults.map((v) => ({
                       value: String(v.id),
                       label: String(v.name ?? v.id),
                     })),
                   ]}
                 />
-                {vaultSettlementDirection === 'withdraw' ? (
-                  <AppText style={{ ...textStart, opacity: 0.75, fontSize: 12 }}>
-                    يُسجَّل السحب على هذه الوردية دفعة واحدة دون إيداع ثم سحب منفصل.
-                  </AppText>
-                ) : null}
               </>
             ) : null}
-            <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
+            <AppInput
+              label={needsCloseReasonUi ? 'ملاحظات (مطلوبة)' : 'ملاحظات'}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              placeholder={needsCloseReasonUi ? 'سبب العجز/الزيادة أو الرصيد السالب' : undefined}
+            />
             <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               <AppText style={{ ...textStart, fontWeight: '700' }}>فتح وردية تالية بعد الإغلاق</AppText>
               <View style={{ ...flexRow, gap: spacing.sm }}>

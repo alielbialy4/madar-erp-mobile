@@ -28,6 +28,35 @@ export const reportsAPI = {
     get('/reports/sales/dashboard', params),
   treasurySummary: (params?: ReportQueryParams) => get('/reports/treasury/summary', params),
   expensesSummary: (params?: ReportQueryParams) => get('/reports/expenses/summary', params),
+  profitLossOperational: (params?: ReportQueryParams) => get('/reports/profit-loss/operational', params),
+  budgetVsActual: (params?: ReportQueryParams) => {
+    const next: ReportQueryParams = { ...(params || {}) };
+    const from = typeof next.from_date === 'string' ? next.from_date : '';
+    const to = typeof next.to_date === 'string' ? next.to_date : '';
+    if (from.length >= 4 && to.length >= 4 && from.slice(0, 4) !== to.slice(0, 4)) {
+      return Promise.reject({
+        response: {
+          data: {
+            message: 'فترة التقرير يجب أن تكون ضمن سنة ميلادية واحدة',
+            errors: { from_date: ['cross_year'] },
+          },
+          status: 422,
+        },
+      });
+    }
+    if (next.year == null && from.length >= 4) {
+      next.year = Number(from.slice(0, 4));
+    }
+    // Only invent month when range is a single calendar month.
+    if (next.month == null && from.length >= 7 && to.length >= 7) {
+      const sameMonth = from.slice(0, 7) === to.slice(0, 7);
+      if (sameMonth) {
+        const m = Number(from.slice(5, 7));
+        if (m >= 1 && m <= 12) next.month = m;
+      }
+    }
+    return get('/reports/budget-vs-actual', next);
+  },
   shiftPerformance: (params?: ReportQueryParams) => get('/reports/shifts/performance', params),
   savedList: (params?: ReportQueryParams) => get('/reports/saved', params),
   savedDelete: (id: string) => del(`/reports/saved/${id}`),

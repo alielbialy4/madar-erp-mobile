@@ -30,6 +30,8 @@ export type ReportId =
   | 'gift-cards'
   | 'treasury'
   | 'expenses'
+  | 'profit-loss-operational'
+  | 'budget-vs-actual'
   | 'dining'
   | 'delivery'
   | 'shifts'

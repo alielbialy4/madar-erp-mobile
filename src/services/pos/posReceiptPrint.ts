@@ -7,12 +7,30 @@ import { extractData } from '@/utils/data';
 export async function printSaleReceiptLocal(
   saleId: number,
   branchId: string,
-  options?: { isReprint?: boolean; documentTitle?: string; showBarcode?: boolean; asRefund?: boolean },
+  options?: {
+    isReprint?: boolean;
+    documentTitle?: string;
+    showBarcode?: boolean;
+    asRefund?: boolean;
+    mode?: 'original' | 'return' | 'current';
+    refundId?: number;
+  },
 ): Promise<{ ok: boolean; message: string }> {
   try {
-    const res = await posAPI.printSale(saleId) as import('@/types/api').ApiEnvelope<{
+    const params: Record<string, string | number> = {};
+    const mode = options?.mode ?? (options?.asRefund ? 'return' : 'original');
+    params.mode = mode;
+    if (options?.refundId != null) params.refund_id = options.refundId;
+
+    const query = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)]),
+    ).toString();
+    const path = `/pos/sales/${saleId}/print${query ? `?${query}` : ''}`;
+
+    const res = await posAPI.printSaleRaw(path) as import('@/types/api').ApiEnvelope<{
       sale?: Record<string, unknown>;
       store?: Record<string, unknown>;
+      receipt?: Record<string, unknown>;
     }>;
     const data = extractData(res);
     if (!data?.sale || !data?.store) {
@@ -28,8 +46,9 @@ export async function printSaleReceiptLocal(
       isReprint: options?.isReprint ?? true,
       documentTitle: options?.documentTitle,
       showBarcode: options?.showBarcode,
+      receipt: (data.receipt as any) ?? null,
     });
-    const job = options?.asRefund
+    const job = mode === 'return' || options?.asRefund
       ? await printEngine.printRefundReceipt(payload, profile)
       : await printEngine.printReceipt(payload, profile);
     if (job.status === 'printed') {

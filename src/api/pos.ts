@@ -31,6 +31,7 @@ export const posAPI = {
     cash_refund_source?: 'drawer' | 'vault';
   }) => post(`/pos/sales/${saleId}/partial-refund`, data),
   printSale: (id: number) => post(`/pos/sales/${id}/print`),
+  printSaleRaw: (path: string) => post(path),
   holdCart: (data: unknown) => post('/pos/hold-cart', data),
   getHoldCarts: () => get('/pos/hold-carts'),
   restoreCart: (id: number) => post(`/pos/restore-cart/${id}`),

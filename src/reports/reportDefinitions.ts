@@ -618,6 +618,111 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
+    id: 'profit-loss-operational',
+    title: 'الأرباح والخسائر',
+    description: 'قائمة دخل تشغيلية بدون موازنة: إيرادات، تكلفة، عمالة، ومصروفات.',
+    group: 'finance',
+    icon: 'trending-up',
+    webRoute: '/reports/profit-loss',
+    permission: 'view_reports',
+    feature: 'advanced_reports',
+    apiMethod: 'profitLossOperational',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'net_sales', label: 'صافي المبيعات', format: 'money', tone: 'primary' },
+      { key: 'gross_profit', label: 'مجمل الربح', format: 'money', tone: 'success' },
+      { key: 'gross_margin_pct', label: 'هامش مجمل %', format: 'number', tone: 'info' },
+      { key: 'prime_cost_pct', label: 'التكلفة الأساسية %', format: 'number', tone: 'warning' },
+      { key: 'net_profit', label: 'صافي الربح', format: 'money', tone: 'success' },
+      { key: 'net_margin_pct', label: 'هامش صافي %', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'lines',
+        title: 'قائمة الدخل',
+        extractRows: (p) => {
+          const data = (p as any)?.data ?? p
+          const sections = Array.isArray(data?.sections) ? data.sections : []
+          const rows: Record<string, unknown>[] = []
+          for (const section of sections) {
+            const sectionLabel = String(section?.label || section?.section || '')
+            for (const row of section?.rows || []) {
+              if (row?.is_memo) continue
+              rows.push({
+                section: sectionLabel,
+                label: row?.label,
+                amount: row?.amount,
+                pct_of_revenue: row?.pct_of_revenue,
+                is_total: row?.is_total,
+              })
+            }
+          }
+          return rows
+        },
+        fields: [
+          { key: 'section', label: 'القسم', format: 'text' },
+          { key: 'label', label: 'البند', format: 'text', primary: true },
+          { key: 'amount', label: 'المبلغ', format: 'money' },
+          { key: 'pct_of_revenue', label: '% من الإيراد', format: 'number' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'budget-vs-actual',
+    title: 'الموازنة مقابل الفعلي',
+    description: 'مقارنة المخطط بالمحقق للإيرادات والتكاليف والمصروفات. أدِر الموازنات من الويب.',
+    group: 'finance',
+    icon: 'pie-chart',
+    webRoute: '/reports/budget-vs-actual',
+    permission: 'view_reports',
+    feature: 'advanced_reports',
+    apiMethod: 'budgetVsActual',
+    filters: ['dateRange', 'branch'],
+    metrics: [
+      { key: 'budget_revenue', label: 'هدف الإيراد', format: 'money', tone: 'info' },
+      { key: 'actual_revenue', label: 'الإيراد الفعلي', format: 'money', tone: 'success' },
+      { key: 'actual_net_profit', label: 'صافي الربح', format: 'money', tone: 'primary' },
+      { key: 'actual_prime_cost_pct', label: 'التكلفة الأساسية %', format: 'number', tone: 'warning' },
+      { key: 'unbudgeted_expenses', label: 'خارج الموازنة', format: 'money', tone: 'danger' },
+    ],
+    sections: [
+      {
+        id: 'lines',
+        title: 'بنود الموازنة',
+        extractRows: (p) => {
+          const data = (p as any)?.data ?? p
+          if (data?.status === 'missing_budget') return []
+          const sections = Array.isArray(data?.sections) ? data.sections : []
+          const rows: Record<string, unknown>[] = []
+          for (const section of sections) {
+            const sectionLabel = String(section?.label || section?.section || '')
+            for (const row of section?.rows || []) {
+              rows.push({
+                section: sectionLabel,
+                label: row?.label,
+                budget: row?.budget,
+                actual: row?.actual,
+                variance: row?.variance,
+                variance_pct: row?.variance_pct,
+                favorable: row?.favorable,
+              })
+            }
+          }
+          return rows
+        },
+        fields: [
+          { key: 'section', label: 'القسم', format: 'text' },
+          { key: 'label', label: 'البند', format: 'text', primary: true },
+          { key: 'budget', label: 'المخطط', format: 'money' },
+          { key: 'actual', label: 'الفعلي', format: 'money' },
+          { key: 'variance', label: 'الفرق', format: 'money' },
+          { key: 'variance_pct', label: 'الفرق %', format: 'number' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'dining',
     title: 'تقرير المطاعم',
     description: 'إشغال الطاولات وأداء النادل',

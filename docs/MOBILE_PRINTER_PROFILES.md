@@ -1,33 +1,8 @@
-# Mobile Printer Profiles
+# Moved
 
-## Fields
+This documentation was relocated during the repository-wide documentation rebuild (2026-08-03T20:39:59).
 
-| Field | Description |
-|-------|-------------|
-| id | UUID |
-| name | Display name |
-| role | cashier, kitchen, bar, shift, report |
-| connection_type | network_tcp, bluetooth_android, airprint_ios, vendor_sdk, disabled |
-| paper_width | 58mm, 80mm |
-| ip / port | Network (default port 9100) |
-| bluetoothAddress | Android MAC |
-| airprintName | iOS hint |
-| mode | escpos_text, escpos_image, airprint |
-| encoding | cp864, cp720, windows1256, utf8_image |
-| characters_per_line | 32 (58mm) or 48 (80mm) |
-| cut_paper | GS V cut command |
-| enabled | Master switch |
+- **Historical copy:** [docs/history/mobile/MOBILE_PRINTER_PROFILES.md](../../docs/history/mobile/MOBILE_PRINTER_PROFILES.md)
+- **Canonical documentation:** [docs/product/mobile/00_OVERVIEW.md](../../docs/product/mobile/00_OVERVIEW.md)
 
-## UI
-
-- **Settings → ملفات الطابعات** — list / add / edit
-- **تشخيص الطباعة** — test connection, test page, Arabic test
-- **قائمة انتظار الطباعة** — pending / failed / retry
-
-## Target hardware
-
-- Rongta / Rongta RP Ethernet (TCP 9100)
-- Xprinter XP-80 Ethernet (TCP 9100)
-- Generic ESC/POS 58/80mm
-- Android Bluetooth Classic (Dev build)
-- iOS: prefer network; AirPrint fallback
+Do not maintain parallel contracts at this path.

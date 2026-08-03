@@ -1,76 +1,8 @@
-# Device QA Script
+# Moved
 
-All rows start as **NOT TESTED** until a tester runs them on a real device. Use **PASS** or **FAIL** only after recording the observed result.
+This documentation was relocated during the repository-wide documentation rebuild (2026-08-03T20:39:59).
 
-## Engineering verification — 2026-06-03
+- **Historical copy:** [docs/history/mobile/full-web-mobile-parity/06_DEVICE_QA_SCRIPT.md](../../../docs/history/mobile/full-web-mobile-parity/06_DEVICE_QA_SCRIPT.md)
+- **Canonical documentation:** [docs/product/mobile/00_OVERVIEW.md](../../../docs/product/mobile/00_OVERVIEW.md)
 
-| Check | Result | Notes |
-|-------|--------|-------|
-| `npm run typecheck` | PASS | After review-plan fixes |
-| `npm run test:unit` | PASS | `coercePendingOrder` + `posDining` |
-| Code paths for recipe reports, held carts (phone), lot picker, report export/charts | Implemented | See `05_FINAL_PARITY_REPORT.md` § 2026-06-03 |
-| Physical device execution | **NOT RUN** | No Android/iPhone/iPad in CI; tables below unchanged |
-
-**Release gate:** Android phone smoke + iPhone smoke must be **PASS** before store submission.
-
-## Android Phone
-
-| Area | Steps | Status | Notes |
-|------|-------|--------|-------|
-| Install/login | Install preview build, set production API, login with tenant user, select branch. | NOT TESTED | Device required. |
-| POS checkout | Open POS, add product, add modifier/variant if available, quick-create customer, checkout cash, verify sale appears in sales. | NOT TESTED | Device + backend required. |
-| POS table bridge | Add cart items, open POS tables, link to available table, verify table order opens with items. | NOT TESTED | Device + dining data required. |
-| Offline order | Disable network, checkout cached catalog order, re-enable network, sync, verify server sale or exact failure reason. | NOT TESTED | Must confirm no duplicate order. |
-| Offline coupon conflict | Apply coupon online, go offline, queue order, force invalid/expired coupon server-side, sync and confirm failed-order reason/retry/clear UI. | NOT TESTED | Backend fixture required. |
-| Offline sync stuck recovery | Queue order, kill app during sync, reopen — order must be pending or failed, never stuck syncing forever. | NOT TESTED | Code fix 2026-06-02. |
-| Table draft 409 | Two devices edit same table; second device shows conflict message and cart replaces from server. | NOT TESTED | Requires two devices. |
-| Merge rollback | Merge tables on device A; force local failure (if possible) or verify unmerge API on server error path. | NOT TESTED | |
-| Catalog >300 products | Branch with >300 products: full catalog after pull; offline checkout uses correct prices. | NOT TESTED | |
-| Printing | Configure Android network/Bluetooth printer, print receipt, kitchen ticket, refund receipt, and shift summary. | NOT TESTED | Physical printer required. |
-| Dining/waiter | Open waiter mode, create order, add item, send kitchen, settle table. | NOT TESTED | Backend dining data required. |
-| Delivery | Open delivery orders, driver detail, finance dashboard, settlements read-only state. | NOT TESTED | Delivery data required. |
-| Admin/settings | Open users, roles, tenant settings; change theme hex and verify refresh. | NOT TESTED | Admin permission required. |
-| Recipe reports | More → Reports → تقارير تكلفة الوصفات; open all 5 tabs with branch/date filters. | NOT TESTED | Added 2026-06-03 parity pass. |
-| POS held carts | Phone + tablet POS → السلات / حفظ; save cart, restore, delete; relaunch app and verify local hold persists. | NOT TESTED | Phone: `PosOrderPanel.checkoutIcons`; tablet: `PosTabletTopBar`. |
-| Raw materials filters | Products tab raw materials scope: role tabs, low/expiry/inactive filters, create/edit with batch/supplier/warehouse. | NOT TESTED | |
-| Stock count batch/variant | Stock count draft → تحميل أرصدة المخزن → اختر من الرصيد per line → save/post. | NOT TESTED | `BatchPickerSheet` + adjustment/transfer lot picker. |
-| Report export native | Open report with export → PDF/Excel → share sheet on device. | NOT TESTED | expo-file-system + expo-sharing. |
-| Report charts | Sales dashboard / hourly / treasury → bar chart section visible. | NOT TESTED | |
-
-## iPhone
-
-| Area | Steps | Status | Notes |
-|------|-------|--------|-------|
-| Install/login | Install preview build/TestFlight, login, select branch. | NOT TESTED | Device required. |
-| POS checkout | Complete cash/card checkout with customer and split payment review. | NOT TESTED | Backend required. |
-| Offline order | Queue offline order and reconnect sync. | NOT TESTED | Must inspect failed/synced states. |
-| Reports | Open reports hub, saved reports, legacy reports, run filters and pagination. | NOT TESTED | Live API required. |
-| Printing | Configure AirPrint/network profile; verify iOS prompt/blocked silent-print messaging. | NOT TESTED | Printer required. |
-| Dining/waiter | Open table order, merge/transfer/settle where available. | NOT TESTED | Data required. |
-| Delivery | Verify delivery list/detail, driver detail, alerts and finance screens. | NOT TESTED | Data required. |
-| Admin/settings | Verify roles read-only reason and tenant theme save. | NOT TESTED | Admin permission required. |
-
-## iPad / Tablet
-
-| Area | Steps | Status | Notes |
-|------|-------|--------|-------|
-| Layout | Open landscape and portrait; verify sidebar, no overlap, RTL alignment. | NOT TESTED | Tablet required. |
-| POS split | Verify catalog/cart split, variant sheet, quick customer sheet, cash movement, tables sheet. | NOT TESTED | Tablet required. |
-| Reports | Open report cards, filters, summary cards, row cards/tablet width. | NOT TESTED | Live API required. |
-| Kitchen | Open kitchen board/order/ticket preview/print jobs. | NOT TESTED | Data required. |
-| Settings | Open tenant, roles, users, printer profiles, print queue. | NOT TESTED | Admin required. |
-
-## Final Device Decision
-
-| Gate | Status | Notes |
-|------|--------|-------|
-| Android phone smoke | NOT TESTED | |
-| iPhone smoke | NOT TESTED | |
-| iPad/tablet smoke | NOT TESTED | |
-| POS checkout | NOT TESTED | |
-| Offline duplicate prevention | NOT TESTED | |
-| Receipt/kitchen/shift printing | NOT TESTED | |
-| Reports live data | NOT TESTED | |
-| Dining/waiter | NOT TESTED | |
-| Delivery | NOT TESTED | |
-| Admin/settings | NOT TESTED | |
+Do not maintain parallel contracts at this path.

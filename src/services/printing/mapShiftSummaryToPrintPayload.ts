@@ -3,6 +3,10 @@ import type { ShiftDetailedSummary } from '@/types/shifts';
 import { shiftClosePrintLabels } from '@/constants/printLabels';
 import { money, numberText, dateText } from '@/utils/format';
 import { normalizeShiftSummary } from '@/utils/shiftSummaryNormalize';
+import {
+  preferShiftNetSalesActivity,
+  preferShiftTotalRefunds,
+} from '@/utils/shiftTotalsCanonical';
 
 export function mapShiftSummaryToPrintPayload(
   raw: Record<string, unknown>,
@@ -19,6 +23,8 @@ export function buildShiftCloseReportPayload(
   const t = data.totals;
   const shift = data.shift;
   const labels = shiftClosePrintLabels;
+  const totalRefunds = preferShiftTotalRefunds(t);
+  const netActivity = preferShiftNetSalesActivity(t);
 
   const sections: ShiftCloseReportPayload['sections'] = [
     {
@@ -30,8 +36,8 @@ export function buildShiftCloseReportPayload(
       rows: [
         { label: labels.grossSales, value: money(t.gross_sales) },
         { label: labels.totalPaid, value: money(t.total_paid) },
-        { label: labels.refunds, value: money(t.total_refunds) },
-        { label: labels.netRevenue, value: money(t.net_revenue), bold: true },
+        { label: labels.refunds, value: money(totalRefunds) },
+        { label: labels.netRevenue, value: money(netActivity), bold: true },
         { label: labels.cashSales, value: money(t.cash_sales) },
         { label: labels.nonCashSales, value: money(t.non_cash_sales) },
         ...(t.card_payments ? [{ label: 'بطاقات', value: money(t.card_payments) }] : []),

@@ -11,6 +11,11 @@ import { dateText, money, numberText } from '@/utils/format';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
 import { saleStatusBadgeTone, saleStatusLabel, shiftStatusBadgeTone, shiftStatusLabel } from '@/utils/saleStatus';
 import { normalizeShiftSummary } from '@/utils/shiftSummaryNormalize';
+import {
+  preferDrawerCashRefundOutflows,
+  preferShiftNetSalesActivity,
+  preferShiftTotalRefunds,
+} from '@/utils/shiftTotalsCanonical';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
@@ -133,9 +138,17 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
 
           <View style={styles.kpiGrid}>
             <ShiftKpiTile label="إجمالي المبيعات" value={fmt(data.totals.gross_sales)} tone="info" />
-            <ShiftKpiTile label="صافي الإيراد" value={fmt(data.totals.net_revenue)} tone="success" />
+            <ShiftKpiTile
+              label="صافي الإيراد"
+              value={fmt(preferShiftNetSalesActivity(data.totals))}
+              tone="success"
+            />
             <ShiftKpiTile label="مبيعات نقدية" value={fmt(data.totals.cash_sales)} tone="default" />
-            <ShiftKpiTile label="المرتجعات" value={fmt(data.totals.total_refunds)} tone="warning" />
+            <ShiftKpiTile
+              label="المرتجعات"
+              value={fmt(preferShiftTotalRefunds(data.totals))}
+              tone="warning"
+            />
           </View>
 
           <View style={styles.infoGrid}>
@@ -263,7 +276,11 @@ export function ShiftSummarySheet({ visible, shiftId, branchId, onClose }: Props
             <ShiftKpiRow label="رصيد الافتتاح" value={fmt(data.shift.starting_cash)} />
             <ShiftKpiRow label="+ مبيعات نقدية" value={fmt(data.totals.cash_sales)} tone="success" />
             <ShiftKpiRow label="+ إيداعات" value={fmt(data.totals.cash_deposits)} tone="success" />
-            <ShiftKpiRow label="- مرتجعات نقدية" value={fmt(data.totals.cash_refunds)} tone="warning" />
+            <ShiftKpiRow
+              label="- مرتجعات نقدية"
+              value={fmt(preferDrawerCashRefundOutflows(data.totals))}
+              tone="warning"
+            />
             <ShiftKpiRow label="- مصروفات نقدية" value={fmt(data.totals.cash_expenses)} tone="warning" />
             <ShiftKpiRow label="- مسحوبات" value={fmt(data.totals.cash_withdrawals)} tone="warning" />
             {Number(data.totals.debt_collections ?? 0) > 0 ? (

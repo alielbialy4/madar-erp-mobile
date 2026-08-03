@@ -1,27 +1,8 @@
-# Marketing, Coupons, and Gift Cards Gaps
+# Moved
 
-## Coupons
+This documentation was relocated during the repository-wide documentation rebuild (2026-08-03T20:39:59).
 
-| Web Feature | Web API | Mobile Status | Mobile Route | Notes |
-|-------------|---------|---------------|--------------|-------|
-| Coupon list | `couponsAPI` | Complete | `Coupons` | |
-| Create / edit | POST/PUT | Complete | `CouponForm` | Branch policy field |
-| POS validation | validate | Complete | POS online | Offline cache partial |
-| Coupon reports | reports | Complete | `ReportViewer` marketing-coupons | |
+- **Historical copy:** [docs/history/mobile/mobile-gap-audit/10_MARKETING_COUPONS_GIFT_CARDS_GAPS.md](../../../docs/history/mobile/mobile-gap-audit/10_MARKETING_COUPONS_GIFT_CARDS_GAPS.md)
+- **Canonical documentation:** [docs/product/mobile/00_OVERVIEW.md](../../../docs/product/mobile/00_OVERVIEW.md)
 
-## Promotions
-
-| Web Feature | Web API | Mobile Status | Mobile Route | Notes |
-|-------------|---------|---------------|--------------|-------|
-| Promotion list | `promotionsAPI` | Complete | `Promotions` | |
-| Create / edit | POST/PUT | Complete | `PromotionForm` | Min-cart condition only |
-| POS auto-apply | preview | Partial | POS | Full engine not ported |
-
-## Gift cards
-
-| Web Feature | Web API | Mobile Status | Mobile Route | Notes |
-|-------------|---------|---------------|--------------|-------|
-| List | `giftCardsAPI` | Complete | `GiftCards` | Statistics cards |
-| Create / cancel | POST | Complete | `GiftCards` / `GiftCardDetail` | |
-| POS redeem | check/redeem | Partial | POS API exists | Phase 1 connection |
-| Report | reports | Complete | `ReportViewer` gift-cards | |
+Do not maintain parallel contracts at this path.

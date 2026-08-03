@@ -74,8 +74,14 @@ export type ShiftDetailedSummary = {
     invoice_count: number;
     gross_sales: string;
     total_paid: string;
+    /** Canonical operational refund total */
+    shift_total_refunds?: string;
+    /** @deprecated alias of shift_total_refunds */
     total_refunds: string;
     refund_count: number;
+    /** Canonical net sales activity */
+    shift_net_sales_activity?: string;
+    /** @deprecated alias of shift_net_sales_activity */
     net_revenue: string;
     total_expenses: string;
     cash_sales: string;
@@ -88,6 +94,14 @@ export type ShiftDetailedSummary = {
     layaway_payments?: string;
     debt_collections?: string;
     layaway_collections?: string;
+    allocated_cash_refunds?: string;
+    /** @deprecated alias of allocated_cash_refunds */
+    cash_method_refunds?: string;
+    non_cash_refunds?: string;
+    unallocated_refunds?: string;
+    /** Canonical drawer cash refund OUTs */
+    drawer_cash_refund_outflows?: string;
+    /** @deprecated alias of drawer_cash_refund_outflows */
     cash_refunds: string;
     cash_deposits: string;
     cash_withdrawals: string;

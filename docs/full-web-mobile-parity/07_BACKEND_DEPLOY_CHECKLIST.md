@@ -1,36 +1,8 @@
-# Backend deploy checklist (mobile parity)
+# Moved
 
-Run on **production/staging** before signing off mobile POS parity with web.
+This documentation was relocated during the repository-wide documentation rebuild (2026-08-03T20:39:59).
 
-## Routes (must exist)
+- **Historical copy:** [docs/history/mobile/full-web-mobile-parity/07_BACKEND_DEPLOY_CHECKLIST.md](../../../docs/history/mobile/full-web-mobile-parity/07_BACKEND_DEPLOY_CHECKLIST.md)
+- **Canonical documentation:** [docs/product/mobile/00_OVERVIEW.md](../../../docs/product/mobile/00_OVERVIEW.md)
 
-- `PUT /api/pos/tables/{tableId}/order/draft` — accepts `expected_sale_updated_at`, full draft payload; returns **409** with `code: table_order_conflict` when stale.
-- `POST /api/pos/tables/{tableId}/unmerge` — body: `{ source_table_id }`.
-- `POST /api/sync/offline-orders` — idempotent by `client_uuid`.
-
-## Migrations
-
-```bash
-php artisan migrate
-```
-
-Required for coupon usage dedupe (if not already applied):
-
-- `2026_06_02_120000_add_unique_coupon_usage_per_sale.php`
-
-## Post-deploy
-
-```bash
-php artisan route:clear
-php artisan config:clear
-```
-
-## Smoke (API)
-
-1. Draft sync with wrong `expected_sale_updated_at` → 409.
-2. Merge two open table orders → unmerge restores source.
-3. Push offline order twice with same `client_uuid` → second row `duplicate`.
-
-## Mobile build
-
-Ship a mobile build **after** backend is live; older app builds without unmerge/409 handling remain unsafe for multi-device dining.
+Do not maintain parallel contracts at this path.

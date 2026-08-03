@@ -302,8 +302,8 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
                 subtitle={`${row.branch?.name ?? '—'} · ${row.user?.name ?? row.user_id}`}
                 meta={money(row.drawer_balance ?? row.starting_cash ?? 0)}
                 badge={statusBadge(row.status)}
-                onPress={() => openSummary(row)}
-                showChevron
+                onPress={canViewShiftSummary ? () => openSummary(row) : undefined}
+                showChevron={canViewShiftSummary}
               />
             ))
           : null}
@@ -364,15 +364,17 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
         onSuccess={() => void refreshAll()}
       />
 
-      <ShiftSummarySheet
-        visible={!!summaryShiftId}
-        shiftId={summaryShiftId}
-        branchId={summaryBranchId}
-        onClose={() => {
-          setSummaryShiftId(null);
-          setSummaryBranchId(null);
-        }}
-      />
+      {canViewShiftSummary ? (
+        <ShiftSummarySheet
+          visible={!!summaryShiftId}
+          shiftId={summaryShiftId}
+          branchId={summaryBranchId}
+          onClose={() => {
+            setSummaryShiftId(null);
+            setSummaryBranchId(null);
+          }}
+        />
+      ) : null}
     </AppScreen>
   );
 }

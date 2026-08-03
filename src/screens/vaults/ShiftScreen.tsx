@@ -61,8 +61,10 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
   const [summaryBranchId, setSummaryBranchId] = useState<string | null>(null);
 
   const isAdmin = Boolean(user?.is_super_admin || can('access_admin_routes') || hasRole(user, ['admin']));
+  const isCashier = hasRole(user, ['cashier', 'Cashier']);
   const canOpen = can(['open_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
   const canClose = can(['close_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
+  const canViewShiftSummary = !isCashier;
 
   const effectiveBranchForCurrent = useMemo(() => {
     if (!isGlobalView && activeBranch?.id) return activeBranch.id;
@@ -181,6 +183,7 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
   );
 
   const openSummary = (row: ShiftListRow) => {
+    if (!canViewShiftSummary) return;
     const branchId = row.branch_id || row.branch?.id || (!isGlobalView ? activeBranch?.id : null) || null;
     setSummaryShiftId(row.id);
     setSummaryBranchId(branchId);
@@ -254,16 +257,18 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
               {statusBadge(currentShift.status ?? 'open')}
             </View>
             <View style={styles.actions}>
-              <AppButton
-                title="ملخص الوردية"
-                variant="secondary"
-                onPress={() => {
-                  setSummaryShiftId(currentShift.id);
-                  setSummaryBranchId(
-                    currentShift.branch_id ?? currentShift.branch?.id ?? effectiveBranchForCurrent,
-                  );
-                }}
-              />
+              {canViewShiftSummary ? (
+                <AppButton
+                  title="ملخص الوردية"
+                  variant="secondary"
+                  onPress={() => {
+                    setSummaryShiftId(currentShift.id);
+                    setSummaryBranchId(
+                      currentShift.branch_id ?? currentShift.branch?.id ?? effectiveBranchForCurrent,
+                    );
+                  }}
+                />
+              ) : null}
               {canCloseCurrent ? (
                 <AppButton title="إغلاق الوردية" variant="danger" onPress={() => setCloseSheet(true)} />
               ) : null}

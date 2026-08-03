@@ -5,9 +5,7 @@ import { AppBadge, AppButton } from '@/components/ui';
 import { AppErrorState } from '@/components/feedback';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
-import { ShiftSummarySheet } from '@/components/shifts/ShiftSummarySheet';
 import { DashboardHero } from './DashboardHero';
-import { DashboardKpiCard } from './DashboardKpiCard';
 import { DashboardScopePill } from './DashboardScopePill';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { createDashboardStyles } from './dashboardStyles';
@@ -15,7 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { shiftsAPI } from '@/api/shifts';
-import { money, numberText } from '@/utils/format';
+import { money } from '@/utils/format';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
 import { hasPermission } from '@/utils/permissions';
 import { extractData } from '@/utils/data';
@@ -26,18 +24,6 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 import { spacing } from '@/constants/spacing';
 import { Text } from '@/components/ui/AppText';
-
-type ShiftTotals = {
-  cash_sales?: string | number;
-  non_cash_sales?: string | number;
-  gross_sales?: string | number;
-  total_refunds?: string | number;
-  refund_count?: number;
-  total_expenses?: string | number;
-  expected_cash?: string | number;
-  cash_deposits?: string | number;
-  cash_withdrawals?: string | number;
-};
 
 type Shell = {
   lastUpdatedLabel: string;
@@ -78,12 +64,10 @@ export function CashierDashboardView({ shell, navigation }: Props) {
   const branchId = activeBranch?.id ?? null;
 
   const [myShift, setMyShift] = useState<ActiveShift | null>(null);
-  const [totals, setTotals] = useState<ShiftTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [openSheet, setOpenSheet] = useState(false);
   const [closeSheet, setCloseSheet] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const canOpenShift = hasPermission(user, 'open_shift');
   const canCloseShift = hasPermission(user, 'close_shift');
@@ -93,7 +77,6 @@ export function CashierDashboardView({ shell, navigation }: Props) {
   const load = useCallback(async () => {
     if (!branchId) {
       setMyShift(null);
-      setTotals(null);
       setLoading(false);
       return;
     }
@@ -103,17 +86,9 @@ export function CashierDashboardView({ shell, navigation }: Props) {
       const cur = await shiftsAPI.current(branchId);
       const shift = extractData<ActiveShift | null>(cur) ?? null;
       setMyShift(shift);
-      if (shift?.id) {
-        const sum = await shiftsAPI.getSummary(shift.id, { branch_id: branchId });
-        const raw = extractData(sum) as { totals?: ShiftTotals } | undefined;
-        setTotals(raw?.totals ?? null);
-      } else {
-        setTotals(null);
-      }
     } catch (err) {
       setLoadError(normalizeApiError(err).message);
       setMyShift(null);
-      setTotals(null);
     } finally {
       setLoading(false);
     }
@@ -144,7 +119,7 @@ export function CashierDashboardView({ shell, navigation }: Props) {
       <View style={ds.page}>
         <DashboardHero
           title="لوحة الكاشير"
-          subtitle="بيانات ورديتك فقط — مبيعات، نقد، ومستردات."
+          subtitle="ورديتك الحالية — افتح نقطة البيع أو أغلق الوردية عند الانتهاء."
           scopeBadges={scopeBadges}
           lastUpdatedLabel={shell.lastUpdatedLabel}
           isLoading
@@ -159,7 +134,7 @@ export function CashierDashboardView({ shell, navigation }: Props) {
     <View style={ds.page}>
       <DashboardHero
         title="لوحة الكاشير"
-        subtitle="بيانات ورديتك فقط — مبيعات، نقد، ومستردات."
+        subtitle="ورديتك الحالية — افتح نقطة البيع أو أغلق الوردية عند الانتهاء."
         scopeBadges={scopeBadges}
         lastUpdatedLabel={shell.lastUpdatedLabel}
         isLoading={loading || shell.isLoading}
@@ -182,63 +157,29 @@ export function CashierDashboardView({ shell, navigation }: Props) {
       ) : null}
 
       {myShift ? (
-        <>
-          <View style={[ds.surfaceCard, { padding: spacing.lg, gap: spacing.md }]}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' }}>
-              <AppBadge label={`وردية #${myShift.shift_no ?? '—'}`} tone="info" />
-              <AppBadge label={activeBranch?.name ?? 'الفرع'} tone="neutral" />
-            </View>
-            <Text style={[ds.sectionHint, { ...ds.sectionHint }]}>
-              {myShift.vault?.name ?? 'خزينة'}
-              {myShift.opened_at
-                ? ` · افتتحت ${new Date(myShift.opened_at).toLocaleString('ar-EG-u-nu-latn')}`
-                : ''}
-            </Text>
-            <Text style={ds.sectionTitle}>
-              رصيد افتتاحي: <Text style={{ fontWeight: '800' }}>{money(numFromApi(myShift.starting_cash))}</Text>
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {canPos ? (
-                <AppButton title="فتح نقطة البيع" size="sm" onPress={() => navigation.navigate('POSTab')} />
-              ) : null}
-              <AppButton title="ملخص الوردية" variant="outline" size="sm" onPress={() => setSummaryOpen(true)} />
-              {canCloseShift ? (
-                <AppButton title="إغلاق الوردية" variant="secondary" size="sm" onPress={() => setCloseSheet(true)} />
-              ) : null}
-            </View>
+        <View style={[ds.surfaceCard, { padding: spacing.lg, gap: spacing.md }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' }}>
+            <AppBadge label={`وردية #${myShift.shift_no ?? '—'}`} tone="info" />
+            <AppBadge label={activeBranch?.name ?? 'الفرع'} tone="neutral" />
           </View>
-
-          {totals ? (
-            <>
-              <Text style={ds.sectionLabel}>ملخص الوردية</Text>
-              <View style={ds.kpiGrid}>
-                <DashboardKpiCard label="مبيعات نقدية" value={money(numFromApi(totals.cash_sales))} icon="payments" tone="success" index={0} />
-                <DashboardKpiCard label="غير نقدية" value={money(numFromApi(totals.non_cash_sales))} icon="credit-card" tone="accent" index={1} />
-                <DashboardKpiCard label="إجمالي المبيعات" value={money(numFromApi(totals.gross_sales))} icon="shopping-cart" tone="info" index={2} />
-                <DashboardKpiCard
-                  label="المستردات"
-                  value={money(numFromApi(totals.total_refunds))}
-                  hint={`${numberText(totals.refund_count ?? 0)} عملية`}
-                  icon="undo"
-                  tone="warning"
-                  index={3}
-                />
-                <DashboardKpiCard label="المصروفات" value={money(numFromApi(totals.total_expenses))} icon="receipt" tone="danger" index={4} />
-                <DashboardKpiCard
-                  label="النقد المتوقع في الدرج"
-                  value={money(numFromApi(totals.expected_cash))}
-                  icon="account-balance-wallet"
-                  tone="success"
-                  index={5}
-                />
-                <DashboardKpiCard label="إيداعات نقدية" value={money(numFromApi(totals.cash_deposits))} icon="arrow-downward" tone="info" index={6} />
-                <DashboardKpiCard label="سحوبات نقدية" value={money(numFromApi(totals.cash_withdrawals))} icon="arrow-upward" tone="warning" index={7} />
-              </View>
-            </>
-          ) : !loading ? (
-            <Text style={ds.emptyText}>تعذر تحميل ملخص الوردية التفصيلي.</Text>
-          ) : null}
-        </>
+          <Text style={[ds.sectionHint, { ...ds.sectionHint }]}>
+            {myShift.vault?.name ?? 'خزينة'}
+            {myShift.opened_at
+              ? ` · افتتحت ${new Date(myShift.opened_at).toLocaleString('ar-EG-u-nu-latn')}`
+              : ''}
+          </Text>
+          <Text style={ds.sectionTitle}>
+            رصيد افتتاحي: <Text style={{ fontWeight: '800' }}>{money(numFromApi(myShift.starting_cash))}</Text>
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {canPos ? (
+              <AppButton title="فتح نقطة البيع" size="sm" onPress={() => navigation.navigate('POSTab')} />
+            ) : null}
+            {canCloseShift ? (
+              <AppButton title="إغلاق الوردية" variant="secondary" size="sm" onPress={() => setCloseSheet(true)} />
+            ) : null}
+          </View>
+        </View>
       ) : null}
 
       <OpenShiftSheet
@@ -260,13 +201,6 @@ export function CashierDashboardView({ shell, navigation }: Props) {
           setCloseSheet(false);
           void load();
         }}
-      />
-
-      <ShiftSummarySheet
-        visible={summaryOpen}
-        shiftId={myShift?.id ?? null}
-        branchId={branchId ?? myShift?.branch_id ?? null}
-        onClose={() => setSummaryOpen(false)}
       />
     </View>
   );

@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ListScreenLayout } from '@/components/layout';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { AppBadge, AppCard, AppDomainCard, AppSectionHeader, AppText as Text } from '@/components/ui';
 import { get } from '@/api/client';
 import { useColors } from '@/hooks/useColors';
-import { flexRow, textLtr, textStart } from '@/constants/layout';
+import { flexRow, textStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';

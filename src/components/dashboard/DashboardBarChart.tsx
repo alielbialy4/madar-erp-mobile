@@ -1,18 +1,15 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
 import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { typography } from '@/constants/typography';
+import { flexRow, textStart } from '@/constants/layout';
 import { Text } from '@/components/ui/AppText';
 import { money } from '@/utils/format';
 import { DashboardSection } from './DashboardSection';
 
-type BarItem = {
-  label: string;
-  value: number;
-};
+type BarItem = { label: string; value: number };
 
 type Props = {
   title: string;
@@ -24,59 +21,37 @@ type Props = {
 
 export function DashboardBarChart({ title, hint, data, icon = 'chart-bar', iconTone = 'accent' }: Props) {
   const c = useColors();
-
   if (!data.length) return null;
-
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const barColor = c.accent;
+  const max = Math.max(...data.map((item) => Math.abs(item.value)), 1);
 
   return (
     <DashboardSection title={title} hint={hint} icon={icon} iconTone={iconTone}>
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        <BarChart
-          data={data.map((d, i) => ({
-            value: d.value,
-            label: d.label,
-            frontColor: barColor + (i % 2 === 0 ? '' : 'AA'),
-            topLabelComponent: () => (
-              <Text style={[styles.barTopLabel, { color: c.text }]} numberOfLines={1}>
-                {money(d.value)}
-              </Text>
-            ),
-            topLabelContainerStyle: { marginBottom: 4 },
-          }))}
-          barWidth={Math.max(20, Math.min(40, 280 / data.length - 4))}
-          spacing={8}
-          roundedTop
-          roundedBottom={false}
-          noOfSections={4}
-          maxValue={maxValue * 1.15}
-          yAxisThickness={0}
-          xAxisThickness={StyleSheet.hairlineWidth}
-          xAxisColor={c.borderSubtle}
-          yAxisTextStyle={{ color: c.textCaption, fontSize: 10, fontFamily: fonts.regular }}
-          xAxisLabelTextStyle={{ color: c.textCaption, fontSize: 10, fontFamily: fonts.regular, writingDirection: 'rtl' }}
-          showVerticalLines={false}
-          isAnimated
-          animationDuration={600}
-          labelWidth={50}
-          height={140}
-          rotateLabel={data.length > 4}
-        />
+      <View style={[styles.surface, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}> 
+        {data.map((item, index) => (
+          <View key={`${item.label}-${index}`} style={[styles.row, index < data.length - 1 && { borderBottomColor: c.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth }]}> 
+            <View style={styles.copy}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: c.text }]} numberOfLines={1}>{item.label}</Text>
+                <Text style={[styles.value, { color: c.text }]} numberOfLines={1}>{money(item.value)}</Text>
+              </View>
+              <View style={[styles.track, { backgroundColor: c.surfaceMuted }]}> 
+                <View style={[styles.fill, { width: `${Math.max(item.value !== 0 ? 3 : 0, (Math.abs(item.value) / max) * 100)}%`, backgroundColor: item.value < 0 ? c.danger : c.primary }]} />
+              </View>
+            </View>
+          </View>
+        ))}
       </View>
     </DashboardSection>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.xxl,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: spacing.md,
-    overflow: 'hidden',
-  },
-  barTopLabel: {
-    fontSize: 9,
-    fontFamily: fonts.bold,
-  },
+  surface: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  row: { ...flexRow, minHeight: 58, alignItems: 'center', padding: spacing.md },
+  copy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  labelRow: { ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  label: { ...textStart, flex: 1, fontFamily: fonts.bold, fontSize: typography.small },
+  value: { fontFamily: fonts.extraBold, fontSize: typography.caption, writingDirection: 'rtl' },
+  track: { height: 5, borderRadius: radius.pill, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: radius.pill },
 });

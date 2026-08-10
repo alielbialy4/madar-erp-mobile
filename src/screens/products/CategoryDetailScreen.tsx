@@ -61,6 +61,11 @@ export function CategoryDetailScreen({ route, navigation }: { route: Route; navi
     }, [load]),
   );
 
+  const contentStyle = useMemo(
+    () => [styles.content, isTablet && styles.contentTablet],
+    [isTablet],
+  );
+
   if (!rawId) {
     return (
       <AppScreen title="خطأ" onBack={navigation.goBack}>
@@ -88,11 +93,6 @@ export function CategoryDetailScreen({ route, navigation }: { route: Route; navi
   const isInitialLoad = loading && !category;
   const screenTitle = category?.name ?? route.params?.name ?? 'تفاصيل التصنيف';
   const detailFields = category ? buildCategoryDetailFields(category) : [];
-
-  const contentStyle = useMemo(
-    () => [styles.content, isTablet && styles.contentTablet],
-    [isTablet],
-  );
 
   return (
     <>

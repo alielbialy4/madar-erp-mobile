@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
@@ -164,51 +165,51 @@ const styles = StyleSheet.create({
     marginTop: 2,
     paddingTop: 4,
     borderTopWidth: 2,
-    borderTopColor: '#111',
+    borderTopColor: designColors.dark,
   },
   sectionTitle: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 3,
   },
   table: {
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: designColors.darkBorder,
     marginBottom: 4,
   },
   row: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: designColors.darkBorder,
   },
   headerRow: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: designColors.graySoft,
   },
   cell: {
     borderRightWidth: 1,
-    borderRightColor: '#222',
+    borderRightColor: designColors.darkBorder,
     paddingVertical: 2,
     paddingHorizontal: 1,
     minHeight: 0,
   },
   cellText: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
   },
   itemName: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '400',
     textAlign: 'right',
   },
   lineDesc: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'right',
     marginTop: 1,
   },
   lineExtra: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'right',
     marginTop: 1,

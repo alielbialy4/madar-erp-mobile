@@ -6,7 +6,7 @@ import type { CartLine } from '@/store/posStore';
 
 type ProductRef = { id: number; name: string; category_id?: number | null };
 
-export function useServerKitchenPrintQueue(settings: Record<string, unknown> | null | undefined): boolean {
+export function isServerKitchenPrintQueueEnabled(settings: Record<string, unknown> | null | undefined): boolean {
   const v = settings?.use_server_kitchen_print_queue;
   return v === true || v === 1 || v === '1';
 }
@@ -25,7 +25,7 @@ export async function printKitchenFromCart(input: {
     return { ok: false, message: 'السلة فارغة.' };
   }
 
-  if (useServerKitchenPrintQueue(catalogSettings)) {
+  if (isServerKitchenPrintQueueEnabled(catalogSettings)) {
     return {
       ok: true,
       message: 'طباعة المطبخ مفعّلة عبر طابور السيرفر — لن تُرسل نسخة محلية من الجهاز.',

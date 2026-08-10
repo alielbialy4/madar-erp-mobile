@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,7 +51,7 @@ export function LoginScreen() {
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        safe: { flex: 1, backgroundColor: '#FFFFFF' },
+        safe: { flex: 1, backgroundColor: designColors.white },
         flex: { flex: 1 },
         row: { flexDirection: 'row', flex: 1 },
         column: { flex: 1 },
@@ -130,7 +131,6 @@ export function LoginScreen() {
               automaticallyAdjustKeyboardInsets
             >
               <View style={styles.formSection}>{formPanel}</View>
-              {keyboardOpen ? null : <LoginHeroPanel compact />}
             </ScrollView>,
           )
         )}

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View , Platform } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppInlineAlert } from '@/components/feedback';
 import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppText as Text } from '@/components/ui';
@@ -18,7 +18,6 @@ import {
 } from '@/services/printing/androidNativeThermalPrinter';
 import { testTcpConnection } from '@/services/printing/networkTcpPrinter';
 import { testReceiptCapture } from '@/services/printing/receiptCaptureTest';
-import { Platform } from 'react-native';
 import { usePrintStore } from '@/store/printStore';
 import { useBranchStore } from '@/store/branchStore';
 import type { PrinterProfile } from '@/types/printing';

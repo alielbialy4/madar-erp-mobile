@@ -1,6 +1,5 @@
 import React, { PropsWithChildren, RefObject } from 'react';
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_HEADER_HEIGHT, OFFLINE_BANNER_HEIGHT } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
@@ -59,17 +58,7 @@ export function AppScreen({ title, subtitle, onBack, scroll = true, refreshing, 
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: '#F1F5F9' }]}>
-      {/* Mesh gradient background — iOS only */}
-      {Platform.OS === 'ios' ? (
-        <LinearGradient
-          colors={[c.meshGradient1, c.meshGradient2, c.meshGradient3, '#F8FAFC']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          locations={[0, 0.33, 0.66, 1]}
-        />
-      ) : null}
+    <View style={[styles.root, { backgroundColor: c.background }]}> 
       <SafeAreaView style={styles.safeArea} edges={edges}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}

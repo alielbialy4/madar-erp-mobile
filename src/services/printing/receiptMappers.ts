@@ -28,7 +28,7 @@ export type CheckoutReceiptInput = {
   change?: number;
   balance?: number;
   paymentType: string;
-  paymentBreakdown?: Array<{ label: string; amount: number }>;
+  paymentBreakdown?: { label: string; amount: number }[];
   couponCode?: string | null;
   couponDiscount?: number;
   notes?: string | null;
@@ -108,7 +108,7 @@ export function mapSalePrintResponseToPayload(
       mode?: string;
       document_number?: string | null;
       reference_invoice_number?: string | null;
-      lines?: Array<Record<string, unknown>>;
+      lines?: Record<string, unknown>[];
       totals?: Record<string, unknown>;
     } | null;
   },
@@ -128,7 +128,7 @@ export function mapSalePrintResponseToPayload(
   const showSubtotal = store.allow_pos_discount !== false || store.allow_pos_coupon !== false;
 
   const paymentBreakdown = Array.isArray(sale.payment_breakdown)
-    ? (sale.payment_breakdown as Array<{ payment_method?: string; amount?: number | string; label?: string }>).map(
+    ? (sale.payment_breakdown as { payment_method?: string; amount?: number | string; label?: string }[]).map(
         (line) => ({
           label: line.label ?? getPaymentPrintLabel(String(line.payment_method ?? '')),
           amount: Number(line.amount ?? 0),
@@ -175,7 +175,7 @@ export function mapSalePrintResponseToPayload(
         line_total: Number(item.subtotal ?? 0),
         category_name: category?.name ?? null,
         options: Array.isArray(item.options)
-          ? (item.options as Array<{ group_title?: string; options?: Array<{ name?: string; applied_price?: number }> }>).map(
+          ? (item.options as { group_title?: string; options?: { name?: string; applied_price?: number }[] }[]).map(
               (g) => ({
                 group_title: String(g.group_title ?? ''),
                 options: (g.options ?? []).map((o) => ({

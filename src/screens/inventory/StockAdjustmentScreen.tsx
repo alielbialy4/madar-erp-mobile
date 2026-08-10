@@ -2,21 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
-import { AppScreen } from '@/components/layout';
-import { InventoryHero } from '@/components/inventory/InventoryHero';
+import { AppScreen, FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms/FormSection';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
 import { BatchPickerSheet } from '@/components/inventory/BatchPickerSheet';
 import { InventoryLineItemCard, lineTotal } from '@/components/inventory/InventoryLineItemCard';
 import { stockCountLineKey } from '@/services/inventory/stockCountLines';
 import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
-import { ProductFormSection } from '@/components/products/ProductFormSection';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
-import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
-import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 import type { MoreStackParamList } from '@/types/navigation';
 import { Text } from '@/components/ui/AppText';
@@ -184,36 +182,60 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
     );
   }
 
-  return (
-    <AppScreen title="تسوية مخزون" onBack={navigation.goBack} scroll contentStyle={{ padding: 0 }}>
-      <View style={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <InventoryHero
-            eyebrow="عملية مخزون"
-            title="تسوية الكميات"
-            subtitle="إضافة أو خصم مخزون مع سبب واضح — يمكن ترحيل التسوية بعد المراجعة."
-            stats={[
-              { label: 'أصناف', value: items.length },
-              { label: 'النوع', value: type === 'addition' ? 'إضافة' : 'خصم' },
-            ]}
-          />
-        </View>
+  const reasonLabel = reasonOptions.find((option) => option.value === reason)?.label ?? reason;
+  const typeLabel = type === 'addition' ? 'إضافة' : 'خصم';
 
-        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: spacing.md }}>
-          <ProductFormSection title="بيانات التسوية" subtitle="المخزن والنوع والسبب" icon="edit">
+  return (
+    <FormScreenLayout
+      title="تسوية مخزون"
+      subtitle={createdId ? 'مسودة جاهزة للمراجعة والترحيل' : 'تصحيح مضبوط للكميات الدفترية'}
+      onBack={navigation.goBack}
+      heroTitle={createdId ? 'التسوية جاهزة للترحيل' : 'بناء مسودة التسوية'}
+      heroSubtitle={
+        createdId
+          ? 'تم حفظ بيانات التسوية. راجع الملخص ثم رحّلها فقط عندما تكون مستعدًا لتحديث الأرصدة.'
+          : 'حدد المخزن ونوع التصحيح وسببه، ثم أضف الأصناف والكميات المطلوبة.'
+      }
+      heroAmount={`${items.length} صنف`}
+      saveLabel={createdId ? 'ترحيل وتحديث الأرصدة' : 'مراجعة وإنشاء المسودة'}
+      onSave={() => createdId ? setPostConfirmVisible(true) : setConfirmVisible(true)}
+      saveLoading={submitting}
+      saveDisabled={submitting || (!createdId && !canSubmit)}
+      cancelLabel={createdId ? 'العودة للسجل' : 'إلغاء'}
+      onCancel={navigation.goBack}
+    >
+      <AppBanner
+        tone={createdId ? 'warning' : 'info'}
+        message={
+          createdId
+            ? 'الترحيل إجراء نهائي يغيّر أرصدة المخزون. راجع النوع والسبب والكميات قبل المتابعة.'
+            : 'إنشاء المسودة لا يغيّر المخزون. الأثر الفعلي يحدث فقط عند ترحيل التسوية.'
+        }
+      />
+
+      {createdId ? (
+        <FormSection title="ملخص المسودة" subtitle="هذه هي البيانات المحفوظة في التسوية المنشأة" icon="fact-check">
+          <Text style={ui.hint}>النوع: {typeLabel}</Text>
+          <Text style={ui.hint}>السبب: {reasonLabel}</Text>
+          <Text style={ui.hint}>عدد الأصناف: {items.length}</Text>
+          <Text style={ui.successInline}>تم إنشاء المسودة بنجاح</Text>
+        </FormSection>
+      ) : (
+        <>
+          <FormSection title="نطاق التسوية" subtitle="المخزن ونوع التصحيح والسبب التشغيلي" icon="edit">
             <AppSelect label="المخزن" value={warehouseId} options={warehouses} onChange={setWarehouseId} />
             <AppSelect label="النوع" value={type} options={typeOptions} onChange={setType} />
             <AppSelect label="السبب" value={reason} options={reasonOptions} onChange={setReason} />
-          </ProductFormSection>
+          </FormSection>
 
-          <ProductFormSection title="إضافة منتجات" subtitle="ابحث ثم اضغط لإضافة الصنف" icon="search">
+          <FormSection title="إضافة الأصناف" subtitle="ابحث ثم اضغط لإضافة الصنف إلى المسودة" icon="search">
             <InventoryProductSearch onSelect={addProduct} />
-          </ProductFormSection>
+          </FormSection>
 
           {items.length === 0 ? (
-            <AppEmptyState title="لم يتم إضافة منتجات" message="ابحث عن منتج وأضفه للقائمة" />
+            <AppEmptyState title="لم تضف أصنافًا بعد" message="أضف صنفًا واحدًا على الأقل لبناء التسوية." />
           ) : (
-            <ProductFormSection title={`الأصناف (${items.length})`} icon="inventory-2">
+            <FormSection title={`الأصناف (${items.length})`} subtitle="راجع الكمية والتكلفة لكل صنف" icon="inventory-2">
               {items.map((item, index) => (
                 <InventoryLineItemCard
                   key={item.key}
@@ -243,6 +265,7 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
                           setItems(items.map((row, i) => (i === index ? { ...row, quantity: v } : row)))
                         }
                         keyboardType="numeric"
+                        error={Number(item.quantity) > 0 ? undefined : 'أدخل كمية أكبر من صفر'}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -253,38 +276,22 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
                           setItems(items.map((row, i) => (i === index ? { ...row, unit_cost: v } : row)))
                         }
                         keyboardType="numeric"
+                        error={Number(item.unit_cost) >= 0 ? undefined : 'لا يمكن أن تكون التكلفة سالبة'}
                       />
                     </View>
                   </View>
                 </InventoryLineItemCard>
               ))}
-            </ProductFormSection>
+            </FormSection>
           )}
-
-          {!createdId ? (
-            <AppButton
-              title="مراجعة وإرسال"
-              onPress={() => setConfirmVisible(true)}
-              disabled={!canSubmit}
-              loading={submitting}
-            />
-          ) : (
-            <View style={{ gap: spacing.md }}>
-              <Text style={ui.successInline}>
-                تم إنشاء التسوية — يمكنك ترحيلها لتحديث الأرصدة
-              </Text>
-              <AppButton title="ترحيل التسوية" onPress={() => setPostConfirmVisible(true)} loading={submitting} />
-              <AppButton title="رجوع" variant="secondary" onPress={navigation.goBack} />
-            </View>
-          )}
-        </View>
-      </View>
+        </>
+      )}
 
       <ConfirmDialog
         visible={confirmVisible}
-        title="تأكيد التسوية"
-        message={`تسوية ${type === 'addition' ? 'إضافة' : 'خصم'} — ${reasonOptions.find((r) => r.value === reason)?.label} — ${items.length} صنف.`}
-        confirmLabel="تأكيد"
+        title="إنشاء مسودة التسوية"
+        message={`تسوية ${typeLabel} — ${reasonLabel} — ${items.length} صنف. لن تتغير الأرصدة قبل الترحيل.`}
+        confirmLabel="إنشاء المسودة"
         onConfirm={() => void handleSubmit()}
         onCancel={() => setConfirmVisible(false)}
       />
@@ -315,6 +322,6 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
           );
         })()
       ) : null}
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

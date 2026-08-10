@@ -1,7 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
 import { AppSkeleton, AppSkeletonCard } from '@/components/ui/AppSkeleton';
-import { AppSkeletonList } from './AppSkeletonList';
 import { spacing } from '@/constants/spacing';
 
 /** KPI row skeleton for dashboard / report heroes */
@@ -38,5 +37,3 @@ export function AppSkeletonDetailHero() {
     </View>
   );
 }
-
-export { AppSkeletonList };

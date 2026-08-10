@@ -6,7 +6,7 @@ import { getAllowedModesForMoreScreen, getAllowedModesForWebRoute } from './view
 import type { MoreStackParamList } from '@/types/navigation';
 import { ParityModuleScreen } from '@/screens/shared/ParityModuleScreen';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function guardMoreScreen<K extends keyof MoreStackParamList>(
   screen: K,
   Component: React.ComponentType<any>,

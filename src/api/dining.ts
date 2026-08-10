@@ -8,7 +8,7 @@ export interface TableOrderDraftItem {
   unit_price: number;
   discount?: number;
   variant_id?: string | null;
-  selected_options?: Array<{ product_option_group_id: number; option_ids: number[] }>;
+  selected_options?: { product_option_group_id: number; option_ids: number[] }[];
   client_cart_line_id?: string | null;
   kitchen_route_type?: 'screen' | 'printer' | 'none' | null;
   kitchen_station_id?: string | null;
@@ -40,7 +40,7 @@ export const diningAPI = {
   getTable: (tableId: string) => get(`/tables/${tableId}`),
   getActiveOrder: (tableId: string) => get(`/pos/tables/${tableId}/order`),
   syncOrderDraft: (tableId: string, payload: TableOrderDraftPayload) => put(`/pos/tables/${tableId}/order/draft`, payload),
-  settleOrder: (tableId: string, payload: Partial<SalePayload>) => post(`/pos/tables/${tableId}/order/settle`, payload),
+  settleOrder: (tableId: string, payload: Partial<SalePayload> & { client_op_id?: string }) => post(`/pos/tables/${tableId}/order/settle`, payload),
   transferOrder: (sourceTableId: string, targetTableId: string) => post(`/pos/tables/${sourceTableId}/transfer`, { target_table_id: targetTableId }),
   mergeOrder: (sourceTableId: string, targetTableId: string) => post(`/pos/tables/${sourceTableId}/merge`, { target_table_id: targetTableId }),
   unmergeOrder: (targetTableId: string, sourceTableId: string) =>

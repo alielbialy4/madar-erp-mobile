@@ -119,24 +119,23 @@ export function BranchKitchenRoutingScreen({ navigation, route }: Props) {
     setSelectedProductIds([]);
   }, [search]);
 
-  const stations = snapshot?.stations ?? [];
-  const printers = snapshot?.printers ?? [];
   const summary = snapshot?.routing_summary;
+  const printers = snapshot?.printers ?? [];
 
   const stationOptions: SelectOption[] = useMemo(
     () => [
       { label: '— بدون محطة —', value: '' },
-      ...stations.filter((s) => s.is_active).map((s) => ({ label: s.name, value: s.id })),
+      ...(snapshot?.stations ?? []).filter((s) => s.is_active).map((s) => ({ label: s.name, value: s.id })),
     ],
-    [stations],
+    [snapshot?.stations],
   );
 
   const printerOptions: SelectOption[] = useMemo(
     () => [
       { label: '— اختر طابعة سيرفر —', value: '' },
-      ...printers.filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id })),
+      ...(snapshot?.printers ?? []).filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id })),
     ],
-    [printers],
+    [snapshot?.printers],
   );
 
   const localProfileOptions: SelectOption[] = useMemo(

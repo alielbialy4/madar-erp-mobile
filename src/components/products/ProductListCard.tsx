@@ -173,10 +173,10 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
     titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
     priceRow: { ...textStart, ...flexRow, alignItems: 'baseline', gap: spacing.sm, marginTop: spacing.xs },
     priceMain: {
-      fontSize: typography.cardTitle,
+      fontSize: typography.body,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
-      color: c.accent,
+      color: c.text,
       writingDirection: 'rtl',
     },
     priceMainCompact: {
@@ -190,7 +190,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       writingDirection: 'rtl',
     },
     compactPressable: {
-      paddingBottom: spacing.sm,
+      minHeight: 76,
     },
     compactThumb: {
       width: 48,
@@ -200,6 +200,10 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
     gridCard: {
       flex: 1,
       marginBottom: 0,
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
     },
     gridPressable: {
       padding: spacing.md,
@@ -232,7 +236,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontSize: typography.body,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
-      color: c.accent,
+      color: c.text,
       writingDirection: 'rtl',
     },
     gridFooter: {

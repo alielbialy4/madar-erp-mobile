@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -8,8 +7,7 @@ import { fonts } from '@/constants/fonts';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
-import { flexRow, textStart } from '@/constants/layout';
-import { apiUrlDisplayHost } from '@/config/env';
+import { textStart } from '@/constants/layout';
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
 
@@ -22,6 +20,10 @@ type Props = {
 
 function splitMessage(message: string): { summary: string; detail: string | null } {
   const trimmed = message.trim();
+  const latinCharacters = (trimmed.match(/[A-Za-z]/g) ?? []).length;
+  if (latinCharacters > trimmed.length * 0.35) {
+    return { summary: 'تعذر تحميل البيانات المطلوبة.', detail: trimmed };
+  }
   if (trimmed.length <= 96) return { summary: trimmed, detail: null };
   const firstPeriod = trimmed.indexOf('. ');
   if (firstPeriod > 0 && firstPeriod < 120) {
@@ -45,23 +47,17 @@ export function AppErrorState({
   const c = useColors();
   const { summary, detail } = useMemo(() => splitMessage(message), [message]);
   const isNetwork = /اتصال|خادم|EXPO_PUBLIC_API_URL|انتهت مهلة/i.test(message);
-  const host = apiUrlDisplayHost();
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[c.danger + '20', c.danger + '08', 'transparent']}
-        style={styles.iconBg}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={[styles.iconBg, { backgroundColor: c.softDanger, borderColor: c.softDangerBorder }]}>
         <AppIcon
           name={(isNetwork ? 'cloud-slash' : 'warning-octagon') as IconName}
-          size={36}
-          weight="duotone"
+          size={28}
+          weight="regular"
           color={c.danger}
         />
-      </LinearGradient>
+      </View>
 
       <View style={styles.textBlock}>
         <AppText style={{
@@ -79,15 +75,6 @@ export function AppErrorState({
           writingDirection: 'rtl',
           lineHeight: 24,
         }}>{summary}</AppText>
-
-        {isNetwork ? (
-          <View style={[styles.hostBox, { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle }, flexRow]}>
-            <AppIcon name="hard-drives" size={18} color={c.textMuted} />
-            <AppText style={{ ...textStart, flex: 1, fontSize: typography.small, fontFamily: fonts.bold, color: c.textMuted }}>
-              {host}
-            </AppText>
-          </View>
-        ) : null}
 
         {detail ? (
           <ScrollView
@@ -112,38 +99,27 @@ export function AppErrorState({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    width: '100%',
+    minHeight: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
   },
   iconBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   textBlock: {
     width: '100%',
     maxWidth: 400,
     gap: spacing.sm,
     alignItems: 'center',
-  },
-  hostBox: {
-    width: '100%',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   detailBox: {
     width: '100%',

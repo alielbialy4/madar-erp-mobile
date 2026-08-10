@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, ViewStyle } from 'react-native';
+import { View, ViewStyle, StyleSheet, useWindowDimensions } from 'react-native';
 import { AppScreen } from './AppScreen';
 import { ModuleHero, type ModuleHeroStat } from './ModuleHero';
 import { AppSearchField } from '@/components/ui/AppSearchField';
 import { AppFAB } from '@/components/ui/AppFAB';
 import { spacing } from '@/constants/spacing';
+import { useColors } from '@/hooks/useColors';
+import { getProductLayoutTier, isProductTablet } from '@/constants/productLayout';
 
 type Props = {
   title: string;
@@ -22,6 +24,7 @@ type Props = {
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
   filters?: React.ReactNode;
+  commandsInlineOnPhone?: boolean;
   headerRight?: React.ReactNode;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -40,6 +43,7 @@ export function ListScreenLayout({
   onSearchChange,
   searchPlaceholder,
   filters,
+  commandsInlineOnPhone = false,
   headerRight,
   onRefresh,
   refreshing,
@@ -48,6 +52,12 @@ export function ListScreenLayout({
   noHeader,
   onBack,
 }: Props) {
+  const c = useColors();
+  const { width } = useWindowDimensions();
+  const tablet = isProductTablet(getProductLayoutTier(width));
+  const inlineCommands = tablet || commandsInlineOnPhone;
+  const hasCommands = (onSearchChange != null && searchValue != null) || Boolean(filters);
+
   return (
     <AppScreen
       title={title}
@@ -60,26 +70,60 @@ export function ListScreenLayout({
       refreshing={refreshing}
       contentStyle={{ padding: 0, gap: spacing.md, ...(contentStyle ?? {}) }}
     >
-      <View style={{ flex: 1, gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
+      <View style={styles.root}>
         {hero ? (
-          <ModuleHero
-            eyebrow={hero.eyebrow}
-            title={hero.title ?? title}
-            subtitle={hero.subtitle ?? subtitle}
-            stats={hero.stats}
-            actions={hero.actions}
-            compact={hero.compact}
-            onRefresh={onRefresh}
-            refreshing={refreshing}
-          />
+          <View style={styles.horizontalInset}>
+            <ModuleHero
+              eyebrow={hero.eyebrow}
+              title={hero.title ?? title}
+              subtitle={hero.subtitle ?? subtitle}
+              stats={hero.stats}
+              actions={hero.actions}
+              compact={hero.compact}
+              onRefresh={onRefresh}
+              refreshing={refreshing}
+            />
+          </View>
         ) : null}
-        {onSearchChange != null && searchValue != null ? (
-          <AppSearchField value={searchValue} onChangeText={onSearchChange} placeholder={searchPlaceholder ?? 'بحث...'} />
+        {hasCommands ? (
+          <View
+            style={[
+              styles.commandBar,
+              inlineCommands && styles.commandBarTablet,
+              { backgroundColor: c.surface, borderColor: c.borderSubtle },
+            ]}
+          >
+            {onSearchChange != null && searchValue != null ? (
+              <View style={[styles.searchSlot, inlineCommands && styles.searchSlotTablet]}>
+                <AppSearchField compact value={searchValue} onChangeText={onSearchChange} placeholder={searchPlaceholder ?? 'بحث...'} />
+              </View>
+            ) : null}
+            {filters ? <View style={[styles.filtersSlot, inlineCommands && styles.filtersSlotTablet]}>{filters}</View> : null}
+          </View>
         ) : null}
-        {filters ? <View style={{ gap: spacing.sm }}>{filters}</View> : null}
-        <View style={{ flex: 1 }}>{children}</View>
+        <View style={styles.content}>{children}</View>
       </View>
       {fab ? <AppFAB onPress={fab.onPress} icon={fab.icon} accessibilityLabel={fab.label ?? 'إضافة'} /> : null}
     </AppScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, gap: spacing.sm, paddingTop: spacing.xs },
+  horizontalInset: { paddingHorizontal: spacing.lg },
+  commandBar: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 1,
+  },
+  commandBarTablet: { flexDirection: 'row', alignItems: 'flex-start' },
+  searchSlot: { width: '100%', minWidth: 0, flexGrow: 0, flexShrink: 0 },
+  searchSlotTablet: { width: 'auto', flex: 1, minWidth: 220 },
+  filtersSlot: { width: '100%', gap: spacing.sm, flexGrow: 0, flexShrink: 0 },
+  filtersSlotTablet: { width: 'auto', flexShrink: 1 },
+  content: { flex: 1, minHeight: 0 },
+});

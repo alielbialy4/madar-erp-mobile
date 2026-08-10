@@ -1,4 +1,5 @@
 import type { InventoryBalance, ListParams, Warehouse } from '@/types/api';
+import { normalizeExpiryStockParams } from '@/utils/normalizeInventoryQuery';
 import { del, get, post, put } from './client';
 
 export type { InventoryBalance };
@@ -7,7 +8,7 @@ export const inventoryAPI = {
   warehouses: () => get<Warehouse[]>('/inventory/warehouses'),
   balances: (params?: ListParams) => get<InventoryBalance[]>('/inventory/balances', params),
   products: (params?: ListParams) => get('/inventory/products', params),
-  expiryStock: (params?: ListParams) => get('/inventory/expiry-stock', params),
+  expiryStock: (params?: ListParams) => get('/inventory/expiry-stock', normalizeExpiryStockParams(params)),
   movements: (params?: ListParams) => get('/inventory/movements', params),
   seedBalances: () => post('/inventory/seed-balances'),
   createStockTransfer: (payload: unknown) => post('/stock-transfers', payload),

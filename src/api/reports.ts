@@ -1,6 +1,6 @@
 import { del, get, postBlob } from './client';
 
-export type ReportQueryParams = Record<string, string | number | boolean | undefined>;
+export type ReportQueryParams = Record<string, string | number | boolean | (string | number)[] | undefined>;
 
 export const reportsAPI = {
   dailySales: (date?: string) => get('/reports/daily-sales', { date }),
@@ -24,6 +24,10 @@ export const reportsAPI = {
   inventoryValuation: (params?: ReportQueryParams) => get('/reports/inventory/valuation', params),
   salesSummary: (params: { branch_id?: string; from_date: string; to_date: string; group_by?: 'product' | 'category' | 'customer' }) =>
     get('/reports/sales/summary', params),
+  salesByProduct: (params?: ReportQueryParams) => get('/reports/sales/by-product', params),
+  salesProductDetail: (params?: ReportQueryParams) => get('/reports/sales/product-detail', params),
+  salesByCategory: (params?: ReportQueryParams) => get('/reports/sales/by-category', params),
+  salesCategoryDetail: (params?: ReportQueryParams) => get('/reports/sales/category-detail', params),
   salesDashboard: (params: { branch_id?: string; from_date: string; to_date: string }) =>
     get('/reports/sales/dashboard', params),
   treasurySummary: (params?: ReportQueryParams) => get('/reports/treasury/summary', params),
@@ -62,7 +66,9 @@ export const reportsAPI = {
   savedDelete: (id: string) => del(`/reports/saved/${id}`),
   refunds: (params?: ReportQueryParams) => get('/reports/refunds', params),
   salesReturnsByProduct: (params?: ReportQueryParams) => get('/reports/sales-returns-by-product', params),
+  salesReturnsByCategory: (params?: ReportQueryParams) => get('/reports/sales-returns-by-category', params),
   purchaseReturnsByProduct: (params?: ReportQueryParams) => get('/reports/purchase-returns-by-product', params),
+  purchaseReturnsByCategory: (params?: ReportQueryParams) => get('/reports/purchase-returns-by-category', params),
   tax: (params?: ReportQueryParams) => get('/reports/tax', params),
   layaway: (params?: ReportQueryParams) => get('/reports/layaway', params),
   hourlySales: (params?: ReportQueryParams) => get('/reports/sales/hourly', params),
@@ -110,6 +116,8 @@ export const reportsAPI = {
   cashDrawer: (params?: ReportQueryParams) => get('/reports/cash-drawer', params),
   kitchenPerformance: (params?: ReportQueryParams) => get('/reports/kitchen-performance', params),
   offlineSync: (params?: ReportQueryParams) => get('/reports/offline-sync', params),
+  posDeviceSyncManifest: (params?: ReportQueryParams) => get('/reports/pos-device-sync-manifest', params),
+  drawerReconciliation: (params?: ReportQueryParams) => get('/reports/drawer-reconciliation', params),
   expensesReport: (params?: ReportQueryParams) => get('/reports/expenses', params),
   exportReport: (type: string, format: 'pdf' | 'excel', filters?: ReportQueryParams) => {
     const payload: Record<string, unknown> = { type, format, ...filters };

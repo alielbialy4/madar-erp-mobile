@@ -1,32 +1,30 @@
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
-import { elevation } from '@/constants/elevation';
 import { flexRow } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 
-/** Shared card-style list row chrome — used by AppListItem, AppResourceRow, AppDomainCard */
+/** Shared operational list-row chrome — grouped by rules, not floating cards. */
 export function createListRowChrome(c: AppColors) {
   return StyleSheet.create({
     card: {
       ...flexRow,
       alignItems: 'center',
       gap: spacing.md,
-      padding: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       minHeight: 56,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      borderRadius: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
       backgroundColor: c.surface,
-      ...elevation(c, 'sm'),
     },
     cardPressed: {
       backgroundColor: c.surfaceMuted,
-      borderColor: c.border,
     },
     iconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.lg,
+      width: 38,
+      height: 38,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.softPrimary,

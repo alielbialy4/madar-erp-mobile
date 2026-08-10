@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import type { ComponentProps } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { AppColors } from '@/constants/colors';
@@ -29,7 +30,7 @@ export const TOAST_ICON_CIRCLE = {
   borderColor: HERO_CHIP_BORDER_STRONG,
 } as const;
 
-export const TOAST_MESSAGE_COLOR = '#F8FAFC';
+export const TOAST_MESSAGE_COLOR = designColors.slate50;
 export const TOAST_ACTION_BG = HERO_CHIP_BG_SUBTLE;
 export const TOAST_ACTION_BORDER = HERO_CHIP_BORDER_STRONG;
 export const TOAST_ACTION_FG = HERO_MUTED_FG;

@@ -1,7 +1,10 @@
 import { storageGet, storageKeys, storageSet } from '@/services/storage';
+import { createUuid } from '@/utils/uuid';
 
 export type OfflineMutation = {
   id: string;
+  client_uuid: string;
+  idempotency_key: string;
   url: string;
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   payload?: unknown;
@@ -12,19 +15,17 @@ export type OfflineMutation = {
   last_error?: string | null;
 };
 
-function uuid(): string {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 export async function getOfflineQueue(): Promise<OfflineMutation[]> {
   return (await storageGet<OfflineMutation[]>(storageKeys.offlineQueue)) ?? [];
 }
 
-export async function enqueueOfflineMutation(input: Omit<OfflineMutation, 'id' | 'created_at_local' | 'retry_count' | 'status'>): Promise<OfflineMutation> {
+export async function enqueueOfflineMutation(input: Omit<OfflineMutation, 'id' | 'client_uuid' | 'idempotency_key' | 'created_at_local' | 'retry_count' | 'status'>): Promise<OfflineMutation> {
   const queue = await getOfflineQueue();
   const row: OfflineMutation = {
     ...input,
-    id: uuid(),
+    id: createUuid(),
+    client_uuid: createUuid(),
+    idempotency_key: createUuid(),
     created_at_local: new Date().toISOString(),
     retry_count: 0,
     status: 'pending',

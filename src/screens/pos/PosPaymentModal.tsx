@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   Modal,
@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppDatePicker, AppInput, AppSelect } from '@/components/ui';
-import type { Coupon, Customer, Vault } from '@/types/api';
+import type { Customer, FinancialAccount, PosCheckoutPaymentType } from '@/types/api';
 import { PosPaymentDeliverySection } from './PosPaymentDeliverySection';
 import type { SplitLine } from './SplitPaymentSheet';
 import {
@@ -30,7 +30,6 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { money } from '@/utils/format';
-import type { PosCheckoutPaymentType } from '@/types/api';
 
 type CouponState = { coupon: { code: string }; discount: number } | null;
 
@@ -89,8 +88,11 @@ type Props = {
   selectedCustomer: Customer | null;
   onSelectCustomer: (customer: Customer | null) => void;
   branchId?: string | null;
+  shiftVaultId?: string | null;
   onCustomerCreated: (customer: Customer) => void;
-  vaults: Vault[];
+  financialAccounts: FinancialAccount[];
+  paymentAccountId: string;
+  onPaymentAccountIdChange: (id: string) => void;
   splitLines: SplitLine[];
   onSplitLinesChange: (lines: SplitLine[]) => void;
   onConfirm: () => void;
@@ -166,8 +168,11 @@ export function PosPaymentModal({
   selectedCustomer,
   onSelectCustomer,
   branchId,
+  shiftVaultId,
   onCustomerCreated,
-  vaults,
+  financialAccounts,
+  paymentAccountId,
+  onPaymentAccountIdChange,
   splitLines,
   onSplitLinesChange,
   onConfirm,
@@ -202,7 +207,7 @@ export function PosPaymentModal({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [shellHeight, setShellHeight] = useState(height);
-  const edgeInset = spacing.xs;
+  const edgeInset = width >= 600 ? spacing.md : 0;
   const modalWidth = width - edgeInset * 2;
   const isLandscape = width > height;
   const isWideLayout = width >= 768;
@@ -211,7 +216,21 @@ export function PosPaymentModal({
   const footerSafeBottom = Math.max(insets.bottom, androidNavFallback) + spacing.md;
   const modalHeightRatio = isLandscape ? 0.88 : 0.92;
   const modalMaxHeight = Math.floor(shellHeight * modalHeightRatio);
-  const vaultsEmpty = vaults.length === 0;
+  const accountForMethod = useCallback(
+    (method: string) => financialAccounts.find((account) => account.payment_method === method
+      && account.is_active !== false
+      && account.allow_sales !== false
+      && (method !== 'cash' || !shiftVaultId || account.legacy_vault_id === shiftVaultId)),
+    [financialAccounts, shiftVaultId],
+  );
+  const accountsForMethod = useCallback(
+    (method: string) => financialAccounts.filter((account) => account.payment_method === method
+      && account.is_active !== false
+      && account.allow_sales !== false
+      && (method !== 'cash' || !shiftVaultId || account.legacy_vault_id === shiftVaultId)),
+    [financialAccounts, shiftVaultId],
+  );
+  const accountsEmpty = financialAccounts.length === 0;
   const orderScrollRef = useRef<ScrollView>(null);
   const combinedScrollRef = useRef<ScrollView>(null);
   const deliveryScrollY = useRef(0);
@@ -229,23 +248,37 @@ export function PosPaymentModal({
     if (!visible || paymentType !== 'split') return;
     if (splitLines.length >= 2) return;
     onSplitLinesChange([
-      { payment_method: 'cash', vault_id: vaults[0]?.id ?? '', amount: '' },
-      { payment_method: 'card', vault_id: vaults[1]?.id ?? vaults[0]?.id ?? '', amount: '' },
+      { payment_method: 'cash', financial_account_id: accountForMethod('cash')?.id ?? '', amount: '' },
+      { payment_method: 'card', financial_account_id: accountForMethod('card')?.id ?? '', amount: '' },
     ]);
-  }, [visible, paymentType, vaults, splitLines.length, onSplitLinesChange]);
+  }, [visible, paymentType, accountForMethod, splitLines.length, onSplitLinesChange]);
+
+  useEffect(() => {
+    if (!visible || paymentType === 'split' || paymentType === 'wallet' || paymentType === 'credit' || paymentType === 'layaway' || paymentType === 'gift_card') return;
+    if (!paymentAccountId || !accountsForMethod(paymentType).some((account) => account.id === paymentAccountId)) {
+      onPaymentAccountIdChange(accountForMethod(paymentType)?.id ?? '');
+    }
+  }, [visible, paymentType, accountForMethod, accountsForMethod, paymentAccountId, onPaymentAccountIdChange]);
 
   const splitTotalPaid = splitLines.reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
   const splitMismatch = Math.abs(splitTotalPaid - amountDue) > 0.02;
   const activeSplitLines = splitLines.filter((l) => (parseFloat(l.amount) || 0) > 0);
 
   const updateSplitLine = (index: number, field: keyof SplitLine, value: string) => {
-    onSplitLinesChange(splitLines.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
+    onSplitLinesChange(splitLines.map((l, i) => {
+      if (i !== index) return l;
+      if (field === 'payment_method') {
+        const method = value as typeof l.payment_method;
+        return { ...l, payment_method: method, financial_account_id: method === 'wallet' ? '' : accountForMethod(method)?.id ?? '' };
+      }
+      return { ...l, [field]: value };
+    }));
   };
 
   const addSplitLine = () => {
     onSplitLinesChange([
       ...splitLines,
-      { payment_method: 'card', vault_id: vaults[0]?.id ?? '', amount: '' },
+      { payment_method: 'card', financial_account_id: accountForMethod('card')?.id ?? '', amount: '' },
     ]);
   };
 
@@ -288,8 +321,11 @@ export function PosPaymentModal({
         label: 'إنستا باي',
         brandTile: { backgroundColor: c.paymentInstapayFg, textColor: c.onPrimary, title: 'InstaPay' },
       },
+      { key: 'bank_transfer', label: 'تحويل بنكي', icon: 'account-balance' },
+      { key: 'payment_gateway', label: 'بوابة دفع', icon: 'language' },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
       { key: 'layaway', label: 'تقسيط', icon: 'event' },
+      { key: 'split', label: 'دفع مقسم', icon: 'call-split' },
     ];
     return base.map((opt) => ({
       key: opt.key,
@@ -314,8 +350,14 @@ export function PosPaymentModal({
   const layawayDownPayment = Number(paid) || 0;
   const layawayRemaining = Math.max(0, layawayFinalTotal - layawayDownPayment);
 
+  const splitHasInvalidAccount = activeSplitLines.some(
+    (line) => line.payment_method !== 'wallet'
+      && !accountsForMethod(line.payment_method).some((account) => account.id === line.financial_account_id),
+  );
+  const requiresAccount = ['cash', 'card', 'electronic_wallet', 'instapay', 'bank_transfer', 'payment_gateway'].includes(paymentType);
   const confirmDisabled =
-    (paymentType === 'split' && (activeSplitLines.length < 2 || splitMismatch || vaultsEmpty)) ||
+    (paymentType === 'split' && (activeSplitLines.length < 2 || splitMismatch || accountsEmpty || splitHasInvalidAccount)) ||
+    (requiresAccount && !paymentAccountId) ||
     (paymentType === 'wallet' && (walletBalance == null || walletBalance < cashDue)) ||
     ((paymentType === 'electronic_wallet' || paymentType === 'instapay') && !isOnline) ||
     (paymentType === 'gift_card' && !isOnline) ||
@@ -351,6 +393,9 @@ export function PosPaymentModal({
   const couponDiscount = appliedCoupon?.discount ?? 0;
   const grandTotal = Math.max(0, totalBeforeLoyalty - loyaltyDiscount);
   const giftAmount = paymentType === 'gift_card' && appliedGiftCard ? appliedGiftCard.amount : 0;
+  const paidAmount = Number(paid) || 0;
+  const cashChange = paymentType === 'cash' ? Math.max(0, paidAmount - cashDue) : 0;
+  const paymentTypeLabel = paymentOptions.find((option) => option.key === paymentType)?.label ?? 'الدفع';
 
   const modalStyles = useMemo(
     () =>
@@ -371,23 +416,13 @@ export function PosPaymentModal({
           height: modalMaxHeight,
           maxHeight: modalMaxHeight,
           flexDirection: 'column',
-          borderTopLeftRadius: radius.xxxl,
-          borderTopRightRadius: radius.xxxl,
-          borderBottomLeftRadius: isWideLayout ? radius.xxxl : 0,
-          borderBottomRightRadius: isWideLayout ? radius.xxxl : 0,
+          borderTopLeftRadius: radius.xl,
+          borderTopRightRadius: radius.xl,
+          borderBottomLeftRadius: isWideLayout ? radius.xl : 0,
+          borderBottomRightRadius: isWideLayout ? radius.xl : 0,
           backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.borderSubtle,
-          ...Platform.select({
-            ios: {
-              shadowColor: c.shadow,
-              shadowOffset: { width: 0, height: -8 },
-              shadowOpacity: 0.18,
-              shadowRadius: 20,
-            },
-            android: { elevation: 16 },
-            default: {},
-          }),
         },
         headerBar: {
           flexShrink: 0,
@@ -395,23 +430,23 @@ export function PosPaymentModal({
           alignItems: 'center',
           gap: spacing.md,
           paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
+          paddingTop: spacing.md,
           paddingBottom: spacing.md,
-          borderTopLeftRadius: radius.xxxl,
-          borderTopRightRadius: radius.xxxl,
+          borderTopLeftRadius: radius.xl,
+          borderTopRightRadius: radius.xl,
           borderBottomWidth: 1,
           borderBottomColor: c.borderSubtle,
-          backgroundColor: c.surfaceMuted,
+          backgroundColor: c.surface,
           overflow: 'hidden',
         },
         headerText: { flex: 1, minWidth: 0, gap: spacing.xs },
         headerIcon: {
           width: 40,
           height: 40,
-          borderRadius: radius.lg,
-          backgroundColor: c.primarySoftMuted,
+          borderRadius: radius.md,
+          backgroundColor: c.surfaceMuted,
           borderWidth: 1,
-          borderColor: c.primarySoftBorder,
+          borderColor: c.borderSubtle,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -433,7 +468,7 @@ export function PosPaymentModal({
         closeBtn: {
           width: 40,
           height: 40,
-          borderRadius: radius.lg,
+          borderRadius: radius.md,
           borderWidth: 1,
           borderColor: c.borderSubtle,
           backgroundColor: c.surface,
@@ -449,7 +484,7 @@ export function PosPaymentModal({
         },
         mainCol: { flex: 1, minWidth: 0, minHeight: 0 },
         scroll: { flex: 1, minHeight: 0 },
-        scrollContent: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xl },
+        scrollContent: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.lg },
         footer: {
           flexShrink: 0,
           zIndex: 2,
@@ -460,16 +495,6 @@ export function PosPaymentModal({
           borderTopWidth: 1,
           borderTopColor: c.borderSubtle,
           backgroundColor: c.surface,
-          ...Platform.select({
-            ios: {
-              shadowColor: c.shadow,
-              shadowOffset: { width: 0, height: -4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-            },
-            android: { elevation: 10 },
-            default: {},
-          }),
         },
         footerErrorBanner: { marginBottom: spacing.xs },
         footerRow: { ...flexRow, gap: spacing.sm, alignItems: 'stretch' },
@@ -482,12 +507,29 @@ export function PosPaymentModal({
 
   const paymentAside = (
     <>
-      <PosTotalHero label="المبلغ المستحق" amount={money(amountDue)} hint="بعد الخصومات والنقاط وبطاقة الهدايا" />
+      <PosTotalHero label="المبلغ المطلوب تحصيله" amount={money(amountDue)} hint="القيمة النهائية بعد الخصومات" />
       <PosPaymentMethodGrid
         value={paymentType === 'gift_card' ? 'gift_card' : paymentType}
         options={paymentOptions}
         onChange={(k) => onPaymentTypeChange(k as PosCheckoutPaymentType)}
       />
+      {requiresAccount ? (
+        <PosSheetSection label="حساب التحصيل">
+          {accountsForMethod(paymentType).length === 0 ? (
+            <Text style={s.errorText}>لا يوجد حساب نشط متاح لهذه الطريقة في الفرع الحالي.</Text>
+          ) : (
+            <AppSelect
+              label="الحساب المالي"
+              value={paymentAccountId}
+              onChange={onPaymentAccountIdChange}
+              options={accountsForMethod(paymentType).map((account) => ({
+                label: [account.name, account.provider_name, account.masked_identifier].filter(Boolean).join(' · '),
+                value: account.id,
+              }))}
+            />
+          )}
+        </PosSheetSection>
+      ) : null}
       {walletText ? (
         <View style={s.walletBanner}>
           <Text style={s.walletText}>{walletText}</Text>
@@ -532,6 +574,13 @@ export function PosPaymentModal({
           {hasCustomer && !loyaltyBlockedOffline ? (
             <Text style={local.hint}>
               الرصيد: {pointsBalance ?? 0} نقطة — سعر النقطة: {money(loyaltyEgpPerPoint)}
+            </Text>
+          ) : null}
+          {paymentType === 'cash' && paidAmount > 0 ? (
+            <Text style={[local.hint, cashChange > 0 && { color: c.success, fontFamily: fonts.bold }]}>
+              {cashChange > 0
+                ? `الباقي للعميل: ${money(cashChange)}`
+                : `المتبقي للتحصيل: ${money(Math.max(0, cashDue - paidAmount))}`}
             </Text>
           ) : null}
         </PosSheetSection>
@@ -608,6 +657,36 @@ export function PosPaymentModal({
     </>
   );
 
+  const customerDeliveryPanel = (
+    <View
+      onLayout={(event) => {
+        deliveryScrollY.current = event.nativeEvent.layout.y;
+      }}
+    >
+      <PosPaymentDeliverySection
+        active={visible}
+        isOnline={isOnline}
+        branchId={branchId}
+        customers={customers}
+        selectedCustomer={selectedCustomer}
+        onSelectCustomer={onSelectCustomer}
+        onCustomerCreated={onCustomerCreated}
+        needsDelivery={needsDelivery}
+        deliveryZones={deliveryZones}
+        deliveryZoneId={deliveryZoneId}
+        onDeliveryZoneChange={onDeliveryZoneChange}
+        deliveryAddress={deliveryAddress}
+        onDeliveryAddressChange={onDeliveryAddressChange}
+        deliveryPhone={deliveryPhone}
+        onDeliveryPhoneChange={onDeliveryPhoneChange}
+        deliveryFee={deliveryFee}
+        customerOnly={!!selectedTableName}
+        needsDeliveryValue={needsDelivery}
+        onNeedsDeliveryChange={onNeedsDeliveryChange}
+      />
+    </View>
+  );
+
   const formMain = (
     <View style={s.root}>
         {selectedTableName ? (
@@ -616,41 +695,7 @@ export function PosPaymentModal({
           </PosSheetSection>
         ) : null}
 
-        <View
-          onLayout={(event) => {
-            deliveryScrollY.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <PosPaymentDeliverySection
-            active={visible}
-            isOnline={isOnline}
-            branchId={branchId}
-            customers={customers}
-            selectedCustomer={selectedCustomer}
-            onSelectCustomer={onSelectCustomer}
-            onCustomerCreated={onCustomerCreated}
-            needsDelivery={needsDelivery}
-            deliveryZones={deliveryZones}
-            deliveryZoneId={deliveryZoneId}
-            onDeliveryZoneChange={onDeliveryZoneChange}
-            deliveryAddress={deliveryAddress}
-            onDeliveryAddressChange={onDeliveryAddressChange}
-            deliveryPhone={deliveryPhone}
-            onDeliveryPhoneChange={onDeliveryPhoneChange}
-            deliveryFee={deliveryFee}
-            customerOnly={!!selectedTableName}
-            needsDeliveryValue={needsDelivery}
-            onNeedsDeliveryChange={onNeedsDeliveryChange}
-          />
-        </View>
-
-        <PosCollapsibleSection
-          label="ملخص المبالغ"
-          summary={`الإجمالي: ${money(grandTotal)}`}
-          defaultOpen={!isWideLayout}
-        >
-          {summaryContent}
-        </PosCollapsibleSection>
+        {paymentType === 'credit' || paymentType === 'layaway' ? customerDeliveryPanel : null}
 
         {paymentType === 'wallet' && walletBalance == null ? (
           <View style={s.errorBanner}>
@@ -766,8 +811,8 @@ export function PosPaymentModal({
 
         {paymentType === 'split' ? (
           <PosSheetSection label="الدفع المقسم">
-            {vaultsEmpty ? (
-              <Text style={s.errorText}>لا توجد خزنة متاحة للدفع المقسم.</Text>
+            {accountsEmpty ? (
+              <Text style={s.errorText}>لا توجد حسابات دفع متاحة للدفع المقسم.</Text>
             ) : (
               <>
                 <View style={s.splitMeter}>
@@ -809,6 +854,10 @@ export function PosPaymentModal({
                         options={[
                           { label: 'نقدي', value: 'cash' },
                           { label: 'بطاقة', value: 'card' },
+                          { label: 'محافظ إلكترونية', value: 'electronic_wallet' },
+                          { label: 'إنستا باي', value: 'instapay' },
+                          { label: 'تحويل بنكي', value: 'bank_transfer' },
+                          { label: 'بوابة دفع', value: 'payment_gateway' },
                           ...(hasCustomer ? [{ label: 'محفظة', value: 'wallet' }] : []),
                         ]}
                       />
@@ -819,12 +868,17 @@ export function PosPaymentModal({
                         onChangeText={(v) => updateSplitLine(index, 'amount', v)}
                         placeholder="0.00"
                       />
-                      <AppSelect
-                        label="الخزنة"
-                        value={item.vault_id}
-                        onChange={(v) => updateSplitLine(index, 'vault_id', v)}
-                        options={vaults.map((vault) => ({ label: vault.name, value: String(vault.id) }))}
-                      />
+                      {item.payment_method !== 'wallet' ? (
+                        <AppSelect
+                          label="حساب الدفع"
+                          value={item.financial_account_id}
+                          onChange={(v) => updateSplitLine(index, 'financial_account_id', v)}
+                          options={accountsForMethod(item.payment_method).map((account) => ({
+                            label: [account.name, account.provider_name, account.masked_identifier].filter(Boolean).join(' · '),
+                            value: account.id,
+                          }))}
+                        />
+                      ) : null}
                     </View>
                   ))}
                 </View>
@@ -833,6 +887,16 @@ export function PosPaymentModal({
             )}
           </PosSheetSection>
         ) : null}
+
+        {paymentType !== 'credit' && paymentType !== 'layaway' ? customerDeliveryPanel : null}
+
+        <PosCollapsibleSection
+          label="ملخص المبالغ"
+          summary={`الإجمالي: ${money(grandTotal)}`}
+          defaultOpen={!isWideLayout}
+        >
+          {summaryContent}
+        </PosCollapsibleSection>
 
         {allowManualDiscount || allowCoupons ? (
           <PosSheetSection label="خصومات وكوبونات">
@@ -988,14 +1052,13 @@ export function PosPaymentModal({
             {useStackFooter ? (
               <View style={modalStyles.footerStack}>
                 <AppButton
-                  title="تأكيد البيع"
+                  title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
                   onPress={onConfirm}
                   loading={loading}
                   disabled={confirmDisabled || !!loyaltyError}
                   size="xl"
                   fullWidth
                 />
-                <AppButton title="إغلاق" variant="outline" onPress={onClose} fullWidth size="lg" />
               </View>
             ) : (
               <View style={modalStyles.footerRow}>
@@ -1007,7 +1070,7 @@ export function PosPaymentModal({
                   size="lg"
                 />
                 <AppButton
-                  title="تأكيد البيع"
+                  title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
                   onPress={onConfirm}
                   loading={loading}
                   disabled={confirmDisabled || !!loyaltyError}

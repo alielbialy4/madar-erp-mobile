@@ -161,12 +161,6 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
     <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xs }}>
       <ProductsHero
         {...heroProps}
-        statsOnly
-        showActions={
-          isTablet
-            ? true
-            : Boolean(heroProps.onCategories || heroProps.onReorder)
-        }
         compact
       />
       <ProductsListToolbar
@@ -177,8 +171,7 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
         categories={categories}
         onOpenFilters={isTablet ? undefined : () => setFiltersOpen(true)}
         rawMaterialMode={isRawMaterials}
-        canManage={canManage && !isTablet}
-        onAdd={!isTablet ? heroProps.onAdd : undefined}
+        canManage={false}
         searchPlaceholder={isRawMaterials ? 'بحث بالاسم أو الكود...' : 'بحث بالاسم أو الباركود...'}
       />
     </View>
@@ -217,7 +210,7 @@ export function ProductsScreen({ navigation, route }: { navigation: Nav; route: 
         ...(isGrid ? { paddingHorizontal: spacing.md } : { paddingHorizontal: spacing.lg }),
       }}
       columnWrapperStyle={isGrid ? { gap: spacing.sm, marginBottom: spacing.sm } : undefined}
-      ItemSeparatorComponent={isGrid ? undefined : () => <View style={{ height: spacing.sm }} />}
+      ItemSeparatorComponent={isGrid ? undefined : () => <View style={{ height: 0 }} />}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={c.accent} />

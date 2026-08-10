@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
@@ -322,33 +323,33 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: '#ffffff',
+    backgroundColor: designColors.white,
     direction: 'rtl',
   },
   rootLite: {
-    backgroundColor: '#ffffff',
+    backgroundColor: designColors.white,
   },
   header: {
     alignItems: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: '#111',
+    borderBottomColor: designColors.dark,
     paddingBottom: 5,
     marginBottom: 5,
   },
   storeName: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'center',
     letterSpacing: 0.34,
   },
   headerNote: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'center',
     marginTop: 2,
   },
   offline: {
-    color: '#000',
+    color: designColors.black,
     textAlign: 'center',
     marginBottom: 4,
     fontWeight: '500',
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
   },
   metaCard: {
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: designColors.darkBorder,
     borderRadius: 4,
     paddingTop: 4,
     paddingHorizontal: 5,
@@ -371,14 +372,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#111',
+    borderTopColor: designColors.dark,
   },
   notesBox: {
     marginTop: 6,
     paddingVertical: 4,
     paddingHorizontal: 5,
     borderWidth: 1,
-    borderColor: '#999',
+    borderColor: designColors.grayLight,
     borderStyle: 'dashed',
     borderRadius: 4,
   },
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   notes: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
   },
   footer: {
@@ -395,20 +396,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingTop: 5,
     borderTopWidth: 1,
-    borderTopColor: '#999',
+    borderTopColor: designColors.grayLight,
     borderStyle: 'dashed',
   },
   footerLite: {
     borderStyle: 'solid',
   },
   footerText: {
-    color: '#000',
+    color: designColors.black,
     textAlign: 'center',
     fontWeight: '500',
     marginBottom: 2,
   },
   footerDev: {
-    color: '#000',
+    color: designColors.black,
     textAlign: 'center',
     fontWeight: '500',
     marginTop: 4,

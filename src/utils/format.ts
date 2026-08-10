@@ -7,7 +7,8 @@ export function money(value: unknown, currency = 'ج.م'): string {
 export function numberText(value: unknown): string {
   const numberValue = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : 0;
   if (!Number.isFinite(numberValue)) return '0';
-  return numberValue.toLocaleString('ar-EG-u-nu-latn');
+  // maxFractionDigits without minimum strips trailing zeros (44.0000 → 44).
+  return numberValue.toLocaleString('ar-EG-u-nu-latn', { maximumFractionDigits: 4 });
 }
 
 export function dateText(value?: string | null): string {

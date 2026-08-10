@@ -6,11 +6,10 @@ import { stockAdjustmentsAPI } from '@/api/stockAdjustments';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
-import { dateText, money, numberText } from '@/utils/format';
+import { dateText, money, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
-import { asText } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockAdjustmentDetail'>;
 type Route = RouteProp<MoreStackParamList, 'StockAdjustmentDetail'>;

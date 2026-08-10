@@ -5,6 +5,5 @@ export * from './AppSkeletonList';
 export * from './AppSkeletonSystem';
 export * from './AppBanner';
 export * from './AppToast';
-export { useToast } from './AppToast';
 export * from './AppInlineAlert';
 export * from './ConfirmDialog';

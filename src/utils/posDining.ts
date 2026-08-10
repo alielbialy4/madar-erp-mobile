@@ -38,7 +38,6 @@ export function saleToCartLines(sale: Record<string, unknown> | null | undefined
   return items.map((rawItem) => {
     const item = rawItem as Record<string, unknown>;
     const product = item.product as Record<string, unknown> | undefined;
-    const unit = item.unit as Record<string, unknown> | undefined;
     const variant = item.variant as Record<string, unknown> | undefined;
 
     const line: CartLine = {

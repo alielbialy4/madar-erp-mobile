@@ -4,9 +4,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI, warehousesAPI } from '@/api/inventory';
-import { AppScreen } from '@/components/layout';
+import { AppScreen, ModuleHeader } from '@/components/layout';
 import { HeroActionChip } from '@/components/layout/HeroActionChip';
-import { InventoryHero } from '@/components/inventory/InventoryHero';
 import { InventoryListCard } from '@/components/inventory/InventoryListCard';
 import { InventoryScopeBanner } from '@/components/inventory/InventoryScopeBanner';
 import { mapInventoryRow } from '@/components/inventory/inventoryRowUtils';
@@ -23,7 +22,6 @@ import { useColors } from '@/hooks/useColors';
 import { flexRow } from '@/constants/layout';
 import type { InventoryListPresetKey, MoreStackParamList } from '@/types/navigation';
 import { Text } from '@/components/ui/AppText';
-import { ScrollView } from 'react-native';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Inventory'>;
 
@@ -106,26 +104,27 @@ export function InventoryScreen({ navigation }: { navigation: Nav }) {
       <View style={{ gap: spacing.lg, paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
           <InventoryScopeBanner />
-          <InventoryHero
+          <ModuleHeader
             eyebrow="المخزون"
-            title="مركز المخازن"
-            subtitle="أرصدة، حركات، تسويات، تحويلات، وصلاحية — كلها من مكان واحد."
+            title="مركز تشغيل المخزون"
+            subtitle="راقب الرصيد والصلاحية، ثم انتقل مباشرة إلى حركة المخزون المطلوبة."
             stats={[
               { label: 'مخازن', value: warehouses.length },
               { label: 'أرصدة', value: balances.length },
               { label: 'نفد', value: outCount, tone: 'danger' },
               { label: 'صلاحية', value: expiry.length, tone: 'warning' },
             ]}
-            statsOnly
-            metaLabel="نظرة سريعة"
-            isLoading={loading}
             onRefresh={() => void load()}
+            refreshing={loading}
+            compact
+            actions={(
+              <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm, width: '100%' }}>
+                <HeroActionChip label="المخازن" icon="warehouse" fill onPress={() => navigation.navigate('Warehouses')} />
+                <HeroActionChip label="تسوية" icon="edit" variant="primary" fill onPress={() => navigation.navigate('StockAdjustment')} />
+                <HeroActionChip label="تحويل" icon="swap-horiz" fill onPress={() => navigation.navigate('StockTransfer')} />
+              </View>
+            )}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...flexRow, gap: spacing.sm }}>
-            <HeroActionChip label="المخازن" icon="warehouse" onPress={() => navigation.navigate('Warehouses')} />
-            <HeroActionChip label="تسوية مخزون" icon="edit" variant="primary" onPress={() => navigation.navigate('StockAdjustment')} />
-            <HeroActionChip label="تحويل مخزون" icon="swap-horiz" onPress={() => navigation.navigate('StockTransfer')} />
-          </ScrollView>
         </View>
 
         {loading && balances.length === 0 && warehouses.length === 0 ? <AppLoadingState variant="skeleton" skeletonRows={4} /> : null}

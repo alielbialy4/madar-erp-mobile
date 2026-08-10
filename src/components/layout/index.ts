@@ -2,6 +2,7 @@ export * from './AppBottomSheet';
 export * from './AppHeader';
 export * from './AppScreen';
 export * from './ModuleHero';
+export * from './ModuleHeader';
 export * from './PremiumHeroPanel';
 export * from './HeroActionChip';
 export * from './HeroStatPill';

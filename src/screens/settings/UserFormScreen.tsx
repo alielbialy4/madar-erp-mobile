@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { settingsAPI } from '@/api/settings';
 import { FormScreenLayout } from '@/components/layout';
 import { FormSection } from '@/components/forms';
@@ -11,7 +10,6 @@ import { hasPermission } from '@/utils/permissions';
 import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hapticError, hapticSuccess } from '@/utils/haptics';
-import { spacing } from '@/constants/spacing';
 import type { SelectOption } from '@/components/ui/AppSelect';
 
 export function UserFormScreen({ route, navigation }: { route: any; navigation: any }) {

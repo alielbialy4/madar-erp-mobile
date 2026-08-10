@@ -28,7 +28,7 @@ function hasExtraContent(product: Product): boolean {
 }
 
 export function getProductDetailSections(product: Product, isRawMaterial: boolean): DetailSectionMeta[] {
-  const candidates: Array<Omit<DetailSectionMeta, 'step'> & { visible: boolean }> = [
+  const candidates: (Omit<DetailSectionMeta, 'step'> & { visible: boolean })[] = [
     {
       key: 'stock',
       visible: true,

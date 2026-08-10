@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleSheet, View, ViewStyle } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
-import { elevation } from '@/constants/elevation';
 import { AppText } from './AppText';
 import { AppBadge } from './AppBadge';
 import { PressableScale } from './PressableScale';
@@ -46,19 +45,19 @@ export function AppDomainCard({
   const c = useColors();
   const styles = useMemo(() => StyleSheet.create({
     card: {
-      borderRadius: variant === 'compact' ? radius.lg : radius.xxl,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      borderRadius: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
       backgroundColor: c.surface,
-      padding: variant === 'compact' ? spacing.sm : spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: variant === 'compact' ? spacing.sm : spacing.md,
       gap: spacing.sm,
-      ...elevation(c, variant === 'metric' ? 'md' : 'sm'),
     },
     row: { ...flexRow, alignItems: 'center', gap: spacing.md },
     iconWrap: {
-      width: variant === 'compact' ? 36 : 44,
-      height: variant === 'compact' ? 36 : 44,
-      borderRadius: radius.lg,
+      width: 38,
+      height: 38,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.softPrimary,

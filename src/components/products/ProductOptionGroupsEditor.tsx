@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Switch, View } from 'react-native';
+import { Switch, View , Pressable } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Pressable } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { OPTION_GROUPS_HELPER_AR } from './productFormLabels';

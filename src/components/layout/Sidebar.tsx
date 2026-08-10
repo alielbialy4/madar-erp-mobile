@@ -10,7 +10,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { drawerShellLtr, sidebarAreaRtl } from '@/constants/layout';
-import { radius } from '@/constants/spacing';
 import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { slideInX } from '@/utils/animations';
 import { useColors } from '@/hooks/useColors';
@@ -73,20 +72,15 @@ export function Sidebar({
             left: drawerLeft,
             bottom: 0,
             width: SIDEBAR_WIDTH,
-            borderTopLeftRadius: radius.xxxl,
-            borderBottomLeftRadius: radius.xxxl,
             overflow: 'hidden',
-            elevation: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: -4, height: 0 },
-            shadowOpacity: 0.3,
-            shadowRadius: 20,
+            borderLeftWidth: StyleSheet.hairlineWidth,
+            borderLeftColor: c.borderSubtle,
             paddingTop: insets.top,
             paddingBottom: insets.bottom,
             transform: [{ translateX: slideX }],
           }}
         >
-          <View style={{ flex: 1, ...sidebarAreaRtl, backgroundColor: c.sidebar }}>
+          <View style={{ flex: 1, ...sidebarAreaRtl, backgroundColor: c.surface }}>
             <SidebarPanel
               activeRoute={activeRoute}
               onNavigate={handleNavigate}
@@ -95,10 +89,10 @@ export function Sidebar({
               headerRight={
                 <Pressable
                   onPress={onClose}
-                  style={styles.closeBtn}
+                  style={[styles.closeBtn, { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle }]}
                   hitSlop={8}
                 >
-                  <MaterialIcons name="close" size={20} color={c.sidebarForeground} />
+                  <MaterialIcons name="close" size={20} color={c.text} />
                 </Pressable>
               }
             />
@@ -116,6 +110,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

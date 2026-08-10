@@ -4,10 +4,10 @@ import { textStart, flexRow } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { customersAPI } from '@/api/customers';
 import { walletAPI, type WalletTransaction } from '@/api/wallet';
-import { vaultsAPI } from '@/api/vaults';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { shiftsAPI } from '@/api/shifts';
 import { useBranchStore } from '@/store/branchStore';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
 import { AppErrorState, ConfirmDialog } from '@/components/feedback';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
@@ -64,15 +64,15 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
   const [debtOpen, setDebtOpen] = useState(false);
   const [debtAmount, setDebtAmount] = useState('');
   const [debtNotes, setDebtNotes] = useState('');
-  const [debtVaultId, setDebtVaultId] = useState('');
-  const [debtVaults, setDebtVaults] = useState<{ id: string; name: string }[]>([]);
+  const [debtPaymentAccountId, setDebtPaymentAccountId] = useState('');
+  const [debtPaymentSources, setDebtPaymentSources] = useState<PaymentSource[]>([]);
   const [debtSubmitting, setDebtSubmitting] = useState(false);
   const [debtError, setDebtError] = useState<string | null>(null);
   const [debtTarget, setDebtTarget] = useState<string>('auto');
-  const [debtCreditSales, setDebtCreditSales] = useState<Array<{ id: number; invoice_number?: string | null; remaining: number }>>([]);
+  const [debtCreditSales, setDebtCreditSales] = useState<{ id: number; invoice_number?: string | null; remaining: number }[]>([]);
   const [debtLayawayCount, setDebtLayawayCount] = useState(0);
   const [debtConfirmOpen, setDebtConfirmOpen] = useState(false);
-  const [paymentRows, setPaymentRows] = useState<Array<{
+  const [paymentRows, setPaymentRows] = useState<{
     id: number;
     amount: number;
     entry_type: string;
@@ -81,7 +81,7 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
     vault_name?: string | null;
     payment_date?: string | null;
     created_at?: string | null;
-  }>>([]);
+  }[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const refreshRef = useRef<RefreshAction | null>(null);
   const rawId = route.params?.id;
@@ -191,12 +191,16 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
     }
     if (!activeBranch?.id) return;
     try {
-      const response = await vaultsAPI.list({ active_only: true, branch_id: activeBranch.id });
-      const rows = (response.data ?? []) as { id: string; name: string }[];
-      setDebtVaults(rows);
-      if (rows[0]?.id) setDebtVaultId(rows[0].id);
+      const response = await financialAccountsAPI.paymentSources({
+        operation: 'customer_collection',
+        branch_id: activeBranch.id,
+        include_unavailable: true,
+      });
+      const rows = (response.data ?? []).filter((source) => source.is_available !== false);
+      setDebtPaymentSources(rows);
+      if (rows[0]?.id) setDebtPaymentAccountId(String(rows.find((source) => source.is_default)?.id ?? rows[0].id));
     } catch {
-      setDebtVaults([]);
+      setDebtPaymentSources([]);
     }
   }, [activeBranch?.id]);
 
@@ -209,11 +213,13 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
     setDebtSubmitting(true);
     setDebtError(null);
     try {
+      const paymentSource = debtPaymentSources.find((source) => String(source.id) === debtPaymentAccountId);
       const saleId = debtTarget !== 'auto' ? Number(debtTarget) : null;
       await customersAPI.recordDebtPayment(id, {
         amount: parsed,
-        payment_method: 'cash',
-        vault_id: debtVaultId || null,
+        payment_method: paymentSource?.payment_method ?? 'cash',
+        financial_account_id: debtPaymentAccountId || null,
+        vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
         sale_id: saleId && !Number.isNaN(saleId) ? saleId : null,
         notes: debtNotes.trim() || undefined,
       });
@@ -228,7 +234,7 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
     } finally {
       setDebtSubmitting(false);
     }
-  }, [debtAmount, debtNotes, debtTarget, debtVaultId, id, loadPayments]);
+  }, [debtAmount, debtNotes, debtPaymentAccountId, debtPaymentSources, debtTarget, id, loadPayments]);
 
   const submitWalletAction = useCallback(async () => {
     const parsed = Number(walletAmount);
@@ -388,22 +394,20 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
               />
             ))}
           </View>
-          {debtVaults.length > 0 ? (
-            <View style={styles.actions}>
-              {debtVaults.map((vault) => (
-                <AppButton
-                  key={vault.id}
-                  title={vault.name}
-                  size="sm"
-                  variant={debtVaultId === vault.id ? 'primary' : 'outline'}
-                  onPress={() => setDebtVaultId(vault.id)}
-                />
-              ))}
-            </View>
+          {debtPaymentSources.length > 0 ? (
+            <AppSelect
+              label="حساب التحصيل"
+              value={debtPaymentAccountId}
+              options={debtPaymentSources.map((source) => ({
+                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                value: String(source.id),
+              }))}
+              onChange={setDebtPaymentAccountId}
+            />
           ) : null}
           <AppInput label="ملاحظات" value={debtNotes} onChangeText={setDebtNotes} />
           {debtError ? <AppErrorState message={debtError} /> : null}
-          <AppButton title="تأكيد التحصيل" onPress={() => setDebtConfirmOpen(true)} disabled={!Number(debtAmount) || Number(debtAmount) <= 0} />
+          <AppButton title="تأكيد التحصيل" onPress={() => setDebtConfirmOpen(true)} disabled={!Number(debtAmount) || Number(debtAmount) <= 0 || !debtPaymentAccountId} />
         </View>
       </AppBottomSheet>
 

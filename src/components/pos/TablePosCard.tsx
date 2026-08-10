@@ -1,6 +1,5 @@
 import React, { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, View, type GestureResponderEvent, type View as RNView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, textStart } from '@/constants/layout';
@@ -288,7 +287,7 @@ export function TablePosCard({
         orderTotal: { fontSize: compact ? typography.small : typography.body, fontFamily: fonts.bold, color: c.text },
         customerLine: { fontSize: 9, fontFamily: fonts.medium, color: c.textMuted, textAlign: 'center' },
       }),
-    [c, theme, compact, hasGroup, highlighted, isValidDrop],
+    [c, theme, compact, hasGroup, highlighted, isValidDrop, isDimmed],
   );
 
   const measure = () => {
@@ -300,7 +299,7 @@ export function TablePosCard({
   return (
     <View ref={rootRef} onLayout={measure} collapsable={false}>
       <View style={s.card}>
-        <LinearGradient colors={theme.stripe} start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} style={s.stripe} />
+        <View style={[s.stripe, { backgroundColor: theme.stripe[0] }]} />
 
         {pendingSync ? (
           <View style={s.pendingBadge}>

@@ -2,21 +2,21 @@ import { post } from './client';
 
 export type SplitByItemsRequest = {
   type: 'items';
-  splits: Array<{
+  splits: {
     items: number[];
     customer_id?: number;
     payment_type?: string;
     notes?: string;
-  }>;
+  }[];
 };
 
 export type SplitByAmountRequest = {
   type: 'amount';
-  amounts: Array<{
+  amounts: {
     amount: number;
     customer_id?: number;
     payment_type?: string;
-  }>;
+  }[];
 };
 
 export type SplitEquallyRequest = {

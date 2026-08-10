@@ -2,10 +2,9 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
-import { spacing, radius } from '@/constants/spacing';
+import { spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
-import { HERO_CHIP_BG, HERO_CHIP_BORDER } from '@/constants/dashboardHeroTheme';
 import { useColors } from '@/hooks/useColors';
 
 type Tone = 'default' | 'success' | 'warning' | 'danger';
@@ -38,7 +37,7 @@ function toneColor(c: ReturnType<typeof useColors>, tone: Tone): string {
     case 'danger':
       return c.danger;
     default:
-      return c.sidebarForeground;
+      return c.text;
   }
 }
 
@@ -48,12 +47,11 @@ function createStyles(c: ReturnType<typeof useColors>, tone: Tone, compact?: boo
       ...flexRow,
       alignItems: 'center',
       gap: spacing.xs,
-      paddingHorizontal: compact ? spacing.sm : spacing.md,
-      paddingVertical: compact ? 5 : spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: HERO_CHIP_BG,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: HERO_CHIP_BORDER,
+      minHeight: compact ? 36 : 42,
+      paddingHorizontal: compact ? spacing.md : spacing.lg,
+      paddingVertical: compact ? spacing.xs : spacing.sm,
+      borderStartWidth: StyleSheet.hairlineWidth,
+      borderStartColor: c.border,
     },
     value: {
       ...textLtr,
@@ -65,7 +63,7 @@ function createStyles(c: ReturnType<typeof useColors>, tone: Tone, compact?: boo
       ...textStart,
       fontSize: compact ? 10 : typography.tiny,
       fontFamily: fonts.regular,
-      color: c.sidebarForeground,
+      color: c.textMuted,
     },
   });
 }

@@ -4,6 +4,7 @@ import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { purchasesAPI } from '@/api/purchases';
 import type { PurchasePayload } from '@/api/purchases';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { suppliersAPI } from '@/api/suppliers';
 import { productsAPI } from '@/api/products';
 import { inventoryAPI } from '@/api/inventory';
@@ -73,6 +74,8 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [paid, setPaid] = useState('');
+  const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
 
   const [productQuery, setProductQuery] = useState('');
   const [productResults, setProductResults] = useState<Record<string, unknown>[]>([]);
@@ -122,6 +125,21 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
       .catch(() => {})
       .finally(() => setSupplierLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!activeBranch?.id) return;
+    setPaymentAccountId('');
+    financialAccountsAPI.paymentSources({ operation: 'purchase_payment', branch_id: activeBranch.id, include_unavailable: true })
+      .then((response) => {
+        const rows = (response.data ?? []).filter((source) => source.is_available !== false);
+        setPaymentSources(rows);
+        if (rows[0]?.id) setPaymentAccountId(String(rows.find((source) => source.is_default)?.id ?? rows[0].id));
+      })
+      .catch(() => {
+        setPaymentSources([]);
+        setPaymentAccountId('');
+      });
+  }, [activeBranch?.id]);
 
   const supplierOptions = useMemo(
     () => suppliers.map((s) => ({ label: String(s.name ?? ''), value: String(s.id) })),
@@ -193,6 +211,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
     if (submitLockRef.current || submitting) return;
     if (!selectedSupplier) { setErrorMsg('اختر المورد'); void hapticError(); return; }
     if (items.length === 0) { setErrorMsg('أضف صنفاً واحداً على الأقل'); void hapticError(); return; }
+    if (paidAmount > 0 && !paymentAccountId) { setErrorMsg('اختر حساب الدفع للدفعة المقدمة'); void hapticError(); return; }
     submitLockRef.current = true;
     if (!clientUuidRef.current) {
       clientUuidRef.current = createUuid();
@@ -216,6 +235,7 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         })),
         subtotal,
         paid: paidAmount,
+        ...(paidAmount > 0 && paymentAccountId ? { financial_account_id: paymentAccountId } : {}),
         ...(notes ? { notes } : {}),
         ...(selectedWarehouse ? { warehouse_id: selectedWarehouse } : {}),
         ...(activeBranch?.id ? { branch_id: activeBranch.id } : {}),
@@ -337,6 +357,18 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
               <Text style={styles.totalValue}>{money(total)}</Text>
             </View>
             <AppAmountInput label="المدفوع" value={paid} onChangeText={setPaid} />
+            {paidAmount > 0 ? (
+              <AppPicker
+                label="حساب دفع الدفعة المقدمة"
+                value={paymentAccountId}
+                options={paymentSources.map((source) => ({
+                  label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                  value: String(source.id),
+                }))}
+                onChange={(value) => setPaymentAccountId(value ?? '')}
+                placeholder="اختر حساب الدفع"
+              />
+            ) : null}
             <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
             {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
           </View>

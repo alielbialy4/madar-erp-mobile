@@ -1,10 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
-import { useWindowDimensions } from 'react-native';
-import { PremiumHeroPanel } from './PremiumHeroPanel';
-import { HeroStatPill } from './HeroStatPill';
-import { HeroRefreshFooter } from './HeroRefreshFooter';
-import { spacing } from '@/constants/spacing';
+import { ModuleHeader } from './ModuleHeader';
 
 export type ModuleHeroStat = {
   label: string;
@@ -24,39 +19,16 @@ type Props = {
 };
 
 export function ModuleHero({ eyebrow, title, subtitle, stats, onRefresh, refreshing, actions, compact }: Props) {
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
-
-  const badges =
-    stats && stats.length > 0 ? (
-      <>
-        {stats.map((stat) => (
-          <HeroStatPill key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} compact={compact} />
-        ))}
-      </>
-    ) : undefined;
-
-  const hasRail = Boolean(actions || onRefresh);
-  const rail = hasRail ? (
-    <View style={{ width: '100%', gap: spacing.sm }}>
-      {actions ? (
-        <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {actions}
-        </View>
-      ) : null}
-      {onRefresh ? <HeroRefreshFooter onRefresh={onRefresh} isLoading={refreshing} /> : null}
-    </View>
-  ) : undefined;
-
   return (
-    <PremiumHeroPanel
+    <ModuleHeader
       eyebrow={eyebrow}
       title={title}
       subtitle={subtitle}
-      badges={badges}
-      rail={rail}
+      stats={stats}
+      actions={actions}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
       compact={compact}
-      edgeInset={false}
     />
   );
 }

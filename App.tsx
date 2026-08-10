@@ -1,6 +1,5 @@
 import './src/bootstrap/rtl';
 import { applyEarlyRtlDefaults } from './src/bootstrap/typography';
-applyEarlyRtlDefaults();
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useMemo } from 'react';
 import { Platform, StyleSheet } from 'react-native';
@@ -19,6 +18,7 @@ import { AppToastProvider } from './src/components/feedback/AppToast';
 import { PrintCaptureHost } from './src/components/printing/PrintCaptureHost';
 import { getColors } from './src/constants/colors';
 import { fonts } from './src/constants/fonts';
+applyEarlyRtlDefaults();
 
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);

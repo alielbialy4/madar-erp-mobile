@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { View , useWindowDimensions } from 'react-native';
 import { AppBadge } from '@/components/ui';
 import { AppErrorState } from '@/components/feedback';
 import { DashboardHero } from './DashboardHero';
@@ -12,7 +12,6 @@ import { DashboardDataTable, StockStatusBadge } from './DashboardDataTable';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { createDashboardStyles } from './dashboardStyles';
 import { useColors } from '@/hooks/useColors';
-import { useWindowDimensions } from 'react-native';
 import { money, numberText } from '@/utils/format';
 import { Text } from '@/components/ui/AppText';
 
@@ -123,7 +122,7 @@ export function GlobalDashboardView({ data, loading, error, shell, onRetry }: Pr
             title="اتجاه الإيرادات"
             hint="مقارنة الإيرادات على مستوى النظام — آخر 30 يومًا."
             badge="30 يوم"
-            variant="bar"
+            variant="line"
           />
         </View>
         <View style={isTablet ? ds.widgetSide : undefined}>

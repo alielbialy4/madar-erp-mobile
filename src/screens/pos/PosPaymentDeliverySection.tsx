@@ -193,7 +193,7 @@ export function PosPaymentDeliverySection({
     if (!deliveryPhone.trim()) {
       onDeliveryPhoneChange(String(selectedCustomer.phone).trim());
     }
-  }, [needsDelivery, selectedCustomer?.id, selectedCustomer?.phone]);
+  }, [needsDelivery, selectedCustomer?.id, selectedCustomer?.phone, deliveryPhone, onDeliveryPhoneChange]);
 
   const applyLookupCustomer = (row: PosCustomerLookupRow) => {
     const customer: Customer = {

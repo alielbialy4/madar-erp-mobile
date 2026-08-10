@@ -7,8 +7,8 @@ import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { metricValue, normalizeMetrics, reportPagination, reportSummary } from '@/utils/reportNormalizers';
 
-function buildQueryParams(definition: ReportDefinition, filters: ReportFilters, page: number): Record<string, string | number | boolean | undefined> {
-  const params: Record<string, string | number | boolean | undefined> = {};
+function buildQueryParams(definition: ReportDefinition, filters: ReportFilters, page: number): Record<string, string | number | boolean | (string | number)[] | undefined> {
+  const params: Record<string, string | number | boolean | (string | number)[] | undefined> = {};
   if (definition.filters.includes('dateRange')) {
     if (filters.from_date) params.from_date = filters.from_date;
     if (filters.to_date) params.to_date = filters.to_date;
@@ -21,6 +21,8 @@ function buildQueryParams(definition: ReportDefinition, filters: ReportFilters, 
   if (definition.filters.includes('warehouse') && filters.warehouse_id) params.warehouse_id = filters.warehouse_id;
   if (definition.filters.includes('category') && filters.category_id) params.category_id = filters.category_id;
   if (definition.filters.includes('product') && filters.product_id) params.product_id = Number(filters.product_id);
+  if (definition.id === 'sales-product-detail' && filters.product_id) params.product_ids = [Number(filters.product_id)];
+  if (definition.id === 'sales-category-detail' && filters.category_id) params.category_ids = [Number(filters.category_id)];
   if (definition.filters.includes('customer') && filters.customer_id) params.customer_id = filters.customer_id;
   if (definition.filters.includes('supplier') && filters.supplier_id) params.supplier_id = filters.supplier_id;
   if (definition.filters.includes('cashier') && filters.cashier_id) {
@@ -178,6 +180,18 @@ export function useReport(definition: ReportDefinition, filters: ReportFilters) 
         setLoadingMore(true);
       }
       setError(null);
+      if (
+        (definition.requiredFilter === 'product' && !filters.product_id) ||
+        (definition.requiredFilter === 'category' && !filters.category_id)
+      ) {
+        setPayload(null);
+        setMetrics({});
+        setHasMore(false);
+        setLoading(false);
+        setRefreshing(false);
+        setError(definition.requiredFilter === 'product' ? 'اختر منتجاً لعرض تفاصيل التقرير.' : 'اختر تصنيفاً لعرض تفاصيل التقرير.');
+        return;
+      }
       try {
         const params = buildQueryParams(definition, filters, nextPage);
         let response: unknown;
@@ -215,7 +229,7 @@ export function useReport(definition: ReportDefinition, filters: ReportFilters) 
         if (mode === 'append') setLoadingMore(false);
       }
     },
-    [definition, filters, filterKey],
+    [definition, filters],
   );
 
   useEffect(() => {

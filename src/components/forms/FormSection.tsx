@@ -68,18 +68,18 @@ export function SwitchRow({ label, hint, value, onValueChange, disabled }: {
 function createFormSectionStyles(c: AppColors) {
   return StyleSheet.create({
     card: {
-      borderRadius: radius.xxl,
+      borderRadius: radius.lg,
       backgroundColor: c.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
       overflow: 'hidden',
       gap: spacing.md,
     },
     header: { ...flexRow, alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingBottom: 0 },
     iconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.lg,
+      width: 34,
+      height: 34,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.softPrimary,
@@ -87,7 +87,7 @@ function createFormSectionStyles(c: AppColors) {
     headerText: { flex: 1, gap: 2 },
     title: {
       ...textStart,
-      fontSize: typography.sectionTitle,
+      fontSize: typography.cardTitle,
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,

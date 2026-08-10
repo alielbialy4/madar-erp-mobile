@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +16,7 @@ export function GradientMesh({ style, variant = 'default', children }: GradientM
   const colors = {
     default: [c.meshGradient1, c.meshGradient2, c.meshGradient3],
     subtle: [c.background, c.surfaceMuted, c.background],
-    dark: [c.gradientStart, c.gradientEnd, '#0B1120'],
+    dark: [c.gradientStart, c.gradientEnd, designColors.deepNavy],
     pos: [c.meshGradient2, c.meshGradient1, c.surfaceMuted],
   }[variant];
 

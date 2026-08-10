@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { View } from 'react-native';
@@ -16,13 +17,11 @@ import {
 } from '@/services/printing/printDiagnostics';
 import { withCaptureTimeout } from '@/services/printing/printCaptureTimeout';
 import type {
-  KitchenTicketPayload,
   PrintCaptureJob,
   PrinterProfile,
   ReceiptPrintPayload,
-  ShiftCloseReportPayload,
+  PaperWidth,
 } from '@/types/printing';
-import type { PaperWidth } from '@/types/printing';
 import { assertViewShotAvailable } from '@/utils/viewShotAvailability';
 
 type InternalJob = PrintCaptureJob & {
@@ -46,16 +45,6 @@ const PLACEHOLDER_RECEIPT: ReceiptPrintPayload = {
   paid: 0,
   payment_type: 'idle',
   branch_name: ' ',
-};
-
-const PLACEHOLDER_KITCHEN: KitchenTicketPayload = {
-  order_label: ' ',
-  items: [{ name: ' ', quantity: 1 }],
-};
-
-const PLACEHOLDER_SHIFT: ShiftCloseReportPayload = {
-  shift_label: ' ',
-  sections: [],
 };
 
 const PLACEHOLDER_PROFILE: PrinterProfile = {
@@ -242,7 +231,7 @@ export function PrintCaptureHost() {
             width: captureWidthPx,
             maxWidth: captureWidthPx,
             minWidth: captureWidthPx,
-            backgroundColor: '#ffffff',
+            backgroundColor: designColors.white,
             overflow: 'hidden',
           }}
         >

@@ -5,7 +5,8 @@ export type InventoryListSurface =
   | 'warehouses'
   | 'transfers'
   | 'adjustments'
-  | 'products';
+  | 'products'
+  | 'purchaseReturns';
 
 export type InventoryFilterKey =
   | 'status'

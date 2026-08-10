@@ -42,7 +42,11 @@ export async function syncOfflineMutations(): Promise<SyncResult> {
         url: item.url,
         method: item.method,
         data: item.payload,
-        headers: item.branch_id ? { 'X-Branch-Id': item.branch_id } : undefined,
+        headers: {
+          ...(item.branch_id ? { 'X-Branch-Id': item.branch_id } : {}),
+          'Idempotency-Key': item.idempotency_key || item.client_uuid || item.id,
+          'X-Client-UUID': item.client_uuid || item.id,
+        },
       });
       done.add(item.id);
     } catch (err) {

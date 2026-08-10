@@ -10,7 +10,7 @@ import { getAllowedModesForPosScreen } from './viewModeRoutePolicy';
 
 const Stack = createNativeStackNavigator<POSStackParamList>();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function guardPosScreen<K extends keyof POSStackParamList>(
   screen: K,
   Component: React.ComponentType<any>,

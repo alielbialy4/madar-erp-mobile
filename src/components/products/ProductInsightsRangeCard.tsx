@@ -10,7 +10,6 @@ import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
 import {
   RANGE_PRESETS,
-  buildRangePreset,
   detectActivePreset,
   formatShortDate,
   parseIsoDate,

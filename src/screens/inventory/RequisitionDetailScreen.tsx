@@ -6,11 +6,10 @@ import { requisitionsAPI, type RequisitionStatus } from '@/api/requisitions';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
-import { dateText, numberText } from '@/utils/format';
+import { dateText, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
-import { asText } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'RequisitionDetail'>;
 type Route = RouteProp<MoreStackParamList, 'RequisitionDetail'>;

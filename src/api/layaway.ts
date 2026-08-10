@@ -30,6 +30,7 @@ export type LayawayPlan = {
 export type LayawayPaymentPayload = {
   amount: number;
   payment_method: string;
+  financial_account_id?: string | null;
   vault_id?: string | null;
   notes?: string;
 };

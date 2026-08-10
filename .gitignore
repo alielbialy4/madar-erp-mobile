@@ -43,3 +43,4 @@ app-example
 # generated native folders
 /ios
 /android
+/modules/madar-thermal-printer/android/build/

@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { AppButton, AppText } from '@/components/ui';
+import { AppButton } from '@/components/ui';
 import { reportsAPI } from '@/api/reports';
 import type { ReportDefinition, ReportFilters } from '@/reports/types';
 import { spacing } from '@/constants/spacing';
-import { textStart } from '@/constants/layout';
 import { normalizeApiError } from '@/utils/errors';
 
 type Props = {
@@ -90,12 +89,9 @@ export function ReportExportActions({ definition, filters }: Props) {
   };
 
   return (
-    <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-      <AppText style={{ ...textStart, fontWeight: '700' }}>تصدير</AppText>
-      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-        <AppButton title="Excel" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('excel')} />
-        <AppButton title="PDF" variant="secondary" size="sm" disabled={exporting} onPress={() => void runExport('pdf')} />
-      </View>
+    <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
+      <AppButton title="Excel" variant="outline" size="sm" disabled={exporting} onPress={() => void runExport('excel')} />
+      <AppButton title="PDF" variant="outline" size="sm" disabled={exporting} onPress={() => void runExport('pdf')} />
     </View>
   );
 }

@@ -1,6 +1,5 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
-import { useWindowDimensions } from 'react-native';
+import { ScrollView, View , useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PremiumHeroPanel } from '@/components/layout/PremiumHeroPanel';
 import { HeroActionChip } from '@/components/layout/HeroActionChip';
@@ -51,7 +50,6 @@ export function InventoryHero({
   showActions = false,
 }: Props) {
   const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
   const compact = compactProp ?? width < 600;
 
   const badges = (
@@ -64,11 +62,7 @@ export function InventoryHero({
 
   const actions =
     chips.length > 0 ? (
-      <ScrollView
-        horizontal={!isTablet}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ ...flexRow, gap: spacing.sm, flexWrap: isTablet ? 'wrap' : undefined }}
-      >
+      <View style={{ ...flexRow, gap: spacing.sm, flexWrap: 'wrap', width: '100%' }}>
         {chips.map((chip) => (
           <HeroActionChip
             key={chip.label}
@@ -76,9 +70,10 @@ export function InventoryHero({
             icon={chip.icon}
             onPress={chip.onPress}
             variant={chip.primary ? 'primary' : 'secondary'}
+            fill
           />
         ))}
-      </ScrollView>
+      </View>
     ) : null;
 
   if (statsOnly) {

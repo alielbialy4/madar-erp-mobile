@@ -8,6 +8,7 @@ import { InventoryFiltersSheet } from '@/components/inventory/InventoryFiltersSh
 import { InventoryScopeBanner } from '@/components/inventory/InventoryScopeBanner';
 import { InventoryTableDataRow, InventoryTableHeaderRow } from '@/components/inventory/InventoryListTable';
 import { getInventoryTableConfig } from '@/components/inventory/inventoryTableConfig';
+import type { InventoryTableConfig } from '@/components/inventory/inventoryTableConfig';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
@@ -53,6 +54,7 @@ type Props<T extends Record<string, unknown>> = {
   showScopeBanner?: boolean;
   scopeBannerVariant?: 'general' | 'directory';
   onItemsChange?: (items: T[]) => void;
+  tableConfigOverride?: InventoryTableConfig;
 };
 
 export function InventoryListShell<T extends Record<string, unknown>>({
@@ -81,13 +83,17 @@ export function InventoryListShell<T extends Record<string, unknown>>({
   showScopeBanner = true,
   scopeBannerVariant = 'general',
   onItemsChange,
+  tableConfigOverride,
 }: Props<T>) {
   const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
   const tabBarInset = useTabBarBottomInset(spacing.sm);
   const scope = useInventoryScope();
-  const tableConfig = useMemo(() => getInventoryTableConfig(surface), [surface]);
+  const tableConfig = useMemo(
+    () => tableConfigOverride ?? getInventoryTableConfig(surface),
+    [surface, tableConfigOverride],
+  );
   const useTable = layout === 'table' && tableConfig != null;
 
   const [query, setQuery] = useState('');

@@ -2,166 +2,116 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
-import { createCategoryStyles } from '@/components/categories/categoryStyles';
+import { AppText } from '@/components/ui/AppText';
 import { useColors } from '@/hooks/useColors';
-import { getPaymentMethodStyle } from '@/constants/statusColors';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
-import { spacing, radius } from '@/constants/spacing';
+import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { dateText, money } from '@/utils/format';
 import { paymentTypeIcon, paymentTypeLabel } from '@/utils/paymentLabels';
 import { saleStatusBadgeTone, saleStatusLabel } from '@/utils/saleStatus';
 import type { Sale } from '@/types/api';
-import { Text } from '@/components/ui/AppText';
 
-type Props = {
-  sale: Sale;
-  onPress?: () => void;
-};
-
-function paymentChipStyleKey(type: string | null | undefined): 'cash' | 'instapay' | 'ewallet' | 'visa' | null {
-  if (!type?.trim()) return null;
-  const key = type.trim().toLowerCase();
-  if (key === 'cash') return 'cash';
-  if (key === 'instapay') return 'instapay';
-  if (['electronic_wallet', 'vodafone_cash', 'wallet'].includes(key)) return 'ewallet';
-  if (['card', 'visa'].includes(key)) return 'visa';
-  return null;
-}
+type Props = { sale: Sale; onPress?: () => void };
 
 function amount(value: unknown): number {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 export function SaleInvoiceCard({ sale, onPress }: Props) {
   const c = useColors();
-  const styles = useMemo(() => createCategoryStyles(c), [c]);
-  const extra = useMemo(() => createExtraStyles(c), [c]);
-
+  const styles = useMemo(() => createStyles(c), [c]);
   const customer = sale.customer?.name ?? 'عميل نقدي';
-  const statusLabel = saleStatusLabel(sale.status);
-  const statusTone = saleStatusBadgeTone(sale.status);
-  const paymentLabel = paymentTypeLabel(sale.payment_type);
-  const paymentIcon = paymentTypeIcon(sale.payment_type);
-  const chipKey = paymentChipStyleKey(sale.payment_type);
-  const chipStyle = chipKey ? getPaymentMethodStyle(c, chipKey) : null;
-
   const total = amount(sale.total);
   const paid = amount(sale.paid);
-  const hasBalance = paid > 0 && paid + 0.01 < total;
+  const remaining = Math.max(0, total - paid);
+  const hasBalance = remaining > 0.01;
 
   return (
-    <View style={styles.categoryCard}>
-      <Pressable
-        onPress={onPress}
-        disabled={!onPress}
-        style={({ pressed }) => [styles.cardPressable, pressed && onPress ? { opacity: 0.92 } : undefined]}
-      >
-        <View style={styles.cardTop}>
-          <View style={styles.thumbPlaceholder}>
-            <MaterialIcons name="receipt-long" size={28} color={c.accent} />
-          </View>
-
-          <View style={styles.cardBody}>
-            <View style={extra.titleRow}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
-                {sale.invoice_number || `فاتورة #${sale.id}`}
-              </Text>
-              <AppBadge label={statusLabel} tone={statusTone} />
-            </View>
-
-            <Text style={styles.cardDesc} numberOfLines={1}>
-              {customer} • {dateText(sale.created_at)}
-            </Text>
-
-            <View style={extra.footerRow}>
-              <View
-                style={[
-                  extra.paymentChip,
-                  chipStyle
-                    ? { backgroundColor: chipStyle.bg, borderColor: chipStyle.border }
-                    : { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle },
-                ]}
-              >
-                <MaterialIcons
-                  name={paymentIcon}
-                  size={14}
-                  color={chipStyle?.fg ?? c.textMuted}
-                />
-                <Text
-                  style={[extra.paymentChipText, { color: chipStyle?.fg ?? c.textMuted }]}
-                  numberOfLines={1}
-                >
-                  {paymentLabel}
-                </Text>
-              </View>
-
-              <View style={extra.amountBlock}>
-                <Text style={extra.total}>{money(total)}</Text>
-                {hasBalance ? (
-                  <Text style={extra.paidLine} numberOfLines={1}>
-                    مدفوع {money(paid)}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
-
-          {onPress ? (
-            <View style={styles.cardChevron}>
-              <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textCaption} />
-            </View>
-          ) : null}
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${sale.invoice_number || `فاتورة ${sale.id}`}، ${money(total)}`}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: pressed ? c.surfaceMuted : c.surface, borderColor: c.borderSubtle },
+      ]}
+    >
+      <View style={styles.content}>
+        <View style={styles.identityRow}>
+          <AppText style={styles.invoice} numberOfLines={1}>
+            {sale.invoice_number || `فاتورة #${sale.id}`}
+          </AppText>
+          <AppBadge label={saleStatusLabel(sale.status)} tone={saleStatusBadgeTone(sale.status)} />
         </View>
-      </Pressable>
-    </View>
+
+        <AppText style={[styles.context, { color: c.textMuted }]} numberOfLines={1}>
+          {customer} · {dateText(sale.created_at)}
+        </AppText>
+
+        <View style={styles.paymentRow}>
+          <View style={styles.paymentMethod}>
+            <MaterialIcons name={paymentTypeIcon(sale.payment_type)} size={15} color={c.textMuted} />
+            <AppText style={[styles.paymentLabel, { color: c.textMuted }]} numberOfLines={1}>
+              {paymentTypeLabel(sale.payment_type)}
+            </AppText>
+          </View>
+          {hasBalance ? (
+            <AppText style={[styles.remaining, { color: c.warning }]} numberOfLines={1}>
+              متبقي {money(remaining)}
+            </AppText>
+          ) : (
+            <AppText style={[styles.settled, { color: c.success }]} numberOfLines={1}>مسددة</AppText>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.valueColumn}>
+        <AppText style={[styles.total, { color: c.text }]} numberOfLines={1}>{money(total)}</AppText>
+        {paid > 0 && hasBalance ? (
+          <AppText style={[styles.paid, { color: c.textCaption }]} numberOfLines={1}>مدفوع {money(paid)}</AppText>
+        ) : null}
+      </View>
+
+      {onPress ? <MaterialIcons name={chevronForwardIcon()} size={18} color={c.textCaption} /> : null}
+    </Pressable>
   );
 }
 
-function createExtraStyles(c: ReturnType<typeof useColors>) {
+function createStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-    footerRow: {
+    row: {
       ...flexRow,
-      alignItems: 'flex-end',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-      marginTop: spacing.xs,
-    },
-    paymentChip: {
-      ...flexRow,
+      minHeight: 88,
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      flexShrink: 1,
-      maxWidth: '58%',
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    paymentChipText: {
-      fontSize: typography.tiny,
-      fontFamily: fonts.bold,
-      fontWeight: '700',
-      writingDirection: 'rtl',
-    },
-    amountBlock: { alignItems: 'flex-end', gap: 2, flexShrink: 0 },
-    total: {
-      fontSize: typography.cardTitle,
+    content: { flex: 1, minWidth: 0, gap: 4 },
+    identityRow: { ...flexRow, alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+    invoice: {
+      ...textLtr,
+      color: c.text,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
-      color: c.accent,
-      writingDirection: 'rtl',
+      fontSize: typography.body,
+      flexShrink: 1,
     },
-    paidLine: {
-      ...textStart,
-      fontSize: 10,
-      fontFamily: fonts.medium,
-      color: c.textCaption,
-      writingDirection: 'rtl',
-    },
+    context: { ...textStart, fontFamily: fonts.regular, fontSize: typography.small },
+    paymentRow: { ...flexRow, alignItems: 'center', gap: spacing.md },
+    paymentMethod: { ...flexRow, alignItems: 'center', gap: spacing.xs },
+    paymentLabel: { ...textStart, fontFamily: fonts.medium, fontSize: typography.caption },
+    remaining: { ...textStart, fontFamily: fonts.bold, fontSize: typography.caption },
+    settled: { ...textStart, fontFamily: fonts.bold, fontSize: typography.caption },
+    valueColumn: { alignItems: 'flex-end', gap: 2, flexShrink: 0 },
+    total: { ...textLtr, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.cardTitle },
+    paid: { ...textLtr, fontFamily: fonts.medium, fontSize: typography.micro },
   });
 }

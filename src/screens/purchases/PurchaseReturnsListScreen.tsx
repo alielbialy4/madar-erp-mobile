@@ -12,6 +12,8 @@ export function PurchaseReturnsListScreen({ navigation }: { navigation: Nav }) {
       title="مرتجعات الشراء"
       subtitle="سجل مرتجعات الموردين."
       eyebrow="المشتريات"
+      surface="purchaseReturns"
+      searchEnabled={false}
       loader={(params) => purchaseReturnsAPI.getAll(params)}
       onBack={navigation.goBack}
       onItemPress={(row) => navigation.navigate('PurchaseReturnDetail', { id: Number(row.id) })}

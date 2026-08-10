@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
@@ -18,7 +18,7 @@ type Props = {
   /** When false, backdrop tap and hardware back won't dismiss (e.g. required POS shift). */
   dismissable?: boolean;
   /** Wider sheet for dense layouts; fullscreen for shift summary / close flows. */
-  size?: 'default' | 'wide' | 'fullscreen';
+  size?: 'default' | 'form' | 'wide' | 'fullscreen';
 };
 
 const SHEET_KEYBOARD_OFFSET = 12;
@@ -31,10 +31,11 @@ const FULLSCREEN_INSET_BOTTOM = spacing.md;
 export function AppBottomSheet({ visible, onClose, children, title, subtitle, dismissable = true, size = 'default' }: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isTabletSheet = width >= 900;
+  const { width, height } = useWindowDimensions();
+  const isTabletSheet = width >= 600;
   const isFullscreen = size === 'fullscreen';
   const isWideSheet = size === 'wide';
+  const isFormSheet = size === 'form';
   const fullscreenInsetSide = isTabletSheet ? spacing.xxl : FULLSCREEN_INSET_SIDE;
   const fullscreenInsetTop = isTabletSheet ? spacing.xxxl : FULLSCREEN_INSET_TOP;
   const sheetMaxWidth = isFullscreen
@@ -71,7 +72,9 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
     });
   };
 
-  const sheetMaxHeight = isFullscreen ? '100%' : isWideSheet ? '92%' : '86%';
+  const sheetMaxHeight = isFullscreen ? '100%' : isWideSheet || isFormSheet ? '92%' : '86%';
+  const sheetMinHeight = isFormSheet ? Math.min(height * 0.62, 560) : undefined;
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 0);
 
   return (
     <Modal
@@ -120,24 +123,18 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
               width: isFullscreen ? '100%' : isWideSheet || isTabletSheet ? sheetMaxWidth : '100%',
               alignSelf: 'center',
               flex: isFullscreen ? 1 : undefined,
+              minHeight: sheetMinHeight,
               maxHeight: sheetMaxHeight,
               backgroundColor: c.surface,
               ...(isFullscreen
-                ? { borderRadius: radius.xxxl }
-                : { borderTopLeftRadius: radius.xxxl, borderTopRightRadius: radius.xxxl }),
+                ? { borderRadius: radius.xl }
+                : { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }),
               paddingHorizontal: isFullscreen ? spacing.lg : spacing.xl,
               paddingTop: spacing.md,
-              paddingBottom: Math.max(spacing.xl, insets.bottom),
-              ...Platform.select({
-                ios: {
-                  shadowColor: c.shadowMd,
-                  shadowOffset: { width: 0, height: isFullscreen ? 8 : -6 },
-                  shadowOpacity: 1,
-                  shadowRadius: isFullscreen ? 24 : 16,
-                },
-                android: { elevation: isFullscreen ? 20 : 16 },
-                default: {},
-              }),
+              paddingBottom: Math.max(spacing.xl, safeBottom + spacing.sm),
+              borderWidth: isFullscreen ? StyleSheet.hairlineWidth : 0,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderColor: c.borderSubtle,
             }}
           >
             {dismissable && !isFullscreen ? (

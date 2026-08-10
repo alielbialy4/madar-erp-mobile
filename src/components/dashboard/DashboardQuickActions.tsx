@@ -108,7 +108,7 @@ export function DashboardQuickActions({ navigation, variant = 'default' }: Props
               accessibilityRole="button"
               accessibilityLabel={action.label}
             >
-              <AppIcon name={action.icon} size={18} color="#FFFFFF" weight="bold" />
+              <AppIcon name={action.icon} size={18} color={c.primaryForeground} weight="bold" />
               <Text style={styles.chipTextPrimaryDefault}>{action.label}</Text>
             </Pressable>
           );
@@ -145,7 +145,7 @@ function createStyles(c: AppColors, isHero: boolean, isTablet: boolean) {
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: HERO_ACTIONS_CONTAINER_BORDER,
       backgroundColor: HERO_ACTIONS_CONTAINER_BG,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       padding: spacing.sm,
       width: '100%',
     },
@@ -154,16 +154,11 @@ function createStyles(c: AppColors, isHero: boolean, isTablet: boolean) {
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm + 2,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       alignItems: 'center',
     },
     chipPrimaryDefault: {
       backgroundColor: c.accent,
-      shadowColor: c.accent,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 4,
     },
     chipOutlineDefault: {
       backgroundColor: c.surfaceMuted,
@@ -178,7 +173,7 @@ function createStyles(c: AppColors, isHero: boolean, isTablet: boolean) {
     chipTextPrimaryDefault: {
       fontSize: 13,
       fontFamily: fonts.bold,
-      color: '#FFFFFF',
+      color: c.primaryForeground,
     },
   });
 }

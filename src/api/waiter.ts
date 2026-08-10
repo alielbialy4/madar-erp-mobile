@@ -9,10 +9,10 @@ export type WaiterOrderItem = {
   unit_id?: number;
   unit_factor?: number;
   option_ids?: number[];
-  selected_options?: Array<{
+  selected_options?: {
     product_option_group_id: number;
     option_ids: number[];
-  }>;
+  }[];
 };
 
 export type WaiterPaymentType = 'cash' | 'card' | 'credit' | 'layaway';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -34,30 +34,24 @@ export function MetricCard({ label, value, subtitle, tone = 'primary', icon, tre
 
   return (
     <View style={{
-      flex: 1,
       minWidth: 140,
       backgroundColor: c.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
-      padding: spacing.lg,
-      gap: spacing.sm,
-      ...Platform.select({
-        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8 },
-        android: { elevation: 2 },
-        default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
-      }),
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      padding: spacing.md,
+      gap: spacing.xs,
     }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.lg,
-          backgroundColor: t.iconBg,
+          width: 28,
+          height: 28,
+          borderRadius: radius.sm,
+          backgroundColor: c.surfaceMuted,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          {icon ?? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.bg }} />}
+          {icon ?? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.bg }} />}
         </View>
         {trend ? (
           <View style={{

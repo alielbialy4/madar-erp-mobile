@@ -16,6 +16,7 @@ interface AppIconProps {
 
 let phosphor: Record<string, React.ComponentType<{ size: number; color: string; weight?: IconWeight }> | undefined> | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   phosphor = require('phosphor-react-native');
 } catch {
   phosphor = null;

@@ -1,7 +1,5 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
 import { AppBadge, AppText as Text } from '@/components/ui';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { resolveSidebarIcon } from '@/constants/sidebarIcons';
@@ -21,150 +19,91 @@ type Props = {
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
 
-const GRADIENT_PRESETS: [string, string][] = [
-  ['#3B82F6', '#8B5CF6'],
-  ['#10B981', '#06B6D4'],
-  ['#F59E0B', '#EF4444'],
-  ['#8B5CF6', '#EC4899'],
-  ['#06B6D4', '#3B82F6'],
-  ['#EC4899', '#F59E0B'],
-  ['#14B8A6', '#10B981'],
-  ['#6366F1', '#8B5CF6'],
-];
-
+/**
+ * A module hub is a navigation index, not a marketing gallery. Keep every
+ * destination in one scannable ledger with a stable icon/title/description axis.
+ */
 export function HubGrid({ items, columns, onItemPress }: Props) {
   const c = useColors();
-  const styles = useMemo(() => createStyles(c), [c]);
+  const styles = useMemo(() => createStyles(c, columns >= 3), [c, columns]);
 
   return (
-    <View style={styles.grid}>
+    <View style={styles.list}>
       {items.map((item, index) => {
         const icon = resolveSidebarIcon(item.icon);
         const disabled = !item.nav || item.disabled;
-        const gradColors = GRADIENT_PRESETS[index % GRADIENT_PRESETS.length];
 
         return (
-          <MotiView
+          <Pressable
             key={item.id}
-            from={{ opacity: 0, scale: 0.92, translateY: 10 }}
-            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-            transition={{ delay: index * 40, type: 'spring', damping: 18, stiffness: 120 }}
-            style={[
-              columns >= 4 ? styles.cardQuarter : columns >= 3 ? styles.cardThird : styles.cardHalf,
+            onPress={disabled ? undefined : () => onItemPress(item)}
+            style={({ pressed }) => [
+              styles.row,
+              index < items.length - 1 && styles.rowDivider,
+              disabled && styles.rowDisabled,
+              pressed && !disabled && styles.rowPressed,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            accessibilityState={{ disabled }}
           >
-            <Pressable
-              onPress={disabled ? undefined : () => onItemPress(item)}
-              style={({ pressed }) => [
-                styles.card,
-                disabled ? styles.cardDisabled : undefined,
-                pressed && !disabled ? { transform: [{ scale: 0.97 }] } : undefined,
-              ]}
-              accessibilityState={{ disabled }}
-            >
-              <View style={styles.cardHeader}>
-                <LinearGradient
-                  colors={disabled ? ['#94A3B8', '#CBD5E1'] : gradColors}
-                  style={styles.iconBadge}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <AppIcon name={icon as IconName} size={22} weight="duotone" color="#FFFFFF" />
-                </LinearGradient>
-              </View>
-              <Text style={[styles.cardTitle, disabled && styles.cardTitleDisabled]} numberOfLines={2}>
-                {item.label}
-              </Text>
-              {item.description ? (
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                  {item.description}
+            <View style={styles.iconBox}>
+              <AppIcon name={icon as IconName} size={20} weight="duotone" color={disabled ? c.textCaption : c.textMuted} />
+            </View>
+            <View style={styles.copy}>
+              <View style={styles.titleRow}>
+                <Text style={[styles.title, disabled && styles.titleDisabled]} numberOfLines={1}>
+                  {item.label}
                 </Text>
-              ) : null}
-              <View style={styles.cardFooter}>
-                {item.badge ? <AppBadge label={item.badge} tone="info" /> : <View />}
-                {!disabled ? <AppIcon name="arrow-right" size={16} color={c.textCaption} /> : null}
+                {item.badge ? <AppBadge label={item.badge} tone="neutral" /> : null}
               </View>
-              {item.disabledReason ? (
-                <Text style={styles.cardLock} numberOfLines={2}>
-                  {item.disabledReason}
-                </Text>
-              ) : null}
-            </Pressable>
-          </MotiView>
+              {item.description ? <Text style={styles.description} numberOfLines={1}>{item.description}</Text> : null}
+              {item.disabledReason ? <Text style={styles.disabledReason} numberOfLines={1}>{item.disabledReason}</Text> : null}
+            </View>
+            {!disabled ? <AppIcon name="arrow-left" size={17} color={c.textCaption} /> : null}
+          </Pressable>
         );
       })}
     </View>
   );
 }
 
-function createStyles(c: AppColors) {
+function createStyles(c: AppColors, wide: boolean) {
   return StyleSheet.create({
-    grid: {
-      ...flexRow,
-      flexWrap: 'wrap',
-      gap: spacing.md,
-      justifyContent: 'flex-start',
-      alignItems: 'stretch',
-    },
-    card: {
+    list: {
       backgroundColor: c.surface,
-      borderRadius: radius.xxl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
-      padding: spacing.md,
-      minHeight: 140,
-      gap: spacing.xs,
-      alignItems: 'flex-start',
-      shadowColor: c.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 3,
+      borderRadius: radius.md,
+      overflow: 'hidden',
     },
-    cardHalf: { width: '48%', maxWidth: '48%' },
-    cardThird: { width: '31.5%', maxWidth: '31.5%' },
-    cardQuarter: { width: '23.5%', maxWidth: '23.5%' },
-    cardDisabled: { opacity: 0.5 },
-    cardHeader: {
-      marginBottom: spacing.xs,
+    row: {
+      ...flexRow,
+      minHeight: wide ? 68 : 64,
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: c.surface,
     },
-    iconBadge: {
-      width: 48,
-      height: 48,
-      borderRadius: 16,
+    rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSubtle },
+    rowPressed: { backgroundColor: c.surfaceMuted },
+    rowDisabled: { opacity: 0.52 },
+    iconBox: {
+      width: 38,
+      height: 38,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 4,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.borderSubtle,
     },
-    cardTitle: {
-      ...textStart,
-      fontSize: typography.body,
-      fontFamily: fonts.bold,
-      color: c.text,
-    },
-    cardTitleDisabled: { color: c.textCaption },
-    cardDesc: {
-      ...textStart,
-      fontSize: typography.tiny,
-      color: c.textMuted,
-      lineHeight: 16,
-    },
-    cardFooter: {
-      ...flexRow,
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      width: '100%',
-      marginTop: 'auto' as const,
-    },
-    cardLock: {
-      ...textStart,
-      fontSize: 10,
-      color: c.warning,
-      fontFamily: fonts.medium,
-    },
+    copy: { flex: 1, minWidth: 0, gap: 2 },
+    titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm },
+    title: { ...textStart, flexShrink: 1, color: c.text, fontFamily: fonts.bold, fontSize: typography.body },
+    titleDisabled: { color: c.textCaption },
+    description: { ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption },
+    disabledReason: { ...textStart, color: c.warning, fontFamily: fonts.medium, fontSize: typography.micro },
   });
 }

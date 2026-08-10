@@ -10,6 +10,8 @@ import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
 import { money, numberText } from '@/utils/format';
 
+import { getOrderStatusStyle } from '@/constants/statusColors';
+
 type OrderItem = {
   id?: number;
   quantity?: number;
@@ -19,8 +21,6 @@ type OrderItem = {
   kitchen_status?: string;
   product?: { name?: string };
 };
-
-import { getOrderStatusStyle } from '@/constants/statusColors';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
@@ -55,7 +55,7 @@ export function WaiterOrderViewSheet({
   onOpenTableOrder,
 }: Props) {
   const c = useColors();
-  const items = (order.items as OrderItem[] | undefined) ?? [];
+  const items = useMemo(() => (order.items as OrderItem[] | undefined) ?? [], [order.items]);
   const status = String(order.status ?? 'pending');
   const statusTheme = getOrderStatusStyle(c, status);
   const itemCount = useMemo(

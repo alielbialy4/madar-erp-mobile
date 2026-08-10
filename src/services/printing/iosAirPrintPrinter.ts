@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { designColors } from '@/constants/colors';
 import { PrintTransportError } from './networkTcpPrinter';
 
 /**
@@ -54,7 +55,7 @@ export function escPosBufferToHtml(buffer: Uint8Array): string {
   const body = lines
     .map((l) => `<div style="font-family:Menlo,Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre">${l}</div>`)
     .join('');
-  return `<html><head><meta charset="utf-8"><style>body{margin:8px;color:#000;background:#fff}</style></head><body dir="rtl">${body}</body></html>`;
+  return `<html><head><meta charset="utf-8"><style>body{margin:8px;color:${designColors.black};background:${designColors.white}}</style></head><body dir="rtl">${body}</body></html>`;
 }
 
 function escapeHtml(s: string): string {

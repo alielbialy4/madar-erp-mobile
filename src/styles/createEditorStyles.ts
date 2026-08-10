@@ -1,4 +1,3 @@
-import React, { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
 import { spacing, radius } from '@/constants/spacing';

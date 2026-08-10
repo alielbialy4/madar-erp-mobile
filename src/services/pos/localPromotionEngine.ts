@@ -10,11 +10,11 @@ export type CatalogPromotion = {
   config?: Record<string, unknown> | null;
   priority: number;
   branch_id?: string | null;
-  conditions?: Array<{
+  conditions?: {
     id?: string;
     condition_type: string;
     condition_value?: Record<string, unknown> | null;
-  }>;
+  }[];
 };
 
 export type EnrichedLine = {
@@ -62,11 +62,11 @@ function conditionPasses(
     case 'min_cart_total':
       return originalTotal >= Number(value.min ?? 0);
     case 'specific_product': {
-      const ids = (value.product_ids as Array<number | string> | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
+      const ids = (value.product_ids as (number | string)[] | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
       return items.some((row) => row.product_id && ids.includes(row.product_id));
     }
     case 'specific_category': {
-      const ids = (value.category_ids as Array<number | string> | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
+      const ids = (value.category_ids as (number | string)[] | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
       return items.some((row) => row.category_id != null && ids.includes(row.category_id));
     }
     case 'specific_brand': {
@@ -104,12 +104,12 @@ function lineMatchesBogoFilters(p: CatalogPromotion, row: EnrichedLine): boolean
       case 'min_cart_total':
         break;
       case 'specific_product': {
-        const ids = (val.product_ids as Array<number | string> | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
+        const ids = (val.product_ids as (number | string)[] | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
         if (ids.length === 0 || !row.product_id || !ids.includes(row.product_id)) return false;
         break;
       }
       case 'specific_category': {
-        const ids = (val.category_ids as Array<number | string> | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
+        const ids = (val.category_ids as (number | string)[] | undefined)?.map((x) => parseInt(String(x), 10)) ?? [];
         if (ids.length === 0 || row.category_id == null || !ids.includes(row.category_id)) return false;
         break;
       }
@@ -183,7 +183,7 @@ function computeDiscount(p: CatalogPromotion, items: EnrichedLine[], runningTota
 export type LocalPromotionResult = {
   originalTotal: number;
   promotionDiscountTotal: number;
-  applied: Array<{ promotion_id: string; name: string; type: string; amount: number }>;
+  applied: { promotion_id: string; name: string; type: string; amount: number }[];
 };
 
 export function evaluateLocalCartPromotions(

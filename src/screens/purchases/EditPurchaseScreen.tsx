@@ -1,17 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { purchasesAPI, type PurchasePayload } from '@/api/purchases';
-import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppDatePicker, AppInput, AppListItem, AppSectionHeader } from '@/components/ui';
-import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { AppScreen, FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms/FormSection';
+import { AppDatePicker, AppInput, AppListItem } from '@/components/ui';
+import { AppText as Text } from '@/components/ui/AppText';
+import { AppBanner, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
 import { extractData } from '@/utils/data';
-import { money, numberText } from '@/utils/format';
+import { money, asText, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
+import { typography } from '@/constants/typography';
+import { textStart } from '@/constants/layout';
+import { useColors } from '@/hooks/useColors';
 import type { MoreStackParamList } from '@/types/navigation';
-import { asText } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'EditPurchase'>;
 type Route = RouteProp<MoreStackParamList, 'EditPurchase'>;
@@ -27,6 +31,7 @@ type Line = {
 };
 
 export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; route: Route }) {
+  const c = useColors();
   const purchaseId = route.params.id;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +41,7 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
   const [purchaseDate, setPurchaseDate] = useState('');
   const [supplierName, setSupplierName] = useState('');
   const [supplierId, setSupplierId] = useState(0);
-  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
@@ -52,10 +57,10 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
         const supplier = data.supplier as Record<string, unknown> | undefined;
         setSupplierId(Number(supplier?.id ?? data.supplier_id ?? 0));
         setSupplierName(asText(supplier?.name ?? data.supplier_name, 'مورد'));
+        setInvoiceNumber(asText(data.invoice_number, `#${purchaseId}`));
         setPurchaseDate(String(data.purchase_date ?? data.created_at ?? '').slice(0, 10));
         setPaid(String(data.paid ?? 0));
         setNotes(String(data.notes ?? ''));
-        setWarehouseId(data.warehouse_id ? String(data.warehouse_id) : null);
         setLines(
           (Array.isArray(data.items) ? data.items : []).map((it: Record<string, unknown>) => ({
             product_id: Number(it.product_id),
@@ -73,6 +78,19 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
   }, [purchaseId]);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.quantity * l.cost_price, 0), [lines]);
+  const styles = useMemo(() => StyleSheet.create({
+    line: {
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    lineMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    meta: { ...textStart, color: c.textMuted, fontSize: typography.small },
+    batch: { ...textStart, color: c.textCaption, fontSize: typography.tiny },
+  }), [c]);
 
   const save = async () => {
     setConfirmVisible(false);
@@ -82,7 +100,6 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
         supplier_id: supplierId,
         purchase_date: purchaseDate,
         notes: notes.trim() || undefined,
-        invoice_number: undefined,
       };
       await purchasesAPI.update(purchaseId, payload);
       Alert.alert('تم', 'تم تحديث فاتورة الشراء');
@@ -111,70 +128,62 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
   }
 
   return (
-    <AppScreen title={`تعديل — ${supplierName}`} onBack={navigation.goBack}>
-      <AppInput label="تاريخ الشراء" value={purchaseDate} onChangeText={setPurchaseDate} />
-      <AppInput label="المدفوع" keyboardType="numeric" value={paid} onChangeText={setPaid} editable={false} />
-      <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
-      <AppCard style={{ gap: spacing.sm }}>
-        <AppSectionHeader title="الأصناف" />
+    <FormScreenLayout
+      title="تعديل بيانات الشراء"
+      onBack={navigation.goBack}
+      heroTitle={invoiceNumber || `فاتورة #${purchaseId}`}
+      heroSubtitle={supplierName}
+      heroAmount={money(subtotal)}
+      saveLabel="حفظ البيانات"
+      onSave={() => setConfirmVisible(true)}
+      saveLoading={submitting}
+      saveDisabled={!purchaseDate || submitting}
+      onCancel={navigation.goBack}
+    >
+      <AppBanner
+        tone="info"
+        icon="lock-outline"
+        message="الفاتورة مرحّلة. يمكنك تعديل التاريخ والملاحظات فقط؛ الأصناف والكميات والتكلفة والمدفوع محمية للحفاظ على المخزون والقيود المالية."
+      />
+
+      <FormSection title="بيانات المستند" subtitle="الحقول المسموح تعديلها بعد الترحيل" icon="edit-note">
+        <AppListItem title="المورد" meta={supplierName} />
+        <AppDatePicker label="تاريخ الشراء" value={purchaseDate} onChange={setPurchaseDate} />
+        <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
+      </FormSection>
+
+      <FormSection title="التسوية المالية" subtitle="للقراءة فقط — استخدم تدفق دفعات المورد لأي حركة جديدة" icon="payments">
+        <AppListItem title="إجمالي الفاتورة" meta={money(subtotal)} />
+        <AppListItem title="المدفوع المسجل" meta={money(Number(paid) || 0)} />
+        <AppListItem title="المتبقي" meta={money(Math.max(0, subtotal - (Number(paid) || 0)))} />
+      </FormSection>
+
+      <FormSection title="الأصناف المرحّلة" subtitle={`${numberText(lines.length)} سطر — للقراءة فقط`} icon="inventory-2">
         {lines.map((line, index) => (
-          <View key={line.product_id} style={{ gap: spacing.xs }}>
+          <View key={`${line.product_id}-${index}`} style={styles.line}>
             <AppListItem title={line.product_name} meta={money(line.quantity * line.cost_price)} />
-            <AppInput
-              label="الكمية"
-              keyboardType="numeric"
-              value={String(line.quantity)}
-              editable={false}
-              onChangeText={(v) => {
-                const next = [...lines];
-                next[index] = { ...line, quantity: Number(v) || 0 };
-                setLines(next);
-              }}
-            />
-            <AppInput
-              label="سعر التكلفة"
-              keyboardType="numeric"
-              value={String(line.cost_price)}
-              editable={false}
-              onChangeText={(v) => {
-                const next = [...lines];
-                next[index] = { ...line, cost_price: Number(v) || 0 };
-                setLines(next);
-              }}
-            />
-            {line.expiry_date != null || line.batch_number ? (
-              <>
-              <AppInput
-                label="تاريخ الإنتاج"
-                value={line.production_date ?? ''}
-                editable={false}
-                placeholder="YYYY-MM-DD"
-              />
-              <AppDatePicker
-                label="تاريخ الصلاحية"
-                value={line.expiry_date ?? ''}
-                onChange={(v) => {
-                  const next = [...lines];
-                  next[index] = { ...line, expiry_date: v };
-                  setLines(next);
-                }}
-              />
-              </>
+            <View style={styles.lineMeta}>
+              <Text style={styles.meta}>الكمية: {numberText(line.quantity)}</Text>
+              <Text style={styles.meta}>تكلفة الوحدة: {money(line.cost_price)}</Text>
+            </View>
+            {line.batch_number || line.production_date || line.expiry_date ? (
+              <Text style={styles.batch}>
+                {[line.batch_number ? `تشغيلة ${line.batch_number}` : null, line.production_date ? `إنتاج ${line.production_date}` : null, line.expiry_date ? `صلاحية ${line.expiry_date}` : null].filter(Boolean).join(' · ')}
+              </Text>
             ) : null}
           </View>
         ))}
-        <AppListItem title="الإجمالي" meta={money(subtotal)} />
-      </AppCard>
-      <AppButton title="حفظ التعديلات" loading={submitting} onPress={() => setConfirmVisible(true)} />
+      </FormSection>
+
       <ConfirmDialog
         visible={confirmVisible}
-        title="تأكيد التعديل"
-        message={`${lines.length} صنف — ${money(subtotal)}`}
+        title="حفظ بيانات المستند"
+        message="سيتم تحديث التاريخ والملاحظات فقط. لن تتغير الأصناف أو المخزون أو التسوية المالية."
         confirmLabel="حفظ"
         loading={submitting}
         onCancel={() => setConfirmVisible(false)}
         onConfirm={() => void save()}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

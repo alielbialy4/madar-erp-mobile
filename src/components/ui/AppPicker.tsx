@@ -21,9 +21,10 @@ type Props = {
   required?: boolean;
   error?: string;
   searchable?: boolean;
+  disabled?: boolean;
 };
 
-export function AppPicker({ label, value, options, onChange, placeholder = 'اختر...', required, error, searchable = options.length > 5 }: Props) {
+export function AppPicker({ label, value, options, onChange, placeholder = 'اختر...', required, error, searchable = options.length > 5, disabled = false }: Props) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -45,17 +46,20 @@ export function AppPicker({ label, value, options, onChange, placeholder = 'اخ
       ) : null}
       <Pressable
         onPress={() => setOpen(true)}
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         style={{
           minHeight: 44,
           borderWidth: 1,
           borderColor: error ? c.danger : c.borderSubtle,
-          borderRadius: radius.input,
+          borderRadius: radius.md,
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm,
           backgroundColor: c.surface,
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.sm,
+          opacity: disabled ? 0.55 : 1,
         }}
         accessibilityRole="button"
       >
@@ -83,7 +87,9 @@ export function AppPicker({ label, value, options, onChange, placeholder = 'اخ
               style={{
                 paddingVertical: spacing.md,
                 paddingHorizontal: spacing.sm,
-                borderRadius: radius.lg,
+                borderRadius: 0,
+                borderBottomWidth: 1,
+                borderBottomColor: c.border,
                 backgroundColor: item.value === value ? c.accentSoft : 'transparent',
               }}
             >

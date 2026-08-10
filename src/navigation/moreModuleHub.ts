@@ -74,6 +74,7 @@ const ROUTE_GROUP: { prefix: string; group: MoreHubGroupId; description?: string
   { prefix: '/shifts', group: 'finance', description: 'فتح وإغلاق الورديات' },
   { prefix: '/vaults', group: 'finance', description: 'أرصدة الخزن' },
   { prefix: '/vaults/transactions', group: 'finance', description: 'حركات الخزن' },
+  { prefix: '/financial-accounts', group: 'finance', description: 'الأرصدة والحركات والتحويل بين الحسابات' },
   { prefix: '/payments', group: 'finance', description: 'سجل المدفوعات' },
   { prefix: '/marketing/coupons', group: 'marketing', description: 'إدارة الكوبونات' },
   { prefix: '/marketing/promotions', group: 'marketing', description: 'العروض الترويجية' },
@@ -90,14 +91,20 @@ const ROUTE_GROUP: { prefix: string; group: MoreHubGroupId; description?: string
 
 const BOTTOM_TAB_ROUTES = new Set(['/', '/pos', '/products', '/sales', '/categories']);
 
+function routeMetaForLink(link?: string) {
+  if (!link) return undefined;
+  return ROUTE_GROUP
+    .filter((route) => link === route.prefix || link.startsWith(`${route.prefix}/`))
+    .sort((a, b) => b.prefix.length - a.prefix.length)[0];
+}
+
 function groupForLink(link?: string): MoreHubGroupId | null {
   if (!link || BOTTOM_TAB_ROUTES.has(link)) return null;
-  const match = ROUTE_GROUP.find((r) => link === r.prefix || link.startsWith(`${r.prefix}/`));
-  return match?.group ?? null;
+  return routeMetaForLink(link)?.group ?? null;
 }
 
 function descriptionForLink(link?: string): string | undefined {
-  return ROUTE_GROUP.find((r) => link === r.prefix || link?.startsWith(`${r.prefix}/`))?.description;
+  return routeMetaForLink(link)?.description;
 }
 
 export function buildMoreHubGroups(menuItems: MobileSidebarMenuItem[]): MoreHubGroup[] {

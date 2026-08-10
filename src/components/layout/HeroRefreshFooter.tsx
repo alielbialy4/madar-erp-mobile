@@ -5,7 +5,6 @@ import { AppText } from '@/components/ui/AppText';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
-import { HERO_CHIP_BG, HERO_CHIP_BORDER, HERO_MUTED_FG } from '@/constants/dashboardHeroTheme';
 import { useColors } from '@/hooks/useColors';
 
 type Props = {
@@ -41,8 +40,8 @@ export function HeroRefreshFooter({
           accessibilityRole="button"
           accessibilityLabel={refreshLabel}
         >
-          {isLoading ? <ActivityIndicator size="small" color={c.sidebarForeground} /> : null}
-          <MaterialIcons name="refresh" size={16} color={c.sidebarForeground} />
+          {isLoading ? <ActivityIndicator size="small" color={c.textMuted} /> : null}
+          <MaterialIcons name="refresh" size={16} color={c.textMuted} />
           <AppText style={styles.refreshLabel}>{refreshLabel}</AppText>
         </Pressable>
       ) : null}
@@ -61,35 +60,31 @@ function createStyles(c: ReturnType<typeof useColors>) {
       flexWrap: 'wrap',
     },
     metaPill: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.xl,
-      backgroundColor: HERO_CHIP_BG,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: HERO_CHIP_BORDER,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
       maxWidth: '100%',
     },
     meta: {
       ...textStart,
       fontSize: 11,
       fontFamily: fonts.medium,
-      color: HERO_MUTED_FG,
+      color: c.textCaption,
       writingDirection: 'ltr',
     },
     refreshBtn: {
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderRadius: radius.lg,
-      backgroundColor: HERO_CHIP_BG,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: HERO_CHIP_BORDER,
+      borderColor: c.border,
       alignItems: 'center',
     },
     refreshLabel: {
       fontSize: 12,
       fontFamily: fonts.bold,
-      color: c.sidebarForeground,
+      color: c.textMuted,
     },
   });
 }

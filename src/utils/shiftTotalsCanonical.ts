@@ -15,7 +15,7 @@ export type ShiftTotalsCanonicalSource = {
   unallocated_refunds?: string | number | null;
 };
 
-function firstDefined(...values: Array<string | number | null | undefined>): string {
+function firstDefined(...values: (string | number | null | undefined)[]): string {
   for (const value of values) {
     if (value !== null && value !== undefined && value !== '') {
       return String(value);

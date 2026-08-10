@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PanResponder, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
-import type { TableDragMode } from '@/utils/tableDropRules';
-import { isValidDropTarget, type TableDropParticipant } from '@/utils/tableDropRules';
+import { isValidDropTarget, type TableDragMode, type TableDropParticipant } from '@/utils/tableDropRules';
 
 export type LayoutRect = { x: number; y: number; width: number; height: number };
 

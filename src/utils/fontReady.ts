@@ -1,5 +1,5 @@
 let fontsReady = false;
-const waiters: Array<() => void> = [];
+const waiters: (() => void)[] = [];
 
 export function markFontsReady(): void {
   fontsReady = true;

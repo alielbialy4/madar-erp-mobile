@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { createCategoryStyles } from '@/components/categories/categoryStyles';
 import { useColors } from '@/hooks/useColors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
-import { AppInput, AppSelect, AppDateRangePicker } from '@/components/ui';
+import { AppSelect, AppDateRangePicker } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import { warehousesAPI } from '@/api/inventory';
 import { extractArray } from '@/utils/data';
@@ -81,9 +81,10 @@ export function InventoryFiltersPanel({
   const [warehouses, setWarehouses] = useState<SelectOption[]>([]);
 
   const has = (key: InventoryFilterKey) => supportedFilters.includes(key);
+  const supportsWarehouse = supportedFilters.includes('warehouse_id');
 
   useEffect(() => {
-    if (!has('warehouse_id')) return;
+    if (!supportsWarehouse) return;
     const params: Record<string, unknown> = { per_page: 100, status: 'active' };
     if (!isGlobalView && effectiveBranchId) params.branch_id = effectiveBranchId;
     void warehousesAPI.list(params).then((res) => {
@@ -93,7 +94,7 @@ export function InventoryFiltersPanel({
         ...list.map((w) => ({ label: String(w.name), value: String(w.id) })),
       ]);
     });
-  }, [isGlobalView, effectiveBranchId, supportedFilters.join(',')]);
+  }, [isGlobalView, effectiveBranchId, supportsWarehouse]);
 
   const warehouseValue = lockedWarehouseId ?? filters.warehouse_id ?? '';
 

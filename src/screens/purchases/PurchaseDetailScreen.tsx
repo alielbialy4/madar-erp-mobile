@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { purchasesAPI, purchaseReturnsAPI } from '@/api/purchases';
-import { vaultsAPI } from '@/api/vaults';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
-import { AppBottomSheet } from '@/components/layout';
+import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { ConfirmDialog, AppErrorState } from '@/components/feedback';
-import { AppScreen } from '@/components/layout';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { extractArray } from '@/utils/data';
@@ -33,23 +32,46 @@ function PurchaseDetail({ id, navigation }: { id: number; navigation: any }) {
   const returnItems = extractArray<Record<string, unknown>>(returns.data);
   const [payOpen, setPayOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
-  const [vaultId, setVaultId] = useState<string | null>(null);
+  const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payConfirm, setPayConfirm] = useState(false);
-  const vaults = useAsyncResource(() => vaultsAPI.list({ active_only: true }));
-  const vaultOptions = extractArray<Record<string, unknown>>(vaults.data).map((v) => ({
-    label: String(v.name ?? ''),
-    value: String(v.id),
+  useEffect(() => {
+    let cancelled = false;
+    financialAccountsAPI.paymentSources({ operation: 'purchase_payment', include_unavailable: true })
+      .then((response) => {
+        if (!cancelled) setPaymentSources(extractArray<PaymentSource>(response));
+      })
+      .catch(() => {
+        if (!cancelled) setPaymentSources([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const availablePaymentSources = paymentSources.filter((source) => source.is_available !== false);
+  const paymentAccountOptions = availablePaymentSources.map((source) => ({
+    label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+    value: String(source.id),
   }));
+
+  useEffect(() => {
+    if (!paymentAccountId && availablePaymentSources[0]?.id) {
+      setPaymentAccountId(String(availablePaymentSources.find((source) => source.is_default)?.id ?? availablePaymentSources[0].id));
+    }
+  }, [availablePaymentSources, paymentAccountId]);
 
   const recordPayment = async (refresh: () => void) => {
     setPayConfirm(false);
     setPaySubmitting(true);
     try {
+      const paymentSource = availablePaymentSources.find((source) => String(source.id) === paymentAccountId);
       await purchasesAPI.addPayment(id, {
         amount: Number(payAmount),
         payment_date: new Date().toISOString().slice(0, 10),
-        vault_id: vaultId ?? undefined,
+        financial_account_id: paymentAccountId || undefined,
+        vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? undefined : undefined,
       });
       Alert.alert('تم', 'تم تسجيل الدفعة');
       setPayOpen(false);
@@ -96,12 +118,12 @@ function PurchaseDetail({ id, navigation }: { id: number; navigation: any }) {
             <AppButton title="إنشاء مرتجع شراء" variant="secondary" onPress={() => navigation.navigate('CreatePurchaseReturn', { purchaseId: id })} />
             <AppButton title="كل المرتجعات" variant="ghost" onPress={() => navigation.navigate('PurchaseReturnsList')} />
           </AppCard>
-          <AppBottomSheet visible={payOpen} onClose={() => setPayOpen(false)}>
+      <AppBottomSheet visible={payOpen} onClose={() => setPayOpen(false)}>
             <View style={{ gap: spacing.md }}>
               <AppSectionHeader title="دفعة على الفاتورة" />
               <AppInput label="المبلغ" keyboardType="numeric" value={payAmount} onChangeText={setPayAmount} />
-              <AppSelect label="الخزنة" value={vaultId} options={vaultOptions} onChange={setVaultId} />
-              <AppButton title="تسجيل" disabled={!payAmount || !vaultId} onPress={() => setPayConfirm(true)} />
+              <AppSelect label="حساب الدفع" value={paymentAccountId} options={paymentAccountOptions} onChange={setPaymentAccountId} />
+              <AppButton title="تسجيل" disabled={!payAmount || !paymentAccountId} onPress={() => setPayConfirm(true)} />
             </View>
           </AppBottomSheet>
           <ConfirmDialog

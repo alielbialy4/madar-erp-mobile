@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, LayawayTerms, Product, SalePayload } from '@/types/api';
+import type { CartLineSelectedOption, CatalogPromotion, Category, Coupon, Customer, DeliveryZone, FinancialAccount, LayawayTerms, Product, SalePayload } from '@/types/api';
 import { cartLineKey, type CartLine } from '@/utils/cartLine';
 import { cartLineGross, lineUnitPriceWithOptions } from '@/utils/cartPricing';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, resolvePosCatalogSettings, type PosOrderType } from '@/utils/posTotals';
@@ -22,14 +22,19 @@ import { normalizeApiError } from '@/utils/errors';
 import { useAuthStore } from './authStore';
 import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
+import { buildCanonicalPaymentLine, buildCanonicalSplitPaymentLines } from '@/utils/paymentAccounts';
+import { createBranchScopeRequestGuard } from '@/utils/branchScopeRequest';
 
 export type { CartLine } from '@/utils/cartLine';
 export { cartLineKey } from '@/utils/cartLine';
 
+const catalogScopeRequests = createBranchScopeRequestGuard();
+
 type SplitLine = {
-  vault_id: string;
+  financial_account_id: string;
+  vault_id?: string | null;
   amount: string;
-  payment_method: 'cash' | 'card' | 'wallet';
+  payment_method: 'cash' | 'card' | 'wallet' | 'electronic_wallet' | 'instapay' | 'bank_transfer' | 'payment_gateway';
 };
 
 type PosState = {
@@ -39,6 +44,7 @@ type PosState = {
   coupons: Coupon[];
   promotions: CatalogPromotion[];
   deliveryZones: DeliveryZone[];
+  financialAccounts: FinancialAccount[];
   cart: CartLine[];
   selectedCustomer: Customer | null;
   loading: boolean;
@@ -91,6 +97,8 @@ type PosState = {
 };
 
 export type SubmitSaleExtras = {
+  /** Stable across a UI retry so a lost response cannot create a second sale. */
+  clientUuid?: string;
   loyaltyPointsRedeemed?: number;
   loyaltyDiscount?: number;
   giftCard?: { id: number; code: string; amount: number };
@@ -103,6 +111,10 @@ export type SubmitSaleExtras = {
   diningTableId?: string | null;
   tableName?: string | null;
   shiftId?: string | null;
+  /** Physical cash drawer vault linked to the active shift. */
+  shiftVaultId?: string | null;
+  /** Canonical financial account selected for a non-split sale payment. */
+  paymentAccountId?: string | null;
   warehouseId?: string | null;
   /** When set, settle an existing table order instead of creating a new sale. */
   settleTable?: { tableId: string; orderId?: number | string | null };
@@ -126,7 +138,7 @@ async function triggerPostCheckoutPrint(input: {
   change?: number;
   balance?: number;
   paymentType: string;
-  paymentBreakdown?: Array<{ label: string; amount: number }>;
+  paymentBreakdown?: { label: string; amount: number }[];
   couponCode?: string | null;
   couponDiscount?: number;
   notes?: string | null;
@@ -200,6 +212,7 @@ function applyCatalogToState(catalog: import('@/types/api').PosCatalog, lastSync
     coupons: catalog.coupons ?? [],
     promotions: (catalog.promotions ?? []) as CatalogPromotion[],
     deliveryZones: catalog.delivery_zones ?? [],
+    financialAccounts: catalog.financial_accounts ?? [],
     catalogSettings: resolvePosCatalogSettings(catalog),
     openShiftId: catalog.open_shift?.id ? String(catalog.open_shift.id) : null,
     defaultWarehouseId: resolveDefaultWarehouseId(catalog),
@@ -222,6 +235,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   coupons: [],
   promotions: [],
   deliveryZones: [],
+  financialAccounts: [],
   cart: [],
   selectedCustomer: null,
   loading: false,
@@ -238,13 +252,20 @@ export const usePosStore = create<PosState>((set, get) => ({
   loadCatalog: async () => {
     set({ loading: true, error: null });
     const branchId = useBranchStore.getState().activeBranch?.id;
+    const request = catalogScopeRequests.begin(branchId);
+    const isCurrentScope = () => catalogScopeRequests.isCurrent(
+      request,
+      useBranchStore.getState().activeBranch?.id,
+    );
     const online = useNetworkStore.getState().isOnline;
     try {
       if (online && branchId) {
         const response = await pullFullPosCatalog(branchId);
         const catalog = response.data;
         if (catalog && response.status === 'success') {
+          if (!isCurrentScope()) return;
           await savePosCatalog(catalog, branchId);
+          if (!isCurrentScope()) return;
           const nextState = applyCatalogToState(catalog, catalog.generated_at ?? new Date().toISOString());
           set(nextState);
           void prewarmReceiptLogoFromSettings(nextState.catalogSettings);
@@ -253,6 +274,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         }
       }
       const cached = await loadPosCatalog();
+      if (!isCurrentScope()) return;
       if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
         const nextState = applyCatalogToState(cached.catalog, cached.saved_at);
         set(nextState);
@@ -268,6 +290,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       await get().refreshPendingOrders();
     } catch (error) {
       const cached = await loadPosCatalog();
+      if (!isCurrentScope()) return;
       if (cached?.catalog && (!branchId || !cached.branch_id || cached.branch_id === branchId)) {
         const nextState = applyCatalogToState(cached.catalog, cached.saved_at);
         set(nextState);
@@ -405,7 +428,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
     }
 
-    const clientUuid = createUuid();
+    const clientUuid = extras?.clientUuid ?? createUuid();
     const shiftId = extras?.shiftId ?? get().openShiftId;
     const warehouseId = extras?.warehouseId ?? get().defaultWarehouseId;
 
@@ -446,8 +469,17 @@ export const usePosStore = create<PosState>((set, get) => ({
       delivery_zone_id: orderType === 'delivery' ? (extras?.deliveryZoneId ?? null) : null,
       service_charge: checkout.serviceCharge,
       payment_lines: splitLines
-        ? splitLines.filter((r) => (parseFloat(r.amount) || 0) > 0).map((r) => ({ vault_id: r.vault_id, amount: parseFloat(r.amount) || 0, payment_method: r.payment_method }))
-        : null,
+        ? buildCanonicalSplitPaymentLines(splitLines, get().financialAccounts, extras?.shiftVaultId)
+        : (() => {
+            const line = buildCanonicalPaymentLine({
+              accounts: get().financialAccounts,
+              paymentMethod: paymentType,
+              accountId: extras?.paymentAccountId,
+              amount: salePaid,
+              shiftVaultId: extras?.shiftVaultId,
+            });
+            return line ? [line] : null;
+          })(),
       layaway_terms: paymentType === 'layaway' ? (extras?.layawayTerms ?? null) : null,
     };
     if (!useNetworkStore.getState().isOnline) {
@@ -490,6 +522,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           return { ok: false, message: 'تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.' };
         }
         const settleRes = await diningAPI.settleOrder(settleTable.tableId, {
+          client_op_id: clientUuid,
           payment_type: payload.payment_type,
           paid: salePaid,
           payment_lines: payload.payment_lines,
@@ -644,7 +677,8 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({ pendingOrders });
   },
 
-  resetSession: () =>
+  resetSession: () => {
+    catalogScopeRequests.invalidate();
     set({
       products: [],
       categories: [],
@@ -652,6 +686,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       coupons: [],
       promotions: [],
       deliveryZones: [],
+      financialAccounts: [],
       cart: [],
       selectedCustomer: null,
       loading: false,
@@ -664,5 +699,6 @@ export const usePosStore = create<PosState>((set, get) => ({
       catalogSettings: {},
       openShiftId: null,
       defaultWarehouseId: null,
-    }),
+    });
+  },
 }));

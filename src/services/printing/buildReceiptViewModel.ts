@@ -197,10 +197,10 @@ export function buildReceiptViewModel(payload: ReceiptPrintPayload): ReceiptView
 }
 
 export function mapCartOptionsToReceipt(
-  selected?: Array<{
+  selected?: {
     group_title?: string;
-    options: Array<{ name?: string; applied_price?: number }>;
-  }>,
+    options: { name?: string; applied_price?: number }[];
+  }[],
 ): ReceiptLineOptionGroup[] {
   if (!selected?.length) return [];
   return selected

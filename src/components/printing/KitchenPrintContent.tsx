@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -116,17 +117,17 @@ export function KitchenPrintContent({ payload, paperWidth, fontSizePx }: Props) 
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: '#fff', direction: 'rtl' },
-  store: { textAlign: 'center', color: '#000', marginBottom: 4 },
+  root: { backgroundColor: designColors.white, direction: 'rtl' },
+  store: { textAlign: 'center', color: designColors.black, marginBottom: 4 },
   invoiceBlock: { alignItems: 'center', marginVertical: 4 },
-  invoiceLabel: { color: '#000', fontWeight: '700' },
-  invoiceValue: { color: '#000', fontWeight: '900' },
-  meta: { color: '#000', textAlign: 'center', marginBottom: 2 },
-  notes: { color: '#000', marginVertical: 4 },
+  invoiceLabel: { color: designColors.black, fontWeight: '700' },
+  invoiceValue: { color: designColors.black, fontWeight: '900' },
+  meta: { color: designColors.black, textAlign: 'center', marginBottom: 2 },
+  notes: { color: designColors.black, marginVertical: 4 },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6, gap: 8 },
-  itemName: { color: '#000', fontWeight: '900' },
-  itemExtra: { color: '#000' },
-  qty: { color: '#000', minWidth: 28, textAlign: 'center' },
-  ref: { color: '#444', marginTop: 8, textAlign: 'center' },
-  dev: { color: '#444', marginTop: 6, textAlign: 'center' },
+  itemName: { color: designColors.black, fontWeight: '900' },
+  itemExtra: { color: designColors.black },
+  qty: { color: designColors.black, minWidth: 28, textAlign: 'center' },
+  ref: { color: designColors.darkMuted, marginTop: 8, textAlign: 'center' },
+  dev: { color: designColors.darkMuted, marginTop: 6, textAlign: 'center' },
 });

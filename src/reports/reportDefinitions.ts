@@ -1,11 +1,45 @@
 import type { ReportDefinition, ReportGroupId, ReportHubItem, ReportId } from './types';
-import { extractArrayFromEnvelope, reportRows, reportSummary } from '@/utils/reportNormalizers';
+import { reportRows, reportSummary } from '@/utils/reportNormalizers';
 
 const productReturnFields = [
   { key: 'returned_quantity', label: 'الكمية المرتجعة', format: 'number' as const },
   { key: 'returned_amount', label: 'قيمة المرتجعات', format: 'money' as const, primary: true },
   { key: 'return_count', label: 'عدد العمليات', format: 'number' as const },
   { key: 'category_name', label: 'التصنيف', format: 'text' as const },
+  { key: 'latest_return_at', label: 'آخر مرتجع', format: 'date' as const },
+];
+
+const salesByProductFields = [
+  { key: 'product_name', label: 'المنتج', format: 'text' as const, primary: true },
+  { key: 'category_name', label: 'التصنيف', format: 'text' as const },
+  { key: 'qty_sold', label: 'الكمية', format: 'number' as const },
+  { key: 'gross_revenue', label: 'الإيراد الإجمالي', format: 'money' as const },
+  { key: 'refund_amount', label: 'المرتجعات', format: 'money' as const },
+  { key: 'net_revenue', label: 'صافي المبيعات', format: 'money' as const, primary: true },
+];
+
+const salesByCategoryFields = [
+  { key: 'category_name', label: 'التصنيف', format: 'text' as const, primary: true },
+  { key: 'qty', label: 'الكمية', format: 'number' as const },
+  { key: 'revenue', label: 'الإيراد', format: 'money' as const },
+  { key: 'sale_count', label: 'عدد المبيعات', format: 'number' as const },
+];
+
+const salesDetailFields = [
+  { key: 'sale_id', label: 'رقم البيع', format: 'text' as const, primary: true },
+  { key: 'invoice_number', label: 'الفاتورة', format: 'text' as const },
+  { key: 'product_name', label: 'المنتج', format: 'text' as const },
+  { key: 'category_name', label: 'التصنيف', format: 'text' as const },
+  { key: 'qty', label: 'الكمية', format: 'number' as const },
+  { key: 'total', label: 'الإجمالي', format: 'money' as const },
+  { key: 'sale_date', label: 'التاريخ', format: 'date' as const },
+];
+
+const categoryReturnFields = [
+  { key: 'category_name', label: 'التصنيف', format: 'text' as const, primary: true },
+  { key: 'returned_quantity', label: 'الكمية المرتجعة', format: 'number' as const },
+  { key: 'returned_amount', label: 'قيمة المرتجعات', format: 'money' as const, primary: true },
+  { key: 'return_count', label: 'عدد العمليات', format: 'number' as const },
   { key: 'latest_return_at', label: 'آخر مرتجع', format: 'date' as const },
 ];
 
@@ -72,6 +106,126 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
           { key: 'payment_type', label: 'طريقة الدفع', format: 'text', primary: true },
           { key: 'amount', label: 'المبلغ', format: 'money' },
         ],
+      },
+    ],
+  },
+  {
+    id: 'sales-by-product',
+    title: 'مبيعات حسب المنتج',
+    description: 'تجميع المبيعات والمرتجعات وصافي المبيعات حسب المنتج',
+    group: 'sales',
+    icon: 'bar-chart',
+    webRoute: '/reports/sales/by-product',
+    permission: 'view_reports',
+    apiMethod: 'salesByProduct',
+    filters: ['dateRange', 'branch', 'category', 'product', 'search', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'sales-by-product',
+    metrics: [
+      { key: 'product_count', label: 'عدد المنتجات', format: 'number', tone: 'info' },
+      { key: 'qty_sold', label: 'الكمية المباعة', format: 'number', tone: 'primary' },
+      { key: 'gross_revenue', label: 'الإيراد الإجمالي', format: 'money', tone: 'primary' },
+      { key: 'net_revenue', label: 'صافي المبيعات', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'items',
+        title: 'المنتجات',
+        extractRows: (p) => reportRows(p, ['items']),
+        fields: salesByProductFields,
+        titleKey: 'product_name',
+        metaKey: 'net_revenue',
+      },
+    ],
+  },
+  {
+    id: 'sales-product-detail',
+    title: 'تفاصيل مبيعات المنتج',
+    description: 'تفاصيل أسطر المبيعات لمنتج محدد',
+    group: 'sales',
+    icon: 'search',
+    webRoute: '/reports/sales/product-detail',
+    permission: 'view_reports',
+    apiMethod: 'salesProductDetail',
+    requiredFilter: 'product',
+    filters: ['dateRange', 'branch', 'product', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'sales-product-detail',
+    metrics: [
+      { key: 'qty_sold', label: 'الكمية', format: 'number', tone: 'primary' },
+      { key: 'gross_revenue', label: 'الإيراد الإجمالي', format: 'money', tone: 'primary' },
+      { key: 'net_revenue', label: 'الصافي', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'lines',
+        title: 'أسطر المبيعات',
+        extractRows: (p) => reportRows(p, ['lines']),
+        fields: salesDetailFields,
+        titleKey: 'invoice_number',
+        metaKey: 'total',
+      },
+    ],
+  },
+  {
+    id: 'sales-by-category',
+    title: 'مبيعات حسب التصنيف',
+    description: 'تجميع المبيعات حسب التصنيف',
+    group: 'sales',
+    icon: 'bar-chart',
+    webRoute: '/reports/sales/by-category',
+    permission: 'view_reports',
+    apiMethod: 'salesByCategory',
+    filters: ['dateRange', 'branch', 'category', 'search', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'sales-by-category',
+    metrics: [
+      { key: 'category_count', label: 'عدد التصنيفات', format: 'number', tone: 'info' },
+      { key: 'qty_sold', label: 'الكمية', format: 'number', tone: 'primary' },
+      { key: 'gross_revenue', label: 'الإيراد', format: 'money', tone: 'primary' },
+      { key: 'net_revenue', label: 'الصافي', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'by_category',
+        title: 'التصنيفات',
+        extractRows: (p) => reportRows(p, ['by_category']),
+        fields: salesByCategoryFields,
+        titleKey: 'category_name',
+        metaKey: 'revenue',
+      },
+    ],
+  },
+  {
+    id: 'sales-category-detail',
+    title: 'تفاصيل مبيعات التصنيف',
+    description: 'تفاصيل أسطر المبيعات لتصنيف محدد',
+    group: 'sales',
+    icon: 'search',
+    webRoute: '/reports/sales/category-detail',
+    permission: 'view_reports',
+    apiMethod: 'salesCategoryDetail',
+    requiredFilter: 'category',
+    filters: ['dateRange', 'branch', 'category', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'sales-category-detail',
+    metrics: [
+      { key: 'qty_sold', label: 'الكمية', format: 'number', tone: 'primary' },
+      { key: 'gross_revenue', label: 'الإيراد الإجمالي', format: 'money', tone: 'primary' },
+      { key: 'net_revenue', label: 'الصافي', format: 'money', tone: 'success' },
+    ],
+    sections: [
+      {
+        id: 'lines',
+        title: 'أسطر المبيعات',
+        extractRows: (p) => reportRows(p, ['lines']),
+        fields: salesDetailFields,
+        titleKey: 'invoice_number',
+        metaKey: 'total',
       },
     ],
   },
@@ -160,6 +314,35 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
+    id: 'sales-returns-by-category',
+    title: 'مرتجعات بيع بالتصنيف',
+    description: 'كميات وقيم مرتجعات البيع مجمعة حسب التصنيف',
+    group: 'sales',
+    icon: 'inventory-2',
+    webRoute: '/reports/sales-returns-by-category',
+    permission: 'view_reports',
+    apiMethod: 'salesReturnsByCategory',
+    filters: ['dateRange', 'branch', 'category', 'search', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'sales-returns-by-category',
+    metrics: [
+      { key: 'total_amount', label: 'إجمالي المبلغ', format: 'money', tone: 'danger' },
+      { key: 'total_quantity', label: 'إجمالي الكمية', format: 'number', tone: 'warning' },
+      { key: 'total_return_transactions', label: 'عدد العمليات', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'rows',
+        title: 'التصنيفات',
+        extractRows: (p) => reportRows(p, ['data', 'rows', 'categories']),
+        fields: categoryReturnFields,
+        titleKey: 'category_name',
+        metaKey: 'returned_amount',
+      },
+    ],
+  },
+  {
     id: 'sales-tax',
     title: 'تقرير الضرائب',
     description: 'إجمالي الضريبة والإيراد حسب المنتج',
@@ -184,6 +367,35 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
           { key: 'revenue', label: 'الإيراد', format: 'money' },
           { key: 'tax', label: 'الضريبة', format: 'money' },
         ],
+      },
+    ],
+  },
+  {
+    id: 'purchase-returns-by-category',
+    title: 'مرتجعات شراء بالتصنيف',
+    description: 'كميات وقيم مرتجعات الشراء مجمعة حسب التصنيف',
+    group: 'purchases',
+    icon: 'shopping-cart',
+    webRoute: '/reports/purchase-returns-by-category',
+    permission: 'view_reports',
+    apiMethod: 'purchaseReturnsByCategory',
+    filters: ['dateRange', 'branch', 'category', 'search', 'perPage'],
+    paginated: true,
+    exportSupported: true,
+    exportType: 'purchase-returns-by-category',
+    metrics: [
+      { key: 'total_amount', label: 'إجمالي المبلغ', format: 'money', tone: 'danger' },
+      { key: 'total_quantity', label: 'إجمالي الكمية', format: 'number', tone: 'warning' },
+      { key: 'total_return_transactions', label: 'عدد العمليات', format: 'number', tone: 'info' },
+    ],
+    sections: [
+      {
+        id: 'rows',
+        title: 'التصنيفات',
+        extractRows: (p) => reportRows(p, ['data', 'rows', 'categories']),
+        fields: categoryReturnFields,
+        titleKey: 'category_name',
+        metaKey: 'returned_amount',
       },
     ],
   },
@@ -1402,6 +1614,91 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
           { key: 'retry_count', label: 'إعادة المحاولة', format: 'number' },
           { key: 'error_message', label: 'الخطأ', format: 'text' },
           { key: 'user_name', label: 'المستخدم', format: 'text' },
+          { key: 'created_at', label: 'التاريخ', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'operations-device-sync-manifest',
+    title: 'حالة مزامنة أجهزة نقطة البيع',
+    description: 'متابعة الأجهزة المتأخرة والطلبات غير المتزامنة خلال آخر سبعة أيام',
+    group: 'operations',
+    icon: 'devices',
+    webRoute: '/reports/operations/device-sync-manifest',
+    permission: 'view_reports',
+    apiMethod: 'posDeviceSyncManifest',
+    filters: ['branch'],
+    metrics: [
+      { key: 'device_count', label: 'الأجهزة', format: 'number', tone: 'info' },
+      { key: 'devices_with_pending', label: 'أجهزة بها طلبات', format: 'number', tone: 'warning' },
+      { key: 'stale_device_count', label: 'أجهزة متأخرة', format: 'number', tone: 'danger' },
+      { key: 'total_pending_uuids', label: 'طلبات معلقة', format: 'number', tone: 'primary' },
+      { key: 'total_failed_uuids', label: 'طلبات فاشلة', format: 'number', tone: 'danger' },
+    ],
+    sections: [
+      {
+        id: 'devices',
+        title: 'الأجهزة',
+        extractRows: (p) => reportRows(p, ['devices']).map((row) => {
+          const pending = Number(row.pending_count ?? 0);
+          const failed = Number(row.failed_count ?? 0);
+          const stale = row.is_stale === true || row.is_stale === 'true' || row.is_stale === 1;
+          return {
+            ...row,
+            sync_state: stale && pending + failed > 0 ? 'متأخر' : pending + failed > 0 ? 'غير متزامن' : 'سليم',
+          };
+        }),
+        fields: [
+          { key: 'device_name', label: 'الجهاز', format: 'text', primary: true },
+          { key: 'user_name', label: 'المستخدم', format: 'text' },
+          { key: 'pending_count', label: 'معلق', format: 'number' },
+          { key: 'failed_count', label: 'فاشل', format: 'number' },
+          { key: 'sync_state', label: 'الحالة', format: 'badge' },
+          { key: 'updated_at', label: 'آخر تحديث', format: 'date' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'operations-drawer-reconciliation',
+    title: 'تسوية الدرج',
+    description: 'مراجعة مبيعات النقد غير المقيدة بالدرج وطلبات المزامنة الفاشلة',
+    group: 'operations',
+    icon: 'balance',
+    webRoute: '/reports/operations/drawer-reconciliation',
+    permission: 'view_reports',
+    apiMethod: 'drawerReconciliation',
+    filters: ['dateRange', 'branch', 'perPage'],
+    paginated: true,
+    metrics: [
+      { key: 'missing_drawer_rows', label: 'قيود درج مفقودة', format: 'number', tone: 'danger' },
+      { key: 'missing_drawer_paid_total', label: 'قيمة القيود المفقودة', format: 'money', tone: 'danger' },
+      { key: 'failed_sync_count', label: 'مزامنات فاشلة', format: 'number', tone: 'warning' },
+      { key: 'failed_sync_paid_total', label: 'قيمة المزامنات الفاشلة', format: 'money', tone: 'warning' },
+    ],
+    sections: [
+      {
+        id: 'missing-drawer-sales',
+        title: 'مبيعات نقدية بلا قيد درج',
+        extractRows: (p) => reportRows(p, ['missing_drawer_sales']),
+        fields: [
+          { key: 'invoice_number', label: 'الفاتورة', format: 'text', primary: true },
+          { key: 'payment_type', label: 'طريقة الدفع', format: 'badge' },
+          { key: 'paid', label: 'المدفوع', format: 'money' },
+          { key: 'shift_id', label: 'الوردية', format: 'text' },
+          { key: 'sale_date', label: 'التاريخ', format: 'date' },
+        ],
+      },
+      {
+        id: 'failed-sync-orders',
+        title: 'طلبات مزامنة فاشلة',
+        extractRows: (p) => reportRows(p, ['failed_sync_orders']),
+        fields: [
+          { key: 'client_uuid', label: 'UUID', format: 'text', primary: true },
+          { key: 'user_name', label: 'المستخدم', format: 'text' },
+          { key: 'retry_count', label: 'إعادة المحاولة', format: 'number' },
+          { key: 'error_message', label: 'الخطأ', format: 'text' },
           { key: 'created_at', label: 'التاريخ', format: 'date' },
         ],
       },

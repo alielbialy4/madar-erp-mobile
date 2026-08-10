@@ -1,22 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
-import { AppScreen } from '@/components/layout';
-import { InventoryHero } from '@/components/inventory/InventoryHero';
+import { AppScreen, FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms/FormSection';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
 import { BatchPickerSheet } from '@/components/inventory/BatchPickerSheet';
 import { InventoryLineItemCard } from '@/components/inventory/InventoryLineItemCard';
 import { stockCountLineKey } from '@/services/inventory/stockCountLines';
 import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
-import { ProductFormSection } from '@/components/products/ProductFormSection';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
-import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
-import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 import type { MoreStackParamList } from '@/types/navigation';
 import { Text } from '@/components/ui/AppText';
@@ -118,7 +116,7 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
     setConfirmVisible(false);
     setSubmitting(true);
     try {
-      await inventoryAPI.createStockTransfer({
+      const res = await inventoryAPI.createStockTransfer({
         from_warehouse_id: fromWarehouseId,
         to_warehouse_id: toWarehouseId,
         ...(shippingCost ? { shipping_cost: Number(shippingCost) } : {}),
@@ -129,8 +127,11 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
           ...(i.batch_id ? { batch_id: i.batch_id } : {}),
         })),
       });
-      Alert.alert('تم بنجاح', 'تم إنشاء تحويل المخزون');
-      navigation.goBack();
+      const data = (res as { data?: Record<string, unknown> }).data ?? res;
+      const id = String((data as Record<string, unknown>).id ?? '');
+      Alert.alert('تم بنجاح', 'تم إنشاء التحويل كطلب معلّق للمراجعة والتنفيذ');
+      if (id) navigation.replace('StockTransferDetail', { id });
+      else navigation.goBack();
     } catch (err) {
       Alert.alert('خطأ', normalizeApiError(err).message);
     } finally {
@@ -155,22 +156,24 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
   }
 
   return (
-    <AppScreen title="تحويل مخزون" onBack={navigation.goBack} scroll contentStyle={{ padding: 0 }}>
-      <View style={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <InventoryHero
-            eyebrow="عملية مخزون"
-            title="تحويل بين المخازن"
-            subtitle="انقل كميات بين مخزن المصدر والوجهة — يُسجّل كحركة مخزون."
-            stats={[
-              { label: 'أصناف', value: items.length },
-              { label: 'مخازن', value: warehouses.length },
-            ]}
-          />
-        </View>
-
-        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: spacing.md }}>
-          <ProductFormSection title="بيانات التحويل" subtitle="المخازن وتكلفة الشحن" icon="swap-horiz">
+    <FormScreenLayout
+      title="تحويل مخزون"
+      subtitle="إنشاء طلب حركة بين مخزنين"
+      onBack={navigation.goBack}
+      heroTitle="مسار التحويل"
+      heroSubtitle="حدد المصدر والوجهة، ثم أضف الكميات التي ستُنقل بعد اعتماد التنفيذ."
+      heroAmount={`${items.length} صنف`}
+      saveLabel="مراجعة وإنشاء التحويل"
+      onSave={() => setConfirmVisible(true)}
+      saveLoading={submitting}
+      saveDisabled={!canSubmit || submitting}
+      onCancel={navigation.goBack}
+    >
+      <AppBanner
+        tone="info"
+        message="إنشاء التحويل لا يغيّر الأرصدة. يتم الخصم من المصدر والإضافة للوجهة فقط عند إكمال التحويل."
+      />
+      <FormSection title="نطاق التحويل" subtitle="مخزن المصدر والوجهة والتكلفة التشغيلية" icon="swap-horiz">
             <AppSelect label="من مخزن" value={fromWarehouseId} options={filteredFromWarehouses} onChange={setFromWarehouseId} />
             <AppSelect label="إلى مخزن" value={toWarehouseId} options={filteredToWarehouses} onChange={setToWarehouseId} />
             {fromWarehouseId && toWarehouseId && fromWarehouseId === toWarehouseId ? (
@@ -183,62 +186,54 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
               keyboardType="numeric"
               placeholder="0"
             />
-          </ProductFormSection>
+      </FormSection>
 
-          <ProductFormSection title="إضافة منتجات" subtitle="ابحث ثم اضغط لإضافة الصنف" icon="search">
-            <InventoryProductSearch onSelect={addProduct} />
-          </ProductFormSection>
+      <FormSection title="إضافة الأصناف" subtitle="ابحث ثم اضغط لإضافة الصنف إلى التحويل" icon="search">
+        <InventoryProductSearch onSelect={addProduct} />
+      </FormSection>
 
-          {items.length === 0 ? (
-            <AppEmptyState title="لم يتم إضافة منتجات" message="ابحث عن منتج وأضفه للقائمة" />
-          ) : (
-            <ProductFormSection title={`الأصناف (${items.length})`} subtitle="حدّد الكمية لكل صنف" icon="inventory-2">
-              {items.map((item, index) => (
-                <InventoryLineItemCard
-                  key={item.key}
-                  title={item.product_name}
-                  onRemove={() => setItems(items.filter((_, i) => i !== index))}
-                >
-                  {fromWarehouseId ? (
-                    <AppButton
-                      title={
-                        item.variant_sku || item.batch_number
-                          ? [item.variant_sku ? `متغير: ${item.variant_sku}` : null, item.batch_number ? `دفعة: ${item.batch_number}` : null]
-                              .filter(Boolean)
-                              .join(' • ')
-                          : 'اختر دفعة / متغير (اختياري)'
-                      }
-                      variant="secondary"
-                      onPress={() => setLotPickerKey(item.key)}
-                    />
-                  ) : null}
-                  <AppInput
-                    label="الكمية"
-                    value={item.quantity}
-                    onChangeText={(v) =>
-                      setItems(items.map((row, i) => (i === index ? { ...row, quantity: v } : row)))
-                    }
-                    keyboardType="numeric"
-                  />
-                </InventoryLineItemCard>
-              ))}
-            </ProductFormSection>
-          )}
-
-          <AppButton
-            title="إرسال التحويل"
-            onPress={() => setConfirmVisible(true)}
-            disabled={!canSubmit}
-            loading={submitting}
-          />
-        </View>
-      </View>
+      {items.length === 0 ? (
+        <AppEmptyState title="لم تضف أصنافًا بعد" message="أضف صنفًا واحدًا على الأقل لبناء التحويل." />
+      ) : (
+        <FormSection title={`الأصناف (${items.length})`} subtitle="راجع الدفعة والكمية قبل إنشاء الطلب" icon="inventory-2">
+          {items.map((item, index) => (
+            <InventoryLineItemCard
+              key={item.key}
+              title={item.product_name}
+              onRemove={() => setItems(items.filter((_, i) => i !== index))}
+            >
+              {fromWarehouseId ? (
+                <AppButton
+                  title={
+                    item.variant_sku || item.batch_number
+                      ? [item.variant_sku ? `متغير: ${item.variant_sku}` : null, item.batch_number ? `دفعة: ${item.batch_number}` : null]
+                          .filter(Boolean)
+                          .join(' • ')
+                      : 'اختر دفعة / متغير (اختياري)'
+                  }
+                  variant="secondary"
+                  onPress={() => setLotPickerKey(item.key)}
+                />
+              ) : null}
+              <AppInput
+                label="الكمية"
+                value={item.quantity}
+                onChangeText={(v) =>
+                  setItems(items.map((row, i) => (i === index ? { ...row, quantity: v } : row)))
+                }
+                keyboardType="numeric"
+                error={Number(item.quantity) > 0 ? undefined : 'أدخل كمية أكبر من صفر'}
+              />
+            </InventoryLineItemCard>
+          ))}
+        </FormSection>
+      )}
 
       <ConfirmDialog
         visible={confirmVisible}
-        title="تأكيد التحويل"
-        message={`سيتم تحويل ${items.length} صنف من «${warehouses.find((w) => w.value === fromWarehouseId)?.label ?? ''}» إلى «${warehouses.find((w) => w.value === toWarehouseId)?.label ?? ''}».`}
-        confirmLabel="تأكيد"
+        title="إنشاء طلب التحويل"
+        message={`سيتم إنشاء طلب معلّق يضم ${items.length} صنف من «${warehouses.find((w) => w.value === fromWarehouseId)?.label ?? ''}» إلى «${warehouses.find((w) => w.value === toWarehouseId)?.label ?? ''}» دون تغيير الأرصدة الآن.`}
+        confirmLabel="إنشاء الطلب"
         onConfirm={() => void handleSubmit()}
         onCancel={() => setConfirmVisible(false)}
       />
@@ -261,6 +256,6 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
           );
         })()
       ) : null}
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

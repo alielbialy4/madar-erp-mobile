@@ -352,6 +352,8 @@ export function PosTablesModal({
     }
   }, [branchId, visible, status]);
 
+  const occupiedTableKey = locallyOccupiedIds.join('|');
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -367,7 +369,7 @@ export function PosTablesModal({
       }
       setTableCartsMap(safe);
     });
-  }, [visible, locallyOccupiedIds.join('|')]);
+  }, [visible, occupiedTableKey]);
 
   const cachedTableIds = useMemo(
     () =>

@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { LayoutChangeEvent, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { MotiView } from 'moti';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useColors } from '@/hooks/useColors';
 import { numberText } from '@/utils/format';
-import { contentAreaRtl, flexRow, textLtr, textStart } from '@/constants/layout';
-import { radius, shadows, spacing } from '@/constants/spacing';
+import { contentAreaRtl, flexRow, isRtl, textLtr, textStart } from '@/constants/layout';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { Text } from '@/components/ui/AppText';
@@ -74,6 +74,19 @@ function labelStepForCount(count: number, compact?: boolean): number {
   return compact ? 7 : 5;
 }
 
+type ChartPoint = { x: number; y: number; value: number };
+
+function buildSmoothPath(points: ChartPoint[]): string {
+  if (!points.length) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  return points.slice(1).reduce((path, point, index) => {
+    const previous = points[index];
+    const middleX = (previous.x + point.x) / 2;
+    return `${path} C ${middleX} ${previous.y}, ${middleX} ${point.y}, ${point.x} ${point.y}`;
+  }, `M ${points[0].x} ${points[0].y}`);
+}
+
 function CurrencyAmount({
   value,
   compact,
@@ -132,6 +145,7 @@ export function RevenueTrendChart({
   hint = 'آخر 30 يومًا — متابعة سريعة للأداء.',
   badge,
   compact,
+  variant = 'bar',
   valueKind = 'money',
 }: Props) {
   const c = useColors();
@@ -161,15 +175,35 @@ export function RevenueTrendChart({
 
   const pointCount = Math.max(values.length, 1);
   const chartHeight = compact ? 140 : isPortrait ? 156 : 180;
-  const barWidth = compact ? 10 : 12;
-  const barGap = compact ? 6 : 8;
-  const minSlotWidth = compact ? 36 : 42;
-  const slotWidth = Math.max(barWidth + barGap, minSlotWidth);
+  const yAxisWidth = isPortrait ? 50 : 46;
+  const availablePlotWidth = Math.max(containerWidth - yAxisWidth - spacing.xs, 0);
+  const minSlotWidth = compact ? 24 : 28;
+  const fittedSlotWidth = availablePlotWidth > 0 ? availablePlotWidth / pointCount : minSlotWidth;
+  const slotWidth = pointCount <= 14 ? Math.max(minSlotWidth, fittedSlotWidth) : minSlotWidth;
+  const barWidth = Math.max(10, Math.min(compact ? 16 : 20, slotWidth * 0.56));
   const labelStep = labelStepForCount(pointCount, compact);
   const labeledIndices = useMemo(() => visibleLabelIndices(pointCount, labelStep), [pointCount, labelStep]);
-  const plotWidth = pointCount * slotWidth + spacing.md;
-  const scrollable = plotWidth > Math.max(containerWidth - 64, 0);
-  const yAxisWidth = isPortrait ? 54 : 48;
+  const plotWidth = Math.max(pointCount * slotWidth, availablePlotWidth);
+  const scrollable = plotWidth > availablePlotWidth + 1;
+
+  const linePoints = useMemo<ChartPoint[]>(
+    () =>
+      values.map((value, index) => ({
+        x: isRtl
+          ? plotWidth - (slotWidth * index + slotWidth / 2)
+          : slotWidth * index + slotWidth / 2,
+        y: chartHeight - (value / maxScale) * chartHeight,
+        value,
+      })),
+    [chartHeight, maxScale, plotWidth, slotWidth, values],
+  );
+  const linePath = useMemo(() => buildSmoothPath(linePoints), [linePoints]);
+  const areaPath = useMemo(() => {
+    if (!linePath || !linePoints.length) return '';
+    const first = linePoints[0];
+    const last = linePoints[linePoints.length - 1];
+    return `${linePath} L ${last.x} ${chartHeight} L ${first.x} ${chartHeight} Z`;
+  }, [chartHeight, linePath, linePoints]);
 
   const yTicks = useMemo(
     () => Array.from({ length: Y_SECTIONS + 1 }, (_, i) => (maxScale / Y_SECTIONS) * (Y_SECTIONS - i)),
@@ -193,26 +227,54 @@ export function RevenueTrendChart({
             />
           );
         })}
-        <View style={[styles.barsRow, { height: chartHeight }]}>
-          {values.map((value, index) => {
-            const barHeight = Math.max(value > 0 ? 3 : 0, (value / maxScale) * chartHeight);
-            return (
-              <View key={`bar-${index}`} style={[styles.barSlot, { width: slotWidth }]}>
-                <View
-                  style={[
-                    styles.bar,
-                    {
-                      width: barWidth,
-                      height: barHeight,
-                      backgroundColor: value > 0 ? c.accent : c.surfaceMuted,
-                      opacity: value > 0 ? 1 : 0.35,
-                    },
-                  ]}
+        {variant === 'line' ? (
+          <Svg width={plotWidth} height={chartHeight} style={styles.svgChart}>
+            <Path d={areaPath} fill={c.info} fillOpacity={0.1} />
+            <Path
+              d={linePath}
+              fill="none"
+              stroke={c.info}
+              strokeWidth={3.25}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {linePoints.map((point, index) =>
+              point.value > 0 && (point.value === peak || pointCount <= 7) ? (
+                <Circle
+                  key={`point-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={4.5}
+                  fill={c.surface}
+                  stroke={c.info}
+                  strokeWidth={3}
                 />
-              </View>
-            );
-          })}
-        </View>
+              ) : null,
+            )}
+          </Svg>
+        ) : (
+          <View style={[styles.barsRow, { height: chartHeight }]}>
+            {values.map((value, index) => {
+              const barHeight = Math.max(value > 0 ? 4 : 0, (value / maxScale) * chartHeight);
+              const isPeak = value === peak && value > 0;
+              return (
+                <View key={`bar-${index}`} style={[styles.barSlot, { width: slotWidth }]}>
+                  <View
+                    style={[
+                      styles.bar,
+                      {
+                        width: barWidth,
+                        height: barHeight,
+                        backgroundColor: isPeak ? c.info : c.textCaption,
+                        opacity: value > 0 ? (isPeak ? 1 : 0.78) : 0,
+                      },
+                    ]}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
       <View style={[styles.datesRow, { minHeight: compact ? 40 : 44 }]}>
         {values.map((_, index) => {
@@ -238,12 +300,7 @@ export function RevenueTrendChart({
   );
 
   return (
-    <MotiView
-      from={{ opacity: 0, translateY: 16 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 200 }}
-      style={styles.root}
-    >
+    <View style={styles.root}>
       <DashboardSection
         title={title}
         hint={hint}
@@ -306,7 +363,7 @@ export function RevenueTrendChart({
           )}
         </View>
       </DashboardSection>
-    </MotiView>
+    </View>
   );
 }
 
@@ -319,7 +376,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     width: '100%',
-    ...shadows.md,
+    overflow: 'hidden',
   },
   chartShell: {
     width: '100%',
@@ -371,9 +428,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   bar: {
-    borderTopLeftRadius: radius.sm,
-    borderTopRightRadius: radius.sm,
+    borderRadius: radius.pill,
     minHeight: 0,
+  },
+  svgChart: {
+    position: 'absolute',
+    start: 0,
+    bottom: 0,
   },
   datesRow: {
     ...flexRow,

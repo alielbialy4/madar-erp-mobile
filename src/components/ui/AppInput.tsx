@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, TextInputProps, View } from 'react-native';
+import { TextInputProps, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { flexRow, inputTextAlign, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
@@ -49,8 +49,8 @@ export function AppInput({ label, error, required, style, textAlign, prefixIcon,
             {
               minHeight: 44,
               borderWidth: focused ? 2 : 1,
-              borderColor: error ? c.danger : focused ? c.ring : c.borderSubtle,
-              borderRadius: radius.input,
+              borderColor: error ? c.danger : focused ? c.ring : c.border,
+              borderRadius: radius.md,
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
               paddingStart: prefixIcon ? spacing.xxxl : spacing.md,

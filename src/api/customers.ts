@@ -12,8 +12,8 @@ export type CustomerPayload = {
 };
 
 export type CustomerOpenDebts = {
-  layaway_plans: Array<{ id: string; invoice_number?: string | null; remaining: number; next_due_date?: string | null }>;
-  credit_sales: Array<{ id: number; invoice_number?: string | null; remaining: number; sale_date?: string | null }>;
+  layaway_plans: { id: string; invoice_number?: string | null; remaining: number; next_due_date?: string | null }[];
+  credit_sales: { id: number; invoice_number?: string | null; remaining: number; sale_date?: string | null }[];
 };
 
 export const customersAPI = {
@@ -24,7 +24,7 @@ export const customersAPI = {
   delete: (id: number) => del(`/customers/${id}`),
   getSales: (id: number, params?: ListParams) => get(`/customers/${id}/sales`, params),
   getDeliveries: (id: number, params?: ListParams) => get(`/customers/${id}/deliveries`, params),
-  getPaymentHistory: (id: number) => get<Array<{
+  getPaymentHistory: (id: number) => get<{
     id: number;
     amount: number;
     type: string;
@@ -36,7 +36,7 @@ export const customersAPI = {
     invoice_number?: string | null;
     vault_name?: string | null;
     created_at?: string | null;
-  }>>(`/customers/${id}/history`),
+  }[]>(`/customers/${id}/history`),
   getLoyaltyTransactions: (id: number, params?: ListParams) => get(`/customers/${id}/loyalty-transactions`, params),
   getAddresses: (id: number) => get<CustomerAddress[]>(`/customers/${id}/addresses`),
   addAddress: (id: number, payload: Partial<CustomerAddress>) => post(`/customers/${id}/addresses`, payload),
@@ -45,6 +45,13 @@ export const customersAPI = {
   getOpenDebts: (id: number) => get<CustomerOpenDebts>(`/customers/${id}/open-debts`),
   recordDebtPayment: (
     id: number,
-    payload: { amount: number; payment_method: string; vault_id?: string | null; sale_id?: number | null; notes?: string },
+    payload: {
+      amount: number;
+      payment_method: string;
+      financial_account_id?: string | null;
+      vault_id?: string | null;
+      sale_id?: number | null;
+      notes?: string;
+    },
   ) => post(`/customers/${id}/debt-payments`, payload),
 };

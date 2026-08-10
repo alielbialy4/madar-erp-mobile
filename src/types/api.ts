@@ -337,10 +337,27 @@ export type SalePayload = {
   promotion_discount?: number;
   loyalty_points_redeemed?: number;
   loyalty_discount?: number;
-  payment_lines?: { vault_id: string; amount: number; payment_method?: string }[] | null;
+  payment_lines?: SalePaymentLine[] | null;
   layaway_terms?: LayawayTerms | null;
   delivery_zone_id?: string | null;
   service_charge?: number;
+};
+
+/** Canonical sale payment allocation. The financial account is the source of truth.
+ * `vault_id` is retained only for the linked physical cash drawer compatibility path.
+ */
+export type SalePaymentLine = {
+  id?: string | number;
+  financial_account_id?: string | null;
+  vault_id?: string | null;
+  amount: number;
+  payment_method?: string;
+  reference?: string | null;
+  account_name?: string | null;
+  provider_name?: string | null;
+  masked_identifier?: string | null;
+  payment_date?: string | null;
+  client_line_id?: string | null;
 };
 
 /** POS UI may use gift_card; server sale uses cash/card + post-sale redeem API. */
@@ -360,6 +377,7 @@ export type Sale = {
   created_at?: string;
   customer?: Customer | null;
   items?: Record<string, unknown>[];
+  payment_lines?: SalePaymentLine[] | null;
 };
 
 export type PosCatalog = {
@@ -377,6 +395,7 @@ export type PosCatalog = {
   promotions?: CatalogPromotion[];
   delivery_zones?: DeliveryZone[];
   vaults?: Vault[];
+  financial_accounts?: FinancialAccount[];
   warehouses?: Warehouse[];
   settings?: Record<string, unknown>;
   open_shift?: ActiveShift | null;
@@ -390,10 +409,10 @@ export type CatalogPromotion = {
   config?: Record<string, unknown> | null;
   priority: number;
   branch_id?: string | null;
-  conditions?: Array<{
+  conditions?: {
     condition_type: string;
     condition_value?: Record<string, unknown> | null;
-  }>;
+  }[];
 };
 
 export type DeliveryZone = {
@@ -475,6 +494,52 @@ export type Vault = {
   balance?: string | number;
   is_active?: boolean;
   branch?: Branch | null;
+};
+
+export type FinancialAccount = {
+  id: string;
+  legacy_vault_id?: string | null;
+  name: string;
+  account_type?: string | null;
+  payment_method: string;
+  provider_name?: string | null;
+  masked_identifier?: string | null;
+  branch_scope?: 'selected_branches' | 'all_branches' | string | null;
+  is_default?: boolean;
+  is_active?: boolean;
+  allow_sales?: boolean;
+  allow_refunds?: boolean;
+  allow_expenses?: boolean;
+  allow_payroll?: boolean;
+  allow_supplier_payments?: boolean;
+  allow_purchase_payments?: boolean;
+  allow_deposits?: boolean;
+  allow_withdrawals?: boolean;
+  allow_transfers?: boolean;
+  allow_manual_adjustments?: boolean;
+  is_default_global?: boolean;
+  branch_links?: { branch_id: string; is_active?: boolean; is_default?: boolean; branch?: Branch | null }[];
+  reconciliation?: Record<string, unknown> | null;
+  last_movement_at?: string | null;
+  related_counts?: Record<string, number>;
+  currency?: string | null;
+  balance?: number | string | null;
+};
+
+export type FinancialAccountTransaction = {
+  id: string | number;
+  amount?: number | string | null;
+  direction?: 'in' | 'out' | string | null;
+  transaction_type?: string | null;
+  type?: string | null;
+  occurred_at?: string | null;
+  note?: string | null;
+  reference?: string | null;
+  branch_id?: string | null;
+  branch?: Branch | null;
+  creator?: { id: number; name?: string | null } | null;
+  balance_after?: number | string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type KitchenOrder = {

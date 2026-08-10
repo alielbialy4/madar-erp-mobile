@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
@@ -20,30 +20,8 @@ export const KPI_TONE_STYLES: Record<
 };
 
 export function createDashboardStyles(c: AppColors) {
-  const elevation = Platform.select({
-    ios: {
-      shadowColor: c.shadowMd,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-    },
-    android: { elevation: 4 },
-    default: {},
-  });
-
-  const softElevation = Platform.select({
-    ios: {
-      shadowColor: c.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 8,
-    },
-    android: { elevation: 2 },
-    default: {},
-  });
-
   return StyleSheet.create({
-    page: { gap: spacing.xl, paddingHorizontal: spacing.lg },
+    page: { gap: spacing.lg, paddingHorizontal: spacing.lg },
     sectionBlock: { gap: spacing.md },
 
     heroOuter: {
@@ -52,7 +30,6 @@ export function createDashboardStyles(c: AppColors) {
       backgroundColor: c.surface,
       borderWidth: 1,
       borderColor: c.borderSubtle,
-      ...elevation,
     },
     heroGradientBand: {
       position: 'absolute',
@@ -194,12 +171,12 @@ export function createDashboardStyles(c: AppColors) {
     },
 
     kpiGrid: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-    kpiGridPrimary: { ...flexRow, flexWrap: 'nowrap', gap: spacing.sm, alignItems: 'flex-start', width: '100%' },
+    kpiGridPrimary: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm, alignItems: 'stretch', width: '100%' },
     kpiGridSecondary: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
     kpiCell: { flexGrow: 1, flexBasis: '47%', minWidth: 156 },
-    kpiCellPrimary: { flex: 1, flexBasis: 0, minWidth: 0, maxWidth: '25%', alignSelf: 'flex-start' },
+    kpiCellPrimary: { minWidth: 0, alignSelf: 'stretch' },
     kpiCellTablet: { flexBasis: '23%', minWidth: 140 },
-    kpiCellSecondary: { flexGrow: 1, flexBasis: '31%', minWidth: 100 },
+    kpiCellSecondary: { minWidth: 0, alignSelf: 'stretch' },
     kpiCellSecondaryTablet: { flexBasis: '15%', minWidth: 96 },
     kpiCellWide: { flexBasis: '100%', minWidth: '100%' },
     sectionLabel: {
@@ -237,7 +214,6 @@ export function createDashboardStyles(c: AppColors) {
       padding: spacing.lg,
       gap: spacing.md,
       minHeight: 112,
-      ...softElevation,
     },
     kpiTop: { ...flexRow, justifyContent: 'space-between', alignItems: 'flex-start' },
     kpiIconWrap: {
@@ -275,7 +251,6 @@ export function createDashboardStyles(c: AppColors) {
       borderWidth: 1,
       borderColor: c.borderSubtle,
       overflow: 'hidden',
-      ...softElevation,
     },
     cardHead: {
       paddingHorizontal: spacing.lg,

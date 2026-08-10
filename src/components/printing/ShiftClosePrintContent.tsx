@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -88,14 +89,14 @@ export function ShiftClosePrintContent({ payload, paperWidth, fontSizePx }: Prop
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: '#fff', direction: 'rtl' },
-  title: { textAlign: 'center', color: '#000', fontWeight: '900', marginBottom: 4 },
-  subtitle: { textAlign: 'center', color: '#000', fontWeight: '700' },
-  meta: { color: '#000', textAlign: 'right', marginBottom: 2 },
+  root: { backgroundColor: designColors.white, direction: 'rtl' },
+  title: { textAlign: 'center', color: designColors.black, fontWeight: '900', marginBottom: 4 },
+  subtitle: { textAlign: 'center', color: designColors.black, fontWeight: '700' },
+  meta: { color: designColors.black, textAlign: 'right', marginBottom: 2 },
   section: { marginBottom: 6 },
-  lineItem: { marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ddd', paddingBottom: 2 },
-  linePrimary: { color: '#000', fontWeight: '700' },
-  lineSecondary: { color: '#333' },
-  lineAmount: { color: '#000', textAlign: 'left', fontWeight: '900' },
-  dev: { color: '#444', textAlign: 'center', marginTop: 8 },
+  lineItem: { marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: designColors.grayBorder, paddingBottom: 2 },
+  linePrimary: { color: designColors.black, fontWeight: '700' },
+  lineSecondary: { color: designColors.darkSoft },
+  lineAmount: { color: designColors.black, textAlign: 'left', fontWeight: '900' },
+  dev: { color: designColors.darkMuted, textAlign: 'center', marginTop: 8 },
 });

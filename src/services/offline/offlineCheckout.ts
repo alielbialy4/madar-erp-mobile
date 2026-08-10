@@ -8,7 +8,7 @@ import { resolveKitchenPrintGroups, type KitchenPrintGroup } from '@/services/pr
 import { getKitchenRoutingRules, resolveKitchenProfilesForCart } from '@/services/offline/kitchenRouting';
 import { getPrinterProfile } from '@/services/printing/printerProfiles';
 import { printEngine } from '@/services/printing/printEngine';
-import { useServerKitchenPrintQueue } from '@/services/pos/posKitchenPrint';
+import { isServerKitchenPrintQueueEnabled } from '@/services/pos/posKitchenPrint';
 import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
 import type { CartLine } from '@/store/posStore';
 
@@ -44,7 +44,7 @@ export async function enqueueOfflinePrintJobs(
     }
   }
 
-  if (!useServerKitchenPrintQueue(meta.catalogSettings) && printSettings.enable_kitchen_print) {
+  if (!isServerKitchenPrintQueueEnabled(meta.catalogSettings) && printSettings.enable_kitchen_print) {
     let groups: KitchenPrintGroup[] = (
       await resolveKitchenPrintGroups({
         branchId: order.branch_id,

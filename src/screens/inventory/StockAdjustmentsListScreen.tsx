@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { stockAdjustmentsAPI } from '@/api/stockAdjustments';
 import { docRowMeta, docRowSubtitle, docRowTitle, ResourceListScreen } from '@/components/inventory/ResourceListScreen';
 import type { MoreStackParamList } from '@/types/navigation';
+import { inventoryStatusLabel } from '@/utils/inventoryLabels';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockAdjustmentsList'>;
 
@@ -20,7 +21,7 @@ export function StockAdjustmentsListScreen({ navigation }: { navigation: Nav }) 
         title: docRowTitle(row, 'تسوية'),
         subtitle: docRowSubtitle(row),
         meta: docRowMeta(row),
-        badgeLabel: String(row.status_label_ar ?? row.status ?? ''),
+        badgeLabel: inventoryStatusLabel(row.status_label_ar ?? row.status),
         badgeTone: row.status === 'posted' ? 'success' : 'warning',
         icon: 'edit',
       })}

@@ -3,7 +3,6 @@ import { waiterAPI } from '@/api/waiter';
 import { kitchenPrintJobsAPI } from '@/api/kitchenPrintJobs';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { ConfirmDialog, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppButton } from '@/components/ui';
 import { WaiterOrderViewSheet } from '@/components/waiter/WaiterOrderViewSheet';
 import { AppText as Text } from '@/components/ui/AppText';
 import { WaiterOrderPickerSheet } from '@/components/waiter/WaiterOrderPickerSheet';
@@ -45,7 +44,7 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
   const [busy, setBusy] = useState(false);
   const [settleConfirm, setSettleConfirm] = useState(false);
   const [settlePaid, setSettlePaid] = useState('');
-  const [settlePaymentType, setSettlePaymentType] = useState<'cash' | 'card' | 'credit' | 'layaway'>('cash');
+  const [settlePaymentType] = useState<'cash' | 'card' | 'credit' | 'layaway'>('cash');
 
   const pickerOpen = sheetMode === 'create' || sheetMode === 'add';
 

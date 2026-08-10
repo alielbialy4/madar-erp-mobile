@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { layawayAPI, type LayawayInstallment, type LayawayPlan } from '@/api/layaway';
-import { vaultsAPI } from '@/api/vaults';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { useBranchStore } from '@/store/branchStore';
 import { AppBottomSheet } from '@/components/layout';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
-import { AppBadge, AppButton, AppCard, AppInput } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppInput, AppSelect } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
 import { AppEmptyState, ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -54,8 +54,8 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
   const [payAmount, setPayAmount] = useState('');
   const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [vaults, setVaults] = useState<{ id: string; name: string }[]>([]);
-  const [payVaultId, setPayVaultId] = useState('');
+  const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
   const [cancelPlan, setCancelPlan] = useState<LayawayPlan | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
@@ -63,13 +63,17 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     if (!activeBranch?.id) return;
-    vaultsAPI.list({ active_only: true, branch_id: activeBranch.id })
+    setPaymentAccountId('');
+    financialAccountsAPI.paymentSources({ operation: 'layaway_collection', branch_id: activeBranch.id, include_unavailable: true })
       .then((response) => {
-        const rows = (response.data ?? []) as { id: string; name: string }[];
-        setVaults(rows);
-        if (rows[0]?.id) setPayVaultId(rows[0].id);
+        setPaymentSources((response.data ?? []).filter((source) => source.is_available !== false));
+        const rows = (response.data ?? []).filter((source) => source.is_available !== false);
+        if (rows[0]?.id) setPaymentAccountId(String(rows.find((source) => source.is_default)?.id ?? rows[0].id));
       })
-      .catch(() => setVaults([]));
+      .catch(() => {
+        setPaymentSources([]);
+        setPaymentAccountId('');
+      });
   }, [activeBranch?.id]);
 
   const openDetails = useCallback(async (plan: LayawayPlan) => {
@@ -120,10 +124,21 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
     if (!Number.isFinite(parsed) || parsed <= 0) return;
     setSubmitting(true);
     try {
+      const paymentSource = paymentSources.find((source) => String(source.id) === paymentAccountId);
       if (paymentTarget.type === 'plan') {
-        await layawayAPI.addPayment(paymentTarget.plan.id, { amount: parsed, payment_method: 'cash', vault_id: payVaultId || null });
+        await layawayAPI.addPayment(paymentTarget.plan.id, {
+          amount: parsed,
+          payment_method: paymentSource?.payment_method ?? 'cash',
+          financial_account_id: paymentAccountId || null,
+          vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
+        });
       } else {
-        await layawayAPI.payInstallment(paymentTarget.plan.id, paymentTarget.installment.id, { amount: parsed, payment_method: 'cash', vault_id: payVaultId || null });
+        await layawayAPI.payInstallment(paymentTarget.plan.id, paymentTarget.installment.id, {
+          amount: parsed,
+          payment_method: paymentSource?.payment_method ?? 'cash',
+          financial_account_id: paymentAccountId || null,
+          vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
+        });
       }
       setPaymentConfirmOpen(false);
       const planToReload = paymentTarget.plan;
@@ -138,7 +153,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
     } finally {
       setSubmitting(false);
     }
-  }, [detailsPlan?.id, openDetails, payAmount, paymentTarget, refresh]);
+  }, [detailsPlan?.id, openDetails, payAmount, paymentAccountId, paymentSources, paymentTarget, refresh, toast]);
 
   const nextDue = useMemo(() => {
     return installments
@@ -245,25 +260,20 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
       >
         <View style={{ gap: spacing.md }}>
           <AppInput label="المبلغ" value={payAmount} onChangeText={setPayAmount} keyboardType="decimal-pad" />
-          {vaults.length > 0 ? (
-            <View style={{ gap: spacing.xs }}>
-              <AppText style={styles.meta}>الخزينة</AppText>
-              <View style={styles.actions}>
-                {vaults.map((vault) => (
-                  <AppButton
-                    key={vault.id}
-                    title={vault.name}
-                    size="sm"
-                    variant={payVaultId === vault.id ? 'primary' : 'outline'}
-                    onPress={() => setPayVaultId(vault.id)}
-                  />
-                ))}
-              </View>
-            </View>
+          {paymentSources.length > 0 ? (
+            <AppSelect
+              label="حساب التحصيل"
+              value={paymentAccountId}
+              options={paymentSources.map((source) => ({
+                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                value: String(source.id),
+              }))}
+              onChange={setPaymentAccountId}
+            />
           ) : (
-            <AppText style={styles.meta}>طريقة الدفع: نقدي (بدون خزينة محددة)</AppText>
+            <AppText style={styles.meta}>لا يوجد حساب تحصيل متاح لهذا الفرع.</AppText>
           )}
-          <AppButton title="متابعة" onPress={() => setPaymentConfirmOpen(true)} disabled={!Number(payAmount) || Number(payAmount) <= 0} />
+          <AppButton title="متابعة" onPress={() => setPaymentConfirmOpen(true)} disabled={!Number(payAmount) || Number(payAmount) <= 0 || !paymentAccountId} />
         </View>
       </AppBottomSheet>
 

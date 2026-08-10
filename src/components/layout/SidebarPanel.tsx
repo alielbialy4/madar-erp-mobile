@@ -7,11 +7,6 @@ import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
-import {
-  SIDEBAR_BORDER,
-  SIDEBAR_FOOTER_BTN_BG,
-  SIDEBAR_MUTED,
-} from '@/constants/sidebarLayout';
 import { useColors } from '@/hooks/useColors';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -91,19 +86,19 @@ export function SidebarPanel({
     });
   }, [expandActiveGroups, activeRoute, menu]);
 
-  const fg = c.sidebarForeground;
-  const muted = SIDEBAR_MUTED;
-  const border = SIDEBAR_BORDER;
-  const accent = c.brandAccent;
+  const fg = c.text;
+  const muted = c.textMuted;
+  const border = c.borderSubtle;
+  const accent = c.primary;
 
   const handleNavigate = useCallback((action: SidebarNavAction) => onNavigate(action), [onNavigate]);
   const toggleGroup = useCallback((key: string) => setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] })), []);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: c.surface }]}> 
       <View style={styles.brandRow}>
         <View style={styles.brandMark}>
-          <BrandLogo height={36} inverted />
+          <BrandLogo height={32} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ ...textStart, color: fg, fontSize: 15, fontFamily: fonts.bold }} numberOfLines={1}>
@@ -156,10 +151,10 @@ export function SidebarPanel({
           {user?.name ?? 'المستخدم'}
         </Text>
         <View style={[flexRow, { gap: spacing.xs, marginTop: spacing.sm }]}>
-          <FooterIcon icon="person-outline" fg={fg} onPress={() => handleNavigate({ kind: 'more', screen: 'Profile' })} />
-          <FooterIcon icon="settings" fg={fg} onPress={() => handleNavigate({ kind: 'more', screen: 'Settings' })} />
-          <FooterIcon icon={theme === 'dark' ? 'light-mode' : 'dark-mode'} fg={fg} onPress={toggleTheme} />
-          <FooterIcon icon="logout" fg={c.danger} onPress={() => void logout()} />
+          <FooterIcon icon="person-outline" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Profile' })} />
+          <FooterIcon icon="settings" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Settings' })} />
+          <FooterIcon icon={theme === 'dark' ? 'light-mode' : 'dark-mode'} fg={fg} bg={c.surfaceMuted} border={border} onPress={toggleTheme} />
+          <FooterIcon icon="logout" fg={c.danger} bg={c.surfaceMuted} border={border} onPress={() => void logout()} />
         </View>
       </View>
     </View>
@@ -169,14 +164,18 @@ export function SidebarPanel({
 function FooterIcon({
   icon,
   fg,
+  bg,
+  border,
   onPress,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   fg: string;
+  bg: string;
+  border: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.footerBtn}>
+    <Pressable onPress={onPress} style={[styles.footerBtn, { backgroundColor: bg, borderColor: border }]}> 
       <MaterialIcons name={icon} size={18} color={fg} />
     </Pressable>
   );
@@ -190,9 +189,9 @@ const styles = StyleSheet.create({
   footerBtn: {
     width: 38,
     height: 38,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SIDEBAR_FOOTER_BTN_BG,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

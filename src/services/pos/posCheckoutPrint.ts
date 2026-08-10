@@ -7,7 +7,7 @@ import { mapCheckoutToReceiptPayload } from '@/services/printing/receiptMappers'
 import { recordPrintTiming } from '@/services/printing/printDiagnostics';
 import { getPaymentPrintLabel } from '@/constants/printLabels';
 import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
-import { useServerKitchenPrintQueue } from '@/services/pos/posKitchenPrint';
+import { isServerKitchenPrintQueueEnabled } from '@/services/pos/posKitchenPrint';
 
 type ProductRef = { id: number; name: string; category_id?: number | null };
 type CategoryRef = { id: number; name: string };
@@ -34,7 +34,7 @@ export type PostCheckoutPrintInput = {
     change?: number;
     balance?: number;
     payment_type: string;
-    payment_breakdown?: Array<{ label: string; amount: number }>;
+    payment_breakdown?: { label: string; amount: number }[];
     coupon_code?: string | null;
     coupon_discount?: number;
     notes?: string | null;
@@ -166,7 +166,7 @@ export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promi
 
   const kitchenEligible =
     printSettings.enable_kitchen_print &&
-    !useServerKitchenPrintQueue(input.catalogSettings) &&
+    !isServerKitchenPrintQueueEnabled(input.catalogSettings) &&
     input.cartLines.length > 0;
 
   let kitchenApiMs: number | null = null;
@@ -199,7 +199,7 @@ export async function runPostCheckoutPrint(input: PostCheckoutPrintInput): Promi
     return result;
   }
 
-  if (useServerKitchenPrintQueue(input.catalogSettings)) {
+  if (isServerKitchenPrintQueueEnabled(input.catalogSettings)) {
     result.kitchen = {
       outcome: 'skipped',
       ticketsPrinted: 0,

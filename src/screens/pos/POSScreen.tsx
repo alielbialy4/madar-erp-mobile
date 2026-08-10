@@ -26,15 +26,15 @@ import { revalidateAppliedCoupon, validateCouponOffline } from '@/api/couponOffl
 import { giftCardsAPI } from '@/api/giftCards';
 import { cashDrawerAPI } from '@/api/cashDrawer';
 import { shiftsAPI } from '@/api/shifts';
-import { vaultsAPI } from '@/api/vaults';
 import { walletAPI } from '@/api/wallet';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { cartTotals, usePosStore } from '@/store/posStore';
-import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, SalePayload, Vault, LayawayTerms } from '@/types/api';
+import type { ActiveShift, CartLineSelectedOption, Customer, Coupon, Product, PosCheckoutPaymentType, SalePayload, LayawayTerms } from '@/types/api';
 import { computePosCheckoutTotals, posAllowsCoupon, posAllowsDiscount, type PosOrderType } from '@/utils/posTotals';
 import { money } from '@/utils/format';
+import { createUuid } from '@/utils/uuid';
 import { ModifierPickerSheet } from './ModifierPickerSheet';
 import type { SplitLine } from './SplitPaymentSheet';
 import { PosPaymentModal } from './PosPaymentModal';
@@ -55,7 +55,7 @@ import {
   isTableOrderConflictError,
   normalizeApiError,
 } from '@/utils/errors';
-import { getLocallyOccupiedTables, markTableLocallyAvailable, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
+import { getLocallyOccupiedTables, markTableLocallyOccupied } from '@/services/pos/locallyOccupiedTables';
 import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posKitchenPrint';
 import { printTablePreInvoiceFromCart } from '@/services/pos/posTablePreInvoicePrint';
 import { openCashDrawer } from '@/services/printing/openCashDrawer';
@@ -115,6 +115,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const coupons = usePosStore((state) => state.coupons);
   const promotions = usePosStore((state) => state.promotions);
   const deliveryZones = usePosStore((state) => state.deliveryZones);
+  const financialAccounts = usePosStore((state) => state.financialAccounts);
   const catalogSettings = usePosStore((state) => state.catalogSettings);
   const loadCatalog = usePosStore((state) => state.loadCatalog);
   const addProduct = usePosStore((state) => state.addProduct);
@@ -158,6 +159,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [posNotice, setPosNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const checkoutLockRef = useRef(false);
+  const checkoutClientUuidRef = useRef<string | null>(null);
   const [shift, setShift] = useState<ActiveShift | null>(null);
   const [shiftError, setShiftError] = useState<string | null>(null);
   const [shiftLoading, setShiftLoading] = useState(true);
@@ -179,7 +181,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const selectedTableIdRef = useRef<string | null>(null);
   const lastDraftErrorRef = useRef<string | null>(null);
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
-  const [vaults, setVaults] = useState<Vault[]>([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
 
   const debouncedQuery = useDebouncedValue(query);
   const totals = useMemo(() => cartTotals(cart), [cart]);
@@ -240,8 +242,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
   });
 
   const orderType: PosOrderType = selectedTable ? 'dine_in' : needsDelivery ? 'delivery' : 'takeaway';
-  const orderTypeLabel =
-    orderType === 'dine_in' ? 'صالة' : orderType === 'delivery' ? 'توصيل' : 'تيك أواي';
   const allowManualDiscount = posAllowsDiscount(catalogSettings);
   const allowCoupons = posAllowsCoupon(catalogSettings);
   const deliveryFee = useMemo(() => {
@@ -638,29 +638,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
   }, [refreshShift]);
 
   useEffect(() => {
-    let mounted = true;
-    async function loadVaults() {
-      if (!activeBranch?.id) {
-        setVaults([]);
-        return;
-      }
-      try {
-        const response = await vaultsAPI.list({ active_only: true, branch_id: activeBranch.id });
-        if (mounted) {
-          const rows = Array.isArray(response.data) ? response.data : [];
-          setVaults(rows as Vault[]);
-        }
-      } catch {
-        if (mounted) setVaults([]);
-      }
-    }
-    void loadVaults();
-    return () => {
-      mounted = false;
-    };
-  }, [activeBranch?.id]);
-
-  useEffect(() => {
     if (selectedCustomer?.id) {
       walletAPI
         .getBalance(selectedCustomer.id)
@@ -728,13 +705,6 @@ export function POSScreen({ navigation }: { navigation: any }) {
       ? `رصيد المحفظة: ${money(walletBalance)}${pointsBalance != null && pointsBalance > 0 ? ` | نقاط: ${pointsBalance}` : ''}`
       : null;
 
-  const couponLabel = appliedCoupon
-    ? `كوبون ${appliedCoupon.coupon.code}: -${money(appliedCoupon.discount)}`
-    : null;
-  const promotionLabel =
-    checkoutTotals.promotionDiscount > 0
-      ? `عروض: -${money(checkoutTotals.promotionDiscount)}`
-      : null;
   const serviceChargeLabel =
     checkoutTotals.serviceCharge > 0
       ? `${checkoutTotals.serviceChargeLabel}: ${money(checkoutTotals.serviceCharge)}`
@@ -849,7 +819,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     return () => {
       cancelled = true;
     };
-  }, [totals.total, manualDiscountAmount, checkoutTotals.gross, checkoutTotals.promotionDiscount, isOnline, selectedCustomer?.id, activeBranch?.id, coupons, appliedCoupon?.coupon.code]);
+  }, [totals.total, manualDiscountAmount, checkoutTotals.gross, checkoutTotals.promotionDiscount, isOnline, selectedCustomer?.id, activeBranch?.id, coupons, appliedCoupon, setAppliedCoupon]);
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
@@ -1052,6 +1022,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       manualDiscountAmount,
       {
         loyaltyPointsRedeemed: loyaltyPointsNum > 0 ? loyaltyPointsNum : undefined,
+        clientUuid: checkoutClientUuidRef.current ?? (checkoutClientUuidRef.current = createUuid()),
         loyaltyDiscount: loyaltyDiscount > 0 ? loyaltyDiscount : undefined,
         giftCard:
           paymentType === 'gift_card' && appliedGiftCard
@@ -1059,6 +1030,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
             : undefined,
         layawayTerms: buildLayawayTerms(),
         orderType,
+        paymentAccountId: salePaymentType === 'split' ? null : paymentAccountId,
         deliveryFee: needsDelivery ? deliveryFee : 0,
         deliveryAddress: needsDelivery ? deliveryAddress.trim() : undefined,
         deliveryPhone: needsDelivery ? deliveryPhone.trim() : undefined,
@@ -1066,6 +1038,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         diningTableId: selectedTable?.id ?? null,
         tableName: selectedTable?.name ?? null,
         shiftId: shift?.id ?? null,
+        shiftVaultId: shift?.vault_id ?? null,
         settleTable:
           selectedTable && orderType === 'dine_in'
             ? { tableId: selectedTable.id, orderId: settleOrderId }
@@ -1082,6 +1055,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       toast.error(result.message);
     }
     if (result.ok || result.queued) {
+      checkoutClientUuidRef.current = null;
       setPosNotice(result.message);
       setCheckoutOpen(false);
       setPaid('');
@@ -1107,6 +1081,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setGiftCardCode('');
       setAppliedGiftCard(null);
       setGiftCardMessage(null);
+      setPaymentAccountId('');
       setPaymentType('cash');
     }
     } finally {
@@ -1124,6 +1099,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       current === 'layaway' || current === 'split' || current === 'wallet' ? 'cash' : current,
     );
     setPaid(paymentType === 'credit' || paymentType === 'layaway' ? '0' : String(effectiveTotal));
+    checkoutClientUuidRef.current = createUuid();
     setCheckoutOpen(true);
   };
 
@@ -1229,7 +1205,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     } catch (err) {
       setPosNotice(normalizeApiError(err).message);
     }
-  }, [activeBranch?.id, cart, products, selectedTableName, catalogSettings]);
+  }, [activeBranch?.id, activeBranch?.name, cart, products, selectedTableName, catalogSettings]);
 
   const handlePrintTableInvoice = useCallback(async () => {
     if (!activeBranch?.id) {
@@ -1454,7 +1430,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
       <PosPaymentModal
         visible={checkoutOpen}
-        onClose={() => setCheckoutOpen(false)}
+        onClose={() => {
+          checkoutClientUuidRef.current = null;
+          setCheckoutOpen(false);
+        }}
         amountDue={effectiveTotal}
         walletText={walletText}
         walletBalance={walletBalance}
@@ -1499,7 +1478,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
         hasCustomer={!!selectedCustomer}
         selectedTableName={selectedTableName}
         customerName={selectedCustomer?.name ?? null}
-        vaults={vaults}
+        financialAccounts={financialAccounts}
+        shiftVaultId={shift?.vault_id ?? null}
+        paymentAccountId={paymentAccountId}
+        onPaymentAccountIdChange={setPaymentAccountId}
         splitLines={splitLines}
         onSplitLinesChange={setSplitLines}
         onConfirm={() => void handleCheckout()}

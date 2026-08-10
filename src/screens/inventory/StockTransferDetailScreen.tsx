@@ -6,11 +6,10 @@ import { stockTransfersAPI } from '@/api/stockTransfers';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
 import { ConfirmDialog } from '@/components/feedback';
-import { dateText, numberText } from '@/utils/format';
+import { dateText, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
-import { asText } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockTransferDetail'>;
 type Route = RouteProp<MoreStackParamList, 'StockTransferDetail'>;

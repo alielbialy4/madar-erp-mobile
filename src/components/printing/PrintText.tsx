@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React from 'react';
 import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
 import { textAlignStart, textLtr } from '@/constants/layout';
@@ -20,7 +21,7 @@ export function PrintText({ style, numeric, ...props }: PrintTextProps) {
       {...props}
       style={[
         {
-          color: '#000',
+          color: designColors.black,
           fontWeight: flat?.fontWeight ?? '400',
         },
         flat,

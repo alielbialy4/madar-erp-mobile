@@ -101,8 +101,15 @@ export function InventoryListCard({
 function createExtraStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     titleRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-    compactPressable: { paddingBottom: spacing.sm },
-    gridCard: { flex: 1, marginBottom: 0 },
+    compactPressable: { minHeight: 72 },
+    gridCard: {
+      flex: 1,
+      marginBottom: 0,
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
     gridPressable: { padding: spacing.md, gap: spacing.sm, flex: 1 },
     gridIconWrap: {
       width: '100%',

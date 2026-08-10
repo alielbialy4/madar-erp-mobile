@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
@@ -216,13 +217,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metaLabel: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
   },
   metaLeader: {
     flex: 1,
     borderBottomWidth: 1,
-    borderBottomColor: '#666',
+    borderBottomColor: designColors.gray,
     borderStyle: 'dotted',
     marginHorizontal: 4,
     marginBottom: 2,
@@ -231,16 +232,16 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
   },
   metaValue: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     maxWidth: '62%',
     textAlign: 'left',
   },
   orderHero: {
     borderWidth: 1.5,
-    borderColor: '#111',
+    borderColor: designColors.dark,
     borderRadius: 4,
-    backgroundColor: '#fafafa',
+    backgroundColor: designColors.slate50,
     paddingVertical: 4,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -248,15 +249,15 @@ const styles = StyleSheet.create({
   },
   orderHeroLite: {
     borderRadius: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: designColors.white,
   },
   orderHeroLabel: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     marginBottom: 2,
   },
   orderHeroValue: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     letterSpacing: 1.7,
   },
@@ -271,12 +272,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   totalLabel: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     flex: 1,
   },
   totalValue: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     textAlign: 'left',
   },
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
   },
   grandTotalBox: {
     borderWidth: 1.5,
-    borderColor: '#111',
+    borderColor: designColors.dark,
     borderRadius: 4,
     paddingVertical: 4,
     paddingHorizontal: 5,
@@ -297,11 +298,11 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#111',
+    backgroundColor: designColors.dark,
     marginVertical: 5,
   },
   sectionTitle: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
     marginBottom: 3,
     textAlign: 'center',
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
   documentTitle: {
     alignSelf: 'center',
     borderWidth: 1,
-    borderColor: '#111',
+    borderColor: designColors.dark,
     borderRadius: 3,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -323,12 +324,12 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   documentTitleText: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
   },
   reprintBanner: {
     borderWidth: 1,
-    borderColor: '#111',
+    borderColor: designColors.dark,
     borderStyle: 'dashed',
     paddingVertical: 3,
     paddingHorizontal: 6,
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
   },
   reprintText: {
-    color: '#000',
+    color: designColors.black,
     fontWeight: '500',
   },
 });

@@ -1,20 +1,11 @@
 import React, { useMemo } from 'react';
-import {
-  Image,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { PressableScale } from '@/components/ui/PressableScale';
 import { PosFlexGrid, posGridColumns } from '@/components/pos/PosFlexGrid';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppBadge, AppButton, AppInput } from '@/components/ui';
+import { AppBadge, AppButton, AppSearchField } from '@/components/ui';
 import { AppEmptyState } from '@/components/feedback';
-import { flexRow, rtlDirection, textStart } from '@/constants/layout';
+import { flexRow, rtlDirection, textLtr, textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
@@ -29,23 +20,6 @@ import { chevronForwardIcon } from '@/utils/rtl';
 
 type CategoryItem = { id: string; name: string; image?: string | null };
 
-function CatalogCardOverlay() {
-  return (
-    <LinearGradient
-      pointerEvents="none"
-      colors={[
-        'rgba(15,23,42,0.32)',
-        'rgba(15,23,42,0.12)',
-        'rgba(15,23,42,0.02)',
-        'rgba(15,23,42,0.52)',
-        'rgba(15,23,42,0.88)',
-      ]}
-      locations={[0, 0.14, 0.38, 0.68, 1]}
-      style={StyleSheet.absoluteFillObject}
-    />
-  );
-}
-
 function availableQty(product: Product): number | null {
   const mode = product.inventory_mode ?? (product.track_inventory === false ? 'non_stock' : 'stock_product');
   if (mode !== 'stock_product') return null;
@@ -53,32 +27,6 @@ function availableQty(product: Product): number | null {
   if (raw === undefined || raw === null) return null;
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;
-}
-
-function premiumShadow(c: AppColors) {
-  return Platform.select({
-    ios: {
-      shadowColor: c.shadowMd,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-    },
-    android: { elevation: 4 },
-    default: { boxShadow: `0 8px 24px ${c.shadow}` } as object,
-  });
-}
-
-function softGlow(c: AppColors) {
-  return Platform.select({
-    ios: {
-      shadowColor: c.accent,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.22,
-      shadowRadius: 10,
-    },
-    android: { elevation: 6 },
-    default: { boxShadow: `0 0 0 1px ${c.accentBorder}, 0 8px 20px ${c.cardGlow}` } as object,
-  });
 }
 
 type Props = {
@@ -123,356 +71,20 @@ export function PosCatalogPanel({
 }: Props) {
   const c = useColors();
   const tablet = variant === 'tablet';
+  const styles = useMemo(() => createStyles(c, tablet), [c, tablet]);
   const gridWidth = containerWidth > 0 ? containerWidth : 640;
   const columns = posGridColumns(gridWidth, tablet);
-
   const isSearching = query.trim().length > 0;
   const showCategoryRoot = showCategoryCards && !isSearching;
   const showExitCategory = !showCategoryRoot && categoryId !== 'all' && Boolean(onExitCategory);
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        panel: { flex: 1, minWidth: 0, minHeight: 0, ...rtlDirection },
-        headerBlock: { gap: spacing.md, paddingBottom: spacing.md, paddingTop: spacing.sm },
-        headerTopRow: { ...flexRow, alignItems: 'center', gap: spacing.sm },
-        searchWrap: { flex: 1, minWidth: 0 },
-        searchInput: { minHeight: tablet ? 50 : 44 },
-        searchIconBox: {
-          width: tablet ? 50 : 46,
-          height: tablet ? 50 : 46,
-          borderRadius: radius.xl,
-          backgroundColor: c.surface,
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-          alignItems: 'center',
-          justifyContent: 'center',
-          ...premiumShadow(c),
-        },
-        catalogToolbar: { ...flexRow, alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-        sectionHeadRow: { ...flexRow, alignItems: 'center', gap: spacing.sm, flex: 1, minWidth: 0 },
-        sectionTitle: {
-          ...textStart,
-          flex: 1,
-          color: c.text,
-          fontSize: tablet ? typography.sectionTitle : typography.cardTitle,
-          fontFamily: fonts.extraBold,
-          fontWeight: '800',
-          letterSpacing: -0.3,
-        },
-        countBadge: {
-          fontSize: typography.tiny,
-          fontFamily: fonts.bold,
-          fontWeight: '700',
-          color: c.accent,
-          backgroundColor: c.accentSoft,
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 4,
-          borderRadius: radius.pill,
-          overflow: 'hidden',
-        },
-        breadcrumb: { ...textStart, color: c.textCaption, fontSize: typography.tiny, fontFamily: fonts.medium },
-        exitCategoryBtn: { flexShrink: 0 },
-        chipsScroll: { flexGrow: 0, marginHorizontal: -spacing.xs },
-        chipsRow: { ...flexRow, gap: spacing.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
-        chip: {
-          minHeight: 40,
-          paddingHorizontal: spacing.lg,
-          borderRadius: radius.pill,
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-          backgroundColor: c.surface,
-          justifyContent: 'center',
-          ...Platform.select({
-            ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-            android: { elevation: 1 },
-            default: {},
-          }),
-        },
-        chipActive: {
-          backgroundColor: c.accent,
-          borderColor: c.accent,
-          ...Platform.select({
-            ios: { shadowColor: c.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8 },
-            android: { elevation: 3 },
-            default: {},
-          }),
-        },
-        chipText: {
-          color: c.textMuted,
-          fontFamily: fonts.medium,
-          fontWeight: '600',
-          fontSize: typography.small,
-          writingDirection: 'rtl',
-        },
-        chipTextActive: {
-          color: c.primaryForeground,
-          fontFamily: fonts.bold,
-          fontWeight: '700',
-          writingDirection: 'rtl',
-        },
-        categoryCard: {
-          flex: 1,
-          borderRadius: radius.xl,
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-          backgroundColor: c.surface,
-          ...premiumShadow(c),
-        },
-        categoryAccentBar: {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          zIndex: 12,
-          backgroundColor: c.accent,
-        },
-        categoryHero: {
-          width: '100%',
-          aspectRatio: tablet ? 1.22 : 1.28,
-          minHeight: tablet ? 112 : 100,
-          position: 'relative',
-          overflow: 'hidden',
-          backgroundColor: c.surfaceMuted,
-        },
-        categoryHeroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-        categoryAllBackdrop: {
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: c.primary,
-        },
-        categoryAllGlowA: {
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: c.accent,
-          opacity: 0.22,
-        },
-        categoryAllGlowB: {
-          position: 'absolute',
-          top: -24,
-          right: -24,
-          width: 120,
-          height: 120,
-          borderRadius: 60,
-          backgroundColor: 'rgba(255,255,255,0.12)',
-        },
-        categoryPlaceholderBackdrop: {
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: c.surfaceElement,
-        },
-        categoryPlaceholderTint: {
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: c.accent,
-          opacity: 0.1,
-        },
-        categoryPlaceholderIconCenter: {
-          position: 'absolute',
-          top: '26%',
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          zIndex: 1,
-        },
-        categoryPlaceholderIconWrap: {
-          width: 44,
-          height: 44,
-          borderRadius: radius.lg,
-          backgroundColor: 'rgba(255,255,255,0.14)',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.28)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        categoryPlaceholderLetter: {
-          color: c.onPrimary,
-          fontSize: 20,
-          fontFamily: fonts.extraBold,
-          fontWeight: '800',
-        },
-        categoryCountPill: {
-          position: 'absolute',
-          top: spacing.sm + 2,
-          right: spacing.sm,
-          zIndex: 8,
-          ...flexRow,
-          alignItems: 'center',
-          gap: 4,
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 5,
-          borderRadius: radius.pill,
-          backgroundColor: 'rgba(255,255,255,0.9)',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.55)',
-          ...Platform.select({
-            ios: {
-              shadowColor: c.shadow,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.12,
-              shadowRadius: 6,
-            },
-            android: { elevation: 3 },
-            default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
-          }),
-        },
-        categoryCountValue: {
-          color: c.text,
-          fontSize: typography.small,
-          fontFamily: fonts.extraBold,
-          fontWeight: '800',
-          writingDirection: 'rtl',
-        },
-        categoryCountLabel: {
-          color: c.textCaption,
-          fontSize: typography.tiny,
-          fontFamily: fonts.bold,
-          fontWeight: '700',
-          writingDirection: 'rtl',
-        },
-        categoryOverlayContent: {
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 6,
-          paddingHorizontal: spacing.sm + 2,
-          paddingStart: spacing.xl + 8,
-          paddingBottom: spacing.sm + 2,
-          paddingTop: spacing.xl,
-          gap: 3,
-        },
-        categoryOverlayName: {
-          color: c.onPrimary,
-          fontSize: tablet ? typography.body : typography.small,
-          fontFamily: fonts.extraBold,
-          fontWeight: '800',
-          textAlign: 'right',
-          writingDirection: 'rtl',
-          lineHeight: tablet ? 20 : 18,
-          letterSpacing: -0.2,
-          textShadowColor: 'rgba(0,0,0,0.55)',
-          textShadowOffset: { width: 0, height: 1 },
-          textShadowRadius: 5,
-        },
-        categoryOverlayMeta: {
-          color: 'rgba(255,255,255,0.86)',
-          fontSize: typography.tiny,
-          fontFamily: fonts.medium,
-          fontWeight: '500',
-          textAlign: 'right',
-          writingDirection: 'rtl',
-          textShadowColor: 'rgba(0,0,0,0.45)',
-          textShadowOffset: { width: 0, height: 1 },
-          textShadowRadius: 4,
-        },
-        categoryArrowWrap: {
-          position: 'absolute',
-          left: spacing.sm,
-          bottom: spacing.sm + 1,
-          zIndex: 7,
-          width: 26,
-          height: 26,
-          borderRadius: radius.pill,
-          backgroundColor: 'rgba(255,255,255,0.18)',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.28)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        productCardInCart: {
-          borderColor: c.accentBorder,
-          ...softGlow(c),
-        },
-        productAccentInCart: {
-          backgroundColor: c.accent,
-        },
-        productBadgesOverlay: {
-          position: 'absolute',
-          top: spacing.sm + 2,
-          left: spacing.sm,
-          zIndex: 8,
-          ...flexRow,
-          flexWrap: 'wrap',
-          gap: spacing.xs,
-          maxWidth: '58%',
-        },
-        productInCartPill: {
-          position: 'absolute',
-          top: spacing.sm + 2,
-          right: spacing.sm,
-          zIndex: 8,
-          ...flexRow,
-          alignItems: 'center',
-          gap: 4,
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 5,
-          borderRadius: radius.pill,
-          backgroundColor: c.primary,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.35)',
-          ...Platform.select({
-            ios: {
-              shadowColor: c.shadow,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.18,
-              shadowRadius: 6,
-            },
-            android: { elevation: 3 },
-            default: { boxShadow: `0 2px 8px ${c.shadow}` } as object,
-          }),
-        },
-        productInCartValue: {
-          color: c.primaryForeground,
-          fontSize: typography.small,
-          fontFamily: fonts.extraBold,
-          fontWeight: '800',
-          writingDirection: 'rtl',
-        },
-        productInCartLabel: {
-          color: 'rgba(255,255,255,0.88)',
-          fontSize: typography.tiny,
-          fontFamily: fonts.bold,
-          fontWeight: '700',
-          writingDirection: 'rtl',
-        },
-        productAddFab: {
-          position: 'absolute',
-          left: spacing.sm,
-          bottom: spacing.sm + 1,
-          zIndex: 7,
-          width: 28,
-          height: 28,
-          borderRadius: radius.pill,
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.55)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          ...Platform.select({
-            ios: {
-              shadowColor: c.shadow,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.14,
-              shadowRadius: 5,
-            },
-            android: { elevation: 3 },
-            default: { boxShadow: `0 2px 6px ${c.shadow}` } as object,
-          }),
-        },
-      }),
-    [c, tablet],
-  );
-
   const categoryCards = useMemo(() => [{ id: 'all', name: 'كل المنتجات' }, ...categories], [categories]);
-  const categoryThumbnails = useMemo(
-    () => buildCategoryThumbnailMap(categories, products),
-    [categories, products],
-  );
+  const categoryThumbnails = useMemo(() => buildCategoryThumbnailMap(categories, products), [categories, products]);
   const productCounts = useMemo(() => {
     const map: Record<string, number> = {};
     for (const product of products) {
       const id = product.category_id != null ? String(product.category_id) : null;
-      if (!id) continue;
-      map[id] = (map[id] ?? 0) + 1;
+      if (id) map[id] = (map[id] ?? 0) + 1;
     }
     return map;
   }, [products]);
@@ -480,69 +92,60 @@ export function PosCatalogPanel({
   const browseTitle = isSearching ? 'نتائج البحث' : activeCategoryName ?? (categoryId === 'all' ? 'كل المنتجات' : 'المنتجات');
 
   const searchHeader = (
-    <View style={styles.headerTopRow}>
-      <View style={styles.searchWrap}>
-        <AppInput
+    <View style={styles.searchRow}>
+      <View style={styles.searchSlot}>
+        <AppSearchField
           value={query}
           onChangeText={onQueryChange}
           placeholder="بحث باسم المنتج أو الباركود..."
-          style={styles.searchInput}
+          compact
         />
       </View>
-      <View style={styles.searchIconBox} accessibilityLabel="بحث وباركود">
-        <MaterialIcons name="qr-code-scanner" size={22} color={c.accent} />
+      <View style={styles.scanButton} accessibilityLabel="قراءة باركود">
+        <MaterialIcons name="qr-code-scanner" size={22} color={c.textMuted} />
       </View>
+    </View>
+  );
+
+  const sectionHeading = (title: string, count: number) => (
+    <View style={styles.sectionHeading}>
+      <View style={styles.sectionCopy}>
+        <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.sectionMeta}>{numberText(count)} عنصر</Text>
+      </View>
+      {showExitCategory ? (
+        <AppButton title="التصنيفات" variant="outline" size="sm" onPress={onExitCategory} />
+      ) : null}
     </View>
   );
 
   const categoryHeader = (
     <View style={styles.headerBlock}>
       {searchHeader}
-      <View style={styles.sectionHeadRow}>
-        <Text style={styles.sectionTitle}>التصنيفات</Text>
-        <Text style={styles.countBadge}>{numberText(categories.length)}</Text>
-      </View>
+      {sectionHeading('التصنيفات', categoryCards.length)}
     </View>
   );
 
   const productHeader = (
     <View style={styles.headerBlock}>
       {searchHeader}
-      <View style={styles.catalogToolbar}>
-        {showExitCategory ? (
-          <AppButton
-            title="الخروج من التصنيف"
-            variant="outline"
-            size="sm"
-            onPress={onExitCategory}
-            style={styles.exitCategoryBtn}
-          />
-        ) : null}
-        <View style={{ flex: 1, minWidth: 0, gap: spacing.xs }}>
-          {showExitCategory && activeCategoryName ? (
-            <Text style={styles.breadcrumb} numberOfLines={1}>
-              التصنيفات / {activeCategoryName}
-            </Text>
-          ) : null}
-          <View style={styles.sectionHeadRow}>
-            <Text style={styles.sectionTitle} numberOfLines={1}>
-              {browseTitle}
-            </Text>
-            <Text style={styles.countBadge}>{numberText(products.length)}</Text>
-          </View>
-        </View>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} nestedScrollEnabled>
+      {sectionHeading(browseTitle, products.length)}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
         <View style={[styles.chipsRow, rtlDirection]}>
-          {chipItems.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => onCategoryChange(item.id)}
-              style={[styles.chip, categoryId === item.id ? styles.chipActive : undefined]}
-            >
-              <Text style={[styles.chipText, categoryId === item.id ? styles.chipTextActive : undefined]}>{item.name}</Text>
-            </Pressable>
-          ))}
+          {chipItems.map((item) => {
+            const active = categoryId === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => onCategoryChange(item.id)}
+                style={[styles.chip, active && styles.chipActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -559,65 +162,29 @@ export function PosCatalogPanel({
           ListHeaderComponent={categoryHeader}
           ListEmptyComponent={<AppEmptyState title="لا توجد تصنيفات" message="لا توجد أقسام متاحة في هذا الفرع." />}
           renderItem={({ item }) => {
-            const isAll = item.id === 'all';
-            const thumb = !isAll ? categoryThumbnails[item.id] ?? resolveMediaUrl(item.image) : null;
-            const count = isAll ? products.length : productCounts[item.id] ?? 0;
+            const all = item.id === 'all';
+            const thumb = all ? null : categoryThumbnails[item.id] ?? resolveMediaUrl(item.image);
+            const count = all ? products.length : productCounts[item.id] ?? 0;
             return (
-              <PressableScale
-                onPress={() => (isAll ? onShowAllProducts() : onSelectCategory(item.id))}
-                pressedScale={0.965}
-                style={{ flex: 1 }}
+              <Pressable
+                onPress={() => (all ? onShowAllProducts() : onSelectCategory(item.id))}
+                style={({ pressed }) => [styles.categoryTile, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name}، ${numberText(count)} منتج`}
               >
-                <View style={styles.categoryCard}>
-                  <View style={styles.categoryAccentBar} />
-                  <View style={styles.categoryHero}>
-                    {isAll ? (
-                      <>
-                        <View style={styles.categoryAllBackdrop} />
-                        <View style={styles.categoryAllGlowA} />
-                        <View style={styles.categoryAllGlowB} />
-                        <View style={styles.categoryPlaceholderIconCenter}>
-                          <View style={styles.categoryPlaceholderIconWrap}>
-                            <MaterialIcons name="grid-view" size={24} color={c.onPrimary} />
-                          </View>
-                        </View>
-                      </>
-                    ) : thumb ? (
-                      <Image source={{ uri: thumb }} style={styles.categoryHeroImage} resizeMode="cover" />
-                    ) : (
-                      <>
-                        <View style={styles.categoryPlaceholderBackdrop} />
-                        <View style={styles.categoryPlaceholderTint} />
-                        <View style={styles.categoryPlaceholderIconCenter}>
-                          <View style={styles.categoryPlaceholderIconWrap}>
-                            <Text style={styles.categoryPlaceholderLetter}>{item.name.charAt(0)}</Text>
-                          </View>
-                        </View>
-                      </>
-                    )}
-
-                    <CatalogCardOverlay />
-
-                    <View style={styles.categoryCountPill}>
-                      <Text style={styles.categoryCountValue}>{numberText(count)}</Text>
-                      <Text style={styles.categoryCountLabel}>منتج</Text>
-                    </View>
-
-                    <View style={styles.categoryOverlayContent}>
-                      <Text style={styles.categoryOverlayName} numberOfLines={2}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.categoryOverlayMeta} numberOfLines={1}>
-                        {isAll ? 'تصفح كل المنتجات' : 'تصنيف'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.categoryArrowWrap}>
-                      <MaterialIcons name={chevronForwardIcon()} size={16} color="rgba(255,255,255,0.92)" />
-                    </View>
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.categoryThumb} resizeMode="cover" />
+                ) : (
+                  <View style={styles.categoryThumbPlaceholder}>
+                    <MaterialIcons name={all ? 'apps' : 'category'} size={22} color={c.textMuted} />
                   </View>
+                )}
+                <View style={styles.categoryBody}>
+                  <Text style={styles.categoryName} numberOfLines={2}>{item.name}</Text>
+                  <Text style={styles.categoryCount}>{numberText(count)} منتج</Text>
                 </View>
-              </PressableScale>
+                <MaterialIcons name={chevronForwardIcon()} size={18} color={c.textCaption} />
+              </Pressable>
             );
           }}
         />
@@ -638,80 +205,133 @@ export function PosCatalogPanel({
         ListEmptyComponent={
           <AppEmptyState
             title={isSearching ? 'لا توجد منتجات مطابقة' : 'لا توجد منتجات'}
-            message={isSearching ? 'جرّب كلمة أخرى أو امسح البحث للعودة للتصنيفات.' : 'جرّب تصنيفاً آخر أو عدّل البحث.'}
+            message={isSearching ? 'جرّب كلمة أخرى أو امسح البحث.' : 'جرّب تصنيفاً آخر أو عدّل البحث.'}
           />
         }
         renderItem={({ item }) => {
           const mode = item.inventory_mode ?? (item.track_inventory === false ? 'non_stock' : 'stock_product');
           const qty = availableQty(item);
           const low = qty !== null && qty <= Number(item.min_stock_alert ?? 0);
-          const hasOptions = item.option_groups?.some((g) => g.options && g.options.length > 0);
-          const isRecipe = mode === 'recipe_product';
+          const hasOptions = Boolean(item.option_groups?.some((group) => group.options?.length));
+          const recipe = mode === 'recipe_product';
           const thumb = resolveMediaUrl(item.image);
           const inCart = productQuantities[item.id] ?? 0;
+
           return (
-            <PressableScale onPress={() => onProductPress(item)} pressedScale={0.965} style={{ flex: 1 }}>
-              <View style={[styles.categoryCard, inCart > 0 ? styles.productCardInCart : undefined]}>
-                <View style={[styles.categoryAccentBar, inCart > 0 ? styles.productAccentInCart : undefined]} />
-                <View style={styles.categoryHero}>
-                  {thumb ? (
-                    <Image source={{ uri: thumb }} style={styles.categoryHeroImage} resizeMode="cover" />
-                  ) : (
-                    <>
-                      <View style={styles.categoryPlaceholderBackdrop} />
-                      <View style={styles.categoryPlaceholderTint} />
-                      <View style={styles.categoryPlaceholderIconCenter}>
-                        <View style={styles.categoryPlaceholderIconWrap}>
-                          <Text style={styles.categoryPlaceholderLetter}>{item.name.charAt(0)}</Text>
-                        </View>
-                      </View>
-                    </>
-                  )}
-
-                  <CatalogCardOverlay />
-
-                  {(low || hasOptions || isRecipe) ? (
-                    <View style={styles.productBadgesOverlay}>
-                      {isRecipe ? <AppBadge label="وصفة" tone="warning" /> : null}
-                      {low ? <AppBadge label="منخفض" tone="warning" /> : null}
-                      {hasOptions ? <AppBadge label="خيارات" tone="info" /> : null}
-                    </View>
-                  ) : null}
-
-                  {inCart > 0 ? (
-                    <View style={styles.productInCartPill}>
-                      <Text style={styles.productInCartValue}>×{numberText(inCart)}</Text>
-                      <Text style={styles.productInCartLabel}>في السلة</Text>
-                    </View>
-                  ) : qty !== null ? (
-                    <View style={styles.categoryCountPill}>
-                      <Text style={styles.categoryCountValue}>{numberText(qty)}</Text>
-                      <Text style={styles.categoryCountLabel}>متاح</Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.categoryOverlayContent}>
-                    <Text style={styles.categoryOverlayName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.categoryOverlayMeta} numberOfLines={1}>
-                      {money(unitSellingPrice(item))}
-                    </Text>
+            <Pressable
+              onPress={() => onProductPress(item)}
+              style={({ pressed }) => [styles.productTile, inCart > 0 && styles.productTileSelected, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}، ${money(unitSellingPrice(item))}${inCart ? `، ${numberText(inCart)} في السلة` : ''}`}
+            >
+              <View style={styles.productTop}>
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.productThumb} resizeMode="cover" />
+                ) : (
+                  <View style={styles.productThumbPlaceholder}>
+                    <Text style={styles.productLetter}>{item.name.charAt(0)}</Text>
                   </View>
-
-                  <Pressable
-                    onPress={() => onProductPress(item)}
-                    style={styles.productAddFab}
-                    accessibilityLabel="إضافة للسلة"
-                  >
-                    <MaterialIcons name="add" size={18} color={c.primary} />
-                  </Pressable>
+                )}
+                <View style={styles.productState}>
+                  {inCart > 0 ? <AppBadge label={`×${numberText(inCart)} في السلة`} tone="info" /> : null}
+                  {low ? <AppBadge label="مخزون منخفض" tone="warning" /> : null}
+                  {!low && recipe ? <AppBadge label="وصفة" tone="warning" /> : null}
+                  {!low && !recipe && hasOptions ? <AppBadge label="خيارات" tone="neutral" /> : null}
                 </View>
               </View>
-            </PressableScale>
+              <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+              <View style={styles.productFooter}>
+                <View style={styles.productValue}>
+                  <Text style={styles.productPrice} numberOfLines={1}>{money(unitSellingPrice(item))}</Text>
+                  <Text style={styles.productQty} numberOfLines={1}>
+                    {qty == null ? 'غير مخزني' : `${numberText(qty)} متاح`}
+                  </Text>
+                </View>
+                <View style={[styles.addMark, inCart > 0 && styles.addMarkActive]}>
+                  <MaterialIcons name={inCart > 0 ? 'add-shopping-cart' : 'add'} size={18} color={inCart > 0 ? c.primaryForeground : c.text} />
+                </View>
+              </View>
+            </Pressable>
           );
         }}
       />
     </View>
   );
+}
+
+function createStyles(c: AppColors, tablet: boolean) {
+  return StyleSheet.create({
+    panel: { flex: 1, minWidth: 0, minHeight: 0, ...rtlDirection },
+    headerBlock: { gap: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+    searchRow: { ...flexRow, alignItems: 'center', gap: spacing.sm },
+    searchSlot: { flex: 1, minWidth: 0 },
+    scanButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+    },
+    sectionHeading: { ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+    sectionCopy: { flex: 1, minWidth: 0, gap: 2 },
+    sectionTitle: { ...textStart, color: c.text, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: tablet ? typography.sectionTitle : typography.cardTitle },
+    sectionMeta: { ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.caption },
+    chipsRow: { ...flexRow, gap: spacing.sm, paddingVertical: spacing.xs },
+    chip: {
+      minHeight: 36,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+    },
+    chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    chipText: { color: c.textMuted, fontFamily: fonts.medium, fontSize: typography.small, writingDirection: 'rtl' },
+    chipTextActive: { color: c.primaryForeground, fontFamily: fonts.bold, fontWeight: '700' },
+    categoryTile: {
+      ...flexRow,
+      minHeight: tablet ? 94 : 88,
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      overflow: 'hidden',
+    },
+    categoryThumb: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.md },
+    categoryThumbPlaceholder: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
+    categoryBody: { flex: 1, minWidth: 0, gap: 3 },
+    categoryName: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small, lineHeight: 18 },
+    categoryCount: { ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.micro },
+    productTile: {
+      minHeight: tablet ? 164 : 150,
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      overflow: 'hidden',
+    },
+    productTileSelected: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
+    productTop: { ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
+    productThumb: { width: 48, height: 48, borderRadius: radius.md },
+    productThumbPlaceholder: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
+    productLetter: { color: c.textMuted, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.cardTitle },
+    productState: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: spacing.xs },
+    productName: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small, lineHeight: 19, minHeight: 38 },
+    productFooter: { ...flexRow, alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.sm, marginTop: 'auto' },
+    productValue: { flex: 1, minWidth: 0, gap: 2 },
+    productPrice: { ...textLtr, color: c.text, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.body },
+    productQty: { ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.micro },
+    addMark: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
+    addMarkActive: { backgroundColor: c.primary },
+    pressed: { opacity: 0.78 },
+  });
 }

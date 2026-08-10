@@ -42,13 +42,6 @@ export function AppSegmentedControl<T extends string>({ options, value, onChange
               backgroundColor: active ? c.surface : 'transparent',
               borderWidth: active ? 1 : 0,
               borderColor: active ? c.borderSubtle : 'transparent',
-              ...(active ? {
-                shadowColor: c.shadow,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 1,
-                shadowRadius: 3,
-                elevation: 2,
-              } : {}),
             }}
           >
             <AppText style={{

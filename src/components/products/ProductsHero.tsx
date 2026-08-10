@@ -1,6 +1,5 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
-import { useWindowDimensions } from 'react-native';
+import { ScrollView, View , useWindowDimensions } from 'react-native';
 import { PremiumHeroPanel } from '@/components/layout/PremiumHeroPanel';
 import { HeroActionChip } from '@/components/layout/HeroActionChip';
 import { HeroStatPill } from '@/components/layout/HeroStatPill';
@@ -60,7 +59,6 @@ export function ProductsHero({
   showActions = false,
 }: Props) {
   const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
   const compact = compactProp ?? width < 600;
 
   const resolvedSubtitle =
@@ -79,21 +77,17 @@ export function ProductsHero({
   );
 
   const actions = (
-    <ScrollView
-      horizontal={!isTablet}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ ...flexRow, gap: spacing.sm, flexWrap: isTablet ? 'wrap' : undefined }}
-    >
+    <View style={{ ...flexRow, gap: spacing.sm, flexWrap: 'wrap', width: '100%' }}>
       {onCategories ? (
-        <HeroActionChip label="التصنيفات" icon="category" onPress={onCategories} />
+        <HeroActionChip label="التصنيفات" icon="category" onPress={onCategories} fill />
       ) : null}
       {canManage && onReorder ? (
-        <HeroActionChip label="ترتيب POS" icon="swap-vert" onPress={onReorder} />
+        <HeroActionChip label="ترتيب POS" icon="swap-vert" onPress={onReorder} fill />
       ) : null}
       {canManage && onAdd ? (
-        <HeroActionChip label={addLabel} icon="add" variant="primary" onPress={onAdd} />
+        <HeroActionChip label={addLabel} icon="add" variant="primary" onPress={onAdd} fill />
       ) : null}
-    </ScrollView>
+    </View>
   );
 
   const metaSuffix = statLabels?.metaSuffix ?? 'منتج في القائمة';

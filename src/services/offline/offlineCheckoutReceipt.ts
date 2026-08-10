@@ -1,7 +1,6 @@
 import type { OfflinePosOrderRecord } from '@/types/offline';
 import type { ReceiptPrintPayload } from '@/types/printing';
 import { mapCheckoutToReceiptPayload } from '@/services/printing/receiptMappers';
-import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
 import type { CartLine } from '@/store/posStore';
 
 export function buildReceiptPayloadFromOrder(

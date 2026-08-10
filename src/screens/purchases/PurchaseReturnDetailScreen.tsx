@@ -4,9 +4,8 @@ import type { RouteProp } from '@react-navigation/native';
 import { purchaseReturnsAPI } from '@/api/purchases';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
-import { dateText, money, numberText } from '@/utils/format';
+import { dateText, money, numberText , asText } from '@/utils/format';
 import type { MoreStackParamList } from '@/types/navigation';
-import { asText } from '@/utils/format';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseReturnDetail'>;
 type Route = RouteProp<MoreStackParamList, 'PurchaseReturnDetail'>;

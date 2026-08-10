@@ -161,6 +161,11 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
     void load();
   }, [load]);
 
+  const contentStyle = useMemo(
+    () => [styles.content, isTablet && styles.contentTablet],
+    [isTablet],
+  );
+
   if (!rawId) {
     return (
       <AppScreen title="خطأ" onBack={navigation.goBack}>
@@ -189,11 +194,6 @@ export function ProductDetailScreen({ route, navigation }: { route: Route; navig
   const isInitialLoad = loading && !product;
   const isStaleRefresh = (loading || refreshing) && Boolean(product);
   const screenTitle = product?.name ?? (isRawMaterial ? 'تفاصيل الخامة' : 'تفاصيل المنتج');
-
-  const contentStyle = useMemo(
-    () => [styles.content, isTablet && styles.contentTablet],
-    [isTablet],
-  );
 
   return (
     <>

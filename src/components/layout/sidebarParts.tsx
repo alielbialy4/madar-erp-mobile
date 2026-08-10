@@ -5,19 +5,13 @@ import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import {
-  SIDEBAR_BORDER,
-  SIDEBAR_ICON_ACTIVE_BG,
-  SIDEBAR_ICON_IDLE_BG,
-  SIDEBAR_ITEM_ACTIVE_BG,
-  SIDEBAR_ITEM_PRESSED_BG,
-} from '@/constants/sidebarLayout';
 import { resolveSidebarIcon } from '@/constants/sidebarIcons';
 import type { MobileSidebarMenuItem } from '@/navigation/buildSidebarMenu';
 import { isNavItemActive } from '@/navigation/sidebarNavMap';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { chevronForwardIcon } from '@/utils/rtl';
 import { Text } from '@/components/ui/AppText';
+import { useColors } from '@/hooks/useColors';
 
 export function getMenuKey(item: MobileSidebarMenuItem, index: number): string {
   if (item.type === 'section') return `section:${item.label}:${index}`;
@@ -31,10 +25,8 @@ export function hasActiveDescendant(item: MobileSidebarMenuItem, activeRoute?: s
 
 export function SidebarSectionHeader({ label, muted, border }: { label: string; muted: string; border: string }) {
   return (
-    <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs }}>
-      <View style={{ flex: 1, height: 1, backgroundColor: border }} />
-      <Text style={{ ...textStart, fontSize: 10, fontFamily: fonts.bold, color: muted }}>{label}</Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: border }} />
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs }}>
+      <Text style={{ ...textStart, fontSize: 10, letterSpacing: 0.5, fontFamily: fonts.bold, color: muted }}>{label}</Text>
     </View>
   );
 }
@@ -64,6 +56,7 @@ export function SidebarNavItem({
   border: string;
   accent: string;
 }) {
+  const c = useColors();
   return (
     <Pressable
       onPress={onPress}
@@ -75,14 +68,14 @@ export function SidebarNavItem({
           minHeight: 44,
           paddingHorizontal: spacing.lg,
           paddingVertical: spacing.sm,
-          borderRadius: radius.xl,
+          borderRadius: radius.md,
           marginHorizontal: spacing.sm,
-          borderStartWidth: 3,
+          borderStartWidth: 2,
           borderStartColor: 'transparent',
         },
         nested ? { marginStart: spacing.lg, minHeight: 40 } : undefined,
-        active ? { backgroundColor: SIDEBAR_ITEM_ACTIVE_BG, borderStartColor: accent } : undefined,
-        pressed ? { backgroundColor: SIDEBAR_ITEM_PRESSED_BG } : undefined,
+        active ? { backgroundColor: c.primarySoftMuted, borderStartColor: accent } : undefined,
+        pressed ? { backgroundColor: c.surfaceMuted } : undefined,
       ]}
     >
       <View
@@ -92,7 +85,7 @@ export function SidebarNavItem({
           borderRadius: radius.md,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: active ? SIDEBAR_ICON_ACTIVE_BG : SIDEBAR_ICON_IDLE_BG,
+          backgroundColor: active ? c.primarySoftMuted : c.surfaceMuted,
         }}
       >
         <MaterialIcons name={icon} size={18} color={active ? fg : muted} />
@@ -128,7 +121,7 @@ export function SidebarTree({
   onNavigate,
   fg,
   muted,
-  border = SIDEBAR_BORDER,
+  border,
   accent,
 }: {
   item: MobileSidebarMenuItem;
@@ -140,7 +133,7 @@ export function SidebarTree({
   onNavigate: (action: SidebarNavAction) => void;
   fg: string;
   muted: string;
-  border?: string;
+  border: string;
   accent: string;
 }) {
   const menuKey = getMenuKey(item, index);

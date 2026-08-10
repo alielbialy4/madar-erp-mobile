@@ -1,5 +1,4 @@
 import { AxiosError } from 'axios';
-import { env } from '@/config/env';
 import { firstError } from './data';
 
 export type NormalizedApiError = {
@@ -9,25 +8,12 @@ export type NormalizedApiError = {
   code?: string;
 };
 
-function apiHostLabel(): string {
-  try {
-    const url = new URL(env.apiUrl);
-    return url.host;
-  } catch {
-    return env.apiUrl;
-  }
-}
-
 function networkMessage(error: AxiosError): string {
-  const host = apiHostLabel();
   const code = error.code ?? '';
   if (code === 'ECONNABORTED') {
-    return `انتهت مهلة الاتصال بالخادم (${host}). تحقق من الشبكة أو عنوان API.`;
+    return 'استغرق الاتصال وقتًا أطول من المعتاد. تحقق من الشبكة ثم أعد المحاولة.';
   }
-  if (env.apiUrl.includes('localhost') || env.apiUrl.includes('127.0.0.1')) {
-    return `تعذر الاتصال بالخادم. على الهاتف استخدم IP جهازك بدل localhost في EXPO_PUBLIC_API_URL (مثال: http://192.168.x.x:8000/api). الحالي: ${host}`;
-  }
-  return `تعذر الاتصال بالخادم (${host}). تحقق من الإنترنت ومن EXPO_PUBLIC_API_URL في madar-erp-mobile/.env`;
+  return 'تعذر الوصول إلى خادم مدار حاليًا. تحقق من اتصال الإنترنت أو تواصل مع مسؤول النظام.';
 }
 
 export function isTableOrderConflictError(error: unknown): boolean {

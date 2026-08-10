@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { Control, FieldErrors } from 'react-hook-form';
@@ -8,7 +9,7 @@ import { BrandLogo } from '@/components/brand/BrandLogo';
 import { authCopy } from '@/constants/authCopy';
 import { textStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
-import { radius, shadows, spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { useColors } from '@/hooks/useColors';
 import { responsive } from '@/constants/responsive';
@@ -48,46 +49,73 @@ export function LoginFormPanel({
       StyleSheet.create({
         root: {
           flex: 1,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: designColors.white,
           justifyContent: keyboardOpen ? 'flex-start' : 'center',
-          paddingHorizontal: spacing.xl,
-          paddingVertical: isTablet ? spacing.xxxl : spacing.xxl,
+          paddingHorizontal: isTablet ? spacing.xxl : spacing.lg,
+          paddingVertical: isTablet ? spacing.xxxl : spacing.xl,
           paddingTop: keyboardOpen && !isTablet ? spacing.lg : undefined,
-          minHeight: isTablet || keyboardOpen ? undefined : Math.max(height * 0.68, 480),
+          minHeight: isTablet || keyboardOpen ? undefined : Math.max(height - spacing.xxxl, 560),
         },
         inner: {
           width: '100%',
-          maxWidth: 440,
+          maxWidth: 460,
           alignSelf: 'center',
           flexGrow: keyboardOpen ? 0 : 1,
           justifyContent: keyboardOpen ? 'flex-start' : 'center',
         },
+        brandRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+          paddingBottom: spacing.lg,
+          marginBottom: spacing.xl,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: c.border,
+        },
+        brandCopy: {
+          flex: 1,
+          alignItems: 'flex-start',
+          gap: 2,
+        },
+        brandName: {
+          color: designColors.navy,
+          fontSize: typography.cardTitle,
+          fontFamily: fonts.bold,
+          fontWeight: '700',
+          textAlign: 'left',
+        },
+        brandContext: {
+          color: c.textMuted,
+          fontSize: typography.tiny,
+          fontFamily: fonts.medium,
+          textAlign: 'left',
+        },
         header: {
-          gap: spacing.sm,
-          marginBottom: spacing.xxl,
+          gap: spacing.xs,
+          marginBottom: spacing.xl,
         },
         heading: {
           ...textStart,
-          color: '#0F172A',
+          color: designColors.navy,
           fontSize: typography.pageTitle,
           fontFamily: fonts.bold,
           fontWeight: '700',
         },
         subheading: {
           ...textStart,
-          color: '#64748B',
+          color: designColors.slate700,
           fontSize: typography.body,
           fontFamily: fonts.regular,
         },
         card: {
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: '#E2E8F0',
-          borderRadius: radius.xl,
-          backgroundColor: '#FFFFFF',
-          paddingHorizontal: spacing.xl,
-          paddingVertical: spacing.xxl,
-          gap: spacing.lg,
-          ...shadows.lg,
+          borderWidth: isTablet ? StyleSheet.hairlineWidth : 0,
+          borderColor: designColors.slate300,
+          borderRadius: isTablet ? radius.xl : 0,
+          backgroundColor: designColors.white,
+          paddingHorizontal: isTablet ? spacing.xl : 0,
+          paddingVertical: isTablet ? spacing.xl : 0,
+          gap: spacing.md,
         },
         fieldBlock: {
           gap: spacing.xs,
@@ -99,15 +127,15 @@ export function LoginFormPanel({
           paddingVertical: spacing.sm,
         },
         bannerSuccess: {
-          borderColor: '#86EFAC',
-          backgroundColor: '#F0FDF4',
+          borderColor: designColors.greenLight,
+          backgroundColor: designColors.greenSoft,
         },
         bannerError: {
           borderColor: c.danger,
-          backgroundColor: '#FEF2F2',
+          backgroundColor: designColors.redSoft,
         },
         bannerTextSuccess: {
-          color: '#166534',
+          color: designColors.greenDark,
           fontSize: typography.body,
           fontFamily: fonts.medium,
           fontWeight: '600',
@@ -132,23 +160,25 @@ export function LoginFormPanel({
           paddingTop: spacing.sm,
         },
         footer: {
-          marginTop: spacing.xxl,
+          marginTop: spacing.xl,
           paddingTop: spacing.lg,
           alignItems: 'center',
           gap: spacing.sm,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: c.border,
         },
         footerText: {
-          color: '#94A3B8',
+          color: designColors.slate500,
           fontSize: typography.tiny,
           fontFamily: fonts.regular,
           textAlign: 'center',
         },
         footerBrand: {
-          color: '#475569',
+          color: designColors.slate800,
           fontFamily: fonts.medium,
         },
       }),
-    [c.danger, c.textMuted, height, isTablet, keyboardOpen],
+    [c.border, c.danger, c.textMuted, height, isTablet, keyboardOpen],
   );
 
   const bannerMessage = successMessage ?? errorMessage;
@@ -156,6 +186,14 @@ export function LoginFormPanel({
   return (
     <View style={styles.root}>
       <View style={styles.inner}>
+        <View style={styles.brandRow}>
+          <View style={styles.brandCopy}>
+            <Text style={styles.brandName}>{authCopy.brandName}</Text>
+            <Text style={styles.brandContext}>منصة التشغيل والإدارة</Text>
+          </View>
+          <BrandLogo height={28} />
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.heading}>{authCopy.loginHeading}</Text>
           <Text style={styles.subheading}>{authCopy.loginSubheading}</Text>
@@ -245,7 +283,6 @@ export function LoginFormPanel({
         </View>
 
         <View style={styles.footer}>
-          <BrandLogo height={20} />
           <Text style={styles.footerText}>
             {authCopy.developedBy}{' '}
             <Text style={styles.footerBrand}>{authCopy.developerName}</Text>

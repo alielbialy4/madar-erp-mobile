@@ -77,7 +77,7 @@ function ticketItemsToCart(order: NonNullable<TicketPayload['order']>): {
 } {
   const cart: CartLine[] = [];
   const products: { id: number; name: string; category_id?: number | null }[] = [];
-  for (const [index, item] of (order.items ?? []).entries()) {
+  for (const [, item] of (order.items ?? []).entries()) {
     const productId = Number(item.product?.id ?? 0);
     if (!productId) continue;
     cart.push({

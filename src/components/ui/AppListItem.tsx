@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { flexRow, textLtr, textStart } from '@/constants/layout';
+import { textLtr, textStart } from '@/constants/layout';
 import { chevronForwardIcon } from '@/utils/rtl';
 import { useColors } from '@/hooks/useColors';
 import { typography } from '@/constants/typography';

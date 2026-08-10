@@ -131,7 +131,7 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
             title="اتجاه الإيرادات"
             hint="آخر 14 يومًا على مستوى الفرع."
             badge="14 يوم"
-            variant="bar"
+            variant="line"
             compact
           />
         </View>

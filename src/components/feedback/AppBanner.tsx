@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react';
 import { AppText } from '@/components/ui/AppText';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow } from '@/constants/layout';
@@ -44,9 +44,10 @@ export function AppBanner({ message, tone = 'warning', icon, actionLabel, onActi
       alignItems: 'center',
       gap: spacing.sm,
       backgroundColor: colors.bg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      paddingHorizontal: spacing.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
     text: {

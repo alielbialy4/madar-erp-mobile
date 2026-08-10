@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { requisitionsAPI } from '@/api/requisitions';
-import { AppScreen } from '@/components/layout';
+import { FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms/FormSection';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
-import { AppButton, AppInput, AppListItem, AppSectionHeader, AppCard } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { InventoryLineItemCard } from '@/components/inventory/InventoryLineItemCard';
+import { AppInput } from '@/components/ui';
+import { AppBanner, AppEmptyState, ConfirmDialog } from '@/components/feedback';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'RequisitionCreate'>;
@@ -19,6 +20,7 @@ export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const canSubmit = lines.length > 0 && lines.every((line) => Number(line.quantity) > 0);
 
   const addProduct = (p: { id: number; name?: string }) => {
     if (lines.some((l) => l.product_id === p.id)) return;
@@ -50,13 +52,41 @@ export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
   };
 
   return (
-    <AppScreen title="طلب توريد جديد" onBack={navigation.goBack}>
-      <AppCard style={{ gap: spacing.md }}>
-        <AppSectionHeader title="البنود" />
+    <FormScreenLayout
+      title="طلب توريد جديد"
+      subtitle="تجهيز احتياج داخلي للمراجعة والتوريد"
+      onBack={navigation.goBack}
+      heroTitle="احتياج المخزون"
+      heroSubtitle="أضف الأصناف المطلوبة وحدد الكمية لكل صنف قبل إرسال الطلب للمراجعة."
+      heroAmount={`${lines.length} صنف`}
+      saveLabel="مراجعة وإرسال الطلب"
+      onSave={() => setConfirmVisible(true)}
+      saveLoading={submitting}
+      saveDisabled={!canSubmit || submitting}
+      onCancel={navigation.goBack}
+    >
+      <AppBanner
+        tone="info"
+        message="إنشاء الطلب لا يغيّر الرصيد. سيبقى الطلب ضمن دورة المراجعة حتى اعتماده وتنفيذه."
+      />
+      <FormSection
+        title="الأصناف المطلوبة"
+        subtitle="ابحث عن الصنف ثم اضغط لإضافته إلى الطلب"
+        icon="inventory-2"
+      >
         <InventoryProductSearch onSelect={addProduct} />
+        {lines.length === 0 ? (
+          <AppEmptyState
+            title="لم تضف أصنافًا بعد"
+            message="استخدم البحث أعلاه لبناء قائمة الاحتياج."
+          />
+        ) : null}
         {lines.map((line, index) => (
-          <View key={line.product_id} style={{ gap: spacing.sm }}>
-            <AppListItem title={line.product_name} />
+          <InventoryLineItemCard
+            key={line.product_id}
+            title={line.product_name}
+            onRemove={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+          >
             <AppInput
               label="الكمية"
               keyboardType="numeric"
@@ -66,21 +96,33 @@ export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
                 next[index] = { ...line, quantity: v };
                 setLines(next);
               }}
+              error={Number(line.quantity) > 0 ? undefined : 'أدخل كمية أكبر من صفر'}
             />
-          </View>
+          </InventoryLineItemCard>
         ))}
-      </AppCard>
-      <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline />
-      <AppButton title="إنشاء الطلب" disabled={!lines.length} loading={submitting} onPress={() => setConfirmVisible(true)} />
+      </FormSection>
+      <FormSection
+        title="سياق الطلب"
+        subtitle="أضف توضيحًا يساعد المسؤول عند المراجعة"
+        icon="notes"
+      >
+        <AppInput
+          label="ملاحظات"
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          placeholder="سبب الاحتياج أو الموعد المطلوب"
+        />
+      </FormSection>
       <ConfirmDialog
         visible={confirmVisible}
         title="إنشاء طلب"
-        message={`${lines.length} صنف`}
-        confirmLabel="إنشاء"
+        message={`سيتم إرسال طلب يحتوي على ${lines.length} صنف للمراجعة دون تغيير رصيد المخزون الآن.`}
+        confirmLabel="إرسال الطلب"
         loading={submitting}
         onCancel={() => setConfirmVisible(false)}
         onConfirm={() => void submit()}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

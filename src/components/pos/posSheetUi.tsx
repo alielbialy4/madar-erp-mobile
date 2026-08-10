@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { AppColors } from '@/constants/colors';
@@ -15,14 +15,8 @@ export function usePosSheetStyles() {
 }
 
 function createPosSheetStyles(c: AppColors) {
-  const cardShadow = Platform.select({
-    ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
-    android: { elevation: 2 },
-    default: {},
-  });
-
   return StyleSheet.create({
-    root: { gap: spacing.lg, paddingBottom: spacing.md },
+    root: { gap: spacing.md, paddingBottom: spacing.sm },
     sheetHeader: { gap: spacing.xs },
     sheetTitle: {
       ...textStart,
@@ -39,30 +33,39 @@ function createPosSheetStyles(c: AppColors) {
       lineHeight: 20,
     },
     totalHero: {
-      borderRadius: radius.xxxl,
-      backgroundColor: c.primary,
-      padding: spacing.lg,
-      gap: spacing.xs,
+      ...flexRow,
+      borderRadius: radius.lg,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.borderSubtle,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      gap: spacing.md,
       alignItems: 'center',
+      justifyContent: 'space-between',
     },
+    totalHeroCopy: { flex: 1, minWidth: 0, gap: 2 },
     totalHeroLabel: {
       fontSize: typography.small,
       fontFamily: fonts.medium,
-      color: `${c.primaryForeground}CC`,
+      color: c.textMuted,
       writingDirection: 'rtl',
+      textAlign: 'right',
     },
     totalHeroValue: {
-      fontSize: 32,
+      fontSize: 26,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
-      color: c.primaryForeground,
+      color: c.text,
       writingDirection: 'rtl',
+      textAlign: 'left',
     },
     totalHeroHint: {
       fontSize: typography.tiny,
       fontFamily: fonts.medium,
-      color: `${c.primaryForeground}AA`,
+      color: c.textCaption,
       writingDirection: 'rtl',
+      textAlign: 'right',
     },
     section: { gap: spacing.sm },
     sectionLabel: {
@@ -74,17 +77,16 @@ function createPosSheetStyles(c: AppColors) {
       letterSpacing: 0.4,
     },
     sectionCard: {
-      backgroundColor: c.surfaceMuted,
-      borderRadius: radius.xxl,
+      backgroundColor: c.surface,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: c.borderSubtle,
       padding: spacing.md,
       gap: spacing.sm,
-      ...cardShadow,
     },
     lineCard: {
       backgroundColor: c.surface,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       padding: spacing.md,
       gap: spacing.xs,
       borderWidth: 1,
@@ -105,40 +107,36 @@ function createPosSheetStyles(c: AppColors) {
     summaryValue: { fontSize: typography.small, fontFamily: fonts.bold, color: c.text, writingDirection: 'rtl' },
     summaryDiscount: { color: c.danger },
     divider: { height: 1, backgroundColor: c.borderSubtle, marginVertical: spacing.xs },
-    paymentRow: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm, alignItems: 'stretch' },
+    paymentRow: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs, alignItems: 'stretch' },
     paymentCard: {
       flexGrow: 1,
       flexShrink: 1,
-      minWidth: 100,
-      maxWidth: 140,
+      minWidth: 92,
+      maxWidth: 180,
       paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.xs,
-      borderRadius: radius.lg,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: c.border,
+      borderColor: c.borderSubtle,
       backgroundColor: c.surface,
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      gap: spacing.xs,
-      minHeight: 56,
+      gap: 4,
+      minHeight: 62,
     },
     paymentCardActive: {
-      borderWidth: 2,
+      borderWidth: 1.5,
       borderColor: c.primary,
-      backgroundColor: c.softPrimary,
-      ...Platform.select({
-        ios: { shadowColor: c.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6 },
-        android: { elevation: 4 },
-        default: {},
-      }),
+      backgroundColor: c.primarySoftMuted,
     },
+    paymentCardTop: { ...flexRow, width: '100%', alignItems: 'center', justifyContent: 'space-between' },
     paymentCardLabel: {
       fontSize: typography.tiny,
       lineHeight: 14,
       fontFamily: fonts.bold,
       color: c.text,
       writingDirection: 'rtl',
-      textAlign: 'center',
+      textAlign: 'right',
       width: '100%',
     },
     paymentCardLabelActive: { color: c.primary },
@@ -147,7 +145,7 @@ function createPosSheetStyles(c: AppColors) {
       alignItems: 'center',
       gap: spacing.sm,
       padding: spacing.md,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       backgroundColor: c.softInfo,
       borderWidth: 1,
       borderColor: c.softInfoBorder,
@@ -155,7 +153,7 @@ function createPosSheetStyles(c: AppColors) {
     walletText: { ...textStart, flex: 1, fontSize: typography.small, fontFamily: fonts.bold, color: c.info },
     errorBanner: {
       padding: spacing.md,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       backgroundColor: c.softDanger,
       borderWidth: 1,
       borderColor: c.softDangerBorder,
@@ -164,7 +162,7 @@ function createPosSheetStyles(c: AppColors) {
     errorText: { ...textStart, fontSize: typography.small, fontFamily: fonts.bold, color: c.danger },
     warningBanner: {
       padding: spacing.md,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
       backgroundColor: c.softWarning,
       gap: spacing.xs,
     },
@@ -173,7 +171,7 @@ function createPosSheetStyles(c: AppColors) {
       ...flexRow,
       gap: spacing.sm,
       padding: spacing.md,
-      borderRadius: radius.xxl,
+      borderRadius: radius.md,
       backgroundColor: c.surface,
       borderWidth: 1,
       borderColor: c.borderSubtle,
@@ -214,9 +212,11 @@ export function PosTotalHero({ label, amount, hint }: { label: string; amount: s
   const s = usePosSheetStyles();
   return (
     <View style={s.totalHero}>
-      <Text style={s.totalHeroLabel}>{label}</Text>
+      <View style={s.totalHeroCopy}>
+        <Text style={s.totalHeroLabel}>{label}</Text>
+        {hint ? <Text style={s.totalHeroHint}>{hint}</Text> : null}
+      </View>
       <Text style={s.totalHeroValue}>{amount}</Text>
-      {hint ? <Text style={s.totalHeroHint}>{hint}</Text> : null}
     </View>
   );
 }
@@ -240,47 +240,30 @@ export function PosPaymentMethodGrid({
   const c = useColors();
   const s = usePosSheetStyles();
   const { width } = useWindowDimensions();
-  const cardBasis = width >= 768 ? '30%' : '47%';
+  const compact = width < 600;
 
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>طريقة الدفع</Text>
       <View style={s.paymentRow}>
-        {options.map((opt) => {
+        {options.map((opt, index) => {
           const active = value === opt.key;
+          const cardBasis = compact ? (index < 2 ? '47%' : '30%') : '30%';
+          const fallbackIcons: Record<string, React.ComponentProps<typeof MaterialIcons>['name']> = {
+            electronic_wallet: 'account-balance-wallet',
+            instapay: 'bolt',
+          };
+          const icon = opt.icon ?? fallbackIcons[opt.key] ?? 'payments';
           return (
             <Pressable
               key={opt.key}
               onPress={() => onChange(opt.key)}
               style={[s.paymentCard, { flexBasis: cardBasis }, active && s.paymentCardActive]}
             >
-              {opt.brandTile ? (
-                <View
-                  style={{
-                    width: 96,
-                    height: 28,
-                    borderRadius: 6,
-                    backgroundColor: opt.brandTile.backgroundColor,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 2,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: opt.brandTile.textColor,
-                      fontSize: 9,
-                      fontWeight: '800',
-                      textAlign: 'center',
-                      lineHeight: 11,
-                    }}
-                  >
-                    {opt.brandTile.title}
-                  </Text>
-                </View>
-              ) : opt.icon ? (
-                <MaterialIcons name={opt.icon} size={22} color={active ? c.primary : c.textMuted} />
-              ) : null}
+              <View style={s.paymentCardTop}>
+                <MaterialIcons name={icon} size={20} color={active ? c.primary : c.textMuted} />
+                {active ? <MaterialIcons name="check-circle" size={17} color={c.primary} /> : null}
+              </View>
               <Text style={[s.paymentCardLabel, active && s.paymentCardLabelActive]} numberOfLines={2}>
                 {opt.label}
               </Text>
@@ -319,11 +302,11 @@ export function PosOrderTypeSegment({
               onPress={() => onChange(seg.key)}
               style={{
                 flex: 1,
-                minHeight: 52,
-                borderRadius: radius.xl,
-                borderWidth: active ? 2 : 1,
+                minHeight: 48,
+                borderRadius: radius.md,
+                borderWidth: 1,
                 borderColor: active ? c.primary : c.border,
-                backgroundColor: active ? c.primary : c.surface,
+                backgroundColor: active ? c.primarySoftMuted : c.surface,
                 ...flexRow,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -333,13 +316,13 @@ export function PosOrderTypeSegment({
               <MaterialIcons
                 name={seg.icon}
                 size={20}
-                color={active ? c.primaryForeground : c.textMuted}
+                color={active ? c.primary : c.textMuted}
               />
               <Text
                 style={{
                   fontFamily: fonts.bold,
                   fontSize: typography.body,
-                  color: active ? c.primaryForeground : c.text,
+                  color: active ? c.primary : c.text,
                 }}
               >
                 {seg.label}

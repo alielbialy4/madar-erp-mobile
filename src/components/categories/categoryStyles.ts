@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
@@ -6,29 +6,16 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 
 export function createCategoryStyles(c: AppColors) {
-  const cardShadow = Platform.select({
-    ios: {
-      shadowColor: c.shadowMd,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-    },
-    android: { elevation: 3 },
-    default: {},
-  });
-
   return StyleSheet.create({
     pageHeader: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
     statsRow: { ...flexRow, gap: spacing.sm },
     statBox: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: spacing.md,
+      paddingVertical: spacing.sm,
       paddingHorizontal: spacing.sm,
-      borderRadius: radius.xl,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      borderStartWidth: StyleSheet.hairlineWidth,
+      borderStartColor: c.border,
       gap: 4,
     },
     statBoxCompact: {
@@ -88,21 +75,19 @@ export function createCategoryStyles(c: AppColors) {
     listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
     listSeparator: { height: spacing.sm },
     categoryCard: {
-      borderRadius: radius.xxl,
+      borderRadius: 0,
       backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
-      overflow: 'hidden',
-      ...cardShadow,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
     },
-    cardPressable: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
+    cardPressable: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     cardTop: { ...flexRow, alignItems: 'center', gap: spacing.sm },
     cardChevron: { paddingStart: spacing.xs, minWidth: 28, alignItems: 'center', justifyContent: 'center' },
-    thumb: { width: 56, height: 56, borderRadius: radius.lg },
+    thumb: { width: 44, height: 44, borderRadius: radius.md },
     thumbPlaceholder: {
-      width: 56,
-      height: 56,
-      borderRadius: radius.lg,
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.surfaceMuted,
@@ -110,7 +95,7 @@ export function createCategoryStyles(c: AppColors) {
     cardBody: { flex: 1, minWidth: 0, gap: spacing.xs },
     cardTitle: {
       ...textStart,
-      fontSize: typography.cardTitle,
+      fontSize: typography.body,
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,
@@ -134,6 +119,7 @@ export function createCategoryStyles(c: AppColors) {
       paddingVertical: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: c.borderSubtle,
+      backgroundColor: c.surfaceMuted,
     },
     actionBtn: {
       ...flexRow,
@@ -142,8 +128,8 @@ export function createCategoryStyles(c: AppColors) {
       flex: 1,
       justifyContent: 'center',
       paddingVertical: spacing.sm + 2,
-      borderRadius: radius.lg,
-      backgroundColor: c.surfaceMuted,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
     },
     actionBtnPrimary: {
       backgroundColor: c.softPrimary,

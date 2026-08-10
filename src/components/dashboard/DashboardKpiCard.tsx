@@ -1,15 +1,12 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
+import { StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
-import { radius, shadows, spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { Text } from '@/components/ui/AppText';
-import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { phosphorIconMap } from '@/constants/iconMap';
 import { createDashboardStyles, KPI_TONE_STYLES, type KpiTone } from './dashboardStyles';
@@ -17,7 +14,7 @@ import {
   primaryKpiDensity,
   primaryKpiSizing,
   useDashboardContentWidth,
-  usePrimaryKpiSlotWidth,
+  useDashboardKpiSlotWidth,
 } from './dashboardLayout';
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
@@ -33,167 +30,68 @@ type Props = {
   index?: number;
 };
 
-export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wide, tier = 'primary', index = 0 }: Props) {
+export function DashboardKpiCard({ label, value, hint, icon, tone = 'accent', wide, tier = 'primary' }: Props) {
   const c = useColors();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
   const ds = useMemo(() => createDashboardStyles(c), [c]);
   const toneStyle = KPI_TONE_STYLES[tone];
-  const gradientColor = c[toneStyle.icon as keyof AppColors] as string;
-
+  const toneColor = c[toneStyle.icon as keyof AppColors] as string;
   const contentWidth = useDashboardContentWidth();
-  const primarySlotWidth = usePrimaryKpiSlotWidth(contentWidth);
-  const primaryDensity = primaryKpiDensity(primarySlotWidth);
-  const primarySize = primaryKpiSizing(primaryDensity);
-  const isDensePrimary = tier === 'primary' && !wide && primaryDensity !== 'full';
-
-  const rawNum = parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
-  const hasNumber = !isNaN(rawNum) && value.match(/\d/);
-
-  const valueFontSize = tier === 'secondary' ? 20 : isDensePrimary ? primarySize.value : 26;
-  const labelFontSize = tier === 'secondary' ? typography.tiny : isDensePrimary ? primarySize.label : typography.label;
+  const slotWidth = useDashboardKpiSlotWidth(contentWidth, tier);
+  const primarySlotWidth = useDashboardKpiSlotWidth(contentWidth, 'primary');
+  const density = primaryKpiDensity(primarySlotWidth);
+  const sizing = primaryKpiSizing(density);
+  const dense = tier === 'primary' && !wide && density !== 'full';
 
   return (
-    <MotiView
-      from={{ opacity: 0, translateY: 16, scale: 0.94 }}
-      animate={{ opacity: 1, translateY: 0, scale: 1 }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 150,
-        delay: index * 60,
-      }}
+    <View
       style={[
         tier === 'secondary' ? ds.kpiCellSecondary : ds.kpiCellPrimary,
-        isTablet && !wide && tier === 'secondary' ? ds.kpiCellSecondaryTablet : undefined,
+        !wide && { width: slotWidth, maxWidth: slotWidth, flexBasis: slotWidth, flexGrow: 0 },
         wide ? ds.kpiCellWide : undefined,
       ]}
+      accessibilityLabel={`${label}، ${value}${hint ? `، ${hint}` : ''}`}
     >
-      <View style={[styles.cardWrap, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        <View style={[styles.card, isDensePrimary && { padding: primarySize.padding, gap: 2 }]}>
-          <View style={[styles.labelRow, isDensePrimary && { gap: spacing.xs }]}>
-            <View
-              style={[
-                styles.iconBadge,
-                isDensePrimary && {
-                  width: primarySize.iconBox,
-                  height: primarySize.iconBox,
-                  borderRadius: primarySize.iconBox * 0.3,
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={[gradientColor, gradientColor + 'BB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  styles.iconBadgeGradient,
-                  isDensePrimary && {
-                    width: primarySize.iconBox,
-                    height: primarySize.iconBox,
-                    borderRadius: primarySize.iconBox * 0.3,
-                  },
-                ]}
-              >
-                <AppIcon
-                  name={(phosphorIconMap[icon as keyof typeof phosphorIconMap] ?? icon) as IconName}
-                  size={isDensePrimary ? primarySize.icon : 20}
-                  weight="duotone"
-                  color="#FFFFFF"
-                />
-              </LinearGradient>
-            </View>
-            <Text
-              style={[
-                styles.label,
-                { color: c.textMuted, fontSize: labelFontSize },
-                tier === 'secondary' && styles.labelSecondary,
-              ]}
-              numberOfLines={2}
-            >
-              {label}
-            </Text>
-          </View>
-          {hasNumber ? (
-            <AnimatedCounter
-              value={rawNum}
-              fontSize={valueFontSize}
-              fontWeight="800"
-              prefix={value.startsWith('₪') || value.startsWith('ج.م') ? '' : ''}
-              suffix=""
-              style={styles.value}
+      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={styles.heading}>
+          <Text style={[styles.label, { color: c.textMuted }, dense && { fontSize: sizing.label }]} numberOfLines={2}>
+            {label}
+          </Text>
+          <View style={[styles.icon, { backgroundColor: c.surfaceMuted }, dense && { width: sizing.iconBox, height: sizing.iconBox }]}>
+            <AppIcon
+              name={(phosphorIconMap[icon as keyof typeof phosphorIconMap] ?? icon) as IconName}
+              size={dense ? sizing.icon : 18}
+              weight="regular"
+              color={toneColor}
             />
-          ) : (
-            <Text
-              style={[styles.valueText, { color: c.text, fontSize: valueFontSize }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.65}
-            >
-              {value}
-            </Text>
-          )}
-          {hint ? <Text style={[styles.hint, { color: c.textCaption }]} numberOfLines={1}>{hint}</Text> : null}
+          </View>
         </View>
+        <Text
+          style={[styles.value, { color: c.text }, dense && { fontSize: sizing.value }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.68}
+        >
+          {value}
+        </Text>
+        {hint ? <Text style={[styles.hint, { color: c.textCaption }]} numberOfLines={1}>{hint}</Text> : null}
       </View>
-    </MotiView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  cardWrap: {
-    width: '100%',
-    borderRadius: radius.card,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    ...shadows.card,
-  },
   card: {
-    borderRadius: radius.card,
-    padding: spacing.lg,
+    minHeight: 104,
+    justifyContent: 'space-between',
     gap: spacing.xs,
-    overflow: 'hidden',
+    padding: spacing.md,
+    borderRadius: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderStartWidth: StyleSheet.hairlineWidth,
   },
-  labelRow: {
-    ...flexRow,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  iconBadgeGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    ...textStart,
-    flex: 1,
-    fontFamily: fonts.bold,
-    lineHeight: 16,
-  },
-  labelSecondary: {
-    fontSize: typography.tiny,
-  },
-  value: {
-    ...textLtr,
-    marginTop: -2,
-  },
-  valueText: {
-    ...textStart,
-    fontFamily: fonts.extraBold,
-    marginTop: -2,
-  },
-  hint: {
-    ...textStart,
-    fontSize: typography.caption,
-    fontFamily: fonts.regular,
-  },
+  heading: { ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  label: { ...textStart, flex: 1, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.caption, lineHeight: 18 },
+  icon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  value: { ...textLtr, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: 24, lineHeight: 30 },
+  hint: { ...textStart, fontFamily: fonts.regular, fontSize: typography.micro },
 });

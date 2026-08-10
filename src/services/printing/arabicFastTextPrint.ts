@@ -1,7 +1,6 @@
-import type { EscPosEncoding } from '@/types/printing';
+import type { EscPosEncoding , PaperWidth } from '@/types/printing';
 import { EscPosBuilder, charsForPaper } from './escposBuilder';
 import { THERMAL_ARABIC_SELF_TEST_TABLE } from './codePageTables';
-import type { PaperWidth } from '@/types/printing';
 
 /** SBCS encodings supported for ultra-fast Arabic text printing. */
 export type FastArabicEncoding = 'cp864' | 'windows1256';

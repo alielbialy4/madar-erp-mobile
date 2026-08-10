@@ -1,38 +1,37 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppInput, AppText } from '@/components/ui';
+import { AppSearchField, AppText } from '@/components/ui';
 import { usePermissions } from '@/hooks/usePermissions';
 import { REPORT_GROUPS, listReportHubItems } from '@/reports/reportDefinitions';
 import type { ReportGroupId, ReportId } from '@/reports/types';
 import { useColors } from '@/hooks/useColors';
-import { spacing } from '@/constants/spacing';
+import type { AppColors } from '@/constants/colors';
+import { radius, spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
+import { fonts } from '@/constants/fonts';
+import { typography } from '@/constants/typography';
 import { storageGet, storageKeys, storageSet } from '@/services/storage';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
 
 const RECENT_KEY = storageKeys.reportsRecent;
-
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Reports'>;
+type HubItem = ReturnType<typeof listReportHubItems>[number];
 
 export function ReportsScreen({ navigation }: { navigation: Nav }) {
   const c = useColors();
-  const { width } = useWindowDimensions();
-  const columns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
+  const styles = useMemo(() => createStyles(c), [c]);
   const { can, hasFeature } = usePermissions();
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<ReportId[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      void storageGet<ReportId[]>(RECENT_KEY).then((ids) => setRecent(ids ?? []));
-    }, []),
-  );
+  useFocusEffect(useCallback(() => {
+    void storageGet<ReportId[]>(RECENT_KEY).then((ids) => setRecent(ids ?? []));
+  }, []));
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -45,7 +44,7 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
   }, [can, hasFeature, query]);
 
   const openReport = (id: ReportId) => {
-    const next = [id, ...recent.filter((r) => r !== id)].slice(0, 6);
+    const next = [id, ...recent.filter((recentId) => recentId !== id)].slice(0, 6);
     setRecent(next);
     void storageSet(RECENT_KEY, next);
     if (id === 'raw-materials') {
@@ -56,18 +55,16 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
   };
 
   const grouped = useMemo(() => {
-    const map = new Map<ReportGroupId, typeof items>();
-    for (const g of REPORT_GROUPS) map.set(g.id, []);
-    for (const item of items) {
-      const list = map.get(item.group) ?? [];
-      list.push(item);
-      map.set(item.group, list);
-    }
-    return REPORT_GROUPS.map((g) => ({ group: g, items: map.get(g.id) ?? [] })).filter((x) => x.items.length > 0);
+    const map = new Map<ReportGroupId, HubItem[]>();
+    for (const group of REPORT_GROUPS) map.set(group.id, []);
+    for (const item of items) map.set(item.group, [...(map.get(item.group) ?? []), item]);
+    return REPORT_GROUPS
+      .map((group) => ({ group, items: map.get(group.id) ?? [] }))
+      .filter((entry) => entry.items.length > 0);
   }, [items]);
 
   const recentItems = useMemo(
-    () => recent.map((id) => items.find((i) => i.id === id)).filter(Boolean) as typeof items,
+    () => recent.map((id) => items.find((item) => item.id === id)).filter(Boolean) as HubItem[],
     [items, recent],
   );
 
@@ -81,84 +78,140 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
   return (
     <AppScreen
       title="مركز التقارير"
-      subtitle="تقارير تشغيلية مطابقة للويب — فلاتر وبيانات حقيقية"
+      subtitle={`${items.length} تقريرًا متاحًا حسب صلاحياتك`}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      scroll={false}
+      contentStyle={styles.screen}
     >
-      <AppInput value={query} onChangeText={setQuery} placeholder="بحث في التقارير..." />
-      {recentItems.length ? (
-        <View style={{ gap: spacing.sm }}>
-          <AppText style={{ fontWeight: '700', ...textStart }}>فُتح مؤخراً</AppText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...flexRow, gap: spacing.sm }}>
-            {recentItems.map((item) => (
-              <PressableScale key={item.id} onPress={() => openReport(item.id)}>
-                <AppCard style={{ minWidth: 160, padding: spacing.md }}>
-                  <AppText style={textStart}>{item.title}</AppText>
-                </AppCard>
-              </PressableScale>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-      <PressableScale onPress={() => navigation.navigate('RecipeReports')}>
-        <AppCard style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
-          <MaterialIcons name="restaurant" size={28} color={c.accent} />
-          <View style={{ flex: 1 }}>
-            <AppText style={{ fontWeight: '700', ...textStart }}>تقارير تكلفة الوصفات</AppText>
-            <AppText style={{ color: c.textMuted, ...textStart, fontSize: 12 }}>
-              استهلاك الخامات، التكلفة والهامش، الوصفات الناقصة، والفرق المتوقع
-            </AppText>
+      <View style={styles.searchArea}>
+        <AppSearchField value={query} onChangeText={setQuery} placeholder="ابحث باسم التقرير أو مخرجاته..." compact />
+        {recentItems.length ? (
+          <View style={styles.recentBlock}>
+            <AppText style={styles.overline}>فُتح مؤخرًا</AppText>
+            <View style={styles.recentWrap}>
+              {recentItems.map((item) => (
+                <Pressable key={item.id} onPress={() => openReport(item.id)} style={styles.recentItem}>
+                  <MaterialIcons name="history" size={15} color={c.textMuted} />
+                  <AppText style={styles.recentLabel} numberOfLines={1}>{item.title}</AppText>
+                </Pressable>
+              ))}
+            </View>
           </View>
-          <MaterialIcons name="chevron-left" size={24} color={c.textMuted} />
-        </AppCard>
-      </PressableScale>
-      <PressableScale onPress={() => navigation.navigate('LegacyReports')}>
-        <AppCard style={{ ...flexRow, alignItems: 'center', gap: spacing.md }}>
-          <MaterialIcons name="history" size={28} color={c.accent} />
-          <View style={{ flex: 1 }}>
-            <AppText style={{ fontWeight: '700', ...textStart }}>التقارير الكلاسيكية</AppText>
-            <AppText style={{ color: c.textMuted, ...textStart, fontSize: 12 }}>
-              مبيعات شاملة، مشتريات، منتجات، عملاء، موردون، مدفوعات، أرباح، مخزون
-            </AppText>
+        ) : null}
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {!query.trim() ? (
+          <View style={styles.section}>
+            <SectionHeading title="مسارات تحليلية" subtitle="تقارير متعددة التبويبات أو تغطية تاريخية موسعة" count={2} />
+            <View style={styles.listSurface}>
+              <ReportRow
+                title="تكلفة الوصفات"
+                description="استهلاك، تكلفة وهامش، نواقص، فروق متوقعة"
+                icon="restaurant"
+                onPress={() => navigation.navigate('RecipeReports')}
+                divider
+              />
+              <ReportRow
+                title="التقارير الكلاسيكية"
+                description="مبيعات ومشتريات وعملاء وموردون ومدفوعات ومخزون"
+                icon="history"
+                onPress={() => navigation.navigate('LegacyReports')}
+              />
+            </View>
           </View>
-          <MaterialIcons name="chevron-left" size={24} color={c.textMuted} />
-        </AppCard>
-      </PressableScale>
-      {grouped.map(({ group, items: groupItems }) => (
-        <View key={group.id} style={{ gap: spacing.md }}>
-          <AppText style={{ fontWeight: '800', fontSize: 16, ...textStart }}>{group.title}</AppText>
-          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.md }}>
-            {groupItems.map((item) => (
-              <PressableScale
-                key={item.id}
-                onPress={() => openReport(item.id)}
-                style={{ width: columns === 1 ? '100%' : `${100 / columns - 2}%`, minWidth: columns === 1 ? undefined : 200, flexGrow: 1 }}
-              >
-                <AppCard style={{ gap: spacing.sm, minHeight: 120 }}>
-                  <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm }}>
-                    <View style={{
-                      width: 40, height: 40, borderRadius: 12,
-                      backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <MaterialIcons name={item.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={c.accent} />
-                    </View>
-                    <AppText style={{ flex: 1, fontWeight: '700', ...textStart }}>{item.title}</AppText>
-                  </View>
-                  <AppText style={{ color: c.textMuted, fontSize: 12, ...textStart }} numberOfLines={2}>
-                    {item.description}
-                  </AppText>
-                  {item.feature && !hasFeature(item.feature) ? (
-                    <AppText style={{ color: c.warning, fontSize: 11, ...textStart }}>يتطلب تقارير متقدمة</AppText>
-                  ) : null}
-                </AppCard>
-              </PressableScale>
-            ))}
+        ) : null}
+
+        {grouped.map(({ group, items: groupItems }) => (
+          <View key={group.id} style={styles.section}>
+            <SectionHeading title={group.title} count={groupItems.length} />
+            <View style={styles.listSurface}>
+              {groupItems.map((item, index) => (
+                <ReportRow
+                  key={item.id}
+                  title={item.title}
+                  description={item.description}
+                  icon={item.icon as keyof typeof MaterialIcons.glyphMap}
+                  onPress={() => openReport(item.id)}
+                  divider={index < groupItems.length - 1}
+                />
+              ))}
+            </View>
           </View>
-        </View>
-      ))}
-      {!items.length ? (
-        <AppText style={{ ...textStart, color: c.textMuted }}>لا توجد تقارير مطابقة للبحث أو الصلاحيات.</AppText>
-      ) : null}
+        ))}
+
+        {!items.length ? (
+          <View style={styles.empty}>
+            <MaterialIcons name="search-off" size={24} color={c.textCaption} />
+            <AppText style={styles.emptyTitle}>لا توجد تقارير مطابقة</AppText>
+            <AppText style={styles.emptyText}>غيّر عبارة البحث أو راجع صلاحية عرض التقارير.</AppText>
+          </View>
+        ) : null}
+      </ScrollView>
     </AppScreen>
   );
+}
+
+function SectionHeading({ title, subtitle, count }: { title: string; subtitle?: string; count: number }) {
+  const c = useColors();
+  return (
+    <View style={{ ...flexRow, alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.extraBold, fontSize: typography.cardTitle }}>{title}</AppText>
+        {subtitle ? <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }}>{subtitle}</AppText> : null}
+      </View>
+      <AppText style={{ color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.caption }}>{count}</AppText>
+    </View>
+  );
+}
+
+function ReportRow({ title, description, icon, onPress, divider }: { title: string; description: string; icon: keyof typeof MaterialIcons.glyphMap; onPress: () => void; divider?: boolean }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        ...flexRow,
+        minHeight: 68,
+        alignItems: 'center',
+        gap: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: pressed ? c.surfaceMuted : c.surface,
+        borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
+        borderBottomColor: c.borderSubtle,
+      })}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: radius.md, backgroundColor: c.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle, alignItems: 'center', justifyContent: 'center' }}>
+        <MaterialIcons name={icon} size={20} color={c.textMuted} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.bold, fontSize: typography.body }} numberOfLines={1}>{title}</AppText>
+        <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }} numberOfLines={1}>{description}</AppText>
+      </View>
+      <MaterialIcons name="chevron-left" size={21} color={c.textCaption} />
+    </Pressable>
+  );
+}
+
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    screen: { padding: 0, gap: 0 },
+    searchArea: { paddingHorizontal: spacing.md, paddingVertical: spacing.md, gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSubtle },
+    overline: { ...textStart, color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.micro },
+    recentBlock: { gap: spacing.xs },
+    recentWrap: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs },
+    recentItem: { ...flexRow, maxWidth: '48%', minHeight: 34, alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle },
+    recentLabel: { ...textStart, flexShrink: 1, color: c.textMuted, fontFamily: fonts.medium, fontSize: typography.caption },
+    scroll: { flex: 1, minHeight: 0 },
+    content: { paddingHorizontal: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxxl, gap: spacing.lg },
+    section: { gap: spacing.sm },
+    listSurface: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle, borderRadius: radius.md, overflow: 'hidden' },
+    empty: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
+    emptyTitle: { color: c.text, fontFamily: fonts.bold, fontSize: typography.body },
+    emptyText: { color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption },
+  });
 }

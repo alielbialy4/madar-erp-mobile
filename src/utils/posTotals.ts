@@ -116,7 +116,7 @@ export type PosCheckoutTotals = {
   gross: number;
   lineDiscount: number;
   promotionDiscount: number;
-  appliedPromotions: Array<{ name: string; amount: number }>;
+  appliedPromotions: { name: string; amount: number }[];
   manualDiscount: number;
   couponDiscount: number;
   afterDiscount: number;

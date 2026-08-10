@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -31,7 +32,7 @@ export function LoginHeroPanel({ compact = false }: Props) {
         },
         title: {
           marginTop: spacing.lg,
-          color: '#FFFFFF',
+          color: designColors.white,
           fontSize: typography.pageTitle,
           fontFamily: fonts.bold,
           fontWeight: '700',
@@ -49,11 +50,11 @@ export function LoginHeroPanel({ compact = false }: Props) {
           marginTop: spacing.xl,
           width: 64,
           height: StyleSheet.hairlineWidth,
-          backgroundColor: '#334155',
+          backgroundColor: designColors.slate900,
         },
         secureNote: {
           marginTop: spacing.md,
-          color: '#64748B',
+          color: designColors.slate700,
           fontSize: typography.tiny,
           fontFamily: fonts.regular,
           textAlign: 'center',

@@ -1,8 +1,7 @@
 import { del, get, patch, post, put, postMultipart } from './client';
 import { appendPickedImage } from './formData';
-import type { ListParams } from '@/types/api';
+import type { ListParams , PickedImage } from '@/types/api';
 import type { BranchManageRow, BranchSummary } from '@/types/branches';
-import type { PickedImage } from '@/types/api';
 
 export type BranchSettingsPatch = {
   receipt_print_mode?: 'quality_image' | 'fast_text';

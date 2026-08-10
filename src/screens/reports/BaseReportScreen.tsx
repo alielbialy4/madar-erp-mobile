@@ -62,7 +62,7 @@ function BaseReportScreenContent({
 
   const allowed = can(definition.permission) && (!definition.feature || hasFeature(definition.feature));
 
-  const { payload, metrics, loading, refreshing, loadingMore, error, refresh, loadMore, hasMore } = useReport(
+  const { payload, metrics, loading, loadingMore, error, refresh, loadMore, hasMore } = useReport(
     definition,
     filters,
   );
@@ -79,7 +79,7 @@ function BaseReportScreenContent({
   );
 
   const subtitle = definition.filters.includes('dateRange')
-    ? `${filters.from_date} — ${filters.to_date}`
+    ? `من ${filters.from_date} إلى ${filters.to_date}`
     : definition.description;
 
   const sectionsContent = useMemo(() => {

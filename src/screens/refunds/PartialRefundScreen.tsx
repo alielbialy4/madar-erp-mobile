@@ -1,12 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { textStart } from '@/constants/layout';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { salesAPI } from '@/api/sales';
-import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppInput, AppSectionHeader, AppSelect } from '@/components/ui';
-import { ConfirmDialog, AppLoadingState, AppErrorState } from '@/components/feedback';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
+import { AppScreen, FormScreenLayout } from '@/components/layout';
+import { FormSection } from '@/components/forms/FormSection';
+import { AppButton, AppInput, AppSelect } from '@/components/ui';
+import { AppBanner, ConfirmDialog, AppLoadingState, AppErrorState } from '@/components/feedback';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
@@ -45,33 +47,76 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [lines, setLines] = useState<Record<number, RefundLine>>({});
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
-  const [refundMethod, setRefundMethod] = useState<'cash' | 'wallet'>('cash');
+  const [refundMethod, setRefundMethod] = useState<'cash' | 'wallet' | 'original_account' | 'alternative_account'>('original_account');
   const [cashRefundSource, setCashRefundSource] = useState<'drawer' | 'vault'>('drawer');
+  const [refundSources, setRefundSources] = useState<PaymentSource[]>([]);
+  const [refundAccountId, setRefundAccountId] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawerElectronicConfirmOpen, setDrawerElectronicConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitNotice, setSubmitNotice] = useState<{ message: string; tone: 'danger' | 'success' } | null>(null);
   const submitLockRef = useRef(false);
   const clientUuidRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    if (!branchId) return;
+    let active = true;
+    void financialAccountsAPI
+      .paymentSources({ operation: 'refund', branch_id: branchId, include_unavailable: true })
+      .then((response) => {
+        if (active) setRefundSources(response.data ?? []);
+      })
+      .catch(() => {
+        if (active) setRefundSources([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [branchId]);
+
+  const isElectronicSale = ['card', 'electronic_wallet', 'instapay', 'vodafone_cash'].includes(
+    String(sale?.payment_type ?? '').toLowerCase(),
+  );
+
+  useEffect(() => {
+    if (isElectronicSale) setCashRefundSource('vault');
+  }, [isElectronicSale]);
+
   const styles = useMemo(() => StyleSheet.create({
     emptyText: { ...textStart, color: c.textMuted, fontSize: typography.body },
-    itemRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.border, gap: spacing.sm },
+    itemRow: {
+      padding: spacing.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
+      gap: spacing.sm,
+    },
+    itemRowSelected: { borderColor: c.softDangerBorder, backgroundColor: c.softDanger },
     itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     itemInfo: { flex: 1, gap: 2 },
     itemName: { fontSize: typography.body, fontWeight: '700', color: c.text, ...textStart },
     itemMeta: { fontSize: typography.small, color: c.textMuted, ...textStart },
-    itemTotal: { fontSize: typography.body, fontWeight: '800', color: c.primary },
+    itemTotal: { fontSize: typography.body, fontWeight: '800', color: c.text },
     itemDetails: { gap: 2 },
     qtyInfo: { fontSize: typography.tiny, color: c.textMuted, ...textStart },
     itemActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
     qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    qtyBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
-    qtyBtnDisabled: { backgroundColor: c.disabled },
-    qtyBtnText: { color: c.onPrimary, fontSize: typography.h3, fontWeight: '900' },
+    qtyBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    qtyBtnDisabled: { backgroundColor: c.disabled, opacity: 0.5 },
+    qtyBtnText: { color: c.text, fontSize: typography.h3, fontWeight: '900' },
     qtyInput: {
-      width: 56,
-      height: 36,
+      width: 60,
+      height: 40,
       borderWidth: 1,
       borderColor: c.border,
       borderRadius: radius.md,
@@ -83,15 +128,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     },
     restockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     restockLabel: { fontSize: typography.small, color: c.textMuted, ...textStart },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    totalLabel: { fontSize: typography.body, fontWeight: '800', color: c.text, ...textStart },
-    totalValue: { fontSize: typography.h3, fontWeight: '900', color: c.danger },
-    messageBox: { padding: spacing.md, borderRadius: radius.md },
-    successBox: { backgroundColor: c.softSuccess },
-    errorBox: { backgroundColor: c.softDanger },
-    messageText: { fontSize: typography.body, ...textStart, fontWeight: '700' },
-    successText: { color: c.success },
-    errorText: { color: c.danger },
+    sourceHint: { ...textStart, color: c.textMuted, fontSize: typography.small, lineHeight: 21 },
   }), [c]);
 
   if (loading) return <AppScreen title="استرداد جزئي" onBack={navigation.goBack}><AppLoadingState /></AppScreen>;
@@ -119,10 +156,6 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
 
   const hasItems = items.some((item) => getLine(Number(item.id)).quantity > 0);
 
-  const isElectronicSale = ['card', 'electronic_wallet', 'instapay', 'vodafone_cash'].includes(
-    String(sale?.payment_type ?? '').toLowerCase(),
-  );
-
   const electronicChannelLabel = (() => {
     const type = String(sale?.payment_type ?? '').toLowerCase();
     if (type === 'instapay') return 'رد عبر إنستا باي';
@@ -130,12 +163,6 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     if (type === 'card') return 'رد عبر البطاقة';
     return 'رد عبر القناة الإلكترونية';
   })();
-
-  React.useEffect(() => {
-    if (isElectronicSale) {
-      setCashRefundSource('vault');
-    }
-  }, [isElectronicSale]);
 
   const cashSourceOptions = isElectronicSale
     ? [
@@ -147,7 +174,18 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         { label: 'من الخزنة', value: 'vault' },
       ];
 
+  const availableRefundSources = refundSources.filter((source) => source.is_available !== false);
+  const selectedRefundSource = availableRefundSources.find((source) => source.id === refundAccountId);
+
   const openSubmitConfirm = () => {
+    if ((refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault')) && !refundAccountId) {
+      setSubmitNotice({ message: 'اختر الحساب المالي الذي سيُسجّل عليه رد المبلغ.', tone: 'danger' });
+      return;
+    }
+    if (refundMethod === 'alternative_account' && !reason.trim()) {
+      setSubmitNotice({ message: 'سبب استخدام الحساب البديل مطلوب.', tone: 'danger' });
+      return;
+    }
     if (refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer') {
       setDrawerElectronicConfirmOpen(true);
       return;
@@ -155,9 +193,12 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     setConfirmOpen(true);
   };
 
-  const methodOptions = hasCustomer
-    ? [{ label: 'نقدي', value: 'cash' }, { label: 'محفظة', value: 'wallet' }]
-    : [{ label: 'نقدي', value: 'cash' }];
+  const methodOptions = [
+    { label: 'الحساب الأصلي', value: 'original_account' },
+    { label: 'نقدي', value: 'cash' },
+    ...(availableRefundSources.length > 0 ? [{ label: 'حساب بديل', value: 'alternative_account' }] : []),
+    ...(hasCustomer ? [{ label: 'محفظة العميل', value: 'wallet' }] : []),
+  ];
 
   const submit = async () => {
     if (submitLockRef.current || submitting) return;
@@ -166,7 +207,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       clientUuidRef.current = createUuid();
     }
     setSubmitting(true);
-    setSubmitMessage(null);
+    setSubmitNotice(null);
     try {
       const refundItems = items
         .map((item) => {
@@ -182,8 +223,15 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         notes: notes || undefined,
         refund_method: refundMethod,
         ...(refundMethod === 'cash' ? { cash_refund_source: cashRefundSource } : {}),
+        ...((refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault')) && refundAccountId
+          ? {
+              refund_financial_account_id: refundAccountId,
+              refund_channel: selectedRefundSource?.payment_method as any,
+              alternative_refund_reason: reason.trim() || undefined,
+            }
+          : {}),
       });
-      setSubmitMessage(response.message || 'تم تسجيل الاسترداد الجزئي بنجاح');
+      setSubmitNotice({ message: response.message || 'تم تسجيل الاسترداد الجزئي بنجاح', tone: 'success' });
       setConfirmOpen(false);
       setDrawerElectronicConfirmOpen(false);
       await reload();
@@ -197,11 +245,14 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
           refundId,
         });
         if (printResult.ok) {
-          setSubmitMessage(`${response.message || 'تم تسجيل الاسترداد الجزئي بنجاح'} — ${printResult.message}`);
+          setSubmitNotice({
+            message: `${response.message || 'تم تسجيل الاسترداد الجزئي بنجاح'} — ${printResult.message}`,
+            tone: 'success',
+          });
         }
       }
     } catch (err) {
-      setSubmitMessage(normalizeApiError(err).message);
+      setSubmitNotice({ message: normalizeApiError(err).message, tone: 'danger' });
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
@@ -209,9 +260,34 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   };
 
   return (
-    <AppScreen title="استرداد جزئي" onBack={navigation.goBack}>
-      <AppCard>
-        <AppSectionHeader title="أصناف البيع" />
+    <FormScreenLayout
+      title="استرداد جزئي"
+      onBack={navigation.goBack}
+      heroTitle={`فاتورة #${sale.invoice_number ?? saleId}`}
+      heroSubtitle={`${sale.customer?.name ?? 'بيع مباشر'} · اختر الكمية التي سيتم ردها`}
+      heroAmount={money(totalRefund)}
+      footer={
+        <AppButton
+          title={hasItems ? `مراجعة رد ${money(totalRefund)}` : 'اختر أصنافًا للاسترداد'}
+          variant="danger"
+          onPress={openSubmitConfirm}
+          disabled={!hasItems || submitting}
+          loading={submitting}
+          fullWidth
+        />
+      }
+    >
+      <AppBanner
+        tone="warning"
+        icon="account-balance"
+        message="القيمة المعروضة تقديرية. الخادم يثبت المبلغ النهائي وتوزيع الحسابات عند التنفيذ. إعادة الصنف للمخزون اختيار مستقل لكل سطر."
+      />
+
+      <FormSection
+        title="الأصناف والكميات"
+        subtitle="الحد المتاح يراعي أي مرتجعات سابقة لهذه الفاتورة"
+        icon="assignment-return"
+      >
         {items.length === 0 ? (
           <Text style={styles.emptyText}>لا توجد أصناف</Text>
         ) : (
@@ -227,7 +303,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
             const productName = String((item.product as any)?.name ?? item.product_name ?? 'صنف');
 
             return (
-              <View key={String(itemId ?? index)} style={styles.itemRow}>
+              <View key={String(itemId ?? index)} style={[styles.itemRow, line.quantity > 0 && styles.itemRowSelected]}>
                 <View style={styles.itemHeader}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{productName}</Text>
@@ -281,17 +357,24 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
             );
           })
         )}
-      </AppCard>
+      </FormSection>
 
-      <AppCard>
-        <AppSectionHeader title="تفاصيل الاسترداد" />
+      <FormSection
+        title="رد المبلغ"
+        subtitle="اختر الوجهة المحاسبية التي سيُرحّل عليها الاسترداد"
+        icon="account-balance-wallet"
+      >
         <AppInput label="السبب" value={reason} onChangeText={setReason} placeholder="سبب الاسترداد (اختياري)" />
         <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} placeholder="ملاحظات إضافية (اختياري)" multiline numberOfLines={3} />
         <AppSelect
           label="طريقة الاسترداد"
           value={refundMethod}
           options={methodOptions}
-          onChange={(v) => setRefundMethod(v as 'cash' | 'wallet')}
+          onChange={(v) => {
+            const next = v as typeof refundMethod;
+            setRefundMethod(next);
+            if (next !== 'alternative_account') setRefundAccountId('');
+          }}
         />
         {refundMethod === 'cash' ? (
           <AppSelect
@@ -301,40 +384,33 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
             onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
           />
         ) : null}
+        {refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault') ? (
+          <AppSelect
+            label="الحساب المالي للرد"
+            value={refundAccountId}
+            options={availableRefundSources.map((source) => ({
+              label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+              value: source.id,
+            }))}
+            onChange={setRefundAccountId}
+          />
+        ) : null}
+        {refundSources.some((source) => source.is_available === false) ? (
+          <AppBanner message="بعض حسابات الرد غير متاحة حاليًا ولن تُستخدم تلقائيًا." />
+        ) : null}
         {refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer' ? (
-          <Text style={[styles.emptyText, { color: c.warning }]}>
-            يُخصم من النقد المتوقع في الدرج؛ لا يتغير إجمالي إنستا باي/المحفظة في التقرير.
-          </Text>
+          <AppBanner message="الرد من الدرج يُخصم من النقد المتوقع؛ ولا يغيّر إجمالي القناة الإلكترونية في التقرير." />
         ) : null}
         {isElectronicSale ? (
-          <Text style={styles.emptyText}>
+          <Text style={styles.sourceHint}>
             الدفع الأصلي إلكتروني — اختر الدرج للرد نقداً أو القناة الإلكترونية للتسوية.
           </Text>
         ) : null}
-      </AppCard>
+      </FormSection>
 
-      <AppCard>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>إجمالي الاسترداد المتوقع</Text>
-          <Text style={styles.totalValue}>{money(totalRefund)}</Text>
-        </View>
-      </AppCard>
-
-      {submitMessage ? (
-        <View style={[styles.messageBox, submitMessage.includes('نجاح') || submitMessage.includes('تم') ? styles.successBox : styles.errorBox]}>
-          <Text style={[styles.messageText, submitMessage.includes('نجاح') || submitMessage.includes('تم') ? styles.successText : styles.errorText]}>
-            {submitMessage}
-          </Text>
-        </View>
+      {submitNotice ? (
+        <AppBanner message={submitNotice.message} tone={submitNotice.tone} onDismiss={() => setSubmitNotice(null)} />
       ) : null}
-
-      <AppButton
-        title="تنفيذ الاسترداد الجزئي"
-        variant="danger"
-        onPress={openSubmitConfirm}
-        disabled={!hasItems || submitting}
-        loading={submitting}
-      />
 
       <ConfirmDialog
         visible={drawerElectronicConfirmOpen}
@@ -359,6 +435,6 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         onCancel={() => setConfirmOpen(false)}
         loading={submitting}
       />
-    </AppScreen>
+    </FormScreenLayout>
   );
 }

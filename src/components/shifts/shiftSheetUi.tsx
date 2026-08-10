@@ -50,16 +50,6 @@ export function ShiftKpiTile({
 }) {
   const c = useColors();
   const styles = useMemo(() => createKpiStyles(c), [c]);
-  const toneBg =
-    tone === 'success'
-      ? c.softSuccess
-      : tone === 'warning'
-        ? c.softWarning
-        : tone === 'danger'
-          ? c.softDanger
-          : tone === 'info'
-            ? c.softInfo
-            : c.surfaceMuted;
   const toneFg =
     tone === 'success'
       ? c.success
@@ -70,20 +60,9 @@ export function ShiftKpiTile({
           : tone === 'info'
             ? c.info
             : c.text;
-  const toneBorder =
-    tone === 'success'
-      ? c.softSuccessBorder
-      : tone === 'warning'
-        ? c.softWarningBorder
-        : tone === 'danger'
-          ? c.softDangerBorder
-          : tone === 'info'
-            ? c.softInfoBorder
-            : c.borderSubtle;
-
   return (
-    <View style={[styles.kpiTile, { backgroundColor: toneBg, borderColor: toneBorder }]}>
-      <View style={[styles.kpiIcon, { backgroundColor: c.surface }]}>
+    <View style={[styles.kpiTile, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.kpiIcon, { backgroundColor: c.surfaceMuted }]}>
         <MaterialIcons name={KPI_TONE_ICON[tone]} size={18} color={toneFg} />
       </View>
       <AppText style={[styles.kpiLabel, { color: c.textMuted }]} numberOfLines={1}>
@@ -186,8 +165,8 @@ function createKpiStyles(c: AppColors) {
     kpiTile: {
       flex: 1,
       minWidth: 140,
-      borderRadius: radius.xl,
-      borderWidth: 1,
+      borderRadius: radius.md,
+      borderWidth: StyleSheet.hairlineWidth,
       padding: spacing.md,
       gap: spacing.xs,
     },
@@ -208,10 +187,9 @@ function createInfoStyles(c: AppColors) {
     infoTile: {
       flex: 1,
       minWidth: 120,
-      backgroundColor: c.surfaceMuted,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      backgroundColor: c.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.sm,
       gap: 2,
@@ -227,17 +205,17 @@ function createHighlightStyles(c: AppColors) {
       ...flexRow,
       alignItems: 'center',
       gap: spacing.md,
-      padding: spacing.lg,
-      borderRadius: radius.xl,
-      backgroundColor: c.primarySoftMuted,
-      borderWidth: 1,
-      borderColor: c.primarySoftBorder,
-    },
-    highlightIcon: {
-      width: 48,
-      height: 48,
+      padding: spacing.md,
       borderRadius: radius.lg,
       backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+    },
+    highlightIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.md,
+      backgroundColor: c.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -251,9 +229,9 @@ function createSectionStyles(c: AppColors) {
   return StyleSheet.create({
     section: {
       backgroundColor: c.surface,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      borderRadius: radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
       overflow: 'hidden',
     },
     sectionHeader: {
@@ -262,9 +240,9 @@ function createSectionStyles(c: AppColors) {
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      backgroundColor: c.surfaceMuted,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderSubtle,
+      backgroundColor: c.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
     },
     sectionIcon: {
       width: 30,

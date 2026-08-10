@@ -7,7 +7,7 @@ import type {
   ShiftCloseReportPayload,
 } from '@/types/printing';
 import { getConnectionCapability } from './printerCapabilities';
-import { buildReceiptTextLines, buildArabicTestEscPos, buildTestPageEscPos } from './receiptTemplates';
+import { buildReceiptTextLines, buildTestPageEscPos } from './receiptTemplates';
 import { buildShiftSummaryTextLines } from './shiftSummaryTemplate';
 import { buildKitchenTicketTextLines } from './kitchenTicketTemplates';
 import { getPrinterProfile } from './printerProfiles';

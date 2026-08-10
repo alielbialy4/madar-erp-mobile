@@ -1,29 +1,25 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { MotiView } from 'moti';
-import { AppScreen } from '@/components/layout';
-import { ModuleHero } from '@/components/layout/ModuleHero';
-import { AppButton, AppSearchField, AppText as Text } from '@/components/ui';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AppScreen, ModuleHeader } from '@/components/layout';
+import { AppSearchField, AppText as Text } from '@/components/ui';
 import { HubGrid } from '@/components/navigation/HubGrid';
 import { buildMobileSidebarMenu } from '@/navigation/buildSidebarMenu';
 import { buildMoreHubGroups } from '@/navigation/moreModuleHub';
-import type { MoreHubItem } from '@/navigation/moreModuleHub';
+import type { MoreHubGroupId, MoreHubItem } from '@/navigation/moreModuleHub';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import type { AppColors } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textStart } from '@/constants/layout';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavShell } from '@/navigation/NavShellContext';
+
+type GroupFilter = 'all' | MoreHubGroupId;
 
 function navigateFromMore(
   navigation: {
@@ -54,15 +50,16 @@ export function MoreScreen({
   const c = useColors();
   const styles = useMemo(() => createStyles(c), [c]);
   const { width } = useWindowDimensions();
-  const columns = width >= 1100 ? 4 : width >= 900 ? 3 : 2;
+  const columns = width >= 900 ? 3 : 1;
   const { openDrawer, openCommandPalette } = useNavShell();
 
   const user = useAuthStore((state) => state.user);
   const viewMode = useBranchStore((state) => state.viewMode);
   const { can, hasFeature } = usePermissions();
   const [query, setQuery] = useState('');
+  const [groupFilter, setGroupFilter] = useState<GroupFilter>('all');
 
-  const groups = useMemo(() => {
+  const allGroups = useMemo(() => {
     const menu = buildMobileSidebarMenu(
       Boolean(user?.is_super_admin),
       (perm) => can(perm),
@@ -73,45 +70,59 @@ export function MoreScreen({
     const q = query.trim().toLowerCase();
     if (!q) return built;
     return built
-      .map((g) => ({
-        ...g,
-        items: g.items.filter(
-          (item) =>
-            item.label.toLowerCase().includes(q) ||
-            (item.description?.toLowerCase().includes(q) ?? false),
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) => item.label.toLowerCase().includes(q) || (item.description?.toLowerCase().includes(q) ?? false),
         ),
       }))
-      .filter((g) => g.items.length > 0);
+      .filter((group) => group.items.length > 0);
   }, [can, hasFeature, query, user?.is_super_admin, viewMode]);
 
-  const totalModules = useMemo(
-    () => groups.reduce((sum, g) => sum + g.items.length, 0),
-    [groups],
-  );
+  const visibleGroups = groupFilter === 'all'
+    ? allGroups
+    : allGroups.filter((group) => group.id === groupFilter);
+  const totalModules = allGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   const handleItemPress = (item: MoreHubItem) => {
     if (item.nav) navigateFromMore(navigation, item.nav);
   };
 
   return (
-    <AppScreen title="المزيد" subtitle="مركز الوحدات — تنظيم حسب نشاط العمل" noHeader>
-      <ModuleHero
-        eyebrow="مركز الوحدات"
-        title="كل عمليات ERP"
-        subtitle="ابحث أو افتح القائمة الكاملة — منظّم حسب نشاط العمل"
-        stats={[{ label: 'وحدات', value: totalModules }]}
+    <AppScreen title="العمليات" subtitle="مركز العمل" noHeader scroll={false} contentStyle={styles.screen}>
+      <ModuleHeader
+        eyebrow="مركز العمل"
+        title="العمليات"
+        subtitle="انتقل مباشرة إلى المهمة المطلوبة؛ النتائج والصلاحيات تتبع الفرع الحالي."
+        stats={[{ label: query ? 'نتيجة' : 'وحدة متاحة', value: totalModules }]}
         compact
       />
-      <View style={styles.toolbar}>
-        <AppSearchField
-          value={query}
-          onChangeText={setQuery}
-          placeholder="بحث في الوحدات..."
-        />
-        <View style={styles.toolbarActions}>
-          <AppButton title="بحث سريع" variant="secondary" onPress={openCommandPalette} />
-          <AppButton title="كل الشاشات" variant="outline" onPress={openDrawer} />
+
+      <View style={styles.finder}>
+        <AppSearchField value={query} onChangeText={setQuery} placeholder="ابحث باسم العملية..." compact />
+        <View style={styles.quickActions}>
+          <Pressable onPress={openCommandPalette} style={styles.quickAction} accessibilityRole="button">
+            <MaterialIcons name="travel-explore" size={18} color={c.textMuted} />
+            <Text style={styles.quickActionLabel}>انتقال سريع</Text>
+          </Pressable>
+          <Pressable onPress={openDrawer} style={styles.quickAction} accessibilityRole="button">
+            <MaterialIcons name="menu-open" size={18} color={c.textMuted} />
+            <Text style={styles.quickActionLabel}>القائمة الكاملة</Text>
+          </Pressable>
         </View>
+      </View>
+
+      <View style={styles.filterRail}>
+        <GroupButton label="الكل" count={totalModules} active={groupFilter === 'all'} onPress={() => setGroupFilter('all')} />
+        {allGroups.map((group) => (
+          <GroupButton
+            key={group.id}
+            label={group.title}
+            count={group.items.length}
+            active={groupFilter === group.id}
+            onPress={() => setGroupFilter(group.id)}
+          />
+        ))}
       </View>
 
       <ScrollView
@@ -120,71 +131,85 @@ export function MoreScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {groups.map((group, gIdx) => (
-          <MotiView
-            key={group.id}
-            from={{ opacity: 0, translateY: 16 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ delay: gIdx * 80, type: 'spring', damping: 20, stiffness: 100 }}
-            style={styles.section}
-          >
-            <View style={[styles.sectionHeader, flexRow]}>
-              <View style={styles.sectionAccent} />
-              <View style={{ flex: 1, gap: 4 }}>
+        {visibleGroups.map((group) => (
+          <View key={group.id} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionCopy}>
                 <Text style={styles.sectionTitle}>{group.title}</Text>
                 <Text style={styles.sectionSubtitle}>{group.subtitle}</Text>
               </View>
+              <Text style={styles.sectionCount}>{group.items.length}</Text>
             </View>
-            <HubGrid
-              items={group.items}
-              columns={columns}
-              onItemPress={handleItemPress}
-            />
-          </MotiView>
+            <HubGrid items={group.items} columns={columns} onItemPress={handleItemPress} />
+          </View>
         ))}
 
-        {groups.length === 0 ? (
-          <Text style={styles.empty}>لا توجد وحدات مطابقة — جرّب البحث السريع أو القائمة الكاملة</Text>
+        {visibleGroups.length === 0 ? (
+          <View style={styles.empty}>
+            <MaterialIcons name="search-off" size={24} color={c.textCaption} />
+            <Text style={styles.emptyTitle}>لا توجد عملية مطابقة</Text>
+            <Text style={styles.emptyText}>غيّر عبارة البحث أو اعرض كل مجموعات العمل.</Text>
+          </View>
         ) : null}
       </ScrollView>
     </AppScreen>
   );
 }
 
+function GroupButton({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        ...flexRow,
+        minHeight: 38,
+        alignItems: 'center',
+        gap: spacing.xs,
+        paddingHorizontal: spacing.md,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: active ? c.primary : c.borderSubtle,
+        backgroundColor: active ? c.primarySoftMuted : c.surface,
+      }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
+      <Text style={{ color: active ? c.primary : c.text, fontFamily: fonts.bold, fontSize: typography.caption }}>{label}</Text>
+      <Text style={{ color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.micro }}>{count}</Text>
+    </Pressable>
+  );
+}
+
 function createStyles(c: AppColors) {
   return StyleSheet.create({
-    toolbar: { gap: spacing.sm, marginBottom: spacing.md, paddingHorizontal: spacing.lg },
-    toolbarActions: {
+    screen: { paddingHorizontal: spacing.md, paddingTop: 0, gap: spacing.sm },
+    finder: { gap: spacing.sm },
+    quickActions: { ...flexRow, gap: spacing.sm },
+    quickAction: {
       ...flexRow,
-      gap: spacing.sm,
-      flexWrap: 'wrap',
+      flex: 1,
+      minHeight: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.borderSubtle,
+      borderRadius: radius.md,
+      backgroundColor: c.surface,
     },
-    scroll: { flex: 1 },
-    content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
+    quickActionLabel: { color: c.textMuted, fontFamily: fonts.bold, fontSize: typography.caption },
+    filterRail: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs, paddingVertical: spacing.xs },
+    scroll: { flex: 1, minHeight: 0 },
+    content: { paddingBottom: spacing.xxxl, gap: spacing.lg },
     section: { gap: spacing.sm },
-    sectionHeader: { gap: 4, paddingHorizontal: spacing.xs },
-    sectionTitle: {
-      ...textStart,
-      fontSize: typography.sectionTitle,
-      fontFamily: fonts.bold,
-      color: c.text,
-    },
-    sectionSubtitle: {
-      ...textStart,
-      fontSize: typography.tiny,
-      color: c.textMuted,
-    },
-    sectionAccent: {
-      width: 4,
-      height: 20,
-      borderRadius: 2,
-      backgroundColor: c.accent,
-    },
-    empty: {
-      ...textStart,
-      textAlign: 'center',
-      color: c.textMuted,
-      padding: spacing.xl,
-    },
+    sectionHeader: { ...flexRow, alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md },
+    sectionCopy: { flex: 1, minWidth: 0, gap: 2 },
+    sectionTitle: { ...textStart, color: c.text, fontFamily: fonts.extraBold, fontSize: typography.cardTitle },
+    sectionSubtitle: { ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption },
+    sectionCount: { color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.caption },
+    empty: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xxxl },
+    emptyTitle: { color: c.text, fontFamily: fonts.bold, fontSize: typography.body },
+    emptyText: { color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption },
   });
 }

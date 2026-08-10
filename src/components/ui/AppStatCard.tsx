@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { textStart } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
@@ -78,30 +78,20 @@ function createStyles(c: AppColors) {
       flex: 1,
       gap: spacing.sm,
       backgroundColor: c.surface,
-      borderWidth: 1,
-      borderRadius: radius.xxxl,
-      padding: spacing.lg,
-      ...Platform.select({
-        ios: {
-          shadowColor: c.shadow,
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 1,
-          shadowRadius: 3,
-        },
-        android: { elevation: 1 },
-        default: {},
-      }),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: radius.lg,
+      padding: spacing.md,
     },
     primaryCard: {
-      minHeight: 108,
+      minHeight: 92,
     },
     secondaryCard: {
-      minHeight: 100,
+      minHeight: 84,
     },
     iconBox: {
-      width: 48,
-      height: 48,
-      borderRadius: radius.xl,
+      width: 32,
+      height: 32,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
       alignSelf: 'flex-start',
@@ -121,7 +111,7 @@ function createStyles(c: AppColors) {
       fontWeight: '800',
     },
     valuePrimary: {
-      fontSize: 26,
+      fontSize: 23,
     },
     valueSecondary: {
       fontSize: typography.pageTitle,

@@ -52,13 +52,13 @@ function WarehouseStockTable({
   showBranchColumn?: boolean;
 }) {
   const columns = useMemo(() => {
-    const base: Array<{
+    const base: {
       key: string;
       label: string;
       flex?: number;
       width?: number;
       align?: 'start' | 'center' | 'end';
-    }> = [
+    }[] = [
       { key: 'warehouse', label: 'المخزن', flex: 2 },
       { key: 'code', label: 'الكود', width: 72 },
     ];

@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useEffect } from 'react';
 import Barcode from 'react-native-barcode-svg';
 import { View } from 'react-native';
@@ -36,10 +37,10 @@ export function ReceiptInvoiceBarcode({ value, width = 280, height = 40, fontSiz
     <View style={{ alignItems: 'center', marginVertical: 4 }}>
       <Barcode value={trimmed} format="CODE128" singleBarWidth={1.1} height={height} />
       <View style={{ flexDirection: 'row', marginTop: 2, gap: 4 }}>
-        <Text style={{ fontSize, color: '#000', fontWeight: '400' }}>
+        <Text style={{ fontSize, color: designColors.black, fontWeight: '400' }}>
           {receiptPrintLabels.invoiceNumber}:
         </Text>
-        <Text style={{ fontSize, color: '#000', fontWeight: '500' }} numeric>
+        <Text style={{ fontSize, color: designColors.black, fontWeight: '500' }} numeric>
           {trimmed}
         </Text>
       </View>

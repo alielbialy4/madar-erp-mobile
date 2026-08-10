@@ -27,7 +27,7 @@ function isEffectivelyEmpty(values: number[]): boolean {
   return values.length === 0 || values.every((v) => !v || Number(v) === 0);
 }
 
-function StockBarList({ items, fillColor }: { items: Array<{ label: string; qty: number }>; fillColor?: string }) {
+function StockBarList({ items, fillColor }: { items: { label: string; qty: number }[]; fillColor?: string }) {
   const c = useColors();
   const styles = useMemo(() => createBarStyles(c, fillColor), [c, fillColor]);
   const peak = Math.max(...items.map((i) => i.qty), 1);

@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -15,6 +16,7 @@ type Props = {
   required?: boolean;
   minimumDate?: Date;
   maximumDate?: Date;
+  disabled?: boolean;
 };
 
 function toIsoDate(d: Date): string {
@@ -30,7 +32,7 @@ function parseIsoDate(value: string): Date {
   return new Date();
 }
 
-export function AppDatePicker({ label, value, onChange, error, required, minimumDate, maximumDate }: Props) {
+export function AppDatePicker({ label, value, onChange, error, required, minimumDate, maximumDate, disabled = false }: Props) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => parseIsoDate(value));
@@ -50,7 +52,12 @@ export function AppDatePicker({ label, value, onChange, error, required, minimum
 
   return (
     <View>
-      <Pressable onPress={() => { setDraft(parseIsoDate(value)); setOpen(true); }}>
+      <Pressable
+        disabled={disabled}
+        accessibilityState={{ disabled }}
+        onPress={() => { setDraft(parseIsoDate(value)); setOpen(true); }}
+        style={{ opacity: disabled ? 0.55 : 1 }}
+      >
         <View pointerEvents="none">
           <AppInput label={label} value={displayValue || value} placeholder="اختر التاريخ" error={error} required={required} editable={false} />
         </View>
@@ -63,7 +70,7 @@ export function AppDatePicker({ label, value, onChange, error, required, minimum
       {Platform.OS === 'ios' ? (
         <AppBottomSheet visible={open} onClose={() => setOpen(false)} title={label ?? 'اختر التاريخ'}>
           <View style={{ gap: spacing.md }}>
-            <DateTimePicker value={draft} mode="date" display="spinner" onChange={onNativeChange} minimumDate={minimumDate} maximumDate={maximumDate} themeVariant={c.background === '#0F172A' ? 'dark' : 'light'} />
+            <DateTimePicker value={draft} mode="date" display="spinner" onChange={onNativeChange} minimumDate={minimumDate} maximumDate={maximumDate} themeVariant={c.background === designColors.navy ? 'dark' : 'light'} />
             <AppButton title="تأكيد" onPress={() => { onChange(toIsoDate(draft)); setOpen(false); }} />
           </View>
         </AppBottomSheet>

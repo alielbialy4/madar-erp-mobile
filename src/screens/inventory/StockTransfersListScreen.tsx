@@ -1,9 +1,10 @@
 import React from 'react';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { stockTransfersAPI } from '@/api/stockTransfers';
-import { docRowMeta, docRowSubtitle, docRowTitle, ResourceListScreen } from '@/components/inventory/ResourceListScreen';
+import { docRowMeta, docRowTitle, ResourceListScreen } from '@/components/inventory/ResourceListScreen';
 import type { MoreStackParamList } from '@/types/navigation';
 import { asText } from '@/utils/format';
+import { inventoryStatusLabel } from '@/utils/inventoryLabels';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockTransfersList'>;
 
@@ -21,7 +22,7 @@ export function StockTransfersListScreen({ navigation }: { navigation: Nav }) {
         title: docRowTitle(row, 'تحويل'),
         subtitle: `${asText(row.from_warehouse_name, 'من')} → ${asText(row.to_warehouse_name, 'إلى')}`,
         meta: docRowMeta(row),
-        badgeLabel: String(row.status_label_ar ?? row.status ?? ''),
+        badgeLabel: inventoryStatusLabel(row.status_label_ar ?? row.status),
         badgeTone: row.status === 'completed' ? 'success' : 'info',
         icon: 'swap-horiz',
       })}

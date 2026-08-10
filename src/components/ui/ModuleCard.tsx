@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { Animated, Pressable, Platform, View } from 'react-native';
+import { Animated, Pressable, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -45,11 +45,6 @@ export function ModuleCard({ title, subtitle, icon, iconColor, iconBg, badge, ba
       flex: 1,
       minHeight: 100,
       opacity: disabled ? 0.5 : 1,
-      ...Platform.select({
-        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
-        android: { elevation: 1 },
-        default: { boxShadow: `0 2px 6px ${c.shadow}` } as object,
-      }),
     }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{

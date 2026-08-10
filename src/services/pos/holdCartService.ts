@@ -11,7 +11,6 @@ import {
   deleteLocalHeldCart,
   getLocalHeldCarts,
   saveLocalHeldCart,
-  type HeldCartLocalRecord,
 } from './heldCartsLocal';
 
 export type HeldCartListItem = {
@@ -37,7 +36,6 @@ export type HoldCartSaveInput = {
 };
 
 function buildCartItemsPayload(cart: CartLine[]) {
-  const totals = cartTotals(cart);
   return cart.map((line) => {
     const optionsExtra = line.selected_options?.length
       ? { selected_options: line.selected_options, notes: line.notes ?? null }

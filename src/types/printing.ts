@@ -59,7 +59,7 @@ export type PrintJobRecord = {
 
 export type ReceiptLineOptionGroup = {
   group_title: string;
-  options: Array<{ name: string; applied_price?: number }>;
+  options: { name: string; applied_price?: number }[];
 };
 
 export type ReceiptPrintItem = {
@@ -154,11 +154,11 @@ export type ShiftCloseReportPayload = {
   closed_at?: string;
   status?: string;
   opening_balance?: string;
-  sections: Array<{
+  sections: {
     title: string;
     rows: ShiftCloseSectionRow[];
-    lineItems?: Array<{ primary: string; secondary?: string; amount?: string }>;
-  }>;
+    lineItems?: { primary: string; secondary?: string; amount?: string }[];
+  }[];
   developer_footer?: string;
 };
 

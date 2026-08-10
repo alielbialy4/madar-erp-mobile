@@ -105,6 +105,12 @@ export type MoreStackParamList = {
   VaultTransactionDetail: { id: string };
   ShiftManagement: undefined;
   Expenses: undefined;
+  ExpenseCreate: undefined;
+  ExpenseDetail: { id: number };
+  ExpenseCategories: undefined;
+  RecurringExpenses: undefined;
+  Budgets: undefined;
+  BudgetForm: { id?: string };
   Coupons: undefined;
   CouponForm: { id?: string };
   Delivery: undefined;
@@ -125,6 +131,8 @@ export type MoreStackParamList = {
   GiftCardDetail: { id: string };
   Users: undefined;
   PaymentsLedger: undefined;
+  FinancialAccounts: undefined;
+  FinancialAccountDetail: { id: string; name?: string };
   UserForm: { id?: number };
   Roles: undefined;
   BranchesList: undefined;

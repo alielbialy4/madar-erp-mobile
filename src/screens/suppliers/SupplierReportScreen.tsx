@@ -1,26 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { suppliersAPI } from '@/api/suppliers';
 import { supplierPaymentsAPI } from '@/api/supplierPayments';
 import { purchasesAPI } from '@/api/purchases';
-import { vaultsAPI } from '@/api/vaults';
+import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect, AppStatCard } from '@/components/ui';
+import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect, AppStatCard } from '@/components/ui';
 import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
-import { extractArray, extractData } from '@/utils/data';
+import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money, dateText, asText } from '@/utils/format';
 import { getCurrentBalanceInterpretation } from '@/utils/supplierBalanceLabels';
 import { supplierVoucherTypeLabel } from '@/utils/supplierPaymentLabels';
 import { parsePositiveMoneyInput, purchaseRemainingAmount } from '@/utils/supplierPurchaseFinancials';
-import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { FormError } from '@/components/forms';
 import { flexRow } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { statusTone } from '@/utils/statusTone';
-import { AppBadge } from '@/components/ui';
 
 type SheetMode = 'vault' | 'purchase_pay' | 'credit' | 'balance' | null;
 
@@ -50,19 +48,14 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
   const [sheetMode, setSheetMode] = useState<SheetMode>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Record<string, unknown> | null>(null);
   const [amount, setAmount] = useState('');
-  const [vaultId, setVaultId] = useState<string | null>(null);
+  const [paymentAccountId, setPaymentAccountId] = useState<string | null>(null);
+  const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [availableCredit, setAvailableCredit] = useState(0);
   const [settleableBalance, setSettleableBalance] = useState(0);
-
-  const vaultsResource = useAsyncResource(() => vaultsAPI.list({ active_only: true }));
-  const vaultOptions = extractArray<Record<string, unknown>>(vaultsResource.data).map((v) => ({
-    label: String(v.name ?? ''),
-    value: String(v.id),
-  }));
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -94,7 +87,24 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
     setNotes('');
     const remaining = purchase ? purchaseRemainingAmount(purchase) : null;
     setAmount(remaining && remaining > 0 ? String(remaining.toFixed(2)) : '');
-    setVaultId(null);
+    setPaymentAccountId(null);
+    setPaymentSources([]);
+
+    if (mode === 'vault' || mode === 'purchase_pay') {
+      try {
+        const branchId = purchase?.branch_id ? String(purchase.branch_id) : undefined;
+        const response = await financialAccountsAPI.paymentSources({
+          operation: mode === 'purchase_pay' ? 'purchase_payment' : 'supplier_payment',
+          ...(branchId ? { branch_id: branchId } : {}),
+          include_unavailable: true,
+        });
+        const rows = (response.data ?? []).filter((source) => source.is_available !== false);
+        setPaymentSources(rows);
+        if (rows[0]?.id) setPaymentAccountId(String(rows.find((source) => source.is_default)?.id ?? rows[0].id));
+      } catch {
+        setPaymentSources([]);
+      }
+    }
 
     if (mode === 'credit' || mode === 'balance') {
       try {
@@ -127,26 +137,32 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
     setSubmitting(true);
     setSheetError(null);
     try {
-      if (sheetMode === 'vault') {
-        if (!vaultId) {
-          setSheetError('اختر الخزنة');
+      if (sheetMode === 'vault' || sheetMode === 'purchase_pay') {
+        if (!paymentAccountId) {
+          setSheetError('اختر حساب الدفع');
+          setSubmitting(false);
           return;
         }
-        await supplierPaymentsAPI.create({
-          supplier_id: id,
-          purchase_id: selectedPurchase?.id ? Number(selectedPurchase.id) : null,
-          vault_id: vaultId,
-          amount: num,
-          payment_date: new Date().toISOString().split('T')[0],
-          notes: notes || undefined,
-        });
-      } else if (sheetMode === 'purchase_pay' && selectedPurchase?.id) {
-        await purchasesAPI.addPayment(Number(selectedPurchase.id), {
-          amount: num,
-          payment_date: new Date().toISOString().split('T')[0],
-          notes: notes || undefined,
-          vault_id: vaultId ?? undefined,
-        });
+        const paymentSource = paymentSources.find((source) => String(source.id) === paymentAccountId);
+        if (sheetMode === 'vault') {
+          await supplierPaymentsAPI.create({
+            supplier_id: id,
+            purchase_id: selectedPurchase?.id ? Number(selectedPurchase.id) : null,
+            financial_account_id: paymentAccountId,
+            vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? undefined : undefined,
+            amount: num,
+            payment_date: new Date().toISOString().split('T')[0],
+            notes: notes || undefined,
+          });
+        } else if (selectedPurchase?.id) {
+          await purchasesAPI.addPayment(Number(selectedPurchase.id), {
+            amount: num,
+            payment_date: new Date().toISOString().split('T')[0],
+            notes: notes || undefined,
+            financial_account_id: paymentAccountId,
+            vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? undefined : undefined,
+          });
+        }
       } else if (sheetMode === 'credit' && selectedPurchase?.id) {
         await supplierPaymentsAPI.applyPurchaseCredit(Number(selectedPurchase.id), {
           amount: num,
@@ -318,7 +334,15 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
           ) : null}
           <AppInput label="المبلغ" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" required />
           {(sheetMode === 'vault' || sheetMode === 'purchase_pay') ? (
-            <AppSelect label="الخزنة" value={vaultId} options={vaultOptions} onChange={setVaultId} />
+            <AppSelect
+              label="حساب الدفع"
+              value={paymentAccountId}
+              options={paymentSources.map((source) => ({
+                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                value: String(source.id),
+              }))}
+              onChange={setPaymentAccountId}
+            />
           ) : null}
           <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
           <FormError message={sheetError} />

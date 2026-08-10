@@ -1,3 +1,4 @@
+import { designColors } from '@/constants/colors';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { AppSearchField } from '@/components/ui/AppSearchField';
@@ -17,9 +18,9 @@ import { typography } from '@/constants/typography';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 
-const TONE_BORDERS = ['#BFDBFE', '#A7F3D0', '#FDE68A', '#CBD5E1', '#E2E8F0'];
-const TONE_BGS = ['#EFF6FF', '#ECFDF5', '#FFFBEB', '#F1F5F9', '#F8FAFC'];
-const TONE_FGS = ['#2563EB', '#10B981', '#F59E0B', '#0F172A', '#64748B'];
+const TONE_BORDERS = [designColors.blueLight, designColors.greenLight, designColors.yellowLight, designColors.slate400, designColors.slate300];
+const TONE_BGS = [designColors.blueSoft, designColors.greenSoft, designColors.yellowSoft, designColors.slate200, designColors.slate50];
+const TONE_FGS = [designColors.blueDark, designColors.green, designColors.yellow, designColors.navy, designColors.slate700];
 
 function shortcutColumns(width: number): number {
   if (width >= 1200) return 6;

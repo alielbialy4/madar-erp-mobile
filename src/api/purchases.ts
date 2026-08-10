@@ -10,6 +10,7 @@ export type PurchasePayload = {
   tax?: number;
   discount?: number;
   paid: number;
+  financial_account_id?: string | null;
   notes?: string;
   warehouse_id?: string | null;
   branch_id?: string | null;
@@ -23,7 +24,16 @@ export const purchasesAPI = {
   update: (id: number, data: Partial<PurchasePayload>) => put(`/purchases/${id}`, data),
   delete: (id: number) => del(`/purchases/${id}`),
   getPayments: (purchaseId: number) => get(`/purchases/${purchaseId}/payments`),
-  addPayment: (purchaseId: number, payload: { amount: number; payment_date: string; vault_id?: string; notes?: string }) =>
+  addPayment: (purchaseId: number, payload: {
+    client_uuid?: string;
+    amount: number;
+    payment_date: string;
+    financial_account_id?: string;
+    vault_id?: string;
+    payment_method?: string;
+    payment_branch_id?: string;
+    notes?: string;
+  }) =>
     post(`/purchases/${purchaseId}/payments`, payload),
 };
 

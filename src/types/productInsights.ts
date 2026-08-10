@@ -145,15 +145,15 @@ export interface InsightsMovements {
 }
 
 export interface InsightsCharts {
-  stock_by_branch: Array<{ branch_id: string | null; label: string; qty: number }>;
-  stock_by_warehouse: Array<{ warehouse_id: string; label: string; qty: number }>;
-  movements_over_time: Array<{ date: string; inbound: number; outbound: number }>;
-  top_branches_by_sales: Array<{
+  stock_by_branch: { branch_id: string | null; label: string; qty: number }[];
+  stock_by_warehouse: { warehouse_id: string; label: string; qty: number }[];
+  movements_over_time: { date: string; inbound: number; outbound: number }[];
+  top_branches_by_sales: {
     branch_id: string | null;
     label: string;
     qty: number;
     amount: number;
-  }>;
+  }[];
 }
 
 export interface ProductInsightsPayload {

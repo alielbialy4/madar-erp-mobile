@@ -16,9 +16,11 @@ export type SupplierPaymentRow = Record<string, unknown> & {
 };
 
 export type SupplierPaymentPayload = {
+  client_uuid?: string;
   supplier_id: number;
   purchase_id?: number | null;
-  vault_id: string;
+  financial_account_id?: string;
+  vault_id?: string;
   amount: number | string;
   payment_date: string;
   payment_method?: string;
@@ -41,6 +43,7 @@ export type MixedSupplierBalanceSettlementPayload = {
   vault_payment_amount?: number | string;
   amount?: number | string;
   vault_id?: string;
+  financial_account_id?: string;
   payment_method?: string;
   settled_at?: string;
   notes?: string;

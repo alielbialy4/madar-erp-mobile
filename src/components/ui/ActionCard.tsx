@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -27,11 +27,6 @@ export function ActionCard({ title, subtitle, right, onPress }: Props) {
       borderWidth: 1,
       borderColor: c.borderSubtle,
       padding: spacing.lg,
-      ...Platform.select({
-        ios: { shadowColor: c.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4 },
-        android: { elevation: 1 },
-        default: {},
-      }),
     }}>
       <View style={{ flex: 1, gap: 2 }}>
         <AppText style={{

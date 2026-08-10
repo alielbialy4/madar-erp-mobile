@@ -3,7 +3,6 @@ import type { ApiEnvelope, ListParams } from '@/types/api';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
 import { AppDomainCard } from '@/components/ui/AppDomainCard';
 import { AppSwipeRow } from '@/components/ui/AppSwipeRow';
-import { AppFAB } from '@/components/ui/AppFAB';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
@@ -48,7 +47,7 @@ type Props<T extends Record<string, unknown>> = {
   moduleIcon?: ModuleIconKey;
   heroEyebrow?: string;
   heroCompact?: boolean;
-  heroStats?: Array<{ label: string; value: string | number }>;
+  heroStats?: { label: string; value: string | number }[];
   fab?: { onPress: () => void; label?: string };
   swipeActions?: (item: T) => { edit?: () => void; delete?: () => void };
 };
@@ -138,7 +137,7 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
           const actions = [
             swipe.edit ? { label: 'تعديل', icon: 'edit' as const, onPress: swipe.edit } : null,
             swipe.delete ? { label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: swipe.delete } : null,
-          ].filter(Boolean) as Array<{ label: string; icon: 'edit' | 'delete'; tone?: 'danger'; onPress: () => void }>;
+          ].filter(Boolean) as { label: string; icon: 'edit' | 'delete'; tone?: 'danger'; onPress: () => void }[];
           return <AppSwipeRow rightActions={actions}>{card}</AppSwipeRow>;
         }}
       />

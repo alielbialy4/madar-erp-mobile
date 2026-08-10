@@ -76,7 +76,6 @@ function AggregateRow({
 }
 
 export function ProductInsightsAggregateList(props: Props) {
-  const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
 

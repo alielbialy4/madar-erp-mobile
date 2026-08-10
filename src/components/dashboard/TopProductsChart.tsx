@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -21,7 +21,6 @@ type Props = {
 
 export function TopProductsChart({ products }: Props) {
   const c = useColors();
-  const [cardWidth, setCardWidth] = useState(0);
   const slice = products.slice(0, 8);
 
   const maxValue = useMemo(
@@ -29,10 +28,6 @@ export function TopProductsChart({ products }: Props) {
     [slice],
   );
   const sparse = slice.length > 0 && slice.length < 3;
-
-  const onLayout = (e: LayoutChangeEvent) => {
-    setCardWidth(e.nativeEvent.layout.width);
-  };
 
   return (
     <DashboardSection
@@ -44,7 +39,6 @@ export function TopProductsChart({ products }: Props) {
       badgeTone="success"
     >
       <View
-        onLayout={onLayout}
         style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
       >
         {slice.length === 0 ? (
@@ -58,7 +52,6 @@ export function TopProductsChart({ products }: Props) {
               const qty = Number(p.total_sold ?? 0);
               const pct = Math.max(4, (qty / maxValue) * 100);
               const name = String(p.product_name ?? p.name ?? '—');
-              const barMax = Math.max(0, cardWidth - 140);
               return (
                 <View key={`${name}-${i}`} style={styles.row}>
                   <View style={[styles.rank, { backgroundColor: c.softPrimary, borderColor: c.accentBorder }]}>
@@ -72,15 +65,7 @@ export function TopProductsChart({ products }: Props) {
                       <Text style={[styles.qty, { color: c.text }]}>{numberText(qty)}</Text>
                     </View>
                     <View style={[styles.track, { backgroundColor: c.surfaceMuted }]}>
-                      <View
-                        style={[
-                          styles.fill,
-                          {
-                            width: barMax > 0 ? (barMax * pct) / 100 : `${pct}%`,
-                            backgroundColor: i % 2 === 0 ? c.accent : c.primary,
-                          },
-                        ]}
-                      />
+                      <View style={[styles.fill, { width: `${pct}%`, backgroundColor: c.primary }]} />
                     </View>
                   </View>
                 </View>
@@ -100,13 +85,14 @@ export function TopProductsChart({ products }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.xxl,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.md,
     width: '100%',
+    overflow: 'hidden',
   },
   empty: {
-    minHeight: 160,
+    minHeight: 104,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,

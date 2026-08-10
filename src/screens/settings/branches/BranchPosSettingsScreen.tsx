@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { branchesManageAPI } from '@/api/branchesManage';
 import { FormScreenLayout } from '@/components/layout';
 import { FormSection, SwitchRow } from '@/components/forms/FormSection';

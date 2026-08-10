@@ -55,6 +55,12 @@ import { VaultTransactionsScreen } from '@/screens/vaults/VaultTransactionsScree
 import { VaultTransactionDetailScreen } from '@/screens/vaults/VaultTransactionDetailScreen';
 import { ShiftScreen } from '@/screens/vaults/ShiftScreen';
 import { ExpensesScreen } from '@/screens/expenses/ExpensesScreen';
+import { ExpenseCreateScreen } from '@/screens/expenses/ExpenseCreateScreen';
+import { ExpenseDetailScreen } from '@/screens/expenses/ExpenseDetailScreen';
+import { ExpenseCategoriesScreen } from '@/screens/expenses/ExpenseCategoriesScreen';
+import { RecurringExpensesScreen } from '@/screens/expenses/RecurringExpensesScreen';
+import { BudgetsScreen } from '@/screens/settings/BudgetsScreen';
+import { BudgetFormScreen } from '@/screens/settings/BudgetFormScreen';
 import { CouponsScreen } from '@/screens/coupons/CouponsScreen';
 import { CouponFormScreen } from '@/screens/coupons/CouponFormScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
@@ -85,6 +91,8 @@ import { UsersScreen } from '@/screens/settings/UsersScreen';
 import { UserFormScreen } from '@/screens/settings/UserFormScreen';
 import { RolesScreen } from '@/screens/settings/RolesScreen';
 import { PaymentsLedgerScreen } from '@/screens/settings/PaymentsLedgerScreen';
+import { FinancialAccountsScreen } from '@/screens/settings/FinancialAccountsScreen';
+import { FinancialAccountDetailScreen } from '@/screens/settings/FinancialAccountDetailScreen';
 import { BranchesListScreen } from '@/screens/settings/BranchesListScreen';
 import { BranchDetailScreen } from '@/screens/settings/BranchDetailScreen';
 import { BranchFormScreen } from '@/screens/settings/branches/BranchFormScreen';
@@ -170,6 +178,12 @@ export function MoreStack() {
       <Stack.Screen name="VaultTransactionDetail" component={VaultTransactionDetailScreen} />
       <Stack.Screen name="ShiftManagement" component={ShiftScreen} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} />
+      <Stack.Screen name="ExpenseCreate" component={ExpenseCreateScreen} />
+      <Stack.Screen name="ExpenseDetail" component={ExpenseDetailScreen} />
+      <Stack.Screen name="ExpenseCategories" component={ExpenseCategoriesScreen} />
+      <Stack.Screen name="RecurringExpenses" component={RecurringExpensesScreen} />
+      <Stack.Screen name="Budgets" component={BudgetsScreen} />
+      <Stack.Screen name="BudgetForm" component={BudgetFormScreen} />
       <Stack.Screen name="Coupons" component={CouponsScreen} />
       <Stack.Screen name="CouponForm" component={CouponFormScreen} />
       <Stack.Screen name="Delivery" component={DeliveryScreen} />
@@ -192,6 +206,8 @@ export function MoreStack() {
       <Stack.Screen name="UserForm" component={UserFormScreen} />
       <Stack.Screen name="Roles" component={RolesScreen} />
       <Stack.Screen name="PaymentsLedger" component={PaymentsLedgerScreen} />
+      <Stack.Screen name="FinancialAccounts" component={FinancialAccountsScreen} />
+      <Stack.Screen name="FinancialAccountDetail" component={FinancialAccountDetailScreen} />
       <Stack.Screen name="BranchesList" component={guardMoreScreen('BranchesList', BranchesListScreen)} />
       <Stack.Screen name="BranchDetail" component={guardMoreScreen('BranchDetail', BranchDetailScreen)} />
       <Stack.Screen name="BranchForm" component={guardMoreScreen('BranchForm', BranchFormScreen)} />

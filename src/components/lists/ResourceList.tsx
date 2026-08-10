@@ -50,8 +50,8 @@ export function ResourceList<T>({ data, loading, error, refreshing, onRefresh, o
 
 function createStyles(_c: AppColors) {
   return StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1, gap: spacing.sm },
+    content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
     noPadding: { padding: 0 },
-    gap: { height: spacing.sm },
+    gap: { height: 0 },
   });
 }

@@ -1,13 +1,12 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from '@/components/ui/AppText';
 import { contentAreaRtl, textStart } from '@/constants/layout';
-import { spacing, radius } from '@/constants/spacing';
+import { spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
-import { HERO_MUTED_FG, HERO_PANEL_BG, HERO_PANEL_SHADOW } from '@/constants/dashboardHeroTheme';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
+import { getProductLayoutTier, isProductTablet } from '@/constants/productLayout';
 
 export type PremiumHeroPanelProps = {
   eyebrow?: string;
@@ -24,7 +23,7 @@ export type PremiumHeroPanelProps = {
 export function PremiumHeroPanel({ eyebrow, title, subtitle, badges, rail, compact, edgeInset = true }: PremiumHeroPanelProps) {
   const c = useColors();
   const { width, height } = useWindowDimensions();
-  const isTablet = width >= 900;
+  const isTablet = isProductTablet(getProductLayoutTier(width));
   const isLandscape = width > height;
   const landscapeTablet = isTablet && isLandscape;
   const dense = compact || landscapeTablet || (!isTablet && isLandscape);
@@ -57,13 +56,6 @@ export function PremiumHeroPanel({ eyebrow, title, subtitle, badges, rail, compa
 
   return (
     <View style={styles.outer}>
-      <View style={styles.bgLayer} />
-      <LinearGradient
-        colors={[c.accent + '28', c.accent + '08', 'transparent']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
       <View style={styles.body}>
         {splitRail ? (
           <View style={styles.splitRow}>
@@ -92,22 +84,15 @@ function createStyles(c: AppColors, opts: StyleOpts) {
   return StyleSheet.create({
     outer: {
       marginHorizontal: edgeInset ? spacing.lg : 0,
-      marginTop: landscapeTablet ? spacing.xs : spacing.sm,
-      marginBottom: landscapeTablet ? spacing.sm : spacing.md,
-      borderRadius: landscapeTablet ? radius.xxl : radius.xxxl,
-      overflow: 'hidden',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: c.sidebarBorder,
-      backgroundColor: HERO_PANEL_BG,
-      ...HERO_PANEL_SHADOW,
-    },
-    bgLayer: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: c.darkNavy,
+      marginTop: spacing.xs,
+      marginBottom: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+      backgroundColor: c.background,
     },
     body: {
-      paddingVertical: dense ? spacing.md : isTablet ? spacing.lg : spacing.lg,
-      paddingHorizontal: dense ? spacing.md : isTablet ? spacing.lg : spacing.lg,
+      paddingVertical: dense ? spacing.sm : spacing.md,
+      paddingHorizontal: 0,
     },
     /** RTL row: title block on the right, refresh rail on the visual left (matches front lg:flex-row). */
     splitRow: {
@@ -135,21 +120,21 @@ function createStyles(c: AppColors, opts: StyleOpts) {
       ...textStart,
       fontSize: 11,
       fontFamily: fonts.bold,
-      color: c.sidebarTextHint,
+      color: c.textCaption,
       letterSpacing: 0.8,
     },
     title: {
       ...textStart,
       fontSize: dense ? (landscapeTablet ? 21 : 18) : isTablet ? 24 : 22,
       fontFamily: fonts.extraBold,
-      color: c.sidebarForeground,
+      color: c.text,
       lineHeight: dense ? (landscapeTablet ? 28 : 24) : isTablet ? 30 : 28,
     },
     subtitle: {
       ...textStart,
       fontSize: dense ? 12 : 13,
       fontFamily: fonts.regular,
-      color: HERO_MUTED_FG,
+      color: c.textMuted,
       lineHeight: dense ? 18 : 20,
     },
     badgesRow: {

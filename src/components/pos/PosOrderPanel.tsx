@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui';
@@ -81,8 +81,8 @@ function PosCartIconBtn({
   size?: 'md' | 'lg';
 }) {
   const c = useColors();
-  const dim = size === 'lg' ? 54 : 48;
-  const iconSize = size === 'lg' ? 26 : 24;
+  const dim = size === 'lg' ? 44 : 40;
+  const iconSize = size === 'lg' ? 22 : 20;
   const bg = tone === 'danger' ? c.softDanger : tone === 'accent' ? c.accentSoft : c.surfaceMuted;
   const border = tone === 'danger' ? c.softDangerBorder : tone === 'accent' ? c.accentBorder : c.borderSubtle;
   const iconColor = tone === 'danger' ? c.danger : tone === 'accent' ? c.accent : c.text;
@@ -95,8 +95,8 @@ function PosCartIconBtn({
         {
           width: dim,
           height: dim,
-          borderRadius: radius.lg,
-          borderWidth: 1,
+          borderRadius: radius.md,
+          borderWidth: StyleSheet.hairlineWidth,
           borderColor: border,
           backgroundColor: bg,
           alignItems: 'center',
@@ -377,31 +377,19 @@ function createStyles(c: AppColors, isTablet: boolean) {
     panel: {
       flex: 1,
       backgroundColor: c.surface,
-      borderWidth: isTablet ? 0 : 1,
-      borderColor: c.borderSubtle,
-      borderRadius: isTablet ? 0 : radius.xxl,
-      overflow: 'hidden',
+      borderWidth: 0,
+      borderRadius: 0,
       minWidth: 0,
       minHeight: 0,
     },
     header: {
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
+      paddingTop: spacing.md,
       paddingBottom: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderSubtle,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
       backgroundColor: c.surface,
-      gap: spacing.md,
-      ...Platform.select({
-        ios: {
-          shadowColor: c.shadow,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-        },
-        android: { elevation: 2 },
-        default: {},
-      }),
+      gap: spacing.sm,
     },
     headerTop: {
       ...flexRow,
@@ -409,12 +397,12 @@ function createStyles(c: AppColors, isTablet: boolean) {
       gap: spacing.sm,
     },
     headerIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.lg,
-      backgroundColor: c.softPrimary,
-      borderWidth: 1,
-      borderColor: c.softPrimaryBorder,
+      width: 36,
+      height: 36,
+      borderRadius: radius.md,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -444,9 +432,9 @@ function createStyles(c: AppColors, isTablet: boolean) {
       gap: 4,
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
-      borderRadius: radius.pill,
+      borderRadius: radius.md,
       backgroundColor: c.softPrimary,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.softPrimaryBorder,
     },
     itemCountText: {
@@ -464,9 +452,9 @@ function createStyles(c: AppColors, isTablet: boolean) {
       maxWidth: '100%',
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
-      borderRadius: radius.pill,
+      borderRadius: radius.md,
       backgroundColor: c.surfaceMuted,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
     },
     customerName: {
@@ -543,19 +531,16 @@ function createStyles(c: AppColors, isTablet: boolean) {
       justifyContent: 'center',
     },
     footer: {
-      borderTopWidth: 1,
-      borderTopColor: c.borderSubtle,
-      padding: spacing.lg,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+      padding: spacing.md,
       gap: spacing.md,
       backgroundColor: c.surface,
     },
     totalsSection: {
-      gap: spacing.sm,
-      padding: spacing.lg,
-      borderRadius: radius.xl,
-      backgroundColor: c.surfaceMuted,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      backgroundColor: c.surface,
     },
     summaryRow: {
       ...flexRow,
@@ -596,14 +581,12 @@ function createStyles(c: AppColors, isTablet: boolean) {
       ...flexRow,
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: spacing.xs,
+      marginTop: spacing.sm,
       paddingTop: spacing.md,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: 0,
       paddingBottom: spacing.md,
-      borderRadius: radius.lg,
-      backgroundColor: c.softPrimary,
-      borderWidth: 1,
-      borderColor: c.softPrimaryBorder,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
     },
     totalLabel: {
       color: c.primary,
@@ -624,7 +607,7 @@ function createStyles(c: AppColors, isTablet: boolean) {
       ...flexRow,
       gap: spacing.sm,
       backgroundColor: c.softDanger,
-      borderRadius: radius.lg,
+      borderRadius: radius.md,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       marginHorizontal: spacing.md,
@@ -633,7 +616,7 @@ function createStyles(c: AppColors, isTablet: boolean) {
     alertDangerText: { ...textStart, color: c.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
     alertInfo: {
       backgroundColor: c.softInfo,
-      borderRadius: radius.lg,
+      borderRadius: radius.md,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       marginHorizontal: spacing.md,
@@ -647,7 +630,7 @@ function createStyles(c: AppColors, isTablet: boolean) {
     checkoutBtn: {
       flex: 1,
       minWidth: 0,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
     },
     checkoutIcons: {
       ...flexRow,

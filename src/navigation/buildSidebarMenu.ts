@@ -458,6 +458,13 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  link: '/vaults/transactions',
  perm: 'manage_treasuries',
  },
+ {
+ id: 'nav-financial-accounts',
+ label: 'الحسابات المالية',
+ icon: 'ri-bank-card-line',
+ link: '/financial-accounts',
+ perm: ['view_account_transactions', 'view_account_balances', 'manage_financial_accounts', 'manage_treasuries', 'access_admin_routes'],
+ },
  ],
  },
  {
@@ -515,6 +522,8 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  { id: 'nav-rep-dining', label: 'تقرير المطاعم', icon: 'ri-restaurant-line', link: '/reports/dining', perm: 'view_reports' },
  { id: 'nav-rep-delivery', label: 'تقرير التوصيل', icon: 'ri-truck-line', link: '/reports/delivery', perm: 'view_reports' },
  { id: 'nav-rep-shifts', label: 'أداء الورديات', icon: 'ri-time-line', link: '/reports/shifts', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-device-sync-manifest', label: 'حالة مزامنة أجهزة نقطة البيع', icon: 'ri-device-line', link: '/reports/operations/device-sync-manifest', perm: 'view_reports' },
+ { id: 'nav-rep-drawer-reconciliation', label: 'تسوية الدرج', icon: 'ri-scales-3-line', link: '/reports/operations/drawer-reconciliation', perm: 'view_reports' },
  { id: 'nav-rep-saved', label: 'التقارير المحفوظة', icon: 'ri-clipboard-fill', link: '/reports/saved', perm: 'view_reports' },
  { id: 'nav-reports-legacy', label: 'التقارير الكلاسيكية', icon: 'ri-file-list-line', link: '/reports/legacy', perm: 'view_reports' },
  ],

@@ -13,9 +13,15 @@ export type ReportGroupId =
 
 export type ReportId =
   | 'sales-dashboard'
+  | 'sales-by-product'
+  | 'sales-product-detail'
+  | 'sales-by-category'
+  | 'sales-category-detail'
   | 'sales-refunds'
   | 'sales-returns-by-product'
+  | 'sales-returns-by-category'
   | 'purchase-returns-by-product'
+  | 'purchase-returns-by-category'
   | 'sales-tax'
   | 'sales-layaway'
   | 'sales-hourly'
@@ -52,6 +58,8 @@ export type ReportId =
   | 'operations-cash-drawer'
   | 'operations-kitchen-performance'
   | 'operations-offline-sync'
+  | 'operations-device-sync-manifest'
+  | 'operations-drawer-reconciliation'
   | 'expenses-detail';
 
 export type ReportFilterKey =
@@ -139,6 +147,8 @@ export type ReportDefinition = {
   exportSupported?: boolean;
   /** POST /reports/export `type` when exportSupported */
   exportType?: string;
+  /** Some canonical report endpoints require an explicit selected entity. */
+  requiredFilter?: 'product' | 'category';
   lockedReason?: string;
 };
 

@@ -6,9 +6,8 @@ import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { shiftsAPI } from '@/api/shifts';
 import { useBranchStore } from '@/store/branchStore';
-import { useAuthStore } from '@/store/authStore';
-import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
+import { AppScreen, ModuleHeader } from '@/components/layout';
+import { AppBadge, AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
@@ -23,7 +22,7 @@ import { dateDaysAgoLocal, todayLocalDateString } from '@/utils/dateLocal';
 import { useColors } from '@/hooks/useColors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { hasRole } from '@/utils/permissions';
-import { spacing } from '@/constants/spacing';
+import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
 
@@ -63,7 +62,6 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
   const isAdmin = Boolean(user?.is_super_admin || can('access_admin_routes') || hasRole(user, ['admin']));
   const isCashier = hasRole(user, ['cashier', 'Cashier']);
   const canOpen = can(['open_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
-  const canClose = can(['close_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
   const canViewShiftSummary = !isCashier;
 
   const effectiveBranchForCurrent = useMemo(() => {
@@ -86,13 +84,27 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
     () =>
       StyleSheet.create({
         subtitle: { color: c.textMuted, fontSize: typography.small, ...textStart },
-        stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-        card: { gap: spacing.md },
+        currentPanel: {
+          gap: spacing.md,
+          padding: spacing.md,
+          borderRadius: radius.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.border,
+          backgroundColor: c.surface,
+        },
         currentRow: { ...flexRow, flexWrap: 'wrap', gap: spacing.md },
-        currentItem: { gap: 2 },
+        currentItem: { flex: 1, minWidth: '42%', gap: 2, paddingVertical: spacing.xs },
         currentLabel: { color: c.textMuted, fontSize: typography.small, ...textStart },
         currentValue: { color: c.text, fontWeight: '800', ...textStart },
         actions: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm },
+        historySection: { gap: spacing.sm },
+        historyTable: {
+          overflow: 'hidden',
+          borderRadius: radius.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.border,
+          backgroundColor: c.surface,
+        },
         pager: { ...flexRow, justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm },
         pagerText: { color: c.textMuted, fontSize: typography.small },
       }),
@@ -212,16 +224,27 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
 
   return (
     <AppScreen
-      title="إدارة الورديات"
-      subtitle="متابعة الورديات الحالية وسجل الإغلاق"
+      title="العمليات"
       onBack={navigation.goBack}
       headerRight={headerRight}
       refreshing={listLoading && !listError}
       onRefresh={() => void refreshAll()}
     >
-      <Text style={styles.subtitle}>عرض الوردية النشطة، التصفية، وملخص كل وردية — مطابق للويب.</Text>
+      <ModuleHeader
+        eyebrow="الرقابة النقدية"
+        title="الورديات"
+        subtitle="الحالة الحالية، النقد المتوقع، الإغلاق، وسجل الورديات."
+        compact
+        onRefresh={() => void refreshAll()}
+        refreshing={listLoading || currentLoading}
+        stats={[
+          { label: 'الحالة الحالية', value: currentShift ? 'مفتوحة' : 'لا توجد', tone: currentShift ? 'success' : 'warning' },
+          { label: 'السجلات', value: rows.length },
+          { label: 'الصفحة', value: `${pagination.current_page}/${pagination.last_page}` },
+        ]}
+      />
 
-      <AppCard style={styles.card}>
+      <View style={styles.currentPanel}>
         <AppSectionHeader title="الوردية الحالية" />
         {currentLoading ? (
           <AppLoadingState />
@@ -280,33 +303,30 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
             {canOpen ? <AppButton title="فتح وردية" onPress={() => setOpenSheet(true)} /> : null}
           </>
         )}
-      </AppCard>
-
-      <View style={styles.stats}>
-        <AppStatCard label="السجلات" value={String(rows.length)} tone="primary" />
-        <AppStatCard label="الصفحة" value={`${pagination.current_page}/${pagination.last_page}`} tone="info" />
       </View>
 
-      <AppCard style={styles.card}>
+      <View style={styles.historySection}>
         <AppSectionHeader title="سجل الورديات" />
         {listLoading ? <AppLoadingState /> : null}
         {listError ? <AppErrorState message={listError} onRetry={loadList} /> : null}
         {!listLoading && !listError && rows.length === 0 ? (
           <AppEmptyState title="لا توجد ورديات" message="غيّر الفترة أو الفلاتر." />
         ) : null}
-        {!listLoading && !listError
-          ? rows.map((row) => (
-              <AppListItem
-                key={row.id}
-                title={formatShiftLabel(row, row.id, row.branch?.name)}
-                subtitle={`${row.branch?.name ?? '—'} · ${row.user?.name ?? row.user_id}`}
-                meta={money(row.drawer_balance ?? row.starting_cash ?? 0)}
-                badge={statusBadge(row.status)}
-                onPress={canViewShiftSummary ? () => openSummary(row) : undefined}
-                showChevron={canViewShiftSummary}
-              />
-            ))
-          : null}
+        {!listLoading && !listError && rows.length ? (
+          <View style={styles.historyTable}>
+            {rows.map((row) => (
+                <AppListItem
+                  key={row.id}
+                  title={formatShiftLabel(row, row.id, row.branch?.name)}
+                  subtitle={`${row.branch?.name ?? '—'} · ${row.user?.name ?? row.user_id}`}
+                  meta={money(row.drawer_balance ?? row.starting_cash ?? 0)}
+                  badge={statusBadge(row.status)}
+                  onPress={canViewShiftSummary ? () => openSummary(row) : undefined}
+                  showChevron={canViewShiftSummary}
+                />
+              ))}
+          </View>
+        ) : null}
 
         {pagination.last_page > 1 ? (
           <View style={styles.pager}>
@@ -331,7 +351,7 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
             </View>
           </View>
         ) : null}
-      </AppCard>
+      </View>
 
       {canOpen && currentShift ? (
         <AppButton title="فتح وردية أخرى" variant="secondary" onPress={() => setOpenSheet(true)} />

@@ -40,7 +40,7 @@ export type ClosePreview = {
   expected_cash: string;
   expected_is_negative?: boolean;
   requires_close_reason?: boolean;
-  allowed_settlement_directions?: Array<'deposit' | 'withdraw'>;
+  allowed_settlement_directions?: ('deposit' | 'withdraw')[];
   default_settlement_direction?: 'deposit' | 'withdraw';
   cash_difference?: string | null;
   counted_cash?: string;
@@ -113,7 +113,7 @@ export type ShiftDetailedSummary = {
     deposit_vault_id?: string | null;
     closing_vault_settlement_direction?: 'deposit' | 'withdraw' | null;
   };
-  invoices: Array<{
+  invoices: {
     id: number;
     invoice_number: string | null;
     print_sequence: number | null;
@@ -126,8 +126,8 @@ export type ShiftDetailedSummary = {
     net_amount: string;
     status: string;
     cashier_name: string | null;
-  }>;
-  sold_products: Array<{
+  }[];
+  sold_products: {
     product_id: number;
     product_name: string;
     category_name: string | null;
@@ -136,8 +136,8 @@ export type ShiftDetailedSummary = {
     refunded_quantity: number;
     net_quantity: number;
     net_amount: string;
-  }>;
-  refunds: Array<{
+  }[];
+  refunds: {
     id: number;
     sale_id: number;
     invoice_number: string | null;
@@ -146,8 +146,8 @@ export type ShiftDetailedSummary = {
     created_at: string;
     cashier_name: string | null;
     payment_type: string | null;
-  }>;
-  expenses: Array<{
+  }[];
+  expenses: {
     id: number;
     category_name: string | null;
     note: string | null;
@@ -155,15 +155,15 @@ export type ShiftDetailedSummary = {
     created_at: string;
     created_by_name: string | null;
     vault_name: string | null;
-  }>;
-  cash_movements: Array<{
+  }[];
+  cash_movements: {
     id: number | string;
     type: string;
     direction: 'in' | 'out';
     amount: string;
     note: string | null;
     created_at: string;
-  }>;
+  }[];
 };
 
 export type ActiveShiftExtended = {

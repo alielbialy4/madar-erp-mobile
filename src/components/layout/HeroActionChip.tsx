@@ -5,12 +5,6 @@ import { AppText } from '@/components/ui/AppText';
 import { flexRow } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
-import {
-  HERO_CHIP_BG_SUBTLE,
-  HERO_CHIP_BORDER_STRONG,
-  HERO_PRIMARY_CTA_BG,
-  HERO_PRIMARY_CTA_SHADOW,
-} from '@/constants/dashboardHeroTheme';
 import { useColors } from '@/hooks/useColors';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
@@ -32,12 +26,12 @@ export function HeroActionChip({ label, icon, variant = 'secondary', fill, onPre
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.chip, pressed && { transform: [{ scale: 0.96 }] }]}
+      style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
       {icon ? (
-        <MaterialIcons name={icon} size={18} color={isPrimary ? c.sidebar : c.sidebarForeground} />
+        <MaterialIcons name={icon} size={18} color={isPrimary ? c.primaryForeground : c.textMuted} />
       ) : null}
       <AppText style={styles.label} numberOfLines={1}>
         {label}
@@ -55,20 +49,22 @@ function createStyles(c: ReturnType<typeof useColors>, isPrimary: boolean, fill?
       gap: spacing.xs,
       paddingHorizontal: fill ? spacing.sm : spacing.lg,
       paddingVertical: spacing.sm + 2,
-      borderRadius: radius.xl,
+      borderRadius: radius.md,
+      minHeight: 42,
       ...(fill ? { flex: 1, minWidth: 0 } : {}),
       ...(isPrimary
-        ? { backgroundColor: HERO_PRIMARY_CTA_BG, ...HERO_PRIMARY_CTA_SHADOW }
+        ? { backgroundColor: c.primary }
         : {
-            backgroundColor: HERO_CHIP_BG_SUBTLE,
+            backgroundColor: c.surface,
             borderWidth: StyleSheet.hairlineWidth,
-            borderColor: HERO_CHIP_BORDER_STRONG,
+            borderColor: c.border,
           }),
     },
+    pressed: { backgroundColor: isPrimary ? c.primaryPressed : c.surfaceMuted },
     label: {
       fontSize: 13,
       fontFamily: isPrimary ? fonts.bold : fonts.medium,
-      color: isPrimary ? c.sidebar : c.sidebarForeground,
+      color: isPrimary ? c.primaryForeground : c.text,
     },
   });
 }

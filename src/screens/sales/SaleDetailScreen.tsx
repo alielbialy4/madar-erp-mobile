@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { BillSplitSheet } from './BillSplitSheet';
 import { textStart } from '@/constants/layout';
-import { View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { salesAPI } from '@/api/sales';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { DocumentHeader, MadarSection, MadarSurface, FinancialRow, QuickActionBar } from '@/components/madar';
 import { ConfirmDialog, AppErrorState } from '@/components/feedback';
 import { AppScreen } from '@/components/layout';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
@@ -14,7 +14,7 @@ import { normalizeApiError } from '@/utils/errors';
 import { extractData } from '@/utils/data';
 import { saleTimelineEvents } from '@/utils/saleTimeline';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
-import { saleStatusLabel } from '@/utils/saleStatus';
+import { saleStatusBadgeTone, saleStatusLabel } from '@/utils/saleStatus';
 import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { useBranchStore } from '@/store/branchStore';
 
@@ -27,7 +27,15 @@ export function SaleDetailScreen({ route, navigation }: { route: any; navigation
       </AppScreen>
     );
   }
-  return <SaleDetail id={Number(rawId)} route={route} navigation={navigation} />;
+  return (
+    <SaleDetail
+      id={Number(rawId)}
+      invoice={route.params?.invoice}
+      navigation={navigation}
+      onBack={navigation.goBack}
+      embedded={Boolean(route.params?.embedded)}
+    />
+  );
 }
 
 function canSplitSale(sale: Sale & Record<string, unknown>): boolean {
@@ -36,7 +44,19 @@ function canSplitSale(sale: Sale & Record<string, unknown>): boolean {
   return Boolean(sale.dining_table_id) || status === 'pending' || status === 'open';
 }
 
-function SaleDetail({ id, route, navigation }: { id: number; route: any; navigation: any }) {
+export function SaleDetail({
+  id,
+  invoice,
+  navigation,
+  onBack,
+  embedded = false,
+}: {
+  id: number;
+  invoice?: string;
+  navigation: any;
+  onBack?: () => void;
+  embedded?: boolean;
+}) {
   const branchId = useBranchStore((s) => s.activeBranch?.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
@@ -102,8 +122,9 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
   return (
     <>
       <DetailScreen<Sale & Record<string, unknown>>
-        title={route.params?.invoice || 'تفاصيل البيع'}
-        onBack={navigation.goBack}
+        title={invoice || 'تفاصيل البيع'}
+        onBack={onBack}
+        embedded={embedded}
         loader={() => salesAPI.getById(id)}
         fields={[
           { label: 'رقم الفاتورة', value: (item) => item.invoice_number, ltr: true },
@@ -117,59 +138,99 @@ function SaleDetail({ id, route, navigation }: { id: number; route: any; navigat
       >
         {(sale) => (
           <>
-            <AppCard>
-              <AppSectionHeader title="الأصناف" />
-              {(sale.items ?? []).length === 0 ? <Text style={{ ...textStart }}>لا توجد أصناف</Text> : sale.items?.map((item, index) => (
-                <AppListItem
-                  key={String(item.id ?? index)}
-                  title={String((item.product as any)?.name ?? item.product_name ?? 'صنف')}
-                  subtitle={`الكمية: ${numberText(item.quantity)} • السعر: ${money(item.unit_price)}`}
-                  meta={money(item.subtotal ?? Number(item.quantity ?? 0) * Number(item.unit_price ?? 0))}
+            <DocumentHeader
+              title={String(sale.invoice_number || invoice || `فاتورة #${id}`)}
+              subtitle={`${sale.customer?.name ?? 'عميل نقدي'} · ${paymentTypeLabel(sale.payment_type)}`}
+              meta={dateText(sale.created_at)}
+              statusLabel={saleStatusLabel(sale.status)}
+              statusTone={saleStatusBadgeTone(sale.status)}
+              amount={sale.total ?? 0}
+              currency="ج.م"
+            />
+            <QuickActionBar
+              actions={[
+                { id: 'print', label: 'طباعة', icon: 'printer', onPress: () => void printReceipt() },
+                ...(canSplitSale(sale)
+                  ? [{ id: 'split', label: 'تقسيم', icon: 'rows', onPress: () => setSplitOpen(true) }]
+                  : []),
+                ...(sale.status === 'completed' || sale.status === 'partially_refunded'
+                  ? [
+                      { id: 'partial', label: 'استرداد جزئي', icon: 'arrow-u-up-left', onPress: () => navigation.navigate('PartialRefund', { saleId: id }) },
+                      { id: 'full', label: 'استرداد كامل', icon: 'arrow-counter-clockwise', onPress: () => setConfirmOpen(true), tone: 'danger' as const },
+                    ]
+                  : []),
+              ]}
+            />
+            {message ? <Text style={{ ...textStart }}>{message}</Text> : null}
+
+            <MadarSection title="الأصناف">
+              <MadarSurface padded={false}>
+                {(sale.items ?? []).length === 0 ? (
+                  <Text style={{ ...textStart, padding: 16 }}>لا توجد أصناف</Text>
+                ) : (
+                  sale.items?.map((item, index) => (
+                    <FinancialRow
+                      key={String(item.id ?? index)}
+                      primary={String((item.product as any)?.name ?? item.product_name ?? 'صنف')}
+                      secondary={`الكمية: ${numberText(item.quantity)} · السعر: ${money(item.unit_price)}`}
+                      amount={Number(item.subtotal ?? Number(item.quantity ?? 0) * Number(item.unit_price ?? 0))}
+                      currency="ج.م"
+                      showDivider={index < (sale.items?.length ?? 0) - 1}
+                    />
+                  ))
+                )}
+              </MadarSurface>
+            </MadarSection>
+
+            <MadarSection title="الملخص المالي">
+              <MadarSurface>
+                <FinancialRow primary="المدفوع" amount={sale.paid ?? 0} currency="ج.م" amountTone="positive" showDivider />
+                <FinancialRow
+                  primary="المتبقي"
+                  amount={Math.max(0, Number(sale.total ?? 0) - Number(sale.paid ?? 0))}
+                  currency="ج.م"
+                  amountTone={Number(sale.total ?? 0) - Number(sale.paid ?? 0) > 0.01 ? 'negative' : 'muted'}
+                  showDivider={false}
                 />
-              ))}
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="توزيع المدفوعات" />
-              {(sale.payment_lines ?? []).length === 0 ? (
-                <Text style={{ ...textStart }}>لا توجد تفاصيل حسابات مالية في استجابة البيع.</Text>
-              ) : sale.payment_lines?.map((line, index) => (
-                <AppListItem
-                  key={String(line.id ?? line.client_line_id ?? index)}
-                  title={money(line.amount)}
-                  subtitle={[line.payment_method ? paymentTypeLabel(line.payment_method) : null, line.account_name, line.provider_name, line.masked_identifier].filter(Boolean).join(' · ') || 'حساب الدفع غير متاح'}
-                  meta={[line.reference, dateText(line.payment_date)].filter(Boolean).join(' · ')}
-                />
-              ))}
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="سجل البيع والاسترداد" />
-              {timelineError ? <Text style={{ ...textStart }}>{timelineError}</Text> : null}
-              {!timelineError && timeline.length === 0 ? <Text style={{ ...textStart }}>لا توجد أحداث مسجلة.</Text> : null}
-              {timeline.map((event, index) => (
-                <AppListItem
-                  key={String(event.id ?? index)}
-                  title={String(event.title ?? event.event_type ?? event.type ?? 'حدث بيع')}
-                  subtitle={String(event.description ?? event.message ?? event.reason ?? '')}
-                  meta={dateText(String(event.created_at ?? event.occurred_at ?? ''))}
-                />
-              ))}
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="الإجراءات" />
-              {message ? <Text style={{ ...textStart }}>{message}</Text> : null}
-              <View style={{ gap: 12 }}>
-                <AppButton title="طباعة / إعادة طباعة" variant="secondary" loading={busy} onPress={printReceipt} />
-                {canSplitSale(sale) ? (
-                  <AppButton title="تقسيم الفاتورة" variant="secondary" onPress={() => setSplitOpen(true)} />
+              </MadarSurface>
+            </MadarSection>
+
+            <MadarSection title="توزيع المدفوعات">
+              <MadarSurface padded={false}>
+                {(sale.payment_lines ?? []).length === 0 ? (
+                  <Text style={{ ...textStart, padding: 16 }}>لا توجد تفاصيل حسابات مالية في استجابة البيع.</Text>
+                ) : (
+                  sale.payment_lines?.map((line, index) => (
+                    <FinancialRow
+                      key={String(line.id ?? line.client_line_id ?? index)}
+                      primary={line.account_name || paymentTypeLabel(line.payment_method) || 'حساب الدفع'}
+                      secondary={[line.provider_name, line.masked_identifier, line.reference].filter(Boolean).join(' · ') || undefined}
+                      meta={dateText(line.payment_date)}
+                      amount={line.amount}
+                      currency="ج.م"
+                      showDivider={index < (sale.payment_lines?.length ?? 0) - 1}
+                    />
+                  ))
+                )}
+              </MadarSurface>
+            </MadarSection>
+
+            <MadarSection title="سجل البيع والاسترداد">
+              <MadarSurface padded={false}>
+                {timelineError ? <Text style={{ ...textStart, padding: 16 }}>{timelineError}</Text> : null}
+                {!timelineError && timeline.length === 0 ? (
+                  <Text style={{ ...textStart, padding: 16 }}>لا توجد أحداث مسجلة.</Text>
                 ) : null}
-                {sale.status === 'completed' || sale.status === 'partially_refunded' ? (
-                  <>
-                    <AppButton title="استرداد جزئي" variant="secondary" onPress={() => navigation.navigate('PartialRefund', { saleId: id })} />
-                    <AppButton title="استرداد كامل للمتبقي" variant="danger" onPress={() => setConfirmOpen(true)} loading={busy} />
-                  </>
-                ) : null}
-              </View>
-            </AppCard>
+                {timeline.map((event, index) => (
+                  <AppListItem
+                    key={String(event.id ?? index)}
+                    title={String(event.title ?? event.event_type ?? event.type ?? 'حدث بيع')}
+                    subtitle={String(event.description ?? event.message ?? event.reason ?? '')}
+                    meta={dateText(String(event.created_at ?? event.occurred_at ?? ''))}
+                  />
+                ))}
+              </MadarSurface>
+            </MadarSection>
           </>
         )}
       </DetailScreen>

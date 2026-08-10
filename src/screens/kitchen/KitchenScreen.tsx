@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { kitchenAPI } from '@/api/kitchen';
 import { kitchenStationsAPI } from '@/api/kitchenStations';
 import { ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppSelect } from '@/components/ui';
+import { AppButton, AppSelect } from '@/components/ui';
+import { OperationalRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import type { KitchenOrder } from '@/types/api';
 import { extractArray, extractData } from '@/utils/data';
 import { dateText, numberText } from '@/utils/format';
-import { moduleIcons } from '@/constants/iconMap';
 
 const STATUS_COLUMNS = [
   { key: '', label: 'الكل' },
@@ -94,13 +94,13 @@ export function KitchenScreen({ navigation }: { navigation: any }) {
         emptyTitle="لا توجد طلبات مطبخ"
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <AppDomainCard
-            title={item.invoice_number || `طلب ${item.id}`}
-            subtitle={`${dateText(item.created_at)} • ${item.order_type ?? '—'} • ${(item.dining_table as Record<string, unknown>)?.name ?? ''}`}
-            meta={`${numberText(item.items?.length ?? 0)} صنف • ${numberText(item.wait_time ?? 0)} د`}
-            badgeLabel={String(item.kitchen_status ?? item.status ?? 'pending')}
-            badgeTone={item.is_overdue ? 'danger' : item.kitchen_status === 'ready' ? 'success' : 'warning'}
-            leadingIcon={moduleIcons.kitchen}
+          <OperationalRow
+            primary={item.invoice_number || `طلب ${item.id}`}
+            secondary={`${dateText(item.created_at)} · ${item.order_type ?? '—'} · ${(item.dining_table as Record<string, unknown>)?.name ?? ''}`}
+            meta={`${numberText(item.items?.length ?? 0)} صنف`}
+            elapsed={item.is_overdue ? `متأخر ${numberText(item.wait_time ?? 0)} د` : `${numberText(item.wait_time ?? 0)} د`}
+            statusLabel={String(item.kitchen_status ?? item.status ?? 'pending')}
+            statusTone={item.is_overdue ? 'danger' : item.kitchen_status === 'ready' ? 'success' : 'warning'}
             onPress={() => navigation.navigate('KitchenOrder', { id: item.id })}
           />
         )}

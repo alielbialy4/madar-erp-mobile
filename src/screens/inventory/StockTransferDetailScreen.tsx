@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { View } from 'react-native';import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { stockTransfersAPI } from '@/api/stockTransfers';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface, QuickActionBar } from '@/components/madar';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { dateText, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockTransferDetail'>;
@@ -18,6 +17,7 @@ type ConfirmAction = 'complete' | 'reject' | 'in_transit' | 'delete' | null;
 
 export function StockTransferDetailScreen({ navigation, route }: { navigation: Nav; route: Route }) {
   const id = route.params.id;
+  const toast = useToast();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [acting, setActing] = useState(false);
 
@@ -28,22 +28,22 @@ export function StockTransferDetailScreen({ navigation, route }: { navigation: N
     try {
       if (action === 'complete') {
         await stockTransfersAPI.complete(id);
-        Alert.alert('تم', 'تم إكمال التحويل');
+        toast.success('تم إكمال التحويل');
       } else if (action === 'reject') {
         await stockTransfersAPI.updateStatus(id, 'rejected');
-        Alert.alert('تم', 'تم رفض التحويل');
+        toast.success('تم رفض التحويل');
       } else if (action === 'in_transit') {
         await stockTransfersAPI.updateStatus(id, 'in_transit');
-        Alert.alert('تم', 'تم تحديث الحالة إلى قيد النقل');
+        toast.success('تم تحديث الحالة إلى قيد النقل');
       } else if (action === 'delete') {
         await stockTransfersAPI.destroy(id);
-        Alert.alert('تم', 'تم حذف التحويل');
+        toast.success('تم حذف التحويل');
         navigation.goBack();
         return;
       }
       refresh();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setActing(false);
     }
@@ -98,35 +98,38 @@ export function StockTransferDetailScreen({ navigation, route }: { navigation: N
 
         return (
           <>
-            <AppCard>
-              <AppSectionHeader title="الأصناف" />
-              {items.map((item, index) => (
-                <AppListItem
-                  key={String(item.id ?? index)}
-                  title={asText((item.product as Record<string, unknown>)?.name ?? item.product_name, 'صنف')}
-                  subtitle={
-                    (item.batch as Record<string, unknown> | undefined)?.batch_number
-                      ? `دفعة: ${String((item.batch as Record<string, unknown>).batch_number)}`
-                      : undefined
-                  }
-                  meta={`× ${numberText(item.quantity)}`}
-                />
-              ))}
-            </AppCard>
-            <View style={{ gap: spacing.sm, paddingVertical: spacing.md }}>
-              {canInTransit ? (
-                <AppButton title="قيد النقل" variant="secondary" onPress={() => setConfirmAction('in_transit')} />
-              ) : null}
-              {canComplete ? (
-                <AppButton title="إكمال التحويل" onPress={() => setConfirmAction('complete')} />
-              ) : null}
-              {canReject ? (
-                <AppButton title="رفض التحويل" variant="outline" onPress={() => setConfirmAction('reject')} />
-              ) : null}
-              {canDelete ? (
-                <AppButton title="حذف التحويل" variant="outline" onPress={() => setConfirmAction('delete')} />
-              ) : null}
-            </View>
+            <MadarSection title="الأصناف">
+              <MadarSurface padded={false}>
+                {items.map((item, index) => (
+                  <AppListItem
+                    key={String(item.id ?? index)}
+                    title={asText((item.product as Record<string, unknown>)?.name ?? item.product_name, 'صنف')}
+                    subtitle={
+                      (item.batch as Record<string, unknown> | undefined)?.batch_number
+                        ? `دفعة: ${String((item.batch as Record<string, unknown>).batch_number)}`
+                        : undefined
+                    }
+                    meta={`× ${numberText(item.quantity)}`}
+                  />
+                ))}
+              </MadarSurface>
+            </MadarSection>
+            <QuickActionBar
+              actions={[
+                ...(canInTransit
+                  ? [{ id: 'transit', label: 'قيد النقل', icon: 'truck' as const, onPress: () => setConfirmAction('in_transit') }]
+                  : []),
+                ...(canComplete
+                  ? [{ id: 'complete', label: 'إكمال', icon: 'check-circle' as const, onPress: () => setConfirmAction('complete'), tone: 'accent' as const }]
+                  : []),
+                ...(canReject
+                  ? [{ id: 'reject', label: 'رفض', icon: 'x-circle' as const, onPress: () => setConfirmAction('reject'), tone: 'danger' as const }]
+                  : []),
+                ...(canDelete
+                  ? [{ id: 'delete', label: 'حذف', icon: 'trash' as const, onPress: () => setConfirmAction('delete'), tone: 'danger' as const }]
+                  : []),
+              ]}
+            />
             {confirmAction ? (
               <ConfirmDialog
                 visible

@@ -13,7 +13,8 @@ export function RefundsScreen() {
       loader={refundsAPI.getAll}
       itemTitle={(item) => `مرتجع ${item.invoice_number ?? item.id}`}
       itemSubtitle={(item) => dateText(String(item.created_at ?? ''))}
-      itemMeta={(item) => `${money(item.amount ?? item.total ?? 0)} • ${item.reason ?? 'بدون سبب'}`}
+      itemMeta={(item) => String(item.reason ?? 'بدون سبب')}
+      itemMetric={(item) => money(item.amount ?? item.total ?? 0)}
       itemBadge={(item) => ({ label: String(item.status ?? 'مسجل'), tone: statusTone(item.status) })}
       emptyTitle="لا توجد مرتجعات"
     />

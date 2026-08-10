@@ -1,8 +1,15 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 import { APP_IS_RTL } from '@/bootstrap/rtl';
 
-/** Single RTL source — Arabic-only app; do not use I18nManager.isRTL (frozen at module load). */
+/** Mirrors I18nManager after locale hydrate/reload (ar → RTL, en/fr → LTR). */
 export const isRtl = APP_IS_RTL;
+
+/** App text direction after locale hydrate/reload — use instead of hardcoding 'rtl'. */
+export const appWritingDirection: TextStyle['writingDirection'] = isRtl ? 'rtl' : 'ltr';
+const writingDirection = appWritingDirection;
+const webStartAlign = isRtl ? 'right' : 'left';
+const webEndAlign = isRtl ? 'left' : 'right';
+const appViewDirection: NonNullable<ViewStyle['direction']> = isRtl ? 'rtl' : 'ltr';
 
 /**
  * Shell views — flex only. Layout mirroring comes from I18nManager.forceRTL (see rtl.ts).
@@ -41,37 +48,41 @@ export const tabletShellRow: ViewStyle = {
   direction: 'ltr',
 };
 
-/** Main content column — RTL inside the LTR tablet shell row. */
+/** Main content column — app text direction inside the LTR tablet shell row. */
 export const contentAreaRtl: ViewStyle = {
   flex: 1,
   minWidth: 0,
   minHeight: 0,
-  direction: 'rtl',
+  direction: appViewDirection,
 };
 
-/** Persistent sidebar column — RTL inside the LTR tablet shell row. */
+/** Persistent sidebar column — app text direction inside the LTR tablet shell row. */
 export const sidebarAreaRtl: ViewStyle = {
   flexShrink: 0,
   minHeight: 0,
-  direction: 'rtl',
+  direction: appViewDirection,
+};
+
+/** Content views that previously hard-locked `direction: 'rtl'`. */
+export const appContentDirection: ViewStyle = {
+  direction: appViewDirection,
 };
 
 export const flexRowReverse: ViewStyle = { flexDirection: 'row-reverse' };
 
 export const flexCol: ViewStyle = { flexDirection: 'column' };
 
-/** Base Arabic text direction — separate from textAlign. */
+/** Base app text direction — separate from textAlign. */
 export const textRtlBase: TextStyle = {
-  writingDirection: 'rtl',
+  writingDirection,
 };
 
 /**
- * Logical start — in RTL layout (forceRTL), `start` = visual right on native.
- * Web uses physical right (CSS dir=rtl).
+ * Logical start — with forceRTL, `start` mirrors; on web use physical start from dir.
  */
 export const textAlignStart: TextStyle = {
   ...textRtlBase,
-  textAlign: (Platform.OS === 'web' ? 'right' : 'start') as TextStyle['textAlign'],
+  textAlign: (Platform.OS === 'web' ? webStartAlign : 'start') as TextStyle['textAlign'],
 };
 
 /** Legacy alias. */
@@ -89,22 +100,28 @@ export const textCenter: TextStyle = {
  */
 export const textLtr: TextStyle = {
   writingDirection: 'ltr',
-  textAlign: (Platform.OS === 'web' ? 'left' : 'end') as TextStyle['textAlign'],
+  textAlign: (Platform.OS === 'web' ? webEndAlign : 'end') as TextStyle['textAlign'],
 };
 
 export const textAlignEnd: TextStyle = {
   ...textRtlBase,
-  textAlign: (Platform.OS === 'web' ? 'left' : 'end') as TextStyle['textAlign'],
+  textAlign: (Platform.OS === 'web' ? webEndAlign : 'end') as TextStyle['textAlign'],
 };
 
 export const textEnd: TextStyle = {
   ...textAlignEnd,
 };
 
-/** TextInput — physical right for Arabic (works with forceRTL and direction:rtl parents). */
-export const inputTextAlign = 'right' as const;
+/** Physical textAlign for StyleSheets that cannot spread textStart. */
+export const appTextAlignStart = textAlignStart.textAlign!;
+export const appTextAlignEnd = textAlignEnd.textAlign!;
 
-export const inputTextAlignNumeric = (Platform.OS === 'web' ? 'left' : 'right') as 'left' | 'right';
+/** TextInput — physical start for current app direction. */
+export const inputTextAlign = (isRtl ? 'right' : 'left') as 'left' | 'right';
+
+export const inputTextAlignNumeric = (
+  Platform.OS === 'web' ? (isRtl ? 'left' : 'right') : isRtl ? 'right' : 'left'
+) as 'left' | 'right';
 
 export const alignStart: ViewStyle = { alignItems: 'flex-start' };
 export const alignEnd: ViewStyle = { alignItems: 'flex-end' };

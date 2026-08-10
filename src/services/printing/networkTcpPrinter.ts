@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { PrintTransportError } from './printTransportError';
 import {
   DEFAULT_TCP_CHUNK_SIZE,
   DEFAULT_TCP_SETTLE_MS,
@@ -7,16 +8,7 @@ import {
 } from './tcpPrinterPool';
 
 export { warmupTcpPrinter };
-
-export class PrintTransportError extends Error {
-  code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-    this.name = 'PrintTransportError';
-  }
-}
+export { PrintTransportError } from './printTransportError';
 
 type TcpSocketModule = {
   createConnection: (

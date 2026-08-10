@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { categoriesAPI } from '@/api/categories';
@@ -108,7 +107,6 @@ export function CategoryFormScreen({ navigation, route }: { navigation: Nav; rou
     } catch (err) {
       const message = normalizeApiError(err).message;
       toast.error(message);
-      Alert.alert('خطأ', message);
     } finally {
       setSubmitting(false);
       setDeleteOpen(false);

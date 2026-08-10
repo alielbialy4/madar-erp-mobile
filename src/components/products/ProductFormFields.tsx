@@ -28,6 +28,7 @@ import { money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ProductsStackParamList } from '@/types/navigation';
+import { appTextAlignStart } from '@/constants/layout';
 
 type Nav = NativeStackNavigationProp<ProductsStackParamList, 'ProductForm'>;
 
@@ -181,7 +182,7 @@ export function ProductFormFields({
         hasError={f.errorSectionKey === 'inventory'}
         defaultExpanded
       >
-        <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: 'right' }}>{inventoryHint}</Text>
+        <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>{inventoryHint}</Text>
         {!f.rawMaterialMode ? (
           <ProductInventoryModeCards value={f.inventoryMode} onChange={f.setInventoryMode} />
         ) : null}
@@ -192,7 +193,7 @@ export function ProductFormFields({
               value={f.trackExpiry}
               onValueChange={f.setTrackExpiry}
             />
-            <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: 'right' }}>{TRACK_EXPIRY_HELPER_AR}</Text>
+            <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>{TRACK_EXPIRY_HELPER_AR}</Text>
             <AppInput
               label="حد تنبيه المخزون"
               value={f.minStockAlert}
@@ -261,7 +262,7 @@ export function ProductFormFields({
           />
           <AppDatePicker label="تاريخ الانتهاء" value={f.expiryDate} onChange={f.setExpiryDate} />
           {f.expiryDate ? (
-            <Text style={{ color: c.textMuted, textAlign: 'right' }}>{expiryDaysText(f.expiryDays)}</Text>
+            <Text style={{ color: c.textMuted, textAlign: appTextAlignStart }}>{expiryDaysText(f.expiryDays)}</Text>
           ) : null}
         </CollapsibleFormSection>
       ) : null}

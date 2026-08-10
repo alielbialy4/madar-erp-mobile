@@ -2,9 +2,12 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppBadge } from '@/components/ui';
 import { AppIcon } from '@/components/ui/AppIcon';
+import { MadarSection } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
-import { createDashboardStyles, KPI_TONE_STYLES, type KpiTone } from './dashboardStyles';
+import { createDashboardStyles, type KpiTone } from './dashboardStyles';
 import { Text } from '@/components/ui/AppText';
+import { flexRow } from '@/constants/layout';
+import { spacing } from '@/constants/spacing';
 
 type Props = {
   title: string;
@@ -22,43 +25,32 @@ export function DashboardSection({
   title,
   hint,
   icon,
-  iconTone = 'accent',
   badge,
   badgeTone = 'neutral',
   children,
 }: Props) {
   const c = useColors();
   const ds = useMemo(() => createDashboardStyles(c), [c]);
-  const toneStyle = KPI_TONE_STYLES[iconTone];
-  const iconColor = c[toneStyle.icon as keyof typeof c] as string;
+  const action = badge ? <AppBadge label={badge} tone={badgeTone} /> : null;
 
   return (
-    <View style={ds.sectionBlock}>
-      <View style={ds.sectionHeader}>
-        <View style={ds.sectionTitleRow}>
-          {icon ? (
-            <View style={[styles.sectionIcon, { backgroundColor: c.surfaceMuted }]}>
-              <AppIcon name={icon as IconName} size={18} color={iconColor} weight="regular" />
-            </View>
-          ) : null}
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={ds.sectionTitle}>{title}</Text>
-            {hint ? <Text style={ds.sectionHint}>{hint}</Text> : null}
-          </View>
+    <MadarSection title={title} action={action} style={ds.sectionBlock}>
+      {hint || icon ? (
+        <View style={styles.metaRow}>
+          {icon ? <AppIcon name={icon as IconName} size={16} color={c.textMuted} weight="regular" /> : null}
+          {hint ? <Text style={[ds.sectionHint, { flex: 1 }]}>{hint}</Text> : null}
         </View>
-        {badge ? <AppBadge label={badge} tone={badgeTone} /> : null}
-      </View>
+      ) : null}
       {children}
-    </View>
+    </MadarSection>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+  metaRow: {
+    ...flexRow,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xxs,
   },
 });

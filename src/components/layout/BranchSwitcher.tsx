@@ -5,13 +5,15 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
-  type ViewStyle,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useTranslation } from 'react-i18next';
 import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { HEADER_CHROME } from '@/constants/headerChrome';
+import { elevation } from '@/constants/elevation';
 import { useColors } from '@/hooks/useColors';
 import { useBranchStore } from '@/store/branchStore';
 import { useAuthStore } from '@/store/authStore';
@@ -26,11 +28,11 @@ import type { Branch } from '@/types/api';
 export function getBranchDisplayLabel(
   viewMode: 'global' | 'branch',
   activeBranch: Branch | null,
+  allBranchesLabel = 'كل الفروع',
 ): string {
-  if (viewMode === 'global') return 'كل الفروع';
-  if (!activeBranch) return 'اختر الفرع';
-  const code = activeBranch.code?.trim();
-  return code ? `${activeBranch.name} (${code})` : activeBranch.name;
+  if (viewMode === 'global') return allBranchesLabel;
+  if (!activeBranch) return allBranchesLabel;
+  return activeBranch.name;
 }
 
 function canSwitchBranches(
@@ -61,76 +63,63 @@ function BranchRow({ icon, title, subtitle, selected, disabled, onPress }: Branc
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={{
-        ...flexRow,
-        alignItems: 'center',
-        gap: spacing.md,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderRadius: radius.lg,
-        backgroundColor: selected ? c.primarySoftMuted : 'transparent',
-        borderWidth: 1,
-        borderColor: selected ? c.primarySoftBorder : 'transparent',
-        opacity: disabled ? 0.55 : 1,
-      }}
+      style={[
+        styles.sheetRow,
+        {
+          backgroundColor: selected ? c.primarySoftMuted : 'transparent',
+          borderColor: selected ? c.primarySoftBorder : 'transparent',
+          opacity: disabled ? 0.55 : 1,
+        },
+      ]}
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
     >
       <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: radius.lg,
-          backgroundColor: c.surfaceMuted,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-        }}
+        style={[
+          styles.sheetIconWell,
+          {
+            backgroundColor: selected ? c.primarySoftStrong : c.surfaceMuted,
+            borderColor: selected ? c.primarySoftBorder : c.borderSubtle,
+          },
+        ]}
       >
-        <MaterialIcons name={icon} size={18} color={c.primarySoftForeground} />
+        <MaterialIcons
+          name={icon}
+          size={HEADER_CHROME.sheetIconSize}
+          color={selected ? c.primarySoftForeground : c.textMuted}
+        />
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <AppText
-          style={{
-            ...textStart,
-            fontSize: typography.body,
-            fontFamily: fonts.medium,
-            fontWeight: '500',
-            color: c.text,
-          }}
-          numberOfLines={1}
-        >
+      <View style={styles.sheetCopy}>
+        <AppText style={[styles.sheetTitle, { color: c.text }]} numberOfLines={1}>
           {title}
         </AppText>
         {subtitle ? (
-          <AppText
-            style={{
-              ...textStart,
-              fontSize: typography.caption,
-              fontFamily: fonts.regular,
-              color: c.textMuted,
-              marginTop: 2,
-            }}
-            numberOfLines={1}
-          >
+          <AppText style={[styles.sheetSubtitle, { color: c.textMuted }]} numberOfLines={1}>
             {subtitle}
           </AppText>
         ) : null}
       </View>
-      {selected ? (
-        <MaterialIcons name="check" size={20} color={c.primarySoftForeground} />
-      ) : null}
+      {selected ? <MaterialIcons name="check" size={20} color={c.primarySoftForeground} /> : null}
     </Pressable>
   );
 }
 
-export function BranchSwitcher() {
+type BranchSwitcherProps = {
+  density?: 'icon' | 'pill';
+};
+
+export function BranchSwitcher({ density = 'pill' }: BranchSwitcherProps) {
+  const { t } = useTranslation();
   const c = useColors();
   const toast = useToast();
   const { width } = useWindowDimensions();
-  const isTablet = width >= 900;
-  const showSubtitle = width >= 400;
+  /** Match web sm+: two-line pill from tablet widths up. */
+  const showSubtitle = density === 'pill' && width >= 600;
+  const iconOnly = density === 'icon';
+  const pillWidth =
+    density === 'pill'
+      ? Math.min(HEADER_CHROME.pillMaxWidth, Math.max(HEADER_CHROME.pillPreferWidth, Math.round(width * 0.24)))
+      : undefined;
 
   const user = useAuthStore((s) => s.user);
   const activeBranch = useBranchStore((s) => s.activeBranch);
@@ -144,18 +133,21 @@ export function BranchSwitcher() {
   const [search, setSearch] = useState('');
 
   const multi = canSwitchBranches(branches, viewMode, user);
-  const label = getBranchDisplayLabel(viewMode, activeBranch);
+  const branchName = getBranchDisplayLabel(viewMode, activeBranch, t('All Branches'));
+  const branchCode = viewMode === 'branch' ? activeBranch?.code?.trim() || null : null;
   const iconName = viewMode === 'global' ? 'public' : 'store';
   const subtitle =
     viewMode === 'global'
-      ? 'عرض عام'
+      ? t('Global View')
       : multi
-        ? 'تبديل الفرع'
-        : 'الفرع الحالي';
+        ? t('Switch branch')
+        : t('header.currentBranch');
 
   const isGlobal = viewMode === 'global';
-  const pillBorderColor = isGlobal ? c.borderSubtle : c.primarySoftBorder;
-  const pillBackground = isGlobal ? c.surfaceMuted : c.primarySoftMuted;
+  const busy = branchLoading || switching;
+  const a11yLabel = `${branchName}${branchCode ? ` (${branchCode})` : ''} — ${subtitle}`;
+  /** Web: nested icon tile only on the full pill; icon-only control has a flat glyph. */
+  const wellTransparent = iconOnly;
 
   const filteredBranches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -191,118 +183,115 @@ export function BranchSwitcher() {
     [switchBranch, switching, toast],
   );
 
-  const pillContent = (
-    <>
-      {branchLoading || switching ? (
-        <ActivityIndicator size="small" color={c.primarySoftForeground} />
+  const iconWell = (
+    <View
+      style={[
+        styles.pillIconWell,
+        iconOnly && styles.iconOnlyWell,
+        wellTransparent
+          ? { backgroundColor: 'transparent', borderColor: 'transparent' }
+          : {
+              backgroundColor: isGlobal ? c.surfaceMuted : c.primarySoftStrong,
+              borderColor: isGlobal ? c.borderSubtle : c.primarySoftBorder,
+            },
+      ]}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={c.icon} />
       ) : (
-        <MaterialIcons name={iconName} size={17} color={c.primarySoftForeground} />
+        <MaterialIcons
+          name={iconName}
+          size={iconOnly ? HEADER_CHROME.actionIconSize : HEADER_CHROME.pillIconSize}
+          color={
+            wellTransparent
+              ? c.icon
+              : isGlobal
+                ? c.textMuted
+                : c.primarySoftForeground
+          }
+        />
       )}
-      <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 1 }}>
-        <AppText
-          style={{
-            ...textStart,
-            fontSize: isTablet ? typography.body : typography.caption,
-            fontFamily: fonts.bold,
-            fontWeight: '600',
-            color: c.text,
-          }}
-          numberOfLines={1}
-        >
-          {label}
-        </AppText>
+    </View>
+  );
+
+  const pillBody = iconOnly ? (
+    iconWell
+  ) : (
+    <>
+      {iconWell}
+      <View style={styles.pillCopy}>
+        <View style={styles.pillTitleRow}>
+          <AppText style={[styles.pillTitle, { color: c.text }]} numberOfLines={1}>
+            {branchName}
+          </AppText>
+          {branchCode ? (
+            <View style={[styles.codeChip, { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle }]}>
+              <AppText style={[styles.codeChipText, { color: c.textMuted }]} numberOfLines={1}>
+                {branchCode}
+              </AppText>
+            </View>
+          ) : null}
+        </View>
         {showSubtitle ? (
-          <AppText
-            style={{
-              ...textStart,
-              fontSize: typography.tiny,
-              fontFamily: fonts.regular,
-              color: c.textMuted,
-            }}
-            numberOfLines={1}
-          >
+          <AppText style={[styles.pillSubtitle, { color: c.textMuted }]} numberOfLines={1}>
             {subtitle}
           </AppText>
         ) : null}
       </View>
-      {multi && !branchLoading && !switching ? (
+      {multi && !busy ? (
         <MaterialIcons
           name={open ? 'expand-less' : 'expand-more'}
-          size={18}
-          color={c.textMuted}
+          size={16}
+          color={c.textCaption}
         />
       ) : null}
     </>
   );
 
-  const pillStyle: ViewStyle = {
-    ...flexRow,
-    flex: 1,
-    minWidth: 0,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: showSubtitle ? 6 : 8,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: pillBorderColor,
-    backgroundColor: pillBackground,
-    opacity: branchLoading ? 0.75 : 1,
-  };
+  const pillStyle = [
+    iconOnly ? styles.iconPill : styles.pill,
+    !iconOnly && pillWidth ? { width: pillWidth } : null,
+    !iconOnly && showSubtitle ? styles.pillTwoLine : styles.pillSingleLine,
+    {
+      backgroundColor: isGlobal ? c.primarySoftMuted : c.surface,
+      borderColor: open ? c.primarySoftBorder : c.borderSubtle,
+      opacity: branchLoading ? 0.75 : 1,
+      zIndex: 1,
+    },
+    elevation(c, 'sm'),
+  ];
 
   return (
     <>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        {multi ? (
-          <Pressable
-            onPress={() => setOpen(true)}
-            disabled={branchLoading || switching}
-            style={pillStyle}
-            accessibilityRole="button"
-            accessibilityLabel="تبديل الفرع"
-          >
-            {pillContent}
-          </Pressable>
-        ) : (
-          <View style={pillStyle}>{pillContent}</View>
-        )}
-      </View>
+      {multi ? (
+        <Pressable
+          onPress={() => setOpen(true)}
+          disabled={busy}
+          style={({ pressed }) => [
+            ...pillStyle,
+            pressed && { backgroundColor: isGlobal ? c.surfaceMuted : c.primarySoftMuted },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={a11yLabel}
+        >
+          {pillBody}
+        </Pressable>
+      ) : (
+        <View style={pillStyle} accessibilityLabel={a11yLabel}>
+          {pillBody}
+        </View>
+      )}
 
-      <AppBottomSheet
-        visible={open}
-        onClose={handleClose}
-        title="تبديل الفرع"
-        dismissable={!switching}
-      >
+      <AppBottomSheet visible={open} onClose={handleClose} title={t('Switch branch')} dismissable={!switching}>
         {branches.length > 5 ? (
-          <View
-            style={{
-              ...flexRow,
-              alignItems: 'center',
-              gap: spacing.sm,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              borderRadius: radius.xl,
-              borderWidth: 1,
-              borderColor: c.borderSubtle,
-              backgroundColor: c.surfaceMuted,
-              marginBottom: spacing.xs,
-            }}
-          >
+          <View style={[styles.searchBox, { borderColor: c.borderSubtle, backgroundColor: c.surfaceMuted }]}>
             <MaterialIcons name="search" size={18} color={c.textMuted} />
             <AppTextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="بحث بالاسم أو الكود..."
+              placeholder={t('header.branchSearch')}
               placeholderTextColor={c.textCaption}
-              style={{
-                flex: 1,
-                fontSize: typography.body,
-                fontFamily: fonts.medium,
-                color: c.text,
-                paddingVertical: spacing.xs,
-              }}
+              style={[styles.searchInput, { color: c.text }]}
               editable={!switching}
             />
           </View>
@@ -310,39 +299,25 @@ export function BranchSwitcher() {
 
         {canUseGlobalView(user) ? (
           <>
+            <AppText style={[styles.sectionLabel, { color: c.textCaption }]}>{t('header.scope')}</AppText>
             <BranchRow
               icon="public"
-              title="كل الفروع"
-              subtitle="عرض عام"
+              title={t('All Branches')}
+              subtitle={t('Global View')}
               selected={viewMode === 'global'}
               disabled={switching}
               onPress={() => void handleSelect(null)}
             />
-            {branches.length > 0 ? (
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: c.borderSubtle,
-                  marginVertical: spacing.xs,
-                }}
-              />
-            ) : null}
+            {branches.length > 0 ? <View style={[styles.divider, { backgroundColor: c.borderSubtle }]} /> : null}
           </>
         ) : null}
 
+        {branches.length > 0 ? (
+          <AppText style={[styles.sectionLabel, { color: c.textCaption }]}>{t('header.branches')}</AppText>
+        ) : null}
+
         {filteredBranches.length === 0 ? (
-          <AppText
-            style={{
-              ...textStart,
-              fontSize: typography.body,
-              fontFamily: fonts.regular,
-              color: c.textMuted,
-              paddingVertical: spacing.md,
-              paddingHorizontal: spacing.md,
-            }}
-          >
-            لا توجد فروع مطابقة
-          </AppText>
+          <AppText style={[styles.emptyText, { color: c.textMuted }]}>{t('header.noBranches')}</AppText>
         ) : (
           filteredBranches.map((b) => (
             <BranchRow
@@ -358,10 +333,10 @@ export function BranchSwitcher() {
         )}
 
         {switching ? (
-          <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
+          <View style={styles.switchingRow}>
             <ActivityIndicator size="small" color={c.accent} />
-            <AppText style={{ fontSize: typography.caption, fontFamily: fonts.medium, color: c.textMuted }}>
-              جاري التبديل...
+            <AppText style={[styles.switchingText, { color: c.textMuted }]}>
+              {t('header.branchSwitching')}
             </AppText>
           </View>
         ) : null}
@@ -369,3 +344,167 @@ export function BranchSwitcher() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: HEADER_CHROME.pillPaddingX,
+    borderRadius: HEADER_CHROME.pillRadius,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxWidth: HEADER_CHROME.pillMaxWidth,
+    overflow: 'hidden',
+  },
+  pillSingleLine: {
+    height: HEADER_CHROME.pillHeight,
+    minHeight: HEADER_CHROME.pillHeight,
+    maxHeight: HEADER_CHROME.pillHeight,
+    paddingVertical: 0,
+  },
+  pillTwoLine: {
+    minHeight: HEADER_CHROME.pillHeight,
+    maxHeight: 44,
+    paddingVertical: HEADER_CHROME.pillPaddingY,
+  },
+  iconPill: {
+    width: HEADER_CHROME.iconOnlySize,
+    height: HEADER_CHROME.iconOnlySize,
+    borderRadius: HEADER_CHROME.actionRadius,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    overflow: 'hidden',
+  },
+  pillIconWell: {
+    width: HEADER_CHROME.pillIconWell,
+    height: HEADER_CHROME.pillIconWell,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  iconOnlyWell: {
+    width: HEADER_CHROME.actionIconSize + 2,
+    height: HEADER_CHROME.actionIconSize + 2,
+    borderWidth: 0,
+  },
+  pillCopy: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 1,
+  },
+  pillTitleRow: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  pillTitle: {
+    ...textStart,
+    flexShrink: 1,
+    fontSize: typography.small,
+    lineHeight: 16,
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+  },
+  codeChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    flexShrink: 0,
+  },
+  codeChipText: {
+    fontSize: HEADER_CHROME.pillCodeFontSize,
+    lineHeight: 12,
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+  },
+  pillSubtitle: {
+    ...textStart,
+    fontSize: typography.caption,
+    lineHeight: 13,
+    fontFamily: fonts.regular,
+  },
+  sheetRow: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: HEADER_CHROME.sheetRowRadius,
+    borderWidth: 1,
+  },
+  sheetIconWell: {
+    width: HEADER_CHROME.sheetIconWell,
+    height: HEADER_CHROME.sheetIconWell,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  sheetCopy: { flex: 1, minWidth: 0, gap: 2 },
+  sheetTitle: {
+    ...textStart,
+    fontSize: typography.body,
+    fontFamily: fonts.medium,
+    fontWeight: '500',
+  },
+  sheetSubtitle: {
+    ...textStart,
+    fontSize: typography.caption,
+    fontFamily: fonts.regular,
+  },
+  searchBox: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: typography.body,
+    fontFamily: fonts.medium,
+    paddingVertical: spacing.xs,
+  },
+  sectionLabel: {
+    ...textStart,
+    fontSize: typography.caption,
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: spacing.sm,
+  },
+  emptyText: {
+    ...textStart,
+    fontSize: typography.body,
+    fontFamily: fonts.regular,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  switchingRow: {
+    ...flexRow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  switchingText: {
+    fontSize: typography.caption,
+    fontFamily: fonts.medium,
+  },
+});

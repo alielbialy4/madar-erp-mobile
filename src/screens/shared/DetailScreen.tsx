@@ -17,9 +17,10 @@ type Props<T extends Record<string, unknown>> = {
   headerRight?: React.ReactNode;
   badge?: (item: T) => { label: string; tone?: 'default' | 'success' | 'warning' | 'danger' | 'info' } | undefined;
   children?: (item: T, actions: { refresh: () => void }) => React.ReactNode;
+  embedded?: boolean;
 };
 
-export function DetailScreen<T extends Record<string, unknown>>({ title, loader, fields, onBack, headerRight, badge, children }: Props<T>) {
+export function DetailScreen<T extends Record<string, unknown>>({ title, loader, fields, onBack, headerRight, badge, children, embedded }: Props<T>) {
   return (
     <DetailScreenLayout
       title={title}
@@ -29,6 +30,7 @@ export function DetailScreen<T extends Record<string, unknown>>({ title, loader,
       badge={badge}
       heroTitle={(item) => asText(item.name ?? item.invoice_number ?? item.id)}
       fields={fields}
+      embedded={embedded}
     >
       {(item, actions) => children?.(item, actions) ?? null}
     </DetailScreenLayout>

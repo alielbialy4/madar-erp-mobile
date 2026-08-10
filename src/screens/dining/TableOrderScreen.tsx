@@ -6,7 +6,8 @@ import { diningAPI } from '@/api/dining';
 import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppListItem } from '@/components/ui';
+import { DocumentHeader, MadarSection, MadarSurface, MetricBlock, QuickActionBar } from '@/components/madar';
 import { useBranchStore } from '@/store/branchStore';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
@@ -264,53 +265,47 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
       ) : null}
       {order ? (
         <>
-          <AppCard>
-            <AppSectionHeader title="ملخص الطلب" />
-            <Text style={styles.summaryText}>الإجمالي: {money(order.total ?? 0)}</Text>
-            <Text style={styles.summaryText}>الحالة: {String(order.status ?? '—')}</Text>
-          </AppCard>
+          <DocumentHeader
+            title={tableName}
+            subtitle={`الحالة: ${String(order.status ?? '—')}`}
+            amount={Number(order.total ?? 0)}
+            currency="ج.م"
+          />
+          <MetricBlock label="إجمالي الطلب" value={money(order.total ?? 0)} level="A" />
 
-          <AppCard>
-            <AppSectionHeader title="الأصناف" />
-            {(order.items ?? []).length === 0 ? (
-              <AppEmptyState title="لا توجد أصناف" />
-            ) : (
-              order.items.map((item: any, index: number) => (
-                <AppListItem
-                  key={String(item.id ?? index)}
-                  title={String(item.product?.name ?? item.product_name ?? 'صنف')}
-                  subtitle={`الكمية: ${numberText(item.quantity)}`}
-                  meta={money(item.subtotal ?? 0)}
-                />
-              ))
-            )}
-          </AppCard>
+          <MadarSection title="الأصناف">
+            <MadarSurface padded={false}>
+              {(order.items ?? []).length === 0 ? (
+                <AppEmptyState title="لا توجد أصناف" />
+              ) : (
+                order.items.map((item: any, index: number) => (
+                  <AppListItem
+                    key={String(item.id ?? index)}
+                    title={String(item.product?.name ?? item.product_name ?? 'صنف')}
+                    subtitle={`الكمية: ${numberText(item.quantity)}`}
+                    meta={money(item.subtotal ?? 0)}
+                  />
+                ))
+              )}
+            </MadarSurface>
+          </MadarSection>
 
-          <AppCard>
-            <AppSectionHeader title="إجراءات الطاولة" />
-            {message ? <Text style={styles.messageText}>{message}</Text> : null}
-            <View style={styles.actionsContainer}>
-              <AppButton title="وضع النادل — إضافة أصناف" variant="secondary" onPress={() => navigation.navigate('WaiterPos')} />
-              <AppButton title="طباعة مبدئية" variant="secondary" onPress={() => setPrintConfirm(true)} />
+          <MadarSection title="إجراءات الطاولة">
+            <MadarSurface>
+              {message ? <Text style={styles.messageText}>{message}</Text> : null}
               {printBlocked ? <Text style={styles.messageText}>{printBlocked}</Text> : null}
-              <AppButton title="تسوية نقدية" onPress={() => setSettleConfirm(true)} loading={actionLoading && settleConfirm} />
-              <AppButton
-                title="نقل الطلب"
-                variant="secondary"
-                onPress={() => openTablePicker('transfer')}
+              <QuickActionBar
+                actions={[
+                  { id: 'waiter', label: 'إضافة أصناف', icon: 'add', onPress: () => navigation.navigate('WaiterPos'), tone: 'accent' },
+                  { id: 'print', label: 'طباعة مبدئية', icon: 'print', onPress: () => setPrintConfirm(true) },
+                  { id: 'settle', label: 'تسوية نقدية', icon: 'account-balance-wallet', onPress: () => setSettleConfirm(true), tone: 'accent' },
+                  { id: 'transfer', label: 'نقل', icon: 'swap-horiz', onPress: () => openTablePicker('transfer') },
+                  { id: 'merge', label: 'دمج', icon: 'merge-type', onPress: () => openTablePicker('merge') },
+                  { id: 'release', label: 'إخلاء', icon: 'logout', onPress: () => setReleaseConfirm(true), tone: 'danger' },
+                ]}
               />
-              <AppButton
-                title="دمج مع طاولة"
-                variant="secondary"
-                onPress={() => openTablePicker('merge')}
-              />
-              <AppButton
-                title="إخلاء الطاولة"
-                variant="ghost"
-                onPress={() => setReleaseConfirm(true)}
-              />
-            </View>
-          </AppCard>
+            </MadarSurface>
+          </MadarSection>
         </>
       ) : null}
 

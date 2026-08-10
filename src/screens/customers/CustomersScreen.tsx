@@ -2,15 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { customersAPI } from '@/api/customers';
-import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/components/ui';
+import { AppBottomSheet, ListScreenLayout, MasterDetailLayout } from '@/components/layout';
+import { AppButton, AppInput, AppSectionHeader } from '@/components/ui';
+import { EntityRow } from '@/components/madar';
 import { FormError } from '@/components/forms';
 import { ResourceList } from '@/components/lists';
+import { CustomerDetailScreen } from '@/screens/customers/CustomerDetailScreen';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
-import { moduleIcons } from '@/constants/iconMap';
+import { isTablet } from '@/constants/responsive';
 import type { Customer } from '@/types/api';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
@@ -25,7 +27,11 @@ const schema = z.object({
 type CustomerForm = z.infer<typeof schema>;
 
 export function CustomersScreen({ navigation }: { navigation: any }) {
+  const { width } = useWindowDimensions();
+  const tablet = isTablet(width);
   const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<number | string | null>(null);
+  const [selectedName, setSelectedName] = useState<string | undefined>();
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const debounced = useDebouncedValue(query);
@@ -45,6 +51,15 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
     }
   });
 
+  const openCustomer = (item: Customer) => {
+    if (tablet) {
+      setSelectedId(item.id);
+      setSelectedName(item.name);
+      return;
+    }
+    navigation.navigate('CustomerDetail', { id: item.id, name: item.name });
+  };
+
   return (
     <ListScreenLayout
       title="العملاء"
@@ -54,6 +69,7 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
       searchPlaceholder="بحث بالاسم أو الهاتف..."
       onRefresh={refresh}
       refreshing={refreshing}
+      contentStyle={tablet ? { flex: 1 } : undefined}
       fab={{ onPress: () => setOpen(true), label: 'إضافة عميل' }}
       hero={{
         eyebrow: 'العملاء',
@@ -63,28 +79,50 @@ export function CustomersScreen({ navigation }: { navigation: any }) {
         compact: true,
       }}
     >
-      <ResourceList
-        data={items}
-        loading={loading}
-        refreshing={refreshing}
-        error={error}
-        onRefresh={refresh}
-        onEndReached={loadMore}
-        emptyTitle="لا يوجد عملاء"
-        emptyCtaLabel="إضافة عميل"
-        onEmptyCta={() => setOpen(true)}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <AppDomainCard
-            title={item.name}
-            subtitle={item.phone ?? item.primary_phone ?? undefined}
-            meta={`المحفظة: ${money(item.wallet_balance ?? item.balance ?? 0)} • النقاط: ${item.points_balance ?? 0}`}
-            badgeLabel={`${item.orders_count ?? item.sales_count ?? 0} طلب`}
-            badgeTone="info"
-            leadingIcon={moduleIcons.customers}
-            onPress={() => navigation.navigate('CustomerDetail', { id: item.id, name: item.name })}
+      <MasterDetailLayout
+        emptyTitle="اختر عميلاً"
+        emptyMessage="اختر عميلاً من القائمة لمراجعة المحفظة والولاء دون مغادرة الشاشة."
+        master={
+          <ResourceList
+            data={items}
+            loading={loading}
+            refreshing={refreshing}
+            error={error}
+            onRefresh={refresh}
+            onEndReached={loadMore}
+            emptyTitle="لا يوجد عملاء"
+            emptyCtaLabel="إضافة عميل"
+            onEmptyCta={() => setOpen(true)}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <EntityRow
+                primary={item.name}
+                secondary={item.phone ?? item.primary_phone ?? undefined}
+                meta={`المحفظة ${money(item.wallet_balance ?? item.balance ?? 0)} · نقاط ${item.points_balance ?? 0}`}
+                amount={item.wallet_balance ?? item.balance ?? 0}
+                currency="ج.م"
+                badgeLabel={`${item.orders_count ?? item.sales_count ?? 0} طلب`}
+                badgeTone="neutral"
+                selected={tablet && selectedId === item.id}
+                onPress={() => openCustomer(item)}
+              />
+            )}
           />
-        )}
+        }
+        detail={
+          selectedId != null ? (
+            <CustomerDetailScreen
+              key={String(selectedId)}
+              route={{
+                params: { id: selectedId, name: selectedName, embedded: true },
+              }}
+              navigation={{
+                goBack: () => setSelectedId(null),
+                navigate: navigation.navigate,
+              }}
+            />
+          ) : null
+        }
       />
 
       <AppBottomSheet visible={open} onClose={() => setOpen(false)}>

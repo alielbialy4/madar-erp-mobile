@@ -6,14 +6,14 @@ import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { post } from '@/api/client';
 import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppInput, AppSectionHeader } from '@/components/ui';
+import { AppButton, AppInput, AppSectionHeader, AppBadge } from '@/components/ui';
+import { FinancialRow, OperationalRow } from '@/components/madar';
 import { AppEmptyState, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useBranchStore } from '@/store/branchStore';
 import { extractArray, extractData } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
 import { typography } from '@/constants/typography';
@@ -85,7 +85,8 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const shiftCash = money(shift?.expected_cash ?? shift?.starting_cash ?? 0);
+  const shiftCashRaw = Number(shift?.expected_cash ?? shift?.starting_cash ?? 0);
+  const shiftCash = money(shiftCashRaw);
 
   return (
     <ListScreenLayout
@@ -111,13 +112,13 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
       {!error || vaults.length > 0 ? (
         <View style={{ flex: 1, gap: spacing.md }}>
           {shift ? (
-            <AppDomainCard
-              title={`وردية ${shift.shift_no ?? shift.id}`}
-              subtitle={dateText(String(shift.opened_at ?? ''))}
-              metric={shiftCash}
-              badgeLabel="مفتوحة"
-              badgeTone="success"
-              leadingIcon={moduleIcons.vaults}
+            <OperationalRow
+              primary={`وردية ${shift.shift_no ?? shift.id}`}
+              secondary={dateText(String(shift.opened_at ?? ''))}
+              statusLabel="مفتوحة"
+              statusTone="success"
+              amount={shiftCashRaw}
+              currency="ج.م"
             />
           ) : (
             <AppEmptyState title="لا توجد وردية نشطة" />
@@ -131,13 +132,12 @@ export function VaultsScreen({ navigation }: { navigation: any }) {
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
               <View style={{ gap: spacing.sm }}>
-                <AppDomainCard
-                  title={String(item.name ?? 'خزنة')}
-                  subtitle={String((item.branch as any)?.name ?? '')}
-                  metric={money(item.balance ?? 0)}
-                  badgeLabel={item.is_active === false ? 'غير نشطة' : 'نشطة'}
-                  badgeTone={item.is_active === false ? 'warning' : 'success'}
-                  leadingIcon={moduleIcons.vaults}
+                <FinancialRow
+                  primary={String(item.name ?? 'خزنة')}
+                  secondary={String((item.branch as any)?.name ?? '')}
+                  amount={Number(item.balance ?? 0)}
+                  currency="ج.م"
+                  status={<AppBadge label={item.is_active === false ? 'غير نشطة' : 'نشطة'} tone={item.is_active === false ? 'warning' : 'success'} />}
                 />
                 <View style={{ ...flexRow, gap: spacing.sm }}>
                   <AppButton title="إيداع" variant="primary" onPress={() => openMovement(item, 'deposit')} style={{ flex: 1 }} />

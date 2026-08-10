@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { AppScreen } from '@/components/layout';
 import { DashboardShortcutsHub } from '@/components/dashboard/DashboardShortcutsHub';
 import { BranchDashboardView, type BranchOperationalPayload } from '@/components/dashboard/BranchDashboardView';
@@ -12,6 +13,7 @@ import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { canAccessBranchOperationalDashboard } from '@/utils/permissions';
 import { spacing } from '@/constants/spacing';
+import { useTu } from '@/i18n/useTu';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 
@@ -20,6 +22,8 @@ type Props = {
 };
 
 export function DashboardScreen({ navigation }: Props) {
+  const tx = useTu();
+  const isFocused = useIsFocused();
   const user = useAuthStore((s) => s.user);
   const viewMode = useBranchStore((s) => s.viewMode);
   const activeBranch = useBranchStore((s) => s.activeBranch);
@@ -71,15 +75,17 @@ export function DashboardScreen({ navigation }: Props) {
   );
 
   useEffect(() => {
+    if (!isFocused) return;
     void refreshNow();
-  }, [refreshNow]);
+  }, [refreshNow, isFocused]);
 
   useEffect(() => {
+    if (!isFocused) return;
     const id = setInterval(() => {
       void refreshNow({ silent: true });
     }, 30000);
     return () => clearInterval(id);
-  }, [refreshNow]);
+  }, [refreshNow, isFocused]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -95,13 +101,13 @@ export function DashboardScreen({ navigation }: Props) {
     [lastUpdatedLabel, loading, refreshing, refreshNow],
   );
 
-  const pageTitle = 'لوحة التحكم';
+  const pageTitle = tx('لوحة التحكم');
 
   const pageSubtitle = isGlobalView
-    ? 'مركز العمليات — إيرادات، مبيعات، ومقارنة الفروع.'
+    ? tx('مركز العمليات — إيرادات، مبيعات، ومقارنة الفروع.')
     : canAccessBranch
-      ? 'تشغيل الفرع — مؤشرات اليوم، الوردية، والتنبيهات.'
-      : 'ورديتك ومبيعاتك في هذا الفرع.';
+      ? tx('تشغيل الفرع — مؤشرات اليوم، الوردية، والتنبيهات.')
+      : tx('ورديتك ومبيعاتك في هذا الفرع.');
 
   return (
     <AppScreen

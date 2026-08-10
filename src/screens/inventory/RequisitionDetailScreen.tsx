@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { requisitionsAPI, type RequisitionStatus } from '@/api/requisitions';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface, QuickActionBar } from '@/components/madar';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { dateText, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'RequisitionDetail'>;
@@ -22,6 +21,7 @@ const NEXT_STATUS: Partial<Record<RequisitionStatus, { label: string; next: Requ
 
 export function RequisitionDetailScreen({ navigation, route }: { navigation: Nav; route: Route }) {
   const id = route.params.id;
+  const toast = useToast();
   const [pendingStatus, setPendingStatus] = useState<RequisitionStatus | null>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -30,10 +30,10 @@ export function RequisitionDetailScreen({ navigation, route }: { navigation: Nav
     setUpdating(true);
     try {
       await requisitionsAPI.updateStatus(id, status);
-      Alert.alert('تم', 'تم تحديث حالة الطلب');
+      toast.success('تم تحديث حالة الطلب');
       refresh();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setUpdating(false);
     }
@@ -57,28 +57,38 @@ export function RequisitionDetailScreen({ navigation, route }: { navigation: Nav
         const action = NEXT_STATUS[status];
         return (
           <>
-            <AppCard>
-              <AppSectionHeader title="البنود" />
-              {items.map((it, index) => (
-                <AppListItem
-                  key={String(it.id ?? index)}
-                  title={asText((it.product as Record<string, unknown>)?.name, 'منتج')}
-                  meta={`× ${numberText(it.quantity)}`}
-                />
-              ))}
-            </AppCard>
-            {action ? (
-              <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
-                <AppButton title={action.label} loading={updating} onPress={() => setPendingStatus(action.next)} />
-                {status === 'submitted' ? (
-                  <AppButton
-                    title="رفض"
-                    variant="secondary"
-                    loading={updating}
-                    onPress={() => setPendingStatus('rejected')}
+            <MadarSection title="البنود">
+              <MadarSurface padded={false}>
+                {items.map((it, index) => (
+                  <AppListItem
+                    key={String(it.id ?? index)}
+                    title={asText((it.product as Record<string, unknown>)?.name, 'منتج')}
+                    meta={`× ${numberText(it.quantity)}`}
                   />
-                ) : null}
-              </View>
+                ))}
+              </MadarSurface>
+            </MadarSection>
+            {action ? (
+              <QuickActionBar
+                actions={[
+                  {
+                    id: 'next',
+                    label: updating ? '...' : action.label,
+                    icon: 'check-circle',
+                    onPress: () => setPendingStatus(action.next),
+                    tone: 'accent',
+                  },
+                  ...(status === 'submitted'
+                    ? [{
+                        id: 'reject',
+                        label: 'رفض',
+                        icon: 'x-circle' as const,
+                        onPress: () => setPendingStatus('rejected'),
+                        tone: 'danger' as const,
+                      }]
+                    : []),
+                ]}
+              />
             ) : null}
             <ConfirmDialog
               visible={!!pendingStatus}

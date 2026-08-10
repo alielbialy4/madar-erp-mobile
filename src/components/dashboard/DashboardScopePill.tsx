@@ -5,6 +5,7 @@ import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { Text } from '@/components/ui/AppText';
+import { appWritingDirection } from '@/constants/layout';
 
 type Props = {
   label: string;
@@ -47,7 +48,7 @@ function createStyles(c: ReturnType<typeof useColors>, dotColor?: string) {
       fontSize: typography.tiny,
       fontFamily: fonts.bold,
       color: c.text,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
   });
 }

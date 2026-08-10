@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, useWindowDimensions } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useWindowDimensions } from 'react-native';import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { warehousesAPI } from '@/api/inventory';
 import { WarehousesHero } from '@/components/inventory/WarehousesHero';
 import { InventoryListShell } from '@/components/inventory/InventoryListShell';
-import { ConfirmDialog } from '@/components/feedback';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { useInventoryScope } from '@/hooks/useInventoryScope';
 import { warehouseListStats } from '@/constants/inventoryLayout';
 import { INVENTORY_LIST_PRESETS } from '@/components/inventory/inventoryListPresets';
@@ -17,6 +16,7 @@ type Nav = NativeStackNavigationProp<MoreStackParamList, 'Warehouses'>;
 const preset = INVENTORY_LIST_PRESETS.warehouses;
 
 export function WarehousesScreen({ navigation }: { navigation: Nav }) {
+  const toast = useToast();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
   const { canManageDirectory, directoryReadOnlyHint } = useInventoryScope();
@@ -44,7 +44,7 @@ export function WarehousesScreen({ navigation }: { navigation: Nav }) {
       setShellRefreshKey((k) => k + 1);
     } catch (err) {
       setDeleteTarget(null);
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setDeleting(false);
     }

@@ -18,4 +18,6 @@ export const storageKeys = {
   heldCartsLocal: 'madar.pos.held_carts_local',
   recentRoutes: 'madar.nav.recent',
   reportsRecent: 'reports_recent',
+  offlineTableOps: 'madar.offline.table_ops',
+  syncLastSuccessAt: 'madar.sync.last_success_at',
 };

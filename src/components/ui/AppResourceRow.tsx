@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, ViewStyle } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { textStart } from '@/constants/layout';
+import { chevronForwardIcon } from '@/utils/rtl';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
@@ -61,7 +62,7 @@ export function AppResourceRow({
         {meta ? <AppText style={{ color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body }}>{meta}</AppText> : null}
         {badge ?? (badgeLabel ? <AppBadge label={badgeLabel} tone={badgeTone} /> : null)}
       </View>
-      {showChevron ? <MaterialIcons name="chevron-left" size={20} color={c.textCaption} /> : null}
+      {showChevron ? <MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} /> : null}
     </View>
   );
 

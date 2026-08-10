@@ -1,7 +1,5 @@
 import { posAPI } from '@/api/pos';
-import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
-import { usePosStore } from '@/store/posStore';
 import { coercePendingOrderForSync } from '@/services/offline/coercePendingOrder';
 import {
   failPendingOrder,
@@ -23,8 +21,24 @@ let intervalId: ReturnType<typeof setInterval> | null = null;
 
 export type SyncResult = { pushed: number; errors: string[]; skipped?: boolean };
 
+function getAuthToken(): string | null | undefined {
+  // Lazy require avoids syncEngine ↔ posStore/authStore init cycles.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('@/store/authStore').useAuthStore.getState().token;
+}
+
+function getOpenShiftId(): string | null | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('@/store/posStore').usePosStore.getState().openShiftId;
+}
+
+function reloadPosCatalog(): void {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  void require('@/store/posStore').usePosStore.getState().loadCatalog();
+}
+
 export function canSync(): { ok: boolean; reason?: string } {
-  const token = useAuthStore.getState().token;
+  const token = getAuthToken();
   const branch = useBranchStore.getState().activeBranch;
   if (!token) return { ok: false, reason: 'لا يوجد جلسة دخول' };
   if (!branch?.id) return { ok: false, reason: 'يجب اختيار فرع' };
@@ -111,7 +125,7 @@ export async function syncPendingPosOrders(): Promise<SyncResult> {
       await markOrdersSyncing(clientIds);
 
       try {
-        const openShiftId = usePosStore.getState().openShiftId;
+        const openShiftId = getOpenShiftId();
         const apiOrders = branchOrders.map((order) => toApiOfflineOrder(order, openShiftId));
         const response = await posAPI.pushOfflineOrders(apiOrders, branchId);
 
@@ -160,7 +174,7 @@ export async function syncPendingPosOrders(): Promise<SyncResult> {
     }
 
     if (pushed > 0) {
-      void usePosStore.getState().loadCatalog();
+      reloadPosCatalog();
     }
 
     return { pushed, errors };
@@ -182,7 +196,13 @@ export async function syncAll(): Promise<SyncResult> {
   try {
     const [mutations, pos] = await Promise.all([syncOfflineMutations(), syncPendingPosOrders()]);
     void printEngine.processPendingQueue();
-    return { pushed: mutations.pushed + pos.pushed, errors: [...mutations.errors, ...pos.errors] };
+    const result = { pushed: mutations.pushed + pos.pushed, errors: [...mutations.errors, ...pos.errors] };
+    // Skip empty success bookkeeping so idle 60s ticks don't rewrite storage.
+    if (result.pushed > 0 && result.errors.length === 0) {
+      const { recordSyncSuccessAt } = await import('@/hooks/useHeaderOfflineAttention');
+      void recordSyncSuccessAt();
+    }
+    return result;
   } finally {
     syncing = false;
   }

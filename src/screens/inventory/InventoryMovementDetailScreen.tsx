@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppSectionHeader } from '@/components/ui';
+import { AppButton } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { dateText, numberText, asText } from '@/utils/format';
 import { textStart, textLtr } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
@@ -33,15 +34,16 @@ export function InventoryMovementDetailScreen({ navigation, route }: { navigatio
   return (
     <AppScreen title="تفاصيل الحركة" onBack={navigation.goBack}>
       <View style={{ gap: spacing.md }}>
-        <AppCard style={{ gap: spacing.md }}>
-          <AppSectionHeader title="البيانات" />
-          {rows.map((r) => (
-            <Text key={r.label} style={{ ...textStart, marginBottom: spacing.sm }}>
-              <Text style={{ color: c.textMuted }}>{r.label}: </Text>
-              <Text style={[r.ltr ? textLtr : textStart, { fontWeight: '700' }]}>{r.value}</Text>
-            </Text>
-          ))}
-        </AppCard>
+        <MadarSection title="البيانات">
+          <MadarSurface>
+            {rows.map((r) => (
+              <Text key={r.label} style={{ ...textStart, marginBottom: spacing.sm }}>
+                <Text style={{ color: c.textMuted }}>{r.label}: </Text>
+                <Text style={[r.ltr ? textLtr : textStart, { fontWeight: '700' }]}>{r.value}</Text>
+              </Text>
+            ))}
+          </MadarSurface>
+        </MadarSection>
         {link ? (
           <AppButton
             title={link.label}

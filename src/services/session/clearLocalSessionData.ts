@@ -1,10 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { storageKeys } from '@/services/storage/keys';
 import { secureDelete } from '@/services/storage/secure';
-import { useBranchStore } from '@/store/branchStore';
-import { usePosStore } from '@/store/posStore';
-import { usePrintStore } from '@/store/printStore';
-import { useThemeStore } from '@/store/themeStore';
 
 /** Device UX preferences — not tenant/account scoped. */
 const PRESERVED_STORAGE_KEYS = new Set(['erb-theme']);
@@ -32,6 +28,14 @@ export async function clearPersistedAppData(): Promise<void> {
 }
 
 export async function resetInMemorySessionState(): Promise<void> {
+  // Dynamic imports break authStore ↔ clearLocalSession ↔ posStore require cycles.
+  const [{ useBranchStore }, { usePosStore }, { usePrintStore }, { useThemeStore }] =
+    await Promise.all([
+      import('@/store/branchStore'),
+      import('@/store/posStore'),
+      import('@/store/printStore'),
+      import('@/store/themeStore'),
+    ]);
   useBranchStore.getState().clear();
   usePosStore.getState().resetSession();
   usePrintStore.getState().reset();

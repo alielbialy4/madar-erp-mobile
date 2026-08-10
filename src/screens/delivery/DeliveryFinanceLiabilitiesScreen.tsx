@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { deliveryFinanceAPI } from '@/api/deliveryFinance';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { asText, money } from '@/utils/format';
@@ -34,18 +35,26 @@ export function DeliveryFinanceLiabilitiesScreen({ navigation }: { navigation: a
     <AppScreen title="التزامات التوصيل" onBack={navigation.goBack} onRefresh={() => void load()} refreshing={loading}>
       {loading ? <AppLoadingState /> : null}
       {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      <AppCard>
-        <AppSectionHeader title="سائقون" />
-        {rows.map((row, i) => (
-          <AppListItem
-            key={String(row.driver_id ?? i)}
-            title={asText(row.driver_name, 'سائق')}
-            subtitle={`${row.deliveries_count ?? 0} طلب`}
-            meta={money(row.net_due_from_driver ?? row.remaining_to_collect ?? 0)}
-            onPress={() => row.driver_id ? navigation.navigate('DeliveryFinanceDriverDetail', { driverId: String(row.driver_id), name: asText(row.driver_name, 'سائق') }) : undefined}
-          />
-        ))}
-      </AppCard>
+      <MadarSection title="سائقون">
+        <MadarSurface padded={false}>
+          {rows.map((row, i) => (
+            <AppListItem
+              key={String(row.driver_id ?? i)}
+              title={asText(row.driver_name, 'سائق')}
+              subtitle={`${row.deliveries_count ?? 0} طلب`}
+              meta={money(row.net_due_from_driver ?? row.remaining_to_collect ?? 0)}
+              onPress={() =>
+                row.driver_id
+                  ? navigation.navigate('DeliveryFinanceDriverDetail', {
+                      driverId: String(row.driver_id),
+                      name: asText(row.driver_name, 'سائق'),
+                    })
+                  : undefined
+              }
+            />
+          ))}
+        </MadarSurface>
+      </MadarSection>
     </AppScreen>
   );
 }

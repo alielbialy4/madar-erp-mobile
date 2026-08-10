@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
 import { AppScreen, FormScreenLayout } from '@/components/layout';
@@ -11,7 +10,7 @@ import { stockCountLineKey } from '@/services/inventory/stockCountLines';
 import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
-import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState, useToast } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
@@ -33,6 +32,7 @@ type TransferItem = {
 };
 
 export function StockTransferScreen({ navigation }: { navigation: Nav }) {
+  const toast = useToast();
   const c = useColors();
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
   const [warehouses, setWarehouses] = useState<SelectOption[]>([]);
@@ -129,11 +129,11 @@ export function StockTransferScreen({ navigation }: { navigation: Nav }) {
       });
       const data = (res as { data?: Record<string, unknown> }).data ?? res;
       const id = String((data as Record<string, unknown>).id ?? '');
-      Alert.alert('تم بنجاح', 'تم إنشاء التحويل كطلب معلّق للمراجعة والتنفيذ');
+      toast.success('تم إنشاء التحويل كطلب معلّق للمراجعة والتنفيذ');
       if (id) navigation.replace('StockTransferDetail', { id });
       else navigation.goBack();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }

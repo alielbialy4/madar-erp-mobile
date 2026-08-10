@@ -6,13 +6,14 @@ import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccount
 import { ListScreenLayout, SheetFormLayout } from '@/components/layout';
 import { FormSection, SwitchRow } from '@/components/forms/FormSection';
 import { AppBanner, AppErrorState, ConfirmDialog, useToast } from '@/components/feedback';
-import { AppAmountInput, AppButton, AppDatePicker, AppDomainCard, AppInput, AppPicker, AppSelect } from '@/components/ui';
+import { AppAmountInput, AppButton, AppDatePicker, AppInput, AppPicker, AppSelect } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { FinancialRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
-import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { extractArray } from '@/utils/data';
 import { dateText, money } from '@/utils/format';
@@ -268,18 +269,17 @@ export function RecurringExpensesScreen({ navigation }: Props) {
           onEmptyCta={openCreate}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <AppDomainCard
-              title={item.title}
-              subtitle={`${item.category?.name ?? 'بدون تصنيف'} · ${frequencyLabel(item.frequency)}`}
+            <FinancialRow
+              primary={item.title}
+              secondary={`${item.category?.name ?? 'بدون تصنيف'} · ${frequencyLabel(item.frequency)}`}
               meta={[
                 item.branch?.name ?? 'فرع محدد',
                 `الاستحقاق القادم ${dateText(item.next_date ?? '')}`,
                 item.financial_account_id ? item.financialAccount?.name ?? item.financial_account?.name ?? 'دفع تلقائي' : 'يُنشأ كمستحق',
               ].join(' · ')}
-              metric={money(item.amount)}
-              badgeLabel={item.is_active === false ? 'متوقف' : 'نشط'}
-              badgeTone={item.is_active === false ? 'danger' : 'success'}
-              leadingIcon={moduleIcons.expenses}
+              amount={item.amount}
+              currency="ج.م"
+              status={<AppBadge label={item.is_active === false ? 'متوقف' : 'نشط'} tone={item.is_active === false ? 'danger' : 'success'} />}
               onPress={() => openEdit(item)}
             />
           )}

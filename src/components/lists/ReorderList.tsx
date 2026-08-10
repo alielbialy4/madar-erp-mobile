@@ -4,7 +4,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 
 type Props<T> = {
   items: T[];
@@ -91,5 +91,5 @@ const styles = StyleSheet.create({
   actions: { ...flexRow, gap: spacing.xs },
   btn: { padding: spacing.xs },
   btnDisabled: { opacity: 0.35 },
-  empty: { textAlign: 'center', padding: spacing.xxl, writingDirection: 'rtl' },
+  empty: { textAlign: 'center', padding: spacing.xxl, writingDirection: appWritingDirection },
 });

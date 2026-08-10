@@ -1,4 +1,3 @@
-import { normalizeReceiptPrintMode } from '@/services/printing/resolvePrintPath';
 import {
   DEFAULT_CUSTOMER_RECEIPT_FONT_SIZE,
   DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE,
@@ -6,11 +5,14 @@ import {
   isPrintFontSizeInRange,
 } from '@/utils/branchSettings';
 import { clampLogoScale } from '@/utils/printLogoSize';
+import {
+  DEFAULT_RECEIPT_PRINT_MODE,
+  normalizeReceiptPrintMode,
+  type ReceiptPrintMode,
+} from '@/utils/receiptPrintMode';
 
-export type ReceiptPrintMode = 'quality_image' | 'fast_text';
-
-export const DEFAULT_RECEIPT_PRINT_MODE: ReceiptPrintMode = 'quality_image';
-
+export type { ReceiptPrintMode };
+export { DEFAULT_RECEIPT_PRINT_MODE, normalizeReceiptPrintMode };
 export type BranchPrintSettingsNormalized = {
   receipt_print_mode: ReceiptPrintMode;
   auto_print_receipt: boolean;

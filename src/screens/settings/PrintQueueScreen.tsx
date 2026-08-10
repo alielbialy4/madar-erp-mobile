@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppListItem, AppSectionHeader, AppBadge } from '@/components/ui';
+import { AppButton, AppListItem, AppSectionHeader, AppBadge } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { getPrintJobs, retryPrintJob, cancelPrintJob, recoverStalePrintJobs } from '@/services/printing/printQueue';
 import { printEngine } from '@/services/printing/printEngine';
 import { getPrinterProfile } from '@/services/printing/printerProfiles';
@@ -57,7 +58,7 @@ export function PrintQueueScreen() {
         const rows = jobs.filter((j) => j.status === status);
         if (!rows.length) return null;
         return (
-          <AppCard key={status}>
+          <MadarSurface key={status}>
             <AppSectionHeader title={STATUS_LABEL[status]} />
             {rows.map((job) => (
               <View key={job.id}>
@@ -82,13 +83,13 @@ export function PrintQueueScreen() {
                 ) : null}
               </View>
             ))}
-          </AppCard>
+          </MadarSurface>
         );
       })}
       {jobs.length === 0 ? (
-        <AppCard>
+        <MadarSurface>
           <AppListItem title="القائمة فارغة" subtitle="ستظهر مهام الطباعة بعد حفظ طلب أو طباعة يدوية" />
-        </AppCard>
+        </MadarSurface>
       ) : null}
     </AppScreen>
   );

@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui';
+import { FinancialValue } from '@/components/madar';
 import { PosOrderModeToggle } from '@/components/pos/PosOrderModeToggle';
-import { AppEmptyState } from '@/components/feedback';
-import { flexRow, rtlDirection, textLtr, textStart } from '@/constants/layout';
+import { AppEmptyState, useAppDialog } from '@/components/feedback';
+import { flexRow, rtlDirection, textLtr, textStart, appWritingDirection } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
@@ -83,8 +84,8 @@ function PosCartIconBtn({
   const c = useColors();
   const dim = size === 'lg' ? 44 : 40;
   const iconSize = size === 'lg' ? 22 : 20;
-  const bg = tone === 'danger' ? c.softDanger : tone === 'accent' ? c.accentSoft : c.surfaceMuted;
-  const border = tone === 'danger' ? c.softDangerBorder : tone === 'accent' ? c.accentBorder : c.borderSubtle;
+  const bg = c.surface;
+  const border = tone === 'danger' ? c.danger : tone === 'accent' ? c.accent : c.border;
   const iconColor = tone === 'danger' ? c.danger : tone === 'accent' ? c.accent : c.text;
 
   return (
@@ -112,7 +113,7 @@ function PosCartIconBtn({
   );
 }
 
-export function PosOrderPanel({
+export function PosOrderPanelInner({
   cart,
   effectiveTotal,
   subtotal,
@@ -147,6 +148,7 @@ export function PosOrderPanel({
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const c = useColors();
   const styles = useMemo(() => createStyles(c, isTablet), [c, isTablet]);
+  const dialog = useAppDialog();
 
   const showKitchenPrint = Boolean(onPrintKitchen) && kitchenPrintEnabled;
   const showTableInvoice = Boolean(onPrintTableInvoice) && Boolean(selectedTableId);
@@ -154,10 +156,18 @@ export function PosOrderPanel({
 
   const handleClearCart = () => {
     if (cart.length === 0) return;
-    Alert.alert('مسح السلة', 'هل تريد مسح جميع الأصناف من السلة؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'مسح', style: 'destructive', onPress: onClearCart },
-    ]);
+    void dialog
+      .confirm({
+        title: 'مسح السلة',
+        message: 'هل تريد مسح جميع الأصناف من السلة؟',
+        confirmLabel: 'مسح',
+        cancelLabel: 'إلغاء',
+        tone: 'danger',
+        icon: 'delete-outline',
+      })
+      .then((ok) => {
+        if (ok) onClearCart();
+      });
   };
 
   return (
@@ -305,7 +315,7 @@ export function PosOrderPanel({
           ) : null}
           <View style={styles.totalHighlight}>
             <Text style={styles.totalLabel}>الإجمالي</Text>
-            <Text style={styles.totalValue}>{money(effectiveTotal)}</Text>
+            <FinancialValue amount={effectiveTotal} currency="ج.م" level="large" />
           </View>
         </View>
         <View style={styles.checkoutRow}>
@@ -372,6 +382,8 @@ export function PosOrderPanel({
   );
 }
 
+export const PosOrderPanel = React.memo(PosOrderPanelInner);
+
 function createStyles(c: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     panel: {
@@ -432,17 +444,17 @@ function createStyles(c: AppColors, isTablet: boolean) {
       gap: 4,
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
-      borderRadius: radius.md,
-      backgroundColor: c.softPrimary,
+      borderRadius: radius.control,
+      backgroundColor: c.surface,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: c.softPrimaryBorder,
+      borderColor: c.border,
     },
     itemCountText: {
-      color: c.primary,
+      color: c.text,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
       fontSize: typography.small,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     customerChip: {
       ...flexRow,
@@ -452,8 +464,8 @@ function createStyles(c: AppColors, isTablet: boolean) {
       maxWidth: '100%',
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
-      borderRadius: radius.md,
-      backgroundColor: c.surfaceMuted,
+      borderRadius: radius.control,
+      backgroundColor: c.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
     },
@@ -561,7 +573,7 @@ function createStyles(c: AppColors, isTablet: boolean) {
       fontSize: typography.body,
       fontFamily: fonts.bold,
       fontWeight: '700',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     feeLabel: {
       ...textStart,
@@ -575,7 +587,7 @@ function createStyles(c: AppColors, isTablet: boolean) {
       fontSize: typography.small,
       fontFamily: fonts.bold,
       fontWeight: '700',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     totalHighlight: {
       ...flexRow,
@@ -593,21 +605,23 @@ function createStyles(c: AppColors, isTablet: boolean) {
       fontSize: typography.body,
       fontFamily: fonts.bold,
       fontWeight: '700',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     totalValue: {
       color: c.primary,
       fontSize: isTablet ? typography.posTotal : typography.sectionTitle,
       fontFamily: fonts.extraBold,
       fontWeight: '800',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
       letterSpacing: -0.4,
     },
     alertDanger: {
       ...flexRow,
       gap: spacing.sm,
-      backgroundColor: c.softDanger,
-      borderRadius: radius.md,
+      backgroundColor: c.surface,
+      borderRadius: radius.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.danger,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       marginHorizontal: spacing.md,
@@ -615,8 +629,10 @@ function createStyles(c: AppColors, isTablet: boolean) {
     },
     alertDangerText: { ...textStart, color: c.danger, fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700', flex: 1 },
     alertInfo: {
-      backgroundColor: c.softInfo,
-      borderRadius: radius.md,
+      backgroundColor: c.surface,
+      borderRadius: radius.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.info,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       marginHorizontal: spacing.md,

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
+import { AttentionBand, MadarSurface } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 
@@ -10,8 +10,11 @@ export function BackupInfoScreen({ navigation }: { navigation: any }) {
   const c = useColors();
   return (
     <AppScreen title="النسخ الاحتياطي" onBack={navigation.goBack}>
-      <AppCard>
-        <AppSectionHeader title="متاح على الويب فقط" />
+      <AttentionBand
+        title="قيود الأمان"
+        items={[{ id: 'web', title: 'متاح على الويب فقط', detail: 'عملية إدارية عالية المخاطر تتطلب سطح مكتب.', tone: 'warning' }]}
+      />
+      <MadarSurface>
         <View style={{ gap: spacing.md }}>
           <Text style={{ color: c.text, lineHeight: 22 }}>
             عمليات النسخ الاحتياطي واستعادة قاعدة البيانات عملية إدارية عالية المخاطر. لا يوجد على الجوال سير
@@ -22,7 +25,7 @@ export function BackupInfoScreen({ navigation }: { navigation: any }) {
             موثّق.
           </Text>
         </View>
-      </AppCard>
+      </MadarSurface>
     </AppScreen>
   );
 }

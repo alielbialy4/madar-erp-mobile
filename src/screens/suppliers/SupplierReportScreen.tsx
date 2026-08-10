@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { suppliersAPI } from '@/api/suppliers';
+import { ScrollView, View } from 'react-native';import { suppliersAPI } from '@/api/suppliers';
 import { supplierPaymentsAPI } from '@/api/supplierPayments';
 import { purchasesAPI } from '@/api/purchases';
 import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect, AppStatCard } from '@/components/ui';
-import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { AppBadge, AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
+import { MadarSection, MadarSurface, MetricBlock, QuickActionBar } from '@/components/madar';
+import { AppErrorState, AppLoadingState, ConfirmDialog, useToast } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money, dateText, asText } from '@/utils/format';
@@ -35,6 +35,7 @@ export function SupplierReportScreen({ route, navigation }: { route: any; naviga
 }
 
 function SupplierReport({ id, name, navigation }: { id: number; name?: string; navigation: any }) {
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const canPay = hasPermission(user, 'manage_supplier_payments');
 
@@ -180,7 +181,7 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
       }
       setSheetMode(null);
       setConfirmOpen(false);
-      Alert.alert('تم', 'تمت العملية بنجاح');
+      toast.success('تمت العملية بنجاح');
       await loadReport();
     } catch (err) {
       setSheetError(normalizeApiError(err).message);
@@ -228,36 +229,30 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
     >
       <ScrollView contentContainerStyle={{ gap: spacing.lg, paddingBottom: spacing.xxl }}>
         <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.md }}>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="إجمالي المشتريات" value={money(summary?.total_purchases ?? 0)} />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="سندات الصرف" value={money(summary?.total_payments ?? 0)} tone="success" />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="التسويات" value={money(summary?.total_credit_allocations ?? 0)} tone="info" />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="الرصيد الحالي" value={money(currentBalance)} hint={balanceInfo.label_ar} />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="رصيد دائن متاح" value={money(summary?.available_credit ?? 0)} tone="info" />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <AppStatCard label="عدد الفواتير" value={String(summary?.purchases_count ?? 0)} />
-          </View>
+          <MetricBlock label="إجمالي المشتريات" value={money(summary?.total_purchases ?? 0)} level="B" style={{ flex: 1, minWidth: 140 }} />
+          <MetricBlock label="سندات الصرف" value={money(summary?.total_payments ?? 0)} level="B" tone="positive" style={{ flex: 1, minWidth: 140 }} />
+          <MetricBlock label="التسويات" value={money(summary?.total_credit_allocations ?? 0)} level="B" tone="info" style={{ flex: 1, minWidth: 140 }} />
+          <MetricBlock label="الرصيد الحالي" value={money(currentBalance)} hint={balanceInfo.label_ar} level="A" style={{ flex: 1, minWidth: 140 }} />
+          <MetricBlock label="رصيد دائن متاح" value={money(summary?.available_credit ?? 0)} level="B" tone="info" style={{ flex: 1, minWidth: 140 }} />
+          <MetricBlock label="عدد الفواتير" value={String(summary?.purchases_count ?? 0)} level="C" style={{ flex: 1, minWidth: 140 }} />
         </View>
 
         {canPay ? (
-          <AppCard>
-            <AppSectionHeader title="إجراءات" />
-            <AppButton title="دفع من الخزنة" onPress={() => void openSheet('vault')} />
-            <AppButton title="كشف حساب" variant="secondary" onPress={() => navigation.navigate('SupplierStatement', { id, name: supplier?.name ?? name })} />
-          </AppCard>
+          <QuickActionBar
+            actions={[
+              { id: 'vault', label: 'دفع من الخزنة', icon: 'account-balance-wallet', onPress: () => void openSheet('vault'), tone: 'accent' },
+              {
+                id: 'statement',
+                label: 'كشف حساب',
+                icon: 'document',
+                onPress: () => navigation.navigate('SupplierStatement', { id, name: supplier?.name ?? name }),
+              },
+            ]}
+          />
         ) : null}
 
-        <AppCard>
-          <AppSectionHeader title="فواتير الشراء" />
+        <MadarSection title="فواتير الشراء">
+          <MadarSurface padded={false}>
           {purchases.length === 0 ? (
             <AppListItem title="لا توجد فواتير شراء" showChevron={false} />
           ) : purchases.map((purchase, index) => {
@@ -296,10 +291,11 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
               </View>
             );
           })}
-        </AppCard>
+          </MadarSurface>
+        </MadarSection>
 
-        <AppCard>
-          <AppSectionHeader title="سجل المدفوعات" />
+        <MadarSection title="سجل المدفوعات">
+          <MadarSurface padded={false}>
           {payments.length === 0 ? (
             <AppListItem title="لا توجد مدفوعات مسجلة" showChevron={false} />
           ) : payments.map((payment, index) => (
@@ -317,7 +313,8 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
               showChevron={false}
             />
           ))}
-        </AppCard>
+          </MadarSurface>
+        </MadarSection>
       </ScrollView>
 
       <AppBottomSheet visible={!!sheetMode} onClose={() => setSheetMode(null)}>

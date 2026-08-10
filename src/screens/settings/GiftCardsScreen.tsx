@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppInput } from '@/components/ui';
+import { AppButton, AppInput } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { FinancialRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { giftCardsAPI } from '@/api/giftCards';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -101,12 +103,12 @@ export function GiftCardsScreen({ navigation }: { navigation: any }) {
         onEmptyCta={canManage ? () => setCreateOpen(true) : undefined}
         keyExtractor={(item, i) => String(item.id ?? i)}
         renderItem={({ item }) => (
-          <AppDomainCard
-            title={asText(item.code)}
-            subtitle={`${money(item.remaining_balance ?? 0)} / ${money(item.initial_balance ?? 0)}`}
-            badgeLabel={String(item.status ?? '—')}
-            badgeTone={item.status === 'active' ? 'success' : 'danger'}
-            leadingIcon="card-giftcard"
+          <FinancialRow
+            primary={asText(item.code)}
+            secondary={`${money(item.remaining_balance ?? 0)} / ${money(item.initial_balance ?? 0)}`}
+            amount={Number(item.remaining_balance ?? 0)}
+            currency="ج.م"
+            status={<AppBadge label={String(item.status ?? '—')} tone={item.status === 'active' ? 'success' : 'danger'} />}
             onPress={() => navigation.navigate('GiftCardDetail', { id: String(item.id) })}
           />
         )}

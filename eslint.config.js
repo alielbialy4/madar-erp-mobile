@@ -19,6 +19,18 @@ module.exports = [
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'react/display-name': 'off',
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react-native',
+              importNames: ['Alert'],
+              message: 'Use useAppDialog()/appDialog for confirms or useToast for ephemeral feedback instead of Alert.alert.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

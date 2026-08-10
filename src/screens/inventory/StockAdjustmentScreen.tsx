@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { View } from 'react-native';import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { inventoryAPI } from '@/api/inventory';
 import { AppScreen, FormScreenLayout } from '@/components/layout';
 import { FormSection } from '@/components/forms/FormSection';
@@ -11,7 +10,7 @@ import { stockCountLineKey } from '@/services/inventory/stockCountLines';
 import type { InventoryLotSelection } from '@/services/inventory/inventoryLots';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
-import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppBanner, ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState, useToast } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { createInventoryUiStyles } from '@/components/inventory/inventoryUiStyles';
@@ -34,6 +33,7 @@ type AdjustmentItem = {
 };
 
 export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
+  const toast = useToast();
   const c = useColors();
   const ui = useMemo(() => createInventoryUiStyles(c), [c]);
   const [warehouses, setWarehouses] = useState<SelectOption[]>([]);
@@ -140,13 +140,13 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
       const id = (res as { data?: { id?: string | number }; id?: string | number })?.data?.id ?? (res as { id?: string | number })?.id;
       if (id) {
         setCreatedId(String(id));
-        Alert.alert('تم بنجاح', 'تم إنشاء تسوية المخزون — يمكنك ترحيلها الآن');
+        toast.success('تم إنشاء تسوية المخزون — يمكنك ترحيلها الآن');
       } else {
-        Alert.alert('تم بنجاح', 'تم إنشاء تسوية المخزون');
+        toast.success('تم إنشاء تسوية المخزون');
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }
@@ -157,10 +157,10 @@ export function StockAdjustmentScreen({ navigation }: { navigation: Nav }) {
     setSubmitting(true);
     try {
       await inventoryAPI.postStockAdjustment(createdId!);
-      Alert.alert('تم بنجاح', 'تم ترحيل تسوية المخزون');
+      toast.success('تم ترحيل تسوية المخزون');
       navigation.goBack();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }

@@ -1,17 +1,13 @@
 import type { PrinterProfile } from '@/types/printing';
-import type { ReceiptPrintMode } from '@/utils/branchPrintSettings';
-import { DEFAULT_RECEIPT_PRINT_MODE } from '@/utils/branchPrintSettings';
+import type { ReceiptPrintMode } from '@/utils/receiptPrintMode';
 import { THERMAL_ARABIC_SELF_TEST_TABLE } from './codePageTables';
 import { usesRasterEncoding } from './printPathUtils';
 
 export type { ReceiptPrintMode };
+export { DEFAULT_RECEIPT_PRINT_MODE, normalizeReceiptPrintMode } from '@/utils/receiptPrintMode';
 
 export function coerceReceiptPrintMode(mode: ReceiptPrintMode): ReceiptPrintMode {
   return mode;
-}
-
-export function normalizeReceiptPrintMode(raw: unknown): ReceiptPrintMode {
-  return raw === 'fast_text' ? 'fast_text' : DEFAULT_RECEIPT_PRINT_MODE;
 }
 
 /** Applies branch speed mode to the cashier profile used for buffer building. */

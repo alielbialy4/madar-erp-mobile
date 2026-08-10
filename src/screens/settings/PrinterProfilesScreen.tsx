@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { ListScreenLayout } from '@/components/layout';
-import { AppDomainCard, AppSwipeRow, AppText as Text } from '@/components/ui';
+import { AppSwipeRow, AppText as Text } from '@/components/ui';
+import { DenseRow } from '@/components/madar';
+import { AppBadge } from '@/components/ui/AppBadge';
 import { ResourceList } from '@/components/lists';
 import { roleLabel, connectionLabel } from '@/constants/printerFormOptions';
 import {
@@ -95,12 +97,10 @@ export function PrinterProfilesScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const card = (
-            <AppDomainCard
-              title={item.name}
-              subtitle={`${roleLabel(item.role)} · ${connectionLabel(item.connection_type)} · ${item.paper_width}${item.ip ? ` · ${item.ip}:${item.port}` : ''}`}
-              badgeLabel={item.enabled ? undefined : 'معطّلة'}
-              badgeTone={item.enabled ? undefined : 'warning'}
-              leadingIcon="print"
+            <DenseRow
+              primary={item.name}
+              secondary={`${roleLabel(item.role)} · ${connectionLabel(item.connection_type)} · ${item.paper_width}${item.ip ? ` · ${item.ip}:${item.port}` : ''}`}
+              status={item.enabled ? undefined : <AppBadge label="معطّلة" tone="warning" />}
               onPress={() => navigation.navigate('PrinterProfileForm', { id: item.id, branchId })}
             />
           );

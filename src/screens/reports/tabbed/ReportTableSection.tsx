@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { AppButton, AppCard, AppText } from '@/components/ui';
+import { AppButton, AppText } from '@/components/ui';
+import { MadarSurface } from '@/components/madar';
 import { AppEmptyState, AppLoadingState } from '@/components/feedback';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
@@ -57,7 +58,7 @@ export function ReportTableSection({
       {rows.map((row, index) => {
         const seq = (page - 1) * perPage + index + 1;
         return (
-          <AppCard key={String(row.id ?? row.product_id ?? `${page}-${index}`)} style={{ gap: spacing.sm }}>
+          <MadarSurface key={String(row.id ?? row.product_id ?? `${page}-${index}`)} style={{ gap: spacing.sm }}>
             <View style={{ ...flexRow, justifyContent: 'space-between' }}>
               <AppText style={{ color: c.textMuted, ...textLtr }}>#{seq}</AppText>
             </View>
@@ -69,7 +70,7 @@ export function ReportTableSection({
                 </View>
               </View>
             ))}
-          </AppCard>
+          </MadarSurface>
         );
       })}
       {total > perPage ? (

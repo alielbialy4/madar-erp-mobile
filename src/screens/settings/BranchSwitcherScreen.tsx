@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppButton, AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppEmptyState } from '@/components/feedback';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -36,8 +37,8 @@ export function BranchSwitcherScreen({ onDone }: { onDone?: () => void }) {
   return (
     <AppScreen title="اختيار الفرع" subtitle="حدد سياق العمل قبل العمليات الحساسة" refreshing={loading} onRefresh={loadBranches}>
       {error ? <AppBadge label={error} tone="danger" /> : null}
-      <AppCard style={styles.card}>
-        <AppSectionHeader title="الفروع المتاحة" />
+      <MadarSection title="الفروع المتاحة">
+        <MadarSurface style={styles.card} padded={false}>
         {branches.length === 0 ? <AppEmptyState title="لا توجد فروع متاحة" message="تأكد من صلاحيات المستخدم أو إعدادات الفروع." /> : null}
         {branches.map((branch) => (
           <AppListItem
@@ -48,7 +49,8 @@ export function BranchSwitcherScreen({ onDone }: { onDone?: () => void }) {
             onPress={() => handleSwitch(branch.id)}
           />
         ))}
-      </AppCard>
+        </MadarSurface>
+      </MadarSection>
       {canUseGlobalView(user) ? (
         <AppButton title="التحويل إلى العرض العام" variant="secondary" onPress={() => handleSwitch(null)} />
       ) : null}

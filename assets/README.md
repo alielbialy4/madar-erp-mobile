@@ -1,16 +1,24 @@
 # Mobile app assets
 
-Placeholder PNGs in this folder were generated for development and internal testing (`node scripts/generate-placeholder-assets.mjs`).
+Brand artwork is generated from the Madar logo (`front/public/logo.png`) via:
 
-In-app branding:
+```bash
+python3 scripts/generate-brand-assets.py
+```
 
-- `logo.png` — Madar logo (same file as web `front/public/logo.png`)
+That script writes:
 
-Before App Store / Play Store submission, replace:
-
-- `icon.png` — 1024×1024 app icon
-- `splash.png` — splash screen (recommended 1284×2778 or platform-specific)
-- `adaptive-icon.png` — Android adaptive foreground (1024×1024)
+- `logo.png` — transparent-background Madar mark for in-app `BrandLogo`
+- `icon.png` — 1024×1024 launcher icon (white mark on `#0F172A`)
+- `adaptive-icon.png` — Android adaptive foreground (safe-zone mark)
+- `splash.png` — splash screen with centered Madar mark
 - `favicon.png` — web favicon
+- Android `mipmap-*` / splash drawables and iOS `AppIcon`
 
-Brand colors used in placeholders: primary `#8B5CF6`, background `#1E1B4B`.
+After regenerating icons, rebuild the native app so the home-screen icon updates:
+
+```bash
+npx expo run:android --device
+# or
+npx expo run:ios
+```

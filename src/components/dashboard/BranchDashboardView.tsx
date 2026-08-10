@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { AppErrorState } from '@/components/feedback';
+import { AttentionBand, MadarSection, MetricBlock } from '@/components/madar';
 import { DashboardHero } from './DashboardHero';
-import { DashboardKpiCard } from './DashboardKpiCard';
 import { DashboardScopePill } from './DashboardScopePill';
 import { RevenueTrendChart } from './RevenueTrendChart';
 import { DashboardListCard } from './DashboardListCard';
@@ -13,7 +13,8 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import { createDashboardStyles } from './dashboardStyles';
 import { useColors } from '@/hooks/useColors';
 import { money, numberText } from '@/utils/format';
-import { Text } from '@/components/ui/AppText';
+import { flexRow } from '@/constants/layout';
+import { spacing } from '@/constants/spacing';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 
@@ -85,6 +86,8 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
   const revenue = Number(kpis.today_revenue ?? 0) || 0;
   const avgOrder = salesCount ? revenue / salesCount : 0;
   const monthRev = Number(kpis.month_revenue ?? 0);
+  const activeTables = Number((dining as { active_tables?: number }).active_tables ?? 0);
+  const totalTables = Number((dining as { total_tables?: number }).total_tables ?? 0);
 
   const scopeBadges = (
     <>
@@ -103,25 +106,79 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
   );
 
   const navigateShifts = () => navigation.navigate('MoreTab', { screen: 'ShiftManagement' });
+  const navigateProducts = () => navigation.navigate('ProductsTab');
+
+  const attentionItems = [
+    !shift
+      ? {
+          id: 'no-shift',
+          title: 'لا توجد وردية مفتوحة',
+          detail: 'افتح وردية قبل متابعة عمليات نقاط البيع.',
+          tone: 'warning' as const,
+          onPress: navigateShifts,
+        }
+      : null,
+    lowStock.length > 0
+      ? {
+          id: 'low-stock',
+          title: `${numberText(lowStock.length)} منتج بمخزون منخفض`,
+          detail: 'راجع حدود التنبيه قبل نفاد المخزون.',
+          tone: 'warning' as const,
+          onPress: navigateProducts,
+        }
+      : null,
+    totalTables > 0 && activeTables / totalTables >= 0.85
+      ? {
+          id: 'dining-pressure',
+          title: 'قاعة شبه ممتلئة',
+          detail: `${numberText(activeTables)} / ${numberText(totalTables)} طاولة نشطة`,
+          tone: 'info' as const,
+        }
+      : null,
+  ].filter(Boolean) as {
+    id: string;
+    title: string;
+    detail?: string;
+    tone?: 'warning' | 'danger' | 'info';
+    onPress?: () => void;
+  }[];
 
   return (
     <View style={ds.page}>
       <DashboardHero
         title="لوحة تشغيل الفرع"
-        subtitle="مبيعات اليوم، الوردية، والتنبيهات — كل ما تحتاجه في شاشة واحدة."
+        subtitle="إيراد اليوم أولاً — ثم الاستثناءات والوردية والاتجاه."
         scopeBadges={scopeBadges}
         lastUpdatedLabel={shell.lastUpdatedLabel}
         isLoading={shell.isLoading}
         onRefresh={shell.onRefresh}
       />
 
-      <Text style={ds.sectionLabel}>مؤشرات اليوم</Text>
-      <View style={ds.kpiGridPrimary}>
-        <DashboardKpiCard label="إيرادات اليوم" value={money(revenue)} hint={`${numberText(salesCount)} عملية`} icon="wallet" tone="success" index={0} />
-        <DashboardKpiCard label="مبيعات اليوم" value={numberText(salesCount)} icon="storefront" tone="accent" index={1} />
-        <DashboardKpiCard label="متوسط الطلب" value={money(avgOrder)} icon="sell" tone="info" index={2} />
-        <DashboardKpiCard label="إيرادات الشهر" value={money(monthRev)} icon="calendar-blank" tone="neutral" index={3} />
-      </View>
+      <MadarSection title="نبض اليوم">
+        <MetricBlock
+          label="إيرادات اليوم"
+          value={money(revenue)}
+          hint={`${numberText(salesCount)} عملية · متوسط ${money(avgOrder)}`}
+          level="A"
+          tone="positive"
+        />
+        <View style={styles.secondaryRow}>
+          <MetricBlock
+            label="مبيعات اليوم"
+            value={numberText(salesCount)}
+            level="C"
+            style={styles.secondaryMetric}
+          />
+          <MetricBlock
+            label="إيرادات الشهر"
+            value={money(monthRev)}
+            level="C"
+            style={styles.secondaryMetric}
+          />
+        </View>
+      </MadarSection>
+
+      <AttentionBand items={attentionItems} />
 
       <View style={isTablet ? ds.widgetGridTablet : ds.widgetStack}>
         <View style={isTablet ? ds.widgetMain : undefined}>
@@ -200,3 +257,13 @@ export function BranchDashboardView({ data, loading, error, shell, navigation, o
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  secondaryRow: {
+    ...flexRow,
+    gap: spacing.md,
+  },
+  secondaryMetric: {
+    flex: 1,
+  },
+});

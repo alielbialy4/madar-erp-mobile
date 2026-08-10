@@ -5,7 +5,8 @@ import type { RouteProp } from '@react-navigation/native';
 import { inventoryAPI } from '@/api/inventory';
 import { productsAPI } from '@/api/products';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface, MetricBlock } from '@/components/madar';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractArray, extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
@@ -59,29 +60,26 @@ export function StockBalanceDetailScreen({ navigation, route }: { navigation: Na
       {error ? <AppErrorState message={error} onRetry={() => void load()} /> : null}
       {!error ? (
         <View style={{ gap: spacing.lg }}>
-          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.md }}>
-            <View style={{ flex: 1, minWidth: 140 }}>
-              <AppStatCard label="إجمالي الكمية" value={numberText(totalQty)} />
-            </View>
-            <View style={{ flex: 1, minWidth: 140 }}>
-              <AppStatCard label="سعر البيع" value={money(product?.selling_price ?? 0)} />
-            </View>
+          <View style={{ ...flexRow, gap: spacing.md }}>
+            <MetricBlock label="إجمالي الكمية" value={numberText(totalQty)} level="B" style={{ flex: 1 }} />
+            <MetricBlock label="سعر البيع" value={money(product?.selling_price ?? 0)} level="B" style={{ flex: 1 }} />
           </View>
-          <AppCard>
-            <AppSectionHeader title="أرصدة حسب المخزن" />
-            {balances.length ? (
-              balances.map((b, i) => (
-                <AppListItem
-                  key={String(b.id ?? i)}
-                  title={asText(b.warehouse_name ?? (b.warehouse as Record<string, unknown>)?.name, 'مخزن')}
-                  subtitle={b.batch_number ? `دفعة: ${String(b.batch_number)}` : undefined}
-                  meta={numberText(b.quantity)}
-                />
-              ))
-            ) : (
-              <AppEmptyState title="لا يوجد رصيد لهذا المنتج" />
-            )}
-          </AppCard>
+          <MadarSection title="أرصدة حسب المخزن">
+            <MadarSurface padded={false}>
+              {balances.length ? (
+                balances.map((b, i) => (
+                  <AppListItem
+                    key={String(b.id ?? i)}
+                    title={asText(b.warehouse_name ?? (b.warehouse as Record<string, unknown>)?.name, 'مخزن')}
+                    subtitle={b.batch_number ? `دفعة: ${String(b.batch_number)}` : undefined}
+                    meta={numberText(b.quantity)}
+                  />
+                ))
+              ) : (
+                <AppEmptyState title="لا يوجد رصيد لهذا المنتج" />
+              )}
+            </MadarSurface>
+          </MadarSection>
         </View>
       ) : null}
     </AppScreen>

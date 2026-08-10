@@ -9,6 +9,7 @@ import type { PaperWidth, ShiftCloseReportPayload } from '@/types/printing';
 import { shiftClosePrintLabels } from '@/constants/printLabels';
 import { thermalPaddingPx } from '@/constants/printThermalLayout';
 import { fonts } from '@/constants/fonts';
+import { appContentDirection, appTextAlignStart, appTextAlignEnd } from '@/constants/layout';
 
 type Props = {
   payload: ShiftCloseReportPayload;
@@ -89,14 +90,14 @@ export function ShiftClosePrintContent({ payload, paperWidth, fontSizePx }: Prop
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: designColors.white, direction: 'rtl' },
+  root: { backgroundColor: designColors.white, direction: appContentDirection.direction },
   title: { textAlign: 'center', color: designColors.black, fontWeight: '900', marginBottom: 4 },
   subtitle: { textAlign: 'center', color: designColors.black, fontWeight: '700' },
-  meta: { color: designColors.black, textAlign: 'right', marginBottom: 2 },
+  meta: { color: designColors.black, textAlign: appTextAlignStart, marginBottom: 2 },
   section: { marginBottom: 6 },
   lineItem: { marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: designColors.grayBorder, paddingBottom: 2 },
   linePrimary: { color: designColors.black, fontWeight: '700' },
   lineSecondary: { color: designColors.darkSoft },
-  lineAmount: { color: designColors.black, textAlign: 'left', fontWeight: '900' },
+  lineAmount: { color: designColors.black, textAlign: appTextAlignEnd, fontWeight: '900' },
   dev: { color: designColors.darkMuted, textAlign: 'center', marginTop: 8 },
 });

@@ -1,14 +1,11 @@
 import React from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { AppText } from '@/components/ui/AppText';
+import { MetricBlock } from '@/components/madar';
 import type { ReportDefinition } from '@/reports/types';
 import { money, numberText, asText } from '@/utils/format';
 import { metricValue } from '@/utils/reportNormalizers';
-import { flexRow, textStart } from '@/constants/layout';
-import { radius, spacing } from '@/constants/spacing';
-import { fonts } from '@/constants/fonts';
-import { typography } from '@/constants/typography';
-import { useColors } from '@/hooks/useColors';
+import { flexRow } from '@/constants/layout';
+import { spacing } from '@/constants/spacing';
 
 type Props = { definition: ReportDefinition; metrics: Record<string, unknown> };
 
@@ -23,52 +20,55 @@ function formatMetric(value: unknown, format?: string): string {
   return asText(value, '0');
 }
 
+function toneFor(
+  tone?: string,
+): 'neutral' | 'positive' | 'negative' | 'warning' | 'info' {
+  if (tone === 'danger') return 'negative';
+  if (tone === 'warning') return 'warning';
+  if (tone === 'success') return 'positive';
+  if (tone === 'info') return 'info';
+  return 'neutral';
+}
+
 export function ReportSummaryCards({ definition, metrics }: Props) {
-  const c = useColors();
   const { width } = useWindowDimensions();
   const columns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
   if (!definition.metrics.length) return null;
 
+  const primary = definition.metrics[0];
+  const rest = definition.metrics.slice(1);
+
   return (
-    <View style={[styles.surface, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}> 
-      {definition.metrics.map((metric, index) => {
-        const row = Math.floor(index / columns);
-        const col = index % columns;
-        const rows = Math.ceil(definition.metrics.length / columns);
-        const spansRow = columns === 2 && definition.metrics.length % 2 === 1 && index === definition.metrics.length - 1;
-        const toneColor = metric.tone === 'danger'
-          ? c.danger
-          : metric.tone === 'warning'
-            ? c.warning
-            : metric.tone === 'success'
-              ? c.success
-              : metric.tone === 'info'
-                ? c.info
-                : c.text;
-        return (
-          <View
-            key={metric.key}
-            style={[
-              styles.cell,
-              { width: spansRow ? '100%' : `${100 / columns}%` },
-              col > 0 && { borderStartColor: c.borderSubtle, borderStartWidth: StyleSheet.hairlineWidth },
-              row < rows - 1 && { borderBottomColor: c.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-            ]}
-          >
-            <AppText style={[styles.label, { color: c.textMuted }]} numberOfLines={2}>{metric.label}</AppText>
-            <AppText style={[styles.value, { color: toneColor }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatMetric(metricValue(metrics, metric.key), metric.format)}
-            </AppText>
-          </View>
-        );
-      })}
+    <View style={styles.root}>
+      <MetricBlock
+        label={primary.label}
+        value={formatMetric(metricValue(metrics, primary.key), primary.format)}
+        level="A"
+        tone={toneFor(primary.tone)}
+      />
+      {rest.length ? (
+        <View style={styles.grid}>
+          {rest.map((metric) => (
+            <MetricBlock
+              key={metric.key}
+              label={metric.label}
+              value={formatMetric(metricValue(metrics, metric.key), metric.format)}
+              level="C"
+              tone={toneFor(metric.tone)}
+              style={{ width: columns >= 3 ? `${100 / Math.min(columns, rest.length)}%` : '48%', flexGrow: 1 }}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  surface: { ...flexRow, flexWrap: 'wrap', borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, overflow: 'hidden' },
-  cell: { minHeight: 82, justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  label: { ...textStart, fontFamily: fonts.medium, fontSize: typography.caption, lineHeight: 16 },
-  value: { ...textStart, fontFamily: fonts.extraBold, fontSize: 22, lineHeight: 28 },
+  root: { gap: spacing.md },
+  grid: {
+    ...flexRow,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
 });

@@ -1,18 +1,19 @@
 import React from 'react';
-import { View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { AppText } from '@/components/ui';
 import { flexRow, textStart } from '@/constants/layout';
-import { radius, spacing } from '@/constants/spacing';
+import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
-import { getPaymentMethodStyle } from '@/constants/statusColors';
+import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
 
 type Variant = 'cash' | 'instapay' | 'ewallet';
 
+/** Neutral closing summary row — method identity via label, not rainbow wells. */
 export function ShiftClosingAmountBanner({
   label,
   value,
-  variant,
+  variant: _variant,
   style,
 }: {
   label: string;
@@ -21,24 +22,43 @@ export function ShiftClosingAmountBanner({
   style?: ViewStyle;
 }) {
   const c = useColors();
-  const tone = getPaymentMethodStyle(c, variant);
   return (
     <View
-      style={{
-        ...flexRow,
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: spacing.sm,
-        padding: spacing.md,
-        borderRadius: radius.lg,
-        borderWidth: 1,
-        borderColor: tone.border,
-        backgroundColor: tone.bg,
-        ...style,
-      }}
+      style={[
+        {
+          ...flexRow,
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: c.borderSubtle,
+        },
+        style,
+      ]}
     >
-      <AppText style={{ ...textStart, fontWeight: '800', color: tone.fg, flex: 1 }}>{label}</AppText>
-      <AppText style={{ fontWeight: '900', fontSize: typography.h3, color: tone.fg }}>{value}</AppText>
+      <AppText
+        style={{
+          ...textStart,
+          fontFamily: fonts.medium,
+          fontWeight: '600',
+          color: c.textMuted,
+          flex: 1,
+          fontSize: typography.rowSecondary,
+        }}
+      >
+        {label}
+      </AppText>
+      <AppText
+        style={{
+          fontFamily: fonts.bold,
+          fontWeight: '700',
+          fontSize: typography.rowPrimary,
+          color: c.text,
+        }}
+      >
+        {value}
+      </AppText>
     </View>
   );
 }

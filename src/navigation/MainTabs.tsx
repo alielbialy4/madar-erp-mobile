@@ -9,6 +9,7 @@ import { MoreStack } from './MoreStack';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PersistentTabletSidebar } from '@/components/layout/PersistentTabletSidebar';
 import { Navbar } from '@/components/layout/Navbar';
+import { ImmersiveExitChip } from '@/components/layout/header';
 import { PremiumBottomNav } from '@/components/navigation/PremiumBottomNav';
 import { CommandPalette } from '@/components/navigation/CommandPalette';
 import { navigateSidebarAction } from './sidebarNavigation';
@@ -28,6 +29,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useImmersiveStore } from '@/store/immersiveStore';
+import { useLocaleStore } from '@/store/localeStore';
 import { hasFeature, hasPermission } from '@/utils/permissions';
 import type { MainTabParamList } from '@/types/navigation';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -45,6 +48,7 @@ export function MainTabs() {
   const sceneBottomPad = isTablet ? 0 : BOTTOM_NAV_HEIGHT + TAB_BAR_FLOAT_GAP + Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET);
   const user = useAuthStore((s) => s.user);
   const viewMode = useBranchStore((s) => s.viewMode);
+  const language = useLocaleStore((s) => s.language);
   const isSuperAdmin = Boolean(user?.is_super_admin);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,7 +59,9 @@ export function MainTabs() {
   const tabNavigationRef = useRef<BottomTabNavigationProp<MainTabParamList> | null>(null);
 
   const posFullscreen = isPosFullscreen(activeTab);
-  const showTabletSidebar = isTablet && !posFullscreen && !tabletSidebarCollapsed;
+  const immersive = useImmersiveStore((s) => s.enabled);
+  const hideNavbar = posFullscreen || immersive;
+  const showTabletSidebar = isTablet && !posFullscreen && !immersive && !tabletSidebarCollapsed;
 
   useEffect(() => {
     return registerScopeResetListener(() => {
@@ -74,7 +80,7 @@ export function MainTabs() {
 
   const menu = useMemo(
     () => buildMobileSidebarMenu(isSuperAdmin, (perm) => hasPermission(user, perm), viewMode, (feature) => hasFeature(user, feature)),
-    [isSuperAdmin, user, viewMode],
+    [isSuperAdmin, user, viewMode, language],
   );
 
   const catalog = useMemo(() => flattenNavCatalog(menu), [menu]);
@@ -121,8 +127,11 @@ export function MainTabs() {
         }
       },
       openCommandPalette: () => setCommandOpen(true),
+      navigate: (action: SidebarNavAction) => {
+        handleSidebarNavigate(action);
+      },
     }),
-    [isTablet],
+    [handleSidebarNavigate, isTablet],
   );
 
   const handleMenuPress = React.useCallback(() => {
@@ -139,11 +148,12 @@ export function MainTabs() {
       <View style={[styles.shell, { backgroundColor: c.background }]}>
         <View style={showTabletSidebar ? styles.tabletShellRow : styles.mainRow}>
           <View style={[styles.mainContent, showTabletSidebar ? contentAreaRtl : undefined]}>
-            {!posFullscreen ? (
+            {!hideNavbar ? (
               <Navbar
                 onMenuPress={handleMenuPress}
                 onNavigate={handleSidebarNavigate}
                 onOpenCommandPalette={() => setCommandOpen(true)}
+                activeTab={activeTab}
                 menuAccessibilityLabel={
                   isTablet
                     ? tabletSidebarCollapsed
@@ -153,6 +163,7 @@ export function MainTabs() {
                 }
               />
             ) : null}
+            <ImmersiveExitChip />
             <Tab.Navigator
           screenListeners={tabScreenListeners}
           tabBar={isTablet ? () => null : (props) => (
@@ -164,8 +175,11 @@ export function MainTabs() {
             headerShown: false,
             tabBarShowLabel: false,
             tabBarHideOnKeyboard: true,
+            lazy: true,
+            freezeOnBlur: true,
             sceneStyle: { flex: 1, minHeight: 0, paddingBottom: sceneBottomPad },
           }}
+          detachInactiveScreens
         >
           <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ tabBarLabel: 'الرئيسية' }} />
           <Tab.Screen name="POSTab" component={POSStack} options={{ tabBarLabel: 'نقطة البيع' }} />

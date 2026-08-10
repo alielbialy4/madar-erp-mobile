@@ -1,12 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import type { ApiEnvelope, ListParams } from '@/types/api';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
-import { AppDomainCard } from '@/components/ui/AppDomainCard';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { AppText } from '@/components/ui/AppText';
 import { AppSwipeRow } from '@/components/ui/AppSwipeRow';
+import { DenseRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
-import { moduleIcons, type ModuleIconKey } from '@/constants/iconMap';
+import { textStyle } from '@/constants/textStyles';
+import { useColors } from '@/hooks/useColors';
+import { rowHeight } from '@/constants/spacing';
+import type { ModuleIconKey } from '@/constants/iconMap';
 
 const MODULE_EYEBROW: Partial<Record<ModuleIconKey, string>> = {
   delivery: 'العمليات',
@@ -77,11 +82,14 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
   fab,
   swipeActions,
 }: Props<T>) {
+  const c = useColors();
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query);
-  const listParams = useMemo(() => ({ ...(params ?? {}), ...(debounced ? { [searchParam]: debounced } : {}) }), [debounced, params, searchParam]);
+  const listParams = useMemo(
+    () => ({ ...(params ?? {}), ...(debounced ? { [searchParam]: debounced } : {}) }),
+    [debounced, params, searchParam],
+  );
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<T>(loader, listParams);
-
   const stats = heroStats ?? [{ label: 'العناصر', value: items.length }];
 
   return (
@@ -120,25 +128,32 @@ export function ListScreenTemplate<T extends Record<string, unknown>>({
         }}
         renderItem={({ item }) => {
           const badge = itemBadge?.(item);
-          const card = (
-            <AppDomainCard
-              title={itemTitle(item)}
-              subtitle={itemSubtitle?.(item)}
-              meta={itemMeta?.(item)}
-              metric={itemMetric?.(item)}
-              badgeLabel={badge?.label}
-              badgeTone={badge?.tone}
-              leadingIcon={moduleIcon ? moduleIcons[moduleIcon] : undefined}
+          const metric = itemMetric?.(item) ?? itemMeta?.(item);
+          const meta = itemMetric ? itemMeta?.(item) : undefined;
+          const row = (
+            <DenseRow
+              height={rowHeight.operational}
+              primary={itemTitle(item)}
+              secondary={itemSubtitle?.(item)}
+              meta={meta}
+              status={badge ? <AppBadge label={badge.label} tone={badge.tone} /> : undefined}
+              trailing={
+                metric ? (
+                  <AppText numeric translate={false} style={[textStyle('rowPrimary'), { color: c.text }]} numberOfLines={1}>
+                    {metric}
+                  </AppText>
+                ) : undefined
+              }
               onPress={onItemPress ? () => onItemPress(item) : undefined}
             />
           );
           const swipe = swipeActions?.(item);
-          if (!swipe?.edit && !swipe?.delete) return card;
+          if (!swipe?.edit && !swipe?.delete) return row;
           const actions = [
             swipe.edit ? { label: 'تعديل', icon: 'edit' as const, onPress: swipe.edit } : null,
             swipe.delete ? { label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: swipe.delete } : null,
           ].filter(Boolean) as { label: string; icon: 'edit' | 'delete'; tone?: 'danger'; onPress: () => void }[];
-          return <AppSwipeRow rightActions={actions}>{card}</AppSwipeRow>;
+          return <AppSwipeRow rightActions={actions}>{row}</AppSwipeRow>;
         }}
       />
     </ListScreenLayout>

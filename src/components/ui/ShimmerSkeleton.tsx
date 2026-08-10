@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewStyle } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/lib/moti';
 import { useColors } from '@/hooks/useColors';
 import { radius } from '@/constants/spacing';
 

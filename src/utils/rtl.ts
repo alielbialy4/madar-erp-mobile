@@ -1,7 +1,7 @@
 import { APP_IS_RTL } from '@/bootstrap/rtl';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-/** App is Arabic-only — use APP_IS_RTL, not I18nManager.isRTL (false on Expo web). */
+/** App direction follows locale hydrate/reload — use APP_IS_RTL, not live I18nManager flips mid-session. */
 export const isRtl = APP_IS_RTL;
 
 /** Off-screen X inside drawerShellLtr — positive slides panel past the right edge. */
@@ -17,6 +17,10 @@ export function chevronForwardIcon(): keyof typeof MaterialIcons.glyphMap {
   return isRtl ? 'chevron-left' : 'chevron-right';
 }
 
+export function chevronBackwardIcon(): keyof typeof MaterialIcons.glyphMap {
+  return isRtl ? 'chevron-right' : 'chevron-left';
+}
+
 export function backArrowIcon(): keyof typeof MaterialIcons.glyphMap {
   return isRtl ? 'arrow-forward' : 'arrow-back';
 }
@@ -28,6 +32,10 @@ export {
   rootRtl,
   screenRtl,
   rtlDirection,
+  appWritingDirection,
+  appContentDirection,
+  appTextAlignStart,
+  appTextAlignEnd,
   textRtlBase,
   textStart,
   textAlignStart,

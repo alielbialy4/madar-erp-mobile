@@ -8,6 +8,7 @@ import { useColors } from '@/hooks/useColors';
 import { spacing } from '@/constants/spacing';
 import type { Branch, Product } from '@/types/api';
 import type { CartLine } from '@/store/posStore';
+import { appWritingDirection, appTextAlignStart } from '@/constants/layout';
 
 type CategoryItem = { id: string; name: string; image?: string | null };
 
@@ -81,7 +82,7 @@ type Props = {
   cartPanelProps: CartPanelProps;
 };
 
-export function PosTabletScreen({
+export function PosTabletScreenInner({
   shiftLabel,
   hasShift,
   cashierName,
@@ -126,6 +127,10 @@ export function PosTabletScreen({
     setCatalogWidth((prev) => (prev === width ? prev : width));
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    void onRefreshCatalog();
+  }, [onRefreshCatalog]);
+
   return (
     <>
       <PosTabletTopBar
@@ -149,7 +154,19 @@ export function PosTabletScreen({
       </View>
 
       {posNotice ? (
-        <Text style={[styles.noticeText, { color: c.info, backgroundColor: c.softInfo }]}>{posNotice}</Text>
+        <Text
+          style={[
+            styles.noticeText,
+            {
+              color: c.info,
+              backgroundColor: c.surface,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderBottomColor: c.info,
+            },
+          ]}
+        >
+          {posNotice}
+        </Text>
       ) : null}
 
       {!activeBranch ? (
@@ -193,7 +210,7 @@ export function PosTabletScreen({
                 productQuantities={productQuantities}
                 onProductPress={onProductPress}
                 refreshing={catalogRefreshing}
-                onRefresh={() => void onRefreshCatalog()}
+                onRefresh={handleRefresh}
               />
             }
           />
@@ -202,6 +219,8 @@ export function PosTabletScreen({
     </>
   );
 }
+
+export const PosTabletScreen = React.memo(PosTabletScreenInner);
 
 const styles = StyleSheet.create({
   workspace: { flex: 1, minHeight: 0 },
@@ -212,7 +231,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontWeight: '700',
     fontSize: 12,
-    writingDirection: 'rtl',
-    textAlign: 'right',
+    writingDirection: appWritingDirection,
+    textAlign: appTextAlignStart,
   },
 });

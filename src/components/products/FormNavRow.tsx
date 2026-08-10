@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, textStart } from '@/constants/layout';
+import { chevronForwardIcon } from '@/utils/rtl';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -22,7 +23,7 @@ export function FormNavRow({ title, subtitle, onPress, hasError }: Props) {
   return (
     <Pressable onPress={onPress} style={styles.row} accessibilityRole="button">
       <View style={styles.iconWrap}>
-        <MaterialIcons name="chevron-left" size={22} color={c.textMuted} />
+        <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textMuted} />
       </View>
       <View style={styles.textBlock}>
         <Text style={[styles.title, hasError && { color: c.danger }]}>{title}</Text>

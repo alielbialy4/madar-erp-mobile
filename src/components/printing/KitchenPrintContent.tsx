@@ -15,6 +15,7 @@ import type { KitchenTicketPayload, PaperWidth } from '@/types/printing';
 import { kitchenPrintLabels } from '@/constants/printLabels';
 import { thermalPaddingPx } from '@/constants/printThermalLayout';
 import { fonts } from '@/constants/fonts';
+import { appContentDirection } from '@/constants/layout';
 
 type Props = {
   payload: KitchenTicketPayload;
@@ -117,7 +118,7 @@ export function KitchenPrintContent({ payload, paperWidth, fontSizePx }: Props) 
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: designColors.white, direction: 'rtl' },
+  root: { backgroundColor: designColors.white, direction: appContentDirection.direction },
   store: { textAlign: 'center', color: designColors.black, marginBottom: 4 },
   invoiceBlock: { alignItems: 'center', marginVertical: 4 },
   invoiceLabel: { color: designColors.black, fontWeight: '700' },

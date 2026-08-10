@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { settingsAPI } from '@/api/settings';
 import { ListScreenLayout } from '@/components/layout';
-import { AppBadge, AppDomainCard } from '@/components/ui';
+import { AppBadge } from '@/components/ui';
+import { DenseRow } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -72,17 +73,16 @@ export function RolesScreen({ navigation }: { navigation: any }) {
           keyExtractor={(item, i) => String(item.id ?? item.name ?? i)}
           renderItem={({ item }) => (
             <View style={{ gap: spacing.sm }}>
-              <AppDomainCard
-                title={String(item.label ?? item.name ?? item.slug ?? '—')}
-                subtitle={Array.isArray(item.permissions) ? `${item.permissions.length} صلاحية` : String(item.description ?? '')}
-                badgeLabel="قراءة فقط"
-                badgeTone="default"
-                leadingIcon="admin-panel-settings"
+              <DenseRow
+                primary={String(item.label ?? item.name ?? item.slug ?? '—')}
+                secondary={Array.isArray(item.permissions) ? `${item.permissions.length} صلاحية` : String(item.description ?? '')}
+                status={<AppBadge label="قراءة فقط" tone="neutral" />}
+                showDivider={false}
               />
               {Array.isArray(item.permissions) && item.permissions.length > 0 ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.lg }}>
                   {item.permissions.slice(0, 12).map((permission) => (
-                    <AppBadge key={String(permission)} label={String(permission)} tone="default" />
+                    <AppBadge key={String(permission)} label={String(permission)} tone="neutral" />
                   ))}
                   {item.permissions.length > 12 ? <AppBadge label={`+${item.permissions.length - 12}`} tone="info" /> : null}
                 </View>

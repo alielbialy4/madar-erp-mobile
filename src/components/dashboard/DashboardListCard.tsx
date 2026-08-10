@@ -59,7 +59,6 @@ export function DashboardListCard({
         ) : (
           items.slice(0, 8).map((item, index) => {
             const tone = item.iconTone ?? 'neutral';
-            const iconBg = c[tone === 'accent' ? 'softPrimary' : tone === 'success' ? 'softSuccess' : tone === 'warning' ? 'softWarning' : tone === 'danger' ? 'softDanger' : 'surfaceMuted'];
             const iconFg = c[tone === 'accent' ? 'accent' : tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : tone === 'danger' ? 'danger' : 'textMuted'];
             const isLast = index === Math.min(items.length, 8) - 1;
             return (
@@ -67,7 +66,7 @@ export function DashboardListCard({
                 key={item.id}
                 style={[ds.listRow, isLast && { borderBottomWidth: 0 }]}
               >
-                <View style={[ds.listRowIcon, { backgroundColor: iconBg }]}>
+                <View style={[ds.listRowIcon, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderSubtle }]}>
                   <AppIcon name={(item.icon ?? 'circle') as IconName} size={20} color={iconFg} />
                 </View>
                 <View style={ds.listRowBody}>

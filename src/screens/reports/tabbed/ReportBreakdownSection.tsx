@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { AppCard, AppText } from '@/components/ui';
+import { AppText } from '@/components/ui';
+import { MadarSurface } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
@@ -58,7 +59,7 @@ export function ReportBreakdownSection({ title, description, rows, labelKey, val
           const pct = max > 0 ? (num / max) * 100 : 0;
           const numeric = row.format === 'money' || row.format === 'number';
           return (
-            <AppCard key={`${row.label}-${index}`} style={{ gap: spacing.sm }}>
+            <MadarSurface key={`${row.label}-${index}`} style={{ gap: spacing.sm }}>
               <View style={{ ...flexRow, justifyContent: 'space-between', gap: spacing.md }}>
                 <AppText style={{ flex: 1, ...textStart }}>{row.label}</AppText>
                 <AppText style={{ fontWeight: '700', ...(numeric ? textLtr : textStart) }}>
@@ -69,7 +70,7 @@ export function ReportBreakdownSection({ title, description, rows, labelKey, val
               <View style={{ height: 6, borderRadius: 3, backgroundColor: c.surfaceMuted, overflow: 'hidden' }}>
                 <View style={{ width: `${pct}%`, height: '100%', backgroundColor: c.accent, borderRadius: 3 }} />
               </View>
-            </AppCard>
+            </MadarSurface>
           );
         })}
       </View>

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, textLtr, appWritingDirection, appContentDirection } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -115,7 +115,7 @@ export function createDashboardStyles(c: AppColors) {
       fontSize: typography.small,
       fontFamily: fonts.bold,
       fontWeight: '700',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
 
     scopePill: {
@@ -134,7 +134,7 @@ export function createDashboardStyles(c: AppColors) {
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     scopeDot: {
       width: 8,
@@ -198,15 +198,15 @@ export function createDashboardStyles(c: AppColors) {
       gap: spacing.md,
       width: '100%',
     },
-    widgetMain: { flex: 2, minWidth: 0, direction: 'rtl', width: '100%' },
-    widgetSide: { flex: 1, minWidth: 0, maxWidth: 360, gap: spacing.md, direction: 'rtl', width: '100%' },
+    widgetMain: { flex: 2, minWidth: 0, direction: appContentDirection.direction, width: '100%' },
+    widgetSide: { flex: 1, minWidth: 0, maxWidth: 360, gap: spacing.md, direction: appContentDirection.direction, width: '100%' },
     dataGridTablet: {
       ...flexRow,
       direction: 'ltr',
       alignItems: 'flex-start',
       gap: spacing.md,
     },
-    dataGridCell: { flex: 1, minWidth: 0, direction: 'rtl' },
+    dataGridCell: { flex: 1, minWidth: 0, direction: appContentDirection.direction },
 
     kpiCard: {
       borderRadius: radius.xxl,
@@ -309,8 +309,7 @@ export function createDashboardStyles(c: AppColors) {
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,
-      textAlign: 'left',
-      writingDirection: 'ltr',
+      ...textLtr,
     },
 
     metricStrip: {
@@ -336,7 +335,7 @@ export function createDashboardStyles(c: AppColors) {
       fontFamily: fonts.medium,
       color: c.textMuted,
       textAlign: 'center',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
 
     detailRow: {
@@ -360,8 +359,7 @@ export function createDashboardStyles(c: AppColors) {
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.text,
-      textAlign: 'left',
-      writingDirection: 'ltr',
+      ...textLtr,
       flexShrink: 1,
     },
 
@@ -375,7 +373,7 @@ export function createDashboardStyles(c: AppColors) {
       fontFamily: fonts.medium,
       color: c.textMuted,
       textAlign: 'center',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
 
     skeleton: {

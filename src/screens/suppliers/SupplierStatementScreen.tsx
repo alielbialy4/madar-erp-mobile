@@ -4,7 +4,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { suppliersAPI } from '@/api/suppliers';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppCard, AppListItem, AppSectionHeader, AppStatCard } from '@/components/ui';
+import { AppBadge, AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface, MetricBlock } from '@/components/madar';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
@@ -70,12 +71,20 @@ export function SupplierStatementScreen({ navigation, route }: { navigation: Nav
       {data ? (
         <ScrollView contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingBottom: spacing.xxl }}>
           <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.md }}>
-            <View style={{ flex: 1, minWidth: 140 }}>
-              <AppStatCard label="الرصيد الحالي (ختامي)" value={money(endingBalance)} hint={balanceInfo.label_ar} />
-            </View>
-            <View style={{ flex: 1, minWidth: 140 }}>
-              <AppStatCard label="الرصيد الدائن المتاح" value={money(summary.available_credit ?? 0)} tone="info" />
-            </View>
+            <MetricBlock
+              label="الرصيد الحالي (ختامي)"
+              value={money(endingBalance)}
+              hint={balanceInfo.label_ar}
+              level="A"
+              style={{ flex: 1, minWidth: 140 }}
+            />
+            <MetricBlock
+              label="الرصيد الدائن المتاح"
+              value={money(summary.available_credit ?? 0)}
+              level="B"
+              tone="info"
+              style={{ flex: 1, minWidth: 140 }}
+            />
           </View>
 
           <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.xs }}>
@@ -89,51 +98,66 @@ export function SupplierStatementScreen({ navigation, route }: { navigation: Nav
             <SummaryBadge label="متبقي فواتير" value={money(summary.unpaid_purchases_remaining ?? 0)} />
           </View>
 
-          <AppCard>
-            <AppSectionHeader title="حركات كشف الحساب" />
-            {lines.length ? lines.map((row, idx) => (
-              <AppListItem
-                key={`${row.type}-${row.date}-${idx}`}
-                title={asText(row.label, supplierStatementMovementLabel(String(row.type)))}
-                subtitle={dateText(String(row.date ?? ''))}
-                meta={`مدين ${money(row.debit ?? 0)} • دائن ${money(row.credit ?? 0)}`}
-                badge={
-                  <AppBadge
-                    label={row.purchase_id ? `#${row.purchase_id}` : row.supplier_payment_id ? String(row.supplier_payment_id).slice(0, 8) : '—'}
-                    tone="default"
+          <MadarSection title="حركات كشف الحساب">
+            <MadarSurface padded={false}>
+              {lines.length ? (
+                lines.map((row, idx) => (
+                  <AppListItem
+                    key={`${row.type}-${row.date}-${idx}`}
+                    title={asText(row.label, supplierStatementMovementLabel(String(row.type)))}
+                    subtitle={dateText(String(row.date ?? ''))}
+                    meta={`مدين ${money(row.debit ?? 0)} • دائن ${money(row.credit ?? 0)}`}
+                    badge={
+                      <AppBadge
+                        label={row.purchase_id ? `#${row.purchase_id}` : row.supplier_payment_id ? String(row.supplier_payment_id).slice(0, 8) : '—'}
+                        tone="default"
+                      />
+                    }
+                    showChevron={false}
                   />
-                }
-                showChevron={false}
-              />
-            )) : <AppEmptyState title="لا توجد حركات" />}
-          </AppCard>
+                ))
+              ) : (
+                <AppEmptyState title="لا توجد حركات" />
+              )}
+            </MadarSurface>
+          </MadarSection>
 
-          <AppCard>
-            <AppSectionHeader title="فواتير الشراء" />
-            {purchases.length ? purchases.map((row, idx) => (
-              <AppListItem
-                key={String(row.id ?? idx)}
-                title={String(row.invoice_number ?? '—')}
-                subtitle={String(row.status ?? '—')}
-                meta={`إجمالي ${money(row.total ?? 0)} • مدفوع ${money(row.paid ?? 0)}`}
-                showChevron={false}
-              />
-            )) : <AppEmptyState title="لا توجد فواتير" />}
-          </AppCard>
+          <MadarSection title="فواتير الشراء">
+            <MadarSurface padded={false}>
+              {purchases.length ? (
+                purchases.map((row, idx) => (
+                  <AppListItem
+                    key={String(row.id ?? idx)}
+                    title={String(row.invoice_number ?? '—')}
+                    subtitle={String(row.status ?? '—')}
+                    meta={`إجمالي ${money(row.total ?? 0)} • مدفوع ${money(row.paid ?? 0)}`}
+                    showChevron={false}
+                  />
+                ))
+              ) : (
+                <AppEmptyState title="لا توجد فواتير" />
+              )}
+            </MadarSurface>
+          </MadarSection>
 
-          <AppCard>
-            <AppSectionHeader title="مدفوعات المورد" />
-            {payments.length ? payments.map((row, idx) => (
-              <AppListItem
-                key={String(row.id ?? idx)}
-                title={statementPaymentTypeLabel(row)}
-                subtitle={dateText(String(row.payment_date ?? ''))}
-                meta={money(row.amount ?? 0)}
-                badge={<AppBadge label={String(row.payment_method ?? '—')} tone="default" />}
-                showChevron={false}
-              />
-            )) : <AppEmptyState title="لا توجد مدفوعات" />}
-          </AppCard>
+          <MadarSection title="مدفوعات المورد">
+            <MadarSurface padded={false}>
+              {payments.length ? (
+                payments.map((row, idx) => (
+                  <AppListItem
+                    key={String(row.id ?? idx)}
+                    title={statementPaymentTypeLabel(row)}
+                    subtitle={dateText(String(row.payment_date ?? ''))}
+                    meta={money(row.amount ?? 0)}
+                    badge={<AppBadge label={String(row.payment_method ?? '—')} tone="default" />}
+                    showChevron={false}
+                  />
+                ))
+              ) : (
+                <AppEmptyState title="لا توجد مدفوعات" />
+              )}
+            </MadarSurface>
+          </MadarSection>
         </ScrollView>
       ) : null}
     </AppScreen>

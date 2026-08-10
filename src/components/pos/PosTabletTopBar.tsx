@@ -12,12 +12,15 @@ import { useBranchStore } from '@/store/branchStore';
 import { POS_HOLD_CARTS_ENABLED } from '@/constants/posFeatures';
 import { backArrowIcon } from '@/utils/rtl';
 import {
-  PosBranchMark,
   PosOnlineChip,
   PosShiftChip,
   posHeaderElevation,
   usePosHeaderBarStyle,
 } from '@/components/pos/posHeaderUi';
+import { HeaderEndTools } from '@/components/layout/header';
+import { BranchSwitcher } from '@/components/layout/BranchSwitcher';
+import { useNavShell } from '@/navigation/NavShellContext';
+import { useImmersiveStore } from '@/store/immersiveStore';
 
 type Props = {
   shiftLabel: string;
@@ -62,7 +65,7 @@ function QuickAction({
       accessibilityRole="button"
     >
       <View style={[styles.quickActionIcon, accent && styles.quickActionIconAccent]}>
-        <MaterialIcons name={icon} size={18} color={accent ? c.primary : c.text} />
+        <MaterialIcons name={icon} size={18} color={accent ? c.accent : c.text} />
       </View>
       <Text style={[styles.quickActionLabel, accent && styles.quickActionLabelAccent]} numberOfLines={1}>
         {label}
@@ -92,6 +95,8 @@ export function PosTabletTopBar({
   const bar = usePosHeaderBarStyle();
   const styles = useMemo(() => createStyles(c), [c]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { navigate } = useNavShell();
+  const immersive = useImmersiveStore((s) => s.enabled);
 
   const branchLabel = viewMode === 'global' ? 'كل الفروع' : activeBranch?.name ?? 'بدون فرع';
   const metaParts = [cashierName, lastSyncedLabel ? `آخر مزامنة ${lastSyncedLabel}` : null].filter(Boolean);
@@ -130,6 +135,8 @@ export function PosTabletTopBar({
     return items;
   }, [onShiftSummary, onOpenDrawer, openDrawerBusy, onCloseShift, onOpenTables, onOpenHoldCarts, onSaveHoldCart]);
 
+  if (immersive) return null;
+
   return (
     <>
       <View style={[styles.bar, rtlDirection]}>
@@ -137,7 +144,9 @@ export function PosTabletTopBar({
           <MaterialIcons name={backArrowIcon()} size={20} color={c.danger} />
         </Pressable>
 
-        <PosBranchMark />
+        <View style={styles.branchSlot}>
+          <BranchSwitcher density="pill" />
+        </View>
 
         <View style={styles.main}>
           <View style={styles.center}>
@@ -176,6 +185,14 @@ export function PosTabletTopBar({
             </ScrollView>
           ) : null}
         </View>
+
+        <HeaderEndTools
+          onNavigate={navigate}
+          compact={false}
+          showLabels
+          showSeparators
+          include={{ search: false, notifications: true }}
+        />
 
         {menuActions.length > 0 ? (
           <Pressable onPress={() => setMenuOpen(true)} style={styles.menuBtn} accessibilityLabel="إجراءات إضافية">
@@ -222,6 +239,7 @@ function createStyles(c: AppColors) {
       minHeight: 60,
       ...posHeaderElevation(c),
     },
+    branchSlot: { flexShrink: 1, maxWidth: 220, minWidth: 0 },
     main: {
       flex: 1,
       minWidth: 0,
@@ -243,12 +261,12 @@ function createStyles(c: AppColors) {
     exitBtn: {
       width: 40,
       height: 40,
-      borderRadius: radius.xl,
+      borderRadius: radius.control,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.softDanger,
-      borderWidth: 1,
-      borderColor: c.softDangerBorder,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.danger,
       flexShrink: 0,
     },
     center: { flexShrink: 1, minWidth: 88, maxWidth: '38%', gap: 2 },
@@ -260,26 +278,28 @@ function createStyles(c: AppColors) {
       gap: spacing.xs,
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
-      borderRadius: radius.lg,
-      backgroundColor: c.surfaceMuted,
-      borderWidth: 1,
+      borderRadius: radius.control,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
       flexShrink: 0,
     },
     quickActionAccent: {
-      backgroundColor: c.primarySoftMuted,
-      borderColor: c.primarySoftBorder,
+      backgroundColor: c.surface,
+      borderColor: c.accent,
     },
     quickActionIcon: {
       width: 32,
       height: 32,
-      borderRadius: radius.md,
+      borderRadius: radius.control,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.borderSubtle,
     },
     quickActionIconAccent: {
-      backgroundColor: `${c.primary}18`,
+      borderColor: c.accent,
     },
     quickActionLabel: {
       ...textStart,
@@ -289,16 +309,16 @@ function createStyles(c: AppColors) {
       color: c.text,
     },
     quickActionLabelAccent: {
-      color: c.primary,
+      color: c.accent,
     },
     menuBtn: {
       width: 40,
       height: 40,
-      borderRadius: radius.xl,
-      backgroundColor: c.surfaceMuted,
+      borderRadius: radius.control,
+      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
       flexShrink: 0,
     },
@@ -313,8 +333,8 @@ function createStyles(c: AppColors) {
     menuSheet: {
       minWidth: 220,
       backgroundColor: c.surface,
-      borderRadius: radius.xl,
-      borderWidth: 1,
+      borderRadius: radius.sheet,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderSubtle,
       paddingVertical: spacing.sm,
       gap: spacing.xs,

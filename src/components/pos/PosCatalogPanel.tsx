@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PosFlexGrid, posGridColumns } from '@/components/pos/PosFlexGrid';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppBadge, AppButton, AppSearchField } from '@/components/ui';
 import { AppEmptyState } from '@/components/feedback';
-import { flexRow, rtlDirection, textLtr, textStart } from '@/constants/layout';
+import { flexRow, rtlDirection, textLtr, textStart, appWritingDirection } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
 import { radius, spacing } from '@/constants/spacing';
@@ -29,6 +30,115 @@ function availableQty(product: Product): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+type CatalogStyles = ReturnType<typeof createStyles>;
+
+const ProductTile = React.memo(function ProductTile({
+  product,
+  inCart,
+  styles,
+  colors,
+  onPress,
+}: {
+  product: Product;
+  inCart: number;
+  styles: CatalogStyles;
+  colors: AppColors;
+  onPress: (product: Product) => void;
+}) {
+  const mode = product.inventory_mode ?? (product.track_inventory === false ? 'non_stock' : 'stock_product');
+  const qty = availableQty(product);
+  const low = qty !== null && qty <= Number(product.min_stock_alert ?? 0);
+  const hasOptions = Boolean(product.option_groups?.some((group) => group.options?.length));
+  const recipe = mode === 'recipe_product';
+  const thumb = resolveMediaUrl(product.image);
+
+  return (
+    <Pressable
+      onPress={() => onPress(product)}
+      style={({ pressed }) => [styles.productTile, inCart > 0 && styles.productTileSelected, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${product.name}، ${money(unitSellingPrice(product))}${inCart ? `، ${numberText(inCart)} في السلة` : ''}`}
+    >
+      <View style={styles.productTop}>
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={styles.productThumb} contentFit="cover" recyclingKey={thumb} />
+        ) : (
+          <View style={styles.productThumbPlaceholder}>
+            <Text style={styles.productLetter}>{product.name.charAt(0)}</Text>
+          </View>
+        )}
+        <View style={styles.productState}>
+          {inCart > 0 ? <AppBadge label={`×${numberText(inCart)} في السلة`} tone="info" /> : null}
+          {low ? <AppBadge label="مخزون منخفض" tone="warning" /> : null}
+          {!low && recipe ? <AppBadge label="وصفة" tone="warning" /> : null}
+          {!low && !recipe && hasOptions ? <AppBadge label="خيارات" tone="neutral" /> : null}
+        </View>
+      </View>
+      <Text style={styles.productName} numberOfLines={2} translate={false}>
+        {product.name}
+      </Text>
+      <View style={styles.productFooter}>
+        <View style={styles.productValue}>
+          <Text style={styles.productPrice} numberOfLines={1} translate={false}>
+            {money(unitSellingPrice(product))}
+          </Text>
+          <Text style={styles.productQty} numberOfLines={1}>
+            {qty == null ? 'غير مخزني' : `${numberText(qty)} متاح`}
+          </Text>
+        </View>
+        <View style={[styles.addMark, inCart > 0 && styles.addMarkActive]}>
+          <MaterialIcons
+            name={inCart > 0 ? 'add-shopping-cart' : 'add'}
+            size={18}
+            color={inCart > 0 ? colors.accent : colors.text}
+          />
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
+const CategoryTile = React.memo(function CategoryTile({
+  item,
+  count,
+  thumb,
+  styles,
+  colors,
+  onPress,
+}: {
+  item: CategoryItem;
+  count: number;
+  thumb: string | null;
+  styles: CatalogStyles;
+  colors: AppColors;
+  onPress: () => void;
+}) {
+  const all = item.id === 'all';
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.categoryTile, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}، ${numberText(count)} منتج`}
+    >
+      {thumb ? (
+        <Image source={{ uri: thumb }} style={styles.categoryThumb} contentFit="cover" recyclingKey={thumb} />
+      ) : (
+        <View style={styles.categoryThumbPlaceholder}>
+          <MaterialIcons name={all ? 'apps' : 'category'} size={22} color={colors.textMuted} />
+        </View>
+      )}
+      <View style={styles.categoryBody}>
+        <Text style={styles.categoryName} numberOfLines={2} translate={false}>
+          {item.name}
+        </Text>
+        <Text style={styles.categoryCount}>{numberText(count)} منتج</Text>
+      </View>
+      <MaterialIcons name={chevronForwardIcon()} size={18} color={colors.textCaption} />
+    </Pressable>
+  );
+});
+
 type Props = {
   query: string;
   onQueryChange: (v: string) => void;
@@ -50,7 +160,7 @@ type Props = {
   containerWidth?: number;
 };
 
-export function PosCatalogPanel({
+function PosCatalogPanelInner({
   query,
   onQueryChange,
   categories,
@@ -89,7 +199,9 @@ export function PosCatalogPanel({
     return map;
   }, [products]);
   const chipItems = useMemo(() => [{ id: 'all', name: 'الكل' }, ...categories], [categories]);
-  const browseTitle = isSearching ? 'نتائج البحث' : activeCategoryName ?? (categoryId === 'all' ? 'كل المنتجات' : 'المنتجات');
+  const browseTitle = isSearching
+    ? 'نتائج البحث'
+    : activeCategoryName ?? (categoryId === 'all' ? 'كل المنتجات' : 'المنتجات');
 
   const searchHeader = (
     <View style={styles.searchRow}>
@@ -110,7 +222,9 @@ export function PosCatalogPanel({
   const sectionHeading = (title: string, count: number) => (
     <View style={styles.sectionHeading}>
       <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.sectionTitle} numberOfLines={1}>
+          {title}
+        </Text>
         <Text style={styles.sectionMeta}>{numberText(count)} عنصر</Text>
       </View>
       {showExitCategory ? (
@@ -151,6 +265,38 @@ export function PosCatalogPanel({
     </View>
   );
 
+  const renderCategory = useCallback(
+    ({ item }: { item: CategoryItem }) => {
+      const all = item.id === 'all';
+      const thumb = all ? null : categoryThumbnails[item.id] ?? resolveMediaUrl(item.image);
+      const count = all ? products.length : productCounts[item.id] ?? 0;
+      return (
+        <CategoryTile
+          item={item}
+          count={count}
+          thumb={thumb}
+          styles={styles}
+          colors={c}
+          onPress={() => (all ? onShowAllProducts() : onSelectCategory(item.id))}
+        />
+      );
+    },
+    [c, categoryThumbnails, onSelectCategory, onShowAllProducts, productCounts, products.length, styles],
+  );
+
+  const renderProduct = useCallback(
+    ({ item }: { item: Product }) => (
+      <ProductTile
+        product={item}
+        inCart={productQuantities[item.id] ?? 0}
+        styles={styles}
+        colors={c}
+        onPress={onProductPress}
+      />
+    ),
+    [c, onProductPress, productQuantities, styles],
+  );
+
   if (showCategoryRoot) {
     return (
       <View style={styles.panel}>
@@ -161,32 +307,7 @@ export function PosCatalogPanel({
           keyExtractor={(item) => item.id}
           ListHeaderComponent={categoryHeader}
           ListEmptyComponent={<AppEmptyState title="لا توجد تصنيفات" message="لا توجد أقسام متاحة في هذا الفرع." />}
-          renderItem={({ item }) => {
-            const all = item.id === 'all';
-            const thumb = all ? null : categoryThumbnails[item.id] ?? resolveMediaUrl(item.image);
-            const count = all ? products.length : productCounts[item.id] ?? 0;
-            return (
-              <Pressable
-                onPress={() => (all ? onShowAllProducts() : onSelectCategory(item.id))}
-                style={({ pressed }) => [styles.categoryTile, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.name}، ${numberText(count)} منتج`}
-              >
-                {thumb ? (
-                  <Image source={{ uri: thumb }} style={styles.categoryThumb} resizeMode="cover" />
-                ) : (
-                  <View style={styles.categoryThumbPlaceholder}>
-                    <MaterialIcons name={all ? 'apps' : 'category'} size={22} color={c.textMuted} />
-                  </View>
-                )}
-                <View style={styles.categoryBody}>
-                  <Text style={styles.categoryName} numberOfLines={2}>{item.name}</Text>
-                  <Text style={styles.categoryCount}>{numberText(count)} منتج</Text>
-                </View>
-                <MaterialIcons name={chevronForwardIcon()} size={18} color={c.textCaption} />
-              </Pressable>
-            );
-          }}
+          renderItem={renderCategory}
         />
       </View>
     );
@@ -208,56 +329,13 @@ export function PosCatalogPanel({
             message={isSearching ? 'جرّب كلمة أخرى أو امسح البحث.' : 'جرّب تصنيفاً آخر أو عدّل البحث.'}
           />
         }
-        renderItem={({ item }) => {
-          const mode = item.inventory_mode ?? (item.track_inventory === false ? 'non_stock' : 'stock_product');
-          const qty = availableQty(item);
-          const low = qty !== null && qty <= Number(item.min_stock_alert ?? 0);
-          const hasOptions = Boolean(item.option_groups?.some((group) => group.options?.length));
-          const recipe = mode === 'recipe_product';
-          const thumb = resolveMediaUrl(item.image);
-          const inCart = productQuantities[item.id] ?? 0;
-
-          return (
-            <Pressable
-              onPress={() => onProductPress(item)}
-              style={({ pressed }) => [styles.productTile, inCart > 0 && styles.productTileSelected, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.name}، ${money(unitSellingPrice(item))}${inCart ? `، ${numberText(inCart)} في السلة` : ''}`}
-            >
-              <View style={styles.productTop}>
-                {thumb ? (
-                  <Image source={{ uri: thumb }} style={styles.productThumb} resizeMode="cover" />
-                ) : (
-                  <View style={styles.productThumbPlaceholder}>
-                    <Text style={styles.productLetter}>{item.name.charAt(0)}</Text>
-                  </View>
-                )}
-                <View style={styles.productState}>
-                  {inCart > 0 ? <AppBadge label={`×${numberText(inCart)} في السلة`} tone="info" /> : null}
-                  {low ? <AppBadge label="مخزون منخفض" tone="warning" /> : null}
-                  {!low && recipe ? <AppBadge label="وصفة" tone="warning" /> : null}
-                  {!low && !recipe && hasOptions ? <AppBadge label="خيارات" tone="neutral" /> : null}
-                </View>
-              </View>
-              <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-              <View style={styles.productFooter}>
-                <View style={styles.productValue}>
-                  <Text style={styles.productPrice} numberOfLines={1}>{money(unitSellingPrice(item))}</Text>
-                  <Text style={styles.productQty} numberOfLines={1}>
-                    {qty == null ? 'غير مخزني' : `${numberText(qty)} متاح`}
-                  </Text>
-                </View>
-                <View style={[styles.addMark, inCart > 0 && styles.addMarkActive]}>
-                  <MaterialIcons name={inCart > 0 ? 'add-shopping-cart' : 'add'} size={18} color={inCart > 0 ? c.primaryForeground : c.text} />
-                </View>
-              </View>
-            </Pressable>
-          );
-        }}
+        renderItem={renderProduct}
       />
     </View>
   );
 }
+
+export const PosCatalogPanel = React.memo(PosCatalogPanelInner);
 
 function createStyles(c: AppColors, tablet: boolean) {
   return StyleSheet.create({
@@ -284,28 +362,28 @@ function createStyles(c: AppColors, tablet: boolean) {
       minHeight: 36,
       justifyContent: 'center',
       paddingHorizontal: spacing.md,
-      borderRadius: radius.md,
+      borderRadius: radius.control,
       backgroundColor: c.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
     },
-    chipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    chipText: { color: c.textMuted, fontFamily: fonts.medium, fontSize: typography.small, writingDirection: 'rtl' },
-    chipTextActive: { color: c.primaryForeground, fontFamily: fonts.bold, fontWeight: '700' },
+    chipActive: { backgroundColor: c.surface, borderColor: c.accent, borderWidth: 1.5 },
+    chipText: { color: c.textMuted, fontFamily: fonts.medium, fontSize: typography.small, writingDirection: appWritingDirection },
+    chipTextActive: { color: c.accent, fontFamily: fonts.bold, fontWeight: '700' },
     categoryTile: {
       ...flexRow,
       minHeight: tablet ? 94 : 88,
       alignItems: 'center',
       gap: spacing.sm,
       padding: spacing.md,
-      borderRadius: radius.lg,
+      borderRadius: radius.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
       backgroundColor: c.surface,
       overflow: 'hidden',
     },
-    categoryThumb: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.md },
-    categoryThumbPlaceholder: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
+    categoryThumb: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.input },
+    categoryThumbPlaceholder: { width: tablet ? 48 : 42, height: tablet ? 48 : 42, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
     categoryBody: { flex: 1, minWidth: 0, gap: 3 },
     categoryName: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small, lineHeight: 18 },
     categoryCount: { ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.micro },
@@ -313,16 +391,20 @@ function createStyles(c: AppColors, tablet: boolean) {
       minHeight: tablet ? 164 : 150,
       gap: spacing.sm,
       padding: spacing.md,
-      borderRadius: radius.lg,
+      borderRadius: radius.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
       backgroundColor: c.surface,
       overflow: 'hidden',
     },
-    productTileSelected: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
+    productTileSelected: {
+      borderColor: c.accent,
+      borderWidth: 1.5,
+      backgroundColor: c.surface,
+    },
     productTop: { ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-    productThumb: { width: 48, height: 48, borderRadius: radius.md },
-    productThumbPlaceholder: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
+    productThumb: { width: 48, height: 48, borderRadius: radius.input },
+    productThumbPlaceholder: { width: 48, height: 48, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
     productLetter: { color: c.textMuted, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.cardTitle },
     productState: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: spacing.xs },
     productName: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small, lineHeight: 19, minHeight: 38 },
@@ -330,8 +412,8 @@ function createStyles(c: AppColors, tablet: boolean) {
     productValue: { flex: 1, minWidth: 0, gap: 2 },
     productPrice: { ...textLtr, color: c.text, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.body },
     productQty: { ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.micro },
-    addMark: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
-    addMarkActive: { backgroundColor: c.primary },
+    addMark: { width: 32, height: 32, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+    addMarkActive: { backgroundColor: c.surface, borderColor: c.accent },
     pressed: { opacity: 0.78 },
   });
 }

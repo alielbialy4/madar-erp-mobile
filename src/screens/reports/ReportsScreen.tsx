@@ -3,13 +3,15 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppScreen } from '@/components/layout';
 import { AppSearchField, AppText } from '@/components/ui';
+import { DenseRow, MadarSection, MadarSurface } from '@/components/madar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { REPORT_GROUPS, listReportHubItems } from '@/reports/reportDefinitions';
 import type { ReportGroupId, ReportId } from '@/reports/types';
 import { useColors } from '@/hooks/useColors';
 import type { AppColors } from '@/constants/colors';
-import { radius, spacing } from '@/constants/spacing';
+import { radius, rowHeight, spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
+import { chevronForwardIcon } from '@/utils/rtl';
 import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
 import { storageGet, storageKeys, storageSet } from '@/services/storage';
@@ -103,42 +105,46 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!query.trim() ? (
-          <View style={styles.section}>
-            <SectionHeading title="مسارات تحليلية" subtitle="تقارير متعددة التبويبات أو تغطية تاريخية موسعة" count={2} />
-            <View style={styles.listSurface}>
-              <ReportRow
-                title="تكلفة الوصفات"
-                description="استهلاك، تكلفة وهامش، نواقص، فروق متوقعة"
-                icon="restaurant"
+          <MadarSection title="مسارات تحليلية">
+            <MadarSurface padded={false}>
+              <DenseRow
+                primary="تكلفة الوصفات"
+                secondary="استهلاك، تكلفة وهامش، نواقص، فروق متوقعة"
+                height={rowHeight.entity}
+                leading={<RowIcon name="restaurant" />}
+                trailing={<MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />}
                 onPress={() => navigation.navigate('RecipeReports')}
-                divider
               />
-              <ReportRow
-                title="التقارير الكلاسيكية"
-                description="مبيعات ومشتريات وعملاء وموردون ومدفوعات ومخزون"
-                icon="history"
+              <DenseRow
+                primary="التقارير الكلاسيكية"
+                secondary="مبيعات ومشتريات وعملاء وموردون ومدفوعات ومخزون"
+                height={rowHeight.entity}
+                showDivider={false}
+                leading={<RowIcon name="history" />}
+                trailing={<MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />}
                 onPress={() => navigation.navigate('LegacyReports')}
               />
-            </View>
-          </View>
+            </MadarSurface>
+          </MadarSection>
         ) : null}
 
         {grouped.map(({ group, items: groupItems }) => (
-          <View key={group.id} style={styles.section}>
-            <SectionHeading title={group.title} count={groupItems.length} />
-            <View style={styles.listSurface}>
+          <MadarSection key={group.id} title={group.title} action={<AppText style={styles.count}>{groupItems.length}</AppText>}>
+            <MadarSurface padded={false}>
               {groupItems.map((item, index) => (
-                <ReportRow
+                <DenseRow
                   key={item.id}
-                  title={item.title}
-                  description={item.description}
-                  icon={item.icon as keyof typeof MaterialIcons.glyphMap}
+                  primary={item.title}
+                  secondary={item.description}
+                  height={rowHeight.entity}
+                  showDivider={index < groupItems.length - 1}
+                  leading={<RowIcon name={item.icon as keyof typeof MaterialIcons.glyphMap} />}
+                  trailing={<MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />}
                   onPress={() => openReport(item.id)}
-                  divider={index < groupItems.length - 1}
                 />
               ))}
-            </View>
-          </View>
+            </MadarSurface>
+          </MadarSection>
         ))}
 
         {!items.length ? (
@@ -153,63 +159,55 @@ export function ReportsScreen({ navigation }: { navigation: Nav }) {
   );
 }
 
-function SectionHeading({ title, subtitle, count }: { title: string; subtitle?: string; count: number }) {
+function RowIcon({ name }: { name: keyof typeof MaterialIcons.glyphMap }) {
   const c = useColors();
   return (
-    <View style={{ ...flexRow, alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md }}>
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.extraBold, fontSize: typography.cardTitle }}>{title}</AppText>
-        {subtitle ? <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }}>{subtitle}</AppText> : null}
-      </View>
-      <AppText style={{ color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.caption }}>{count}</AppText>
-    </View>
-  );
-}
-
-function ReportRow({ title, description, icon, onPress, divider }: { title: string; description: string; icon: keyof typeof MaterialIcons.glyphMap; onPress: () => void; divider?: boolean }) {
-  const c = useColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        ...flexRow,
-        minHeight: 68,
+    <View
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: radius.control,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.borderSubtle,
+        backgroundColor: c.surface,
         alignItems: 'center',
-        gap: spacing.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: pressed ? c.surfaceMuted : c.surface,
-        borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
-        borderBottomColor: c.borderSubtle,
-      })}
-      accessibilityRole="button"
-      accessibilityLabel={title}
+        justifyContent: 'center',
+      }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: radius.md, backgroundColor: c.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle, alignItems: 'center', justifyContent: 'center' }}>
-        <MaterialIcons name={icon} size={20} color={c.textMuted} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.bold, fontSize: typography.body }} numberOfLines={1}>{title}</AppText>
-        <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }} numberOfLines={1}>{description}</AppText>
-      </View>
-      <MaterialIcons name="chevron-left" size={21} color={c.textCaption} />
-    </Pressable>
+      <MaterialIcons name={name} size={18} color={c.textMuted} />
+    </View>
   );
 }
 
 function createStyles(c: AppColors) {
   return StyleSheet.create({
     screen: { padding: 0, gap: 0 },
-    searchArea: { paddingHorizontal: spacing.md, paddingVertical: spacing.md, gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSubtle },
+    searchArea: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.borderSubtle,
+    },
     overline: { ...textStart, color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.micro },
     recentBlock: { gap: spacing.xs },
     recentWrap: { ...flexRow, flexWrap: 'wrap', gap: spacing.xs },
-    recentItem: { ...flexRow, maxWidth: '48%', minHeight: 34, alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle },
+    recentItem: {
+      ...flexRow,
+      maxWidth: '48%',
+      minHeight: 34,
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.control,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.borderSubtle,
+    },
     recentLabel: { ...textStart, flexShrink: 1, color: c.textMuted, fontFamily: fonts.medium, fontSize: typography.caption },
     scroll: { flex: 1, minHeight: 0 },
     content: { paddingHorizontal: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxxl, gap: spacing.lg },
-    section: { gap: spacing.sm },
-    listSurface: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderSubtle, borderRadius: radius.md, overflow: 'hidden' },
+    count: { color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.caption },
     empty: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
     emptyTitle: { color: c.text, fontFamily: fonts.bold, fontSize: typography.body },
     emptyText: { color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption },

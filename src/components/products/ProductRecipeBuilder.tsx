@@ -15,6 +15,7 @@ import {
   recipeScopeKey,
 } from './productFormUtils';
 import type { Product, ProductOptionGroupInput, ProductRecipeInput } from '@/types/api';
+import { appTextAlignStart } from '@/constants/layout';
 
 type WarehouseOption = { id: string; name: string };
 
@@ -164,7 +165,7 @@ export function ProductRecipeBuilder({
   return (
     <View style={{ gap: spacing.md }}>
       {recipeCostPreview != null || estimatedTotal != null ? (
-        <Text style={{ color: c.accent, fontWeight: '700', textAlign: 'right' }}>
+        <Text style={{ color: c.accent, fontWeight: '700', textAlign: appTextAlignStart }}>
           تكلفة الوصفة التقديرية: {money(recipeCostPreview ?? estimatedTotal ?? 0)}
           {recipeCostPreview != null && estimatedTotal != null && Math.abs(recipeCostPreview - estimatedTotal) > 0.01
             ? ` (محسوبة: ${money(estimatedTotal)})`
@@ -178,7 +179,7 @@ export function ProductRecipeBuilder({
         onChangeText={(v) => void runSearch(v)}
         placeholder="اكتب 3 أحرف على الأقل"
       />
-      {searching ? <Text style={{ color: c.textMuted, textAlign: 'right' }}>جاري البحث...</Text> : null}
+      {searching ? <Text style={{ color: c.textMuted, textAlign: appTextAlignStart }}>جاري البحث...</Text> : null}
 
       {recipes.map((row, idx) => {
         const isDup = row.ingredient_product_id ? duplicateKeys.has(recipeScopeKey(row)) : false;
@@ -209,7 +210,7 @@ export function ProductRecipeBuilder({
               ) : null}
             </View>
             {isDup ? (
-              <Text style={{ color: c.danger, fontSize: 12, textAlign: 'right' }}>مكون مكرر في نفس النطاق</Text>
+              <Text style={{ color: c.danger, fontSize: 12, textAlign: appTextAlignStart }}>مكون مكرر في نفس النطاق</Text>
             ) : null}
             <AppSelect
               label="المكون"

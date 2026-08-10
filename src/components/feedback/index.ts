@@ -7,3 +7,4 @@ export * from './AppBanner';
 export * from './AppToast';
 export * from './AppInlineAlert';
 export * from './ConfirmDialog';
+export * from './AppDialogHost';

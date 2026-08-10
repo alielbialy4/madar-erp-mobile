@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { AppText } from '@/components/ui/AppText';
 import { useColors } from '@/hooks/useColors';
-import { flexRow } from '@/constants/layout';
+import { flexRow, appWritingDirection } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/spacing';
 import { TAB_BAR_DOCK_HEIGHT, TAB_BAR_MIN_BOTTOM_INSET } from '@/constants/tabBar';
@@ -82,16 +82,16 @@ export function PremiumBottomNav({ state, navigation }: BottomTabBarProps) {
               accessibilityState={{ selected: focused }}
               style={({ pressed }) => [styles.tab, pressed && { backgroundColor: c.surfaceMuted }]}
             >
-              <View style={[styles.selectionMark, { backgroundColor: focused ? c.primary : 'transparent' }]} />
-              <View style={[styles.iconSlot, focused && { backgroundColor: c.softPrimary }]}>
+              <View style={[styles.selectionMark, { backgroundColor: focused ? c.accent : 'transparent' }]} />
+              <View style={styles.iconSlot}>
                 <AppIcon
                   name={meta.icon}
                   size={22}
-                  color={focused ? c.primary : c.textCaption}
+                  color={focused ? c.accent : c.textCaption}
                   weight={focused ? 'fill' : 'regular'}
                 />
               </View>
-              <AppText style={[styles.label, { color: focused ? c.text : c.textCaption }]} numberOfLines={1}>
+              <AppText style={[styles.label, { color: focused ? c.text : c.textCaption, fontFamily: focused ? fonts.bold : fonts.medium }]} numberOfLines={1}>
                 {meta.label}
               </AppText>
             </Pressable>
@@ -126,22 +126,21 @@ const styles = StyleSheet.create({
   selectionMark: {
     position: 'absolute',
     top: 0,
-    width: 26,
-    height: 3,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
+    width: 20,
+    height: 2,
+    borderRadius: 1,
   },
   iconSlot: {
-    width: 34,
-    height: 30,
-    borderRadius: radius.md,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
     fontFamily: fonts.medium,
     fontSize: 10,
+    fontWeight: '600',
     textAlign: 'center',
-    writingDirection: 'rtl',
+    writingDirection: appWritingDirection,
   },
 });

@@ -1,40 +1,65 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText } from '@/components/ui/AppText';
-import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
+import { ALERT_BANNER, alertTonePalette, type AlertTone } from '@/constants/alertChrome';
 import { fonts } from '@/constants/fonts';
+import { flexRow, textStart } from '@/constants/layout';
+import { radius } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
-import { textStart } from '@/constants/layout';
 
 type Props = {
   message: string;
-  tone?: 'warning' | 'info' | 'danger' | 'success';
+  tone?: AlertTone;
 };
 
 export function AppInlineAlert({ message, tone = 'warning' }: Props) {
   const c = useColors();
-  const palette = {
-    warning: { bg: c.softWarning, border: c.softWarningBorder, fg: c.warning, icon: 'warning-amber' as const },
-    info: { bg: c.softInfo, border: c.softInfoBorder, fg: c.info, icon: 'info-outline' as const },
-    danger: { bg: c.softDanger, border: c.softDangerBorder, fg: c.danger, icon: 'error-outline' as const },
-    success: { bg: c.softSuccess, border: c.softSuccessBorder, fg: c.success, icon: 'check-circle' as const },
-  }[tone];
+  const palette = alertTonePalette(c, tone);
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: {
+          ...flexRow,
+          alignItems: 'flex-start',
+          gap: ALERT_BANNER.gap,
+          paddingHorizontal: ALERT_BANNER.paddingX,
+          paddingVertical: ALERT_BANNER.paddingY,
+          borderRadius: ALERT_BANNER.radius,
+          borderWidth: ALERT_BANNER.borderWidth,
+          borderColor: palette.border,
+          backgroundColor: palette.bg,
+        },
+        iconWell: {
+          width: ALERT_BANNER.iconWell,
+          height: ALERT_BANNER.iconWell,
+          borderRadius: radius.md,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.surface,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: palette.border,
+          marginTop: 1,
+        },
+        text: {
+          ...textStart,
+          flex: 1,
+          minWidth: 0,
+          color: c.text,
+          fontFamily: fonts.medium,
+          fontSize: ALERT_BANNER.messageSize,
+          lineHeight: ALERT_BANNER.lineHeight,
+        },
+      }),
+    [c.surface, c.text, palette],
+  );
 
   return (
-    <View style={{
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      padding: spacing.md,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: palette.border,
-      backgroundColor: palette.bg,
-    }}>
-      <MaterialIcons name={palette.icon} size={18} color={palette.fg} />
-      <AppText style={{ ...textStart, flex: 1, color: c.text, fontFamily: fonts.medium, fontSize: typography.body }}>{message}</AppText>
+    <View style={styles.root} accessibilityRole="alert">
+      <View style={styles.iconWell}>
+        <MaterialIcons name={palette.icon} size={ALERT_BANNER.iconSize} color={palette.fg} />
+      </View>
+      <AppText style={styles.text}>{message}</AppText>
     </View>
   );
 }

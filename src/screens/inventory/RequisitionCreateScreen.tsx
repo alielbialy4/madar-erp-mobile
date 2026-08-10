@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { requisitionsAPI } from '@/api/requisitions';
 import { FormScreenLayout } from '@/components/layout';
@@ -7,7 +6,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { InventoryProductSearch } from '@/components/inventory/InventoryProductSearch';
 import { InventoryLineItemCard } from '@/components/inventory/InventoryLineItemCard';
 import { AppInput } from '@/components/ui';
-import { AppBanner, AppEmptyState, ConfirmDialog } from '@/components/feedback';
+import { AppBanner, AppEmptyState, ConfirmDialog, useToast } from '@/components/feedback';
 import { normalizeApiError } from '@/utils/errors';
 import type { MoreStackParamList } from '@/types/navigation';
 
@@ -16,6 +15,7 @@ type Nav = NativeStackNavigationProp<MoreStackParamList, 'RequisitionCreate'>;
 type Line = { product_id: number; product_name: string; quantity: string };
 
 export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
+  const toast = useToast();
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +29,7 @@ export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
 
   const submit = async () => {
     if (!lines.length) {
-      Alert.alert('تنبيه', 'أضف منتجاً واحداً على الأقل');
+      toast.show('أضف منتجاً واحداً على الأقل', 'warning');
       return;
     }
     setConfirmVisible(false);
@@ -41,11 +41,11 @@ export function RequisitionCreateScreen({ navigation }: { navigation: Nav }) {
       });
       const data = (res as { data?: Record<string, unknown> }).data ?? res;
       const id = String((data as Record<string, unknown>).id ?? '');
-      Alert.alert('تم', 'تم إنشاء الطلب');
+      toast.success('تم إنشاء الطلب');
       if (id) navigation.replace('RequisitionDetail', { id });
       else navigation.goBack();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }

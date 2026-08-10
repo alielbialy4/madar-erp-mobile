@@ -7,9 +7,10 @@ import { walletAPI, type WalletTransaction } from '@/api/wallet';
 import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { shiftsAPI } from '@/api/shifts';
 import { useBranchStore } from '@/store/branchStore';
-import { AppBadge, AppButton, AppCard, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
+import { AppBadge, AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
 import { AppErrorState, ConfirmDialog } from '@/components/feedback';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
+import { MadarSection, MadarSurface, QuickActionBar } from '@/components/madar';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import type { Customer } from '@/types/api';
 import { extractData } from '@/utils/data';
@@ -280,6 +281,7 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
       <DetailScreen<Customer & Record<string, unknown>>
         title={route.params?.name || 'تفاصيل العميل'}
         onBack={navigation.goBack}
+        embedded={Boolean(route.params?.embedded)}
         loader={() => customersAPI.getById(id)}
         fields={[
           { label: 'الاسم', value: (item) => item.name },
@@ -293,40 +295,40 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
       >
         {(item, actions) => (
           <>
-            <AppCard>
-              <AppSectionHeader title="إجراءات العميل" />
-              <View style={styles.actions}>
-                <AppButton title="تعديل" variant="secondary" onPress={() => openEdit(item, actions.refresh)} />
-                <AppButton title="المحفظة" onPress={() => openWallet(actions.refresh)} />
-                <AppButton
-                  title="تحصيل دين"
-                  variant="outline"
-                  disabled={!(Number(item.debt) > 0)}
-                  onPress={() => void openDebtCollection(item, actions.refresh)}
-                />
-              </View>
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="العناوين" />
-              {(item.addresses ?? []).length === 0 ? <Text style={{ ...textStart }}>لا توجد عناوين</Text> : item.addresses?.map((address) => (
-                <Text key={address.id} style={{ ...textStart }}>
-                  {address.label ? `${address.label}: ` : ''}{address.address_line_1 ?? ''} {address.area ?? ''} {address.city ?? ''}
-                </Text>
-              ))}
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="سجل الديون والرصيد" />
-              {paymentsLoading ? <Text style={styles.note}>جاري التحميل...</Text> : null}
-              {!paymentsLoading && paymentRows.length === 0 ? <Text style={styles.note}>لا توجد حركات مسجلة.</Text> : null}
-              {!paymentsLoading && paymentRows.slice(0, 25).map((row) => (
-                <AppListItem
-                  key={String(row.id)}
-                  title={paymentEntryLabel(row.entry_type)}
-                  subtitle={dateText(row.payment_date ?? row.created_at)}
-                  meta={`${money(row.amount)}${row.invoice_number ? ` • ${row.invoice_number}` : ''}${row.vault_name ? ` • ${row.vault_name}` : ''}`}
-                />
-              ))}
-            </AppCard>
+            <MadarSection title="إجراءات العميل">
+              <QuickActionBar
+                actions={[
+                  { id: 'edit', label: 'تعديل', icon: 'pencil', onPress: () => openEdit(item, actions.refresh) },
+                  { id: 'wallet', label: 'المحفظة', icon: 'wallet', onPress: () => openWallet(actions.refresh), tone: 'accent' },
+                  ...(Number(item.debt) > 0
+                    ? [{ id: 'debt', label: 'تحصيل دين', icon: 'wallet', onPress: () => void openDebtCollection(item, actions.refresh) }]
+                    : []),
+                ]}
+              />
+            </MadarSection>
+            <MadarSection title="العناوين">
+              <MadarSurface>
+                {(item.addresses ?? []).length === 0 ? <Text style={{ ...textStart }}>لا توجد عناوين</Text> : item.addresses?.map((address) => (
+                  <Text key={address.id} style={{ ...textStart }}>
+                    {address.label ? `${address.label}: ` : ''}{address.address_line_1 ?? ''} {address.area ?? ''} {address.city ?? ''}
+                  </Text>
+                ))}
+              </MadarSurface>
+            </MadarSection>
+            <MadarSection title="سجل الديون والرصيد">
+              <MadarSurface padded={false}>
+                {paymentsLoading ? <Text style={[styles.note, { padding: spacing.md }]}>جاري التحميل...</Text> : null}
+                {!paymentsLoading && paymentRows.length === 0 ? <Text style={[styles.note, { padding: spacing.md }]}>لا توجد حركات مسجلة.</Text> : null}
+                {!paymentsLoading && paymentRows.slice(0, 25).map((row) => (
+                  <AppListItem
+                    key={String(row.id)}
+                    title={paymentEntryLabel(row.entry_type)}
+                    subtitle={dateText(row.payment_date ?? row.created_at)}
+                    meta={`${money(row.amount)}${row.invoice_number ? ` • ${row.invoice_number}` : ''}${row.vault_name ? ` • ${row.vault_name}` : ''}`}
+                  />
+                ))}
+              </MadarSurface>
+            </MadarSection>
           </>
         )}
       </DetailScreen>
@@ -344,10 +346,10 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
 
       <AppBottomSheet visible={walletOpen} onClose={() => setWalletOpen(false)} title="محفظة العميل">
         <View style={{ gap: spacing.md }}>
-          <AppCard variant="flat" elevated={false}>
+          <MadarSurface>
             <AppSectionHeader title="رصيد المحفظة" />
             <Text style={styles.walletBalance}>{money(walletBalance)}</Text>
-          </AppCard>
+          </MadarSurface>
           {walletError ? <AppErrorState message={walletError} onRetry={() => void loadWallet()} /> : null}
           <View style={styles.actions}>
             <AppButton title="إيداع" variant={walletAction === 'deposit' ? 'primary' : 'outline'} onPress={() => setWalletAction('deposit')} />
@@ -361,18 +363,19 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
             onPress={() => setWalletConfirmOpen(true)}
             disabled={!Number(walletAmount) || Number(walletAmount) <= 0 || walletLoading}
           />
-          <AppCard>
-            <AppSectionHeader title="آخر عمليات المحفظة" />
-            {walletTransactions.length === 0 ? <Text style={styles.note}>{walletLoading ? 'جاري التحميل...' : 'لا توجد عمليات'}</Text> : walletTransactions.map((tx) => (
-              <AppListItem
-                key={String(tx.id)}
-                title={walletTypeLabel(tx.type)}
-                subtitle={dateText(tx.created_at)}
-                meta={`${money(tx.amount ?? 0)} • الرصيد بعد: ${money(tx.balance_after ?? 0)}`}
-                badge={<AppBadge label={walletTypeLabel(tx.type)} tone={tx.type === 'deposit' || tx.type === 'refund' ? 'success' : 'warning'} />}
-              />
-            ))}
-          </AppCard>
+          <MadarSection title="آخر عمليات المحفظة">
+            <MadarSurface padded={false}>
+              {walletTransactions.length === 0 ? <Text style={[styles.note, { padding: spacing.md }]}>{walletLoading ? 'جاري التحميل...' : 'لا توجد عمليات'}</Text> : walletTransactions.map((tx) => (
+                <AppListItem
+                  key={String(tx.id)}
+                  title={walletTypeLabel(tx.type)}
+                  subtitle={dateText(tx.created_at)}
+                  meta={`${money(tx.amount ?? 0)} • الرصيد بعد: ${money(tx.balance_after ?? 0)}`}
+                  badge={<AppBadge label={walletTypeLabel(tx.type)} tone={tx.type === 'deposit' || tx.type === 'refund' ? 'success' : 'warning'} />}
+                />
+              ))}
+            </MadarSurface>
+          </MadarSection>
         </View>
       </AppBottomSheet>
 

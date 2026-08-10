@@ -1,8 +1,10 @@
 import React, { createContext, useContext } from 'react';
+import type { SidebarNavAction } from './sidebarNavMap';
 
 export type NavShellActions = {
   openDrawer: () => void;
   openCommandPalette: () => void;
+  navigate: (action: SidebarNavAction) => void;
 };
 
 const NavShellContext = createContext<NavShellActions | null>(null);
@@ -23,6 +25,7 @@ export function useNavShell(): NavShellActions {
     return {
       openDrawer: () => undefined,
       openCommandPalette: () => undefined,
+      navigate: () => undefined,
     };
   }
   return ctx;

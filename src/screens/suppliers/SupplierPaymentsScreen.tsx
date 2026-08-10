@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { supplierPaymentsAPI } from '@/api/supplierPayments';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppSectionHeader, AppStatCard } from '@/components/ui';
-import { AppText } from '@/components/ui/AppText';
+import { AppBadge, AppButton } from '@/components/ui';
+import { AppText as Text } from '@/components/ui/AppText';
+import { MadarSection, MadarSurface, MetricBlock } from '@/components/madar';
 import { AppEmptyState } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
@@ -71,17 +72,18 @@ export function SupplierPaymentsScreen({ navigation }: { navigation: any }) {
       headerRight={<AppButton title="الموردون" variant="secondary" onPress={() => navigation.navigate('Suppliers')} />}
     >
       <View style={styles.stats}>
-        <View style={styles.stat}><AppStatCard label="دفع من الخزنة" value={money(summary.cash)} tone="success" /></View>
-        <View style={styles.stat}><AppStatCard label="رصيد دائن" value={money(summary.credit)} tone="info" /></View>
-        <View style={styles.stat}><AppStatCard label="تسويات" value={money(summary.settlements)} tone="warning" /></View>
+        <MetricBlock label="دفع من الخزنة" value={money(summary.cash)} level="B" tone="positive" style={styles.stat} />
+        <MetricBlock label="رصيد دائن" value={money(summary.credit)} level="B" tone="info" style={styles.stat} />
+        <MetricBlock label="تسويات" value={money(summary.settlements)} level="B" tone="warning" style={styles.stat} />
       </View>
-      <AppCard>
-        <AppSectionHeader title="إجراء مالي" />
-        <AppEmptyState
-          title="إنشاء الدفعة من ملف المورد"
-          message="الجوال يدعم دفع المورد من شاشة تفاصيل المورد حتى يظل اختيار المورد والخزنة واضحاً. قائمة الويب العامة تحتوي أيضاً تسوية مختلطة واسعة، وهي معروضة هنا للقراءة فقط لحين اكتمال سياسة الاعتماد."
-        />
-      </AppCard>
+      <MadarSection title="إجراء مالي">
+        <MadarSurface>
+          <AppEmptyState
+            title="إنشاء الدفعة من ملف المورد"
+            message="الجوال يدعم دفع المورد من شاشة تفاصيل المورد حتى يظل اختيار المورد والخزنة واضحاً. قائمة الويب العامة تحتوي أيضاً تسوية مختلطة واسعة، وهي معروضة هنا للقراءة فقط لحين اكتمال سياسة الاعتماد."
+          />
+        </MadarSurface>
+      </MadarSection>
       <ResourceList
         data={items}
         loading={loading}
@@ -92,20 +94,20 @@ export function SupplierPaymentsScreen({ navigation }: { navigation: any }) {
         emptyTitle="لا توجد دفعات موردين"
         keyExtractor={(item, index) => `${asText(item.id, 'row')}-${index}`}
         renderItem={({ item }) => (
-          <AppCard style={styles.card}>
+          <MadarSurface style={styles.card}>
             <View style={styles.cardTop}>
               <AppBadge label={paymentLabel(item)} tone={item.payment_type === 'balance_settlement' ? 'warning' : 'info'} />
-              <AppText style={styles.amount}>{money(item.amount ?? 0)}</AppText>
+              <Text style={styles.amount}>{money(item.amount ?? 0)}</Text>
             </View>
-            <AppText style={styles.title}>{item.supplier?.name ?? 'مورد غير محدد'}</AppText>
-            <AppText style={styles.meta}>
+            <Text style={styles.title}>{item.supplier?.name ?? 'مورد غير محدد'}</Text>
+            <Text style={styles.meta}>
               {item.purchase ? `فاتورة #${item.purchase.invoice_number ?? item.purchase.id}` : 'على الحساب'}
               {' • '}
               {item.vault?.name ?? 'بدون خزنة'}
-            </AppText>
-            <AppText style={styles.meta}>{dateText(item.payment_date ?? item.paid_at ?? item.created_at)} • بواسطة {item.creator?.name ?? '—'}</AppText>
-            {item.notes ? <AppText style={styles.notes}>{item.notes}</AppText> : null}
-          </AppCard>
+            </Text>
+            <Text style={styles.meta}>{dateText(item.payment_date ?? item.paid_at ?? item.created_at)} • بواسطة {item.creator?.name ?? '—'}</Text>
+            {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+          </MadarSurface>
         )}
       />
     </AppScreen>
@@ -116,7 +118,7 @@ function createStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     stats: { ...flexRow, flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
     stat: { flex: 1, minWidth: 130 },
-    card: { gap: spacing.sm },
+    card: { gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
     cardTop: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
     title: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },
     meta: { ...textStart, color: c.textMuted, fontSize: typography.small },

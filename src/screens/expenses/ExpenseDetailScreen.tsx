@@ -9,7 +9,6 @@ import {
   AppAmountInput,
   AppBadge,
   AppButton,
-  AppCard,
   AppDatePicker,
   AppInput,
   AppPicker,
@@ -17,6 +16,7 @@ import {
   AppText,
 } from '@/components/ui';
 import { AppBanner, ConfirmDialog, useToast } from '@/components/feedback';
+import { MadarSurface, MetricBlock } from '@/components/madar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNetworkStore } from '@/store/networkStore';
 import { completeIdempotencyAttempt, idempotencyKeyForAttempt } from '@/utils/idempotencyAttempt';
@@ -53,6 +53,7 @@ function paymentAccountName(line: ExpensePaymentLine): string {
 
 export function ExpenseDetailScreen({ route, navigation }: Props) {
   const c = useColors();
+  const embedded = Boolean((route.params as { embedded?: boolean } | undefined)?.embedded);
   const toast = useToast();
   const { can } = usePermissions();
   const isOnline = useNetworkStore((state) => state.isOnline);
@@ -224,6 +225,7 @@ export function ExpenseDetailScreen({ route, navigation }: Props) {
         title={`المصروف #${id}`}
         loader={loader}
         onBack={navigation.goBack}
+        embedded={embedded}
         heroTitle={(expense) => expense.category?.name ?? `مصروف #${expense.id}`}
         heroAmount={(expense) => money(expense.amount)}
         badge={(expense) => statusPresentation(expense.status)}
@@ -285,7 +287,20 @@ export function ExpenseDetailScreen({ route, navigation }: Props) {
                 <AppBanner tone="success" message="تم سداد قيمة المصروف بالكامل." />
               )}
 
-              <AppCard padded={false}>
+              <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+                <MetricBlock label="قيمة المصروف" value={expense.amount} currency="ج.م" level="B" style={{ flex: 1, minWidth: '30%' }} />
+                <MetricBlock label="المدفوع" value={totals.paid} currency="ج.م" level="B" tone="positive" style={{ flex: 1, minWidth: '30%' }} />
+                <MetricBlock
+                  label="المتبقي"
+                  value={totals.remaining}
+                  currency="ج.م"
+                  level="B"
+                  tone={totals.remaining > 0 ? 'negative' : 'neutral'}
+                  style={{ flex: 1, minWidth: '30%' }}
+                />
+              </View>
+
+              <MadarSurface padded={false}>
                 <View style={styles.cardHeader}>
                   <AppSectionHeader title={`سجل الدفعات (${lines.length})`} />
                 </View>
@@ -295,7 +310,7 @@ export function ExpenseDetailScreen({ route, navigation }: Props) {
                   const reversed = line.status === 'reversed';
                   return (
                     <View key={line.id} style={[styles.paymentRow, { borderTopColor: c.borderSubtle }]}>
-                      <View style={[styles.paymentIcon, { backgroundColor: reversed ? c.softDanger : c.softSuccess }]}>
+                      <View style={[styles.paymentIcon, { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: reversed ? c.danger : c.success }]}>
                         <MaterialIcons name={reversed ? 'undo' : 'south-west'} size={18} color={reversed ? c.danger : c.success} />
                       </View>
                       <View style={styles.paymentCopy}>
@@ -322,7 +337,7 @@ export function ExpenseDetailScreen({ route, navigation }: Props) {
                 {activeLines.length > 1 ? (
                   <AppText style={[styles.historyFootnote, { color: c.textCaption }]}>تم توزيع المصروف على {activeLines.length} حسابات مالية.</AppText>
                 ) : null}
-              </AppCard>
+              </MadarSurface>
             </View>
           );
         }}

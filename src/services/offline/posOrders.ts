@@ -83,13 +83,13 @@ export async function getOrdersForSync(): Promise<OfflinePosOrderRecord[]> {
 export async function resetSyncingOrdersToPending(): Promise<number> {
   const orders = await getAllOfflineOrders();
   let count = 0;
-  await persistOrders(
-    orders.map((item) => {
-      if (item.status !== 'syncing') return item;
-      count += 1;
-      return { ...item, status: 'pending' as OfflineOrderSyncStatus, error_message: item.error_message ?? null };
-    }),
-  );
+  const next = orders.map((item) => {
+    if (item.status !== 'syncing') return item;
+    count += 1;
+    return { ...item, status: 'pending' as OfflineOrderSyncStatus, error_message: item.error_message ?? null };
+  });
+  if (count === 0) return 0;
+  await persistOrders(next);
   return count;
 }
 

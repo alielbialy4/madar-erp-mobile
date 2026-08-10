@@ -1,17 +1,17 @@
-import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
+import { EntityRow } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
 import { createCategoryStyles } from '@/components/categories/categoryStyles';
-import { chevronForwardIcon } from '@/utils/rtl';
 import { numberText } from '@/utils/format';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 import type { Warehouse } from '@/types/api';
 import { Text } from '@/components/ui/AppText';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import React, { useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 type CardVariant = 'compact' | 'grid';
 
@@ -55,38 +55,16 @@ export function WarehouseListCard({ warehouse, canManage, onPress, onEdit, varia
   }
 
   return (
-    <View style={styles.categoryCard}>
-      <Pressable
-        onPress={onPress}
-        onLongPress={handleLongPress}
-        style={({ pressed }) => [styles.cardPressable, extra.compactPressable, pressed && { opacity: 0.92 }]}
-      >
-        <View style={styles.cardTop}>
-          <View style={styles.thumbPlaceholder}>
-            <MaterialIcons name="warehouse" size={28} color={c.textCaption} />
-          </View>
-          <View style={styles.cardBody}>
-            <View style={extra.titleRow}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
-                {warehouse.name}
-              </Text>
-              <AppBadge label={isActive ? 'نشط' : 'غير نشط'} tone={isActive ? 'success' : 'warning'} />
-            </View>
-            <Text style={styles.cardDesc} numberOfLines={1}>
-              {warehouse.code ? `كود: ${warehouse.code}` : 'بدون كود'}
-              {warehouse.location ? ` • ${warehouse.location}` : ''}
-            </Text>
-            <Text style={styles.cardMeta}>
-              {warehouse.branch?.name ? `فرع: ${warehouse.branch.name}` : 'غير مرتبط بفرع'}
-              {productCount > 0 ? ` • ${numberText(productCount)} صنف` : ''}
-            </Text>
-          </View>
-          <View style={styles.cardChevron}>
-            <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textCaption} />
-          </View>
-        </View>
-      </Pressable>
-    </View>
+    <EntityRow
+      primary={warehouse.name}
+      secondary={[warehouse.code ? `كود ${warehouse.code}` : 'بدون كود', warehouse.location].filter(Boolean).join(' · ')}
+      meta={[warehouse.branch?.name ? `فرع ${warehouse.branch.name}` : 'غير مرتبط بفرع', productCount > 0 ? `${numberText(productCount)} صنف` : null].filter(Boolean).join(' · ')}
+      badgeLabel={isActive ? 'نشط' : 'غير نشط'}
+      badgeTone={isActive ? 'success' : 'warning'}
+      fallback={<MaterialIcons name="warehouse" size={18} color={c.textCaption} />}
+      onPress={onPress}
+      onLongPress={handleLongPress}
+    />
   );
 }
 
@@ -122,7 +100,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontSize: typography.tiny,
       fontFamily: fonts.medium,
       color: c.textMuted,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
   });
 }

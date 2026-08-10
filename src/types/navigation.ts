@@ -51,7 +51,7 @@ export type InventoryListPresetKey =
 export type MoreStackParamList = {
   MoreHome: undefined;
   Customers: undefined;
-  CustomerDetail: { id: number; name?: string };
+  CustomerDetail: { id: number; name?: string; embedded?: boolean };
   Refunds: undefined;
   SalesByProduct: undefined;
   Layaway: undefined;
@@ -88,7 +88,7 @@ export type MoreStackParamList = {
   RequisitionDetail: { id: string };
   RequisitionCreate: undefined;
   Purchases: undefined;
-  PurchaseDetail: { id: number };
+  PurchaseDetail: { id: number; embedded?: boolean };
   CreatePurchase: undefined;
   EditPurchase: { id: number };
   PurchaseReturnsList: undefined;
@@ -106,7 +106,7 @@ export type MoreStackParamList = {
   ShiftManagement: undefined;
   Expenses: undefined;
   ExpenseCreate: undefined;
-  ExpenseDetail: { id: number };
+  ExpenseDetail: { id: number; embedded?: boolean };
   ExpenseCategories: undefined;
   RecurringExpenses: undefined;
   Budgets: undefined;
@@ -132,7 +132,7 @@ export type MoreStackParamList = {
   Users: undefined;
   PaymentsLedger: undefined;
   FinancialAccounts: undefined;
-  FinancialAccountDetail: { id: string; name?: string };
+  FinancialAccountDetail: { id: string; name?: string; embedded?: boolean };
   UserForm: { id?: number };
   Roles: undefined;
   BranchesList: undefined;

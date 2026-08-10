@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { AppBadge, AppButton } from '@/components/ui';
+import { AppBadge } from '@/components/ui';
 import { AppErrorState } from '@/components/feedback';
+import { AttentionBand, MadarSection, MadarSurface, MetricBlock, QuickActionBar } from '@/components/madar';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { DashboardHero } from './DashboardHero';
@@ -130,11 +130,46 @@ export function CashierDashboardView({ shell, navigation }: Props) {
     );
   }
 
+  const actions = [
+    canPos
+      ? {
+          id: 'pos',
+          label: 'نقطة البيع',
+          icon: 'storefront' as const,
+          onPress: () => navigation.navigate('POSTab'),
+          tone: 'accent' as const,
+        }
+      : null,
+    canOpenShift && !myShift
+      ? {
+          id: 'open-shift',
+          label: 'فتح وردية',
+          icon: 'clock' as const,
+          onPress: () => setOpenSheet(true),
+        }
+      : null,
+    canCloseShift && myShift
+      ? {
+          id: 'close-shift',
+          label: 'إغلاق الوردية',
+          icon: 'logout' as const,
+          onPress: () => setCloseSheet(true),
+          tone: 'danger' as const,
+        }
+      : null,
+  ].filter(Boolean) as {
+    id: string;
+    label: string;
+    icon?: 'storefront' | 'clock' | 'logout';
+    onPress: () => void;
+    tone?: 'default' | 'danger' | 'accent';
+  }[];
+
   return (
     <View style={ds.page}>
       <DashboardHero
         title="لوحة الكاشير"
-        subtitle="ورديتك الحالية — افتح نقطة البيع أو أغلق الوردية عند الانتهاء."
+        subtitle="حالة الوردية أولاً — ثم إجراء واحد واضح للبيع أو الإغلاق."
         scopeBadges={scopeBadges}
         lastUpdatedLabel={shell.lastUpdatedLabel}
         isLoading={loading || shell.isLoading}
@@ -144,43 +179,45 @@ export function CashierDashboardView({ shell, navigation }: Props) {
       {loadError ? <AppErrorState message={loadError} onRetry={() => void load()} /> : null}
 
       {!loading && !myShift && !loadError ? (
-        <View style={[ds.surfaceCard, { padding: spacing.xxl, alignItems: 'center', gap: spacing.md, borderStyle: 'dashed' }]}>
-          <MaterialIcons name="schedule" size={40} color={c.textCaption} />
-          <Text style={[ds.sectionTitle, { textAlign: 'center' }]}>لا توجد وردية مفتوحة</Text>
-          <Text style={[ds.sectionHint, { textAlign: 'center' }]}>افتح الوردية لكي تظهر بياناتها</Text>
-          {canOpenShift ? (
-            <AppButton title="فتح وردية" onPress={() => setOpenSheet(true)} />
-          ) : (
-            <Text style={ds.emptyText}>ليس لديك صلاحية فتح وردية. راجع المشرف.</Text>
-          )}
-        </View>
+        <AttentionBand
+          items={[
+            {
+              id: 'need-shift',
+              title: 'لا توجد وردية مفتوحة',
+              detail: canOpenShift
+                ? 'افتح وردية لتفعيل نقطة البيع ومتابعة الصندوق.'
+                : 'ليس لديك صلاحية فتح وردية. راجع المشرف.',
+              tone: 'warning',
+              onPress: canOpenShift ? () => setOpenSheet(true) : undefined,
+            },
+          ]}
+        />
       ) : null}
 
       {myShift ? (
-        <View style={[ds.surfaceCard, { padding: spacing.lg, gap: spacing.md }]}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' }}>
-            <AppBadge label={`وردية #${myShift.shift_no ?? '—'}`} tone="info" />
-            <AppBadge label={activeBranch?.name ?? 'الفرع'} tone="neutral" />
-          </View>
-          <Text style={[ds.sectionHint, { ...ds.sectionHint }]}>
-            {myShift.vault?.name ?? 'خزينة'}
-            {myShift.opened_at
-              ? ` · افتتحت ${new Date(myShift.opened_at).toLocaleString('ar-EG-u-nu-latn')}`
-              : ''}
-          </Text>
-          <Text style={ds.sectionTitle}>
-            رصيد افتتاحي: <Text style={{ fontWeight: '800' }}>{money(numFromApi(myShift.starting_cash))}</Text>
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {canPos ? (
-              <AppButton title="فتح نقطة البيع" size="sm" onPress={() => navigation.navigate('POSTab')} />
-            ) : null}
-            {canCloseShift ? (
-              <AppButton title="إغلاق الوردية" variant="secondary" size="sm" onPress={() => setCloseSheet(true)} />
-            ) : null}
-          </View>
-        </View>
+        <MadarSection title="وردية نشطة">
+          <MadarSurface style={{ gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' }}>
+              <AppBadge label={`وردية #${myShift.shift_no ?? '—'}`} tone="info" />
+              <AppBadge label={activeBranch?.name ?? 'الفرع'} tone="neutral" />
+            </View>
+            <Text style={ds.sectionHint}>
+              {myShift.vault?.name ?? 'خزينة'}
+              {myShift.opened_at
+                ? ` · افتتحت ${new Date(myShift.opened_at).toLocaleString('ar-EG-u-nu-latn')}`
+                : ''}
+            </Text>
+            <MetricBlock
+              label="رصيد الافتتاح"
+              value={money(numFromApi(myShift.starting_cash))}
+              level="B"
+              tone="info"
+            />
+          </MadarSurface>
+        </MadarSection>
       ) : null}
+
+      <QuickActionBar actions={actions} />
 
       <OpenShiftSheet
         visible={openSheet}

@@ -1,24 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { suppliersAPI } from '@/api/suppliers';
-import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard, AppInput, AppSectionHeader, AppSwipeRow } from '@/components/ui';
+import { AppBottomSheet, ListScreenLayout, MasterDetailLayout } from '@/components/layout';
+import { AppButton, AppInput, AppSectionHeader, AppSwipeRow, AppText } from '@/components/ui';
+import { FinancialRow, MadarSection, MadarSurface, MetricBlock, QuickActionBar } from '@/components/madar';
 import { FormError } from '@/components/forms';
-import { ConfirmDialog } from '@/components/feedback';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
+import { isTablet } from '@/constants/responsive';
 import { money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { getCurrentBalanceInterpretation } from '@/utils/supplierBalanceLabels';
-import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
+import { textStart } from '@/constants/layout';
 
 const createSchema = z.object({
   name: z.string().min(1, 'الاسم مطلوب'),
@@ -43,11 +45,15 @@ function truncateNotes(notes: unknown, max = 50): string {
 }
 
 export function SuppliersScreen({ navigation }: { navigation: any }) {
+  const { width } = useWindowDimensions();
+  const tablet = isTablet(width);
+  const toast = useToast();
   const c = useColors();
   const user = useAuthStore((s) => s.user);
   const canManage = hasPermission(user, 'manage_suppliers');
 
   const [query, setQuery] = useState('');
+  const [previewId, setPreviewId] = useState<string | number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
@@ -98,7 +104,7 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
       setCreateOpen(false);
       createForm.reset();
       await refresh();
-      Alert.alert('تم', 'تم إضافة المورد بنجاح');
+      toast.success('تم إضافة المورد بنجاح');
     } catch (err) {
       setFormError(normalizeApiError(err).message);
     }
@@ -116,7 +122,7 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
       setEditOpen(false);
       setSelected(null);
       await refresh();
-      Alert.alert('تم', 'تم تحديث المورد بنجاح');
+      toast.success('تم تحديث المورد بنجاح');
     } catch (err) {
       setFormError(normalizeApiError(err).message);
     }
@@ -129,9 +135,9 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
       await suppliersAPI.delete(Number(deleteTarget.id));
       setDeleteTarget(null);
       await refresh();
-      Alert.alert('تم', 'تم حذف المورد بنجاح');
+      toast.success('تم حذف المورد بنجاح');
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setDeleting(false);
     }
@@ -143,6 +149,16 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
     return { signed, info };
   };
 
+  const openSupplier = (item: Record<string, unknown>) => {
+    if (tablet) {
+      setPreviewId(item.id as string | number);
+      return;
+    }
+    openEdit(item);
+  };
+
+  const previewSupplier = items.find((item) => String(item.id) === String(previewId)) ?? null;
+
   return (
     <ListScreenLayout
       title="الموردين"
@@ -152,6 +168,7 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
       searchPlaceholder="بحث عن الموردين..."
       onRefresh={refresh}
       refreshing={refreshing}
+      contentStyle={tablet ? { flex: 1 } : undefined}
       fab={canManage ? { onPress: () => { setFormError(null); setCreateOpen(true); }, label: 'إضافة مورد' } : undefined}
       hero={{
         eyebrow: 'المشتريات',
@@ -161,41 +178,95 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
         compact: true,
       }}
     >
-      <ResourceList
-        data={items}
-        loading={loading}
-        refreshing={refreshing}
-        error={error}
-        onRefresh={refresh}
-        onEndReached={loadMore}
-        emptyTitle="لا توجد موردين"
-        emptyCtaLabel={canManage ? 'إضافة مورد' : undefined}
-        onEmptyCta={canManage ? () => { setFormError(null); setCreateOpen(true); } : undefined}
-        keyExtractor={(item, index) => String(item.id ?? index)}
-        renderItem={({ item }) => {
-          const { signed, info } = balanceMeta(item);
-          const card = (
-            <AppDomainCard
-              title={String(item.name ?? 'مورد')}
-              subtitle={String(item.phone ?? '—')}
-              meta={`${truncateNotes(item.notes)} • ${money(signed)} — ${info.label_ar}`}
-              metric={money(signed)}
-              badgeLabel={`${item.purchases_count ?? 0} فاتورة`}
-              badgeTone="info"
-              leadingIcon={moduleIcons.suppliers}
-              onPress={() => openEdit(item)}
-            />
-          );
-          const swipeActions = [
-            { label: 'تقرير', icon: 'assessment' as const, onPress: () => navigation.navigate('SupplierReport', { id: item.id, name: item.name }) },
-            { label: 'كشف', icon: 'receipt-long' as const, onPress: () => navigation.navigate('SupplierStatement', { id: item.id, name: item.name }) },
-            ...(canManage ? [
-              { label: 'تعديل', icon: 'edit' as const, onPress: () => openEdit(item) },
-              { label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: () => setDeleteTarget(item) },
-            ] : []),
-          ];
-          return swipeActions.length > 0 ? <AppSwipeRow rightActions={swipeActions}>{card}</AppSwipeRow> : card;
-        }}
+      <MasterDetailLayout
+        emptyTitle="اختر موردًا"
+        emptyMessage="اختر موردًا من القائمة لمراجعة الرصيد والتقارير دون مغادرة الشاشة."
+        master={
+          <ResourceList
+            data={items}
+            loading={loading}
+            refreshing={refreshing}
+            error={error}
+            onRefresh={refresh}
+            onEndReached={loadMore}
+            emptyTitle="لا توجد موردين"
+            emptyCtaLabel={canManage ? 'إضافة مورد' : undefined}
+            onEmptyCta={canManage ? () => { setFormError(null); setCreateOpen(true); } : undefined}
+            keyExtractor={(item, index) => String(item.id ?? index)}
+            renderItem={({ item }) => {
+              const { signed, info } = balanceMeta(item);
+              const card = (
+                <FinancialRow
+                  primary={String(item.name ?? 'مورد')}
+                  secondary={String(item.phone ?? '—')}
+                  meta={`${truncateNotes(item.notes)} · ${info.label_ar} · ${item.purchases_count ?? 0} فاتورة`}
+                  amount={signed}
+                  currency="ج.م"
+                  amountTone={signed > 0 ? 'negative' : signed < 0 ? 'positive' : 'default'}
+                  selected={tablet && String(previewId) === String(item.id)}
+                  onPress={() => openSupplier(item)}
+                />
+              );
+              const swipeActions = [
+                { label: 'تقرير', icon: 'assessment' as const, onPress: () => navigation.navigate('SupplierReport', { id: item.id, name: item.name }) },
+                { label: 'كشف', icon: 'receipt-long' as const, onPress: () => navigation.navigate('SupplierStatement', { id: item.id, name: item.name }) },
+                ...(canManage ? [
+                  { label: 'تعديل', icon: 'edit' as const, onPress: () => openEdit(item) },
+                  { label: 'حذف', icon: 'delete' as const, tone: 'danger' as const, onPress: () => setDeleteTarget(item) },
+                ] : []),
+              ];
+              return swipeActions.length > 0 ? <AppSwipeRow rightActions={swipeActions}>{card}</AppSwipeRow> : card;
+            }}
+          />
+        }
+        detail={
+          previewSupplier ? (
+            <View style={{ flex: 1, padding: spacing.lg, gap: spacing.lg }}>
+              <MadarSection title={String(previewSupplier.name ?? 'مورد')}>
+                <AppText style={{ ...textStart, color: c.textMuted }}>
+                  {[previewSupplier.phone, truncateNotes(previewSupplier.notes, 120)].filter(Boolean).join(' · ')}
+                </AppText>
+                {(() => {
+                  const { signed, info } = balanceMeta(previewSupplier);
+                  return (
+                    <MetricBlock
+                      label={info.label_ar}
+                      value={money(signed)}
+                      hint={`${previewSupplier.purchases_count ?? 0} فاتورة شراء`}
+                      level="A"
+                      tone={signed > 0 ? 'negative' : signed < 0 ? 'positive' : 'neutral'}
+                    />
+                  );
+                })()}
+              </MadarSection>
+              <QuickActionBar
+                actions={[
+                  {
+                    id: 'report',
+                    label: 'تقرير',
+                    icon: 'chart-bar',
+                    onPress: () => navigation.navigate('SupplierReport', { id: previewSupplier.id, name: previewSupplier.name }),
+                    tone: 'accent',
+                  },
+                  {
+                    id: 'statement',
+                    label: 'كشف حساب',
+                    icon: 'receipt',
+                    onPress: () => navigation.navigate('SupplierStatement', { id: previewSupplier.id, name: previewSupplier.name }),
+                  },
+                  ...(canManage
+                    ? [{ id: 'edit', label: 'تعديل', icon: 'pencil' as const, onPress: () => openEdit(previewSupplier) }]
+                    : []),
+                ]}
+              />
+              <MadarSurface>
+                <AppText style={{ ...textStart, color: c.textMuted, fontSize: 13 }}>
+                  استخدم التقرير أو كشف الحساب للتفاصيل المحاسبية الكاملة.
+                </AppText>
+              </MadarSurface>
+            </View>
+          ) : null
+        }
       />
 
       <AppBottomSheet visible={createOpen} onClose={() => setCreateOpen(false)}>
@@ -222,7 +293,7 @@ export function SuppliersScreen({ navigation }: { navigation: any }) {
         <View style={{ gap: spacing.md }}>
           <AppSectionHeader title="تحديث المورد" />
           {selected ? (
-            <View style={{ gap: spacing.xs, padding: spacing.md, borderRadius: 8, backgroundColor: c.surfaceMuted }}>
+            <View style={{ gap: spacing.xs, padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: c.borderSubtle, backgroundColor: c.surface }}>
               <AppInput label="الرصيد الابتدائي (قراءة فقط)" value={money(selected.opening_balance ?? 0)} editable={false} />
               <AppInput
                 label="الرصيد الحالي (قراءة فقط)"

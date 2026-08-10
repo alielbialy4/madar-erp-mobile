@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { textStart } from '@/constants/layout';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppButton, AppListItem } from '@/components/ui';
+import { AttentionBand, MadarSection, MadarSurface, MetricBlock } from '@/components/madar';
+import { flexRow, textStart } from '@/constants/layout';
 import { ConfirmDialog } from '@/components/feedback';
 import { syncAll } from '@/services/sync/syncService';
 import { countByStatus, getPendingOrders, removePendingOrders, retryFailedOrders } from '@/services/offline/posOrders';
@@ -161,74 +162,79 @@ export function SyncStatusScreen() {
 
   return (
     <AppScreen title="حالة المزامنة">
-      <AppCard>
-        <AppSectionHeader title="نطاق المزامنة الأوفلاين" />
-        <Text style={styles.failedMeta}>
-          المزامنة المحلية الحالية تغطي مبيعات نقطة البيع والطباعة فقط. تعديل المشتريات أو العملاء أو المصروفات يتطلب اتصالاً مباشراً (مثل الويب).
-        </Text>
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="حالة الاتصال" />
-        <AppListItem
-          title="الاتصال"
-          subtitle={isOnline ? 'يمكن مزامنة الطلبات المعلقة' : 'المزامنة متوقفة حتى يعود الاتصال'}
-          badge={<AppBadge label={isOnline ? 'متصل' : 'غير متصل'} tone={isOnline ? 'success' : 'warning'} />}
-        />
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="الطلبات المعلقة" />
-        <Text style={styles.statText}>طلبات بانتظار المزامنة: {numberText(pendingCount)}</Text>
-        <Text style={styles.statText}>طلبات فاشلة: {numberText(failedCount)}</Text>
-        <Text style={styles.statText}>طباعة معلقة: {numberText(printPending)}</Text>
-        <Text style={styles.statText}>طباعة فاشلة: {numberText(printFailed)}</Text>
-      </AppCard>
-      <AppCard>
-        <AppSectionHeader title="إجراءات" />
-        {result ? <Text style={styles.resultText}>{result}</Text> : null}
-        <View style={styles.actions}>
-          <AppButton title="مزامنة الآن" onPress={handleSync} loading={syncing} disabled={!isOnline} />
-          <AppButton title="إعادة محاولة الفاشلة" variant="outline" onPress={handleRetryFailed} loading={syncing} disabled={!isOnline || failedCount === 0} />
-          <AppButton title="حذف الطلبات الفاشلة" variant="danger" onPress={() => setClearConfirm(true)} disabled={failedCount === 0} />
-        </View>
-      </AppCard>
+      <AttentionBand
+        title="نطاق المزامنة"
+        items={[{
+          id: 'scope',
+          title: 'POS والطباعة فقط',
+          detail: 'تعديل المشتريات أو العملاء أو المصروفات يتطلب اتصالاً مباشراً (مثل الويب).',
+          tone: 'info',
+        }]}
+      />
+      <MadarSection title="حالة الاتصال">
+        <MadarSurface padded={false}>
+          <AppListItem
+            title="الاتصال"
+            subtitle={isOnline ? 'يمكن مزامنة الطلبات المعلقة' : 'المزامنة متوقفة حتى يعود الاتصال'}
+            badge={<AppBadge label={isOnline ? 'متصل' : 'غير متصل'} tone={isOnline ? 'success' : 'warning'} />}
+          />
+        </MadarSurface>
+      </MadarSection>
+      <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+        <MetricBlock label="بانتظار المزامنة" value={numberText(pendingCount)} level="B" style={{ flex: 1, minWidth: 140 }} />
+        <MetricBlock label="فاشلة" value={numberText(failedCount)} level="B" tone="negative" style={{ flex: 1, minWidth: 140 }} />
+        <MetricBlock label="طباعة معلقة" value={numberText(printPending)} level="C" style={{ flex: 1, minWidth: 140 }} />
+        <MetricBlock label="طباعة فاشلة" value={numberText(printFailed)} level="C" tone="warning" style={{ flex: 1, minWidth: 140 }} />
+      </View>
+      <MadarSection title="إجراءات">
+        <MadarSurface>
+          {result ? <Text style={styles.resultText}>{result}</Text> : null}
+          <View style={styles.actions}>
+            <AppButton title="مزامنة الآن" onPress={handleSync} loading={syncing} disabled={!isOnline} />
+            <AppButton title="إعادة محاولة الفاشلة" variant="outline" onPress={handleRetryFailed} loading={syncing} disabled={!isOnline || failedCount === 0} />
+            <AppButton title="حذف الطلبات الفاشلة" variant="danger" onPress={() => setClearConfirm(true)} disabled={failedCount === 0} />
+          </View>
+        </MadarSurface>
+      </MadarSection>
       {failedOrders.length > 0 ? (
-        <AppCard>
-          <AppSectionHeader title="تفاصيل التعارضات والفشل" />
-          {failedOrders.map((order) => (
-            <View key={order.client_order_id} style={styles.failedCard}>
-              <Text style={styles.failedTitle}>
-                طلب محلي {order.local_order_id.slice(0, 8)} • {money(order.totals_snapshot.total)}
-              </Text>
-              <Text style={styles.failedMeta}>
-                {dateText(order.created_at)} • {numberText(order.items.length)} أصناف
-              </Text>
-              {order.coupon_snapshot ? (
-                <Text style={styles.failedMeta}>
-                  كوبون بانتظار التحقق: {order.coupon_snapshot.coupon_code ?? order.coupon_snapshot.coupon_id ?? '—'} • خصم {money(order.coupon_snapshot.coupon_discount)}
+        <MadarSection title="تفاصيل التعارضات والفشل">
+          <MadarSurface>
+            {failedOrders.map((order) => (
+              <View key={order.client_order_id} style={styles.failedCard}>
+                <Text style={styles.failedTitle}>
+                  طلب محلي {order.local_order_id.slice(0, 8)} • {money(order.totals_snapshot.total)}
                 </Text>
-              ) : null}
-              <Text style={styles.failedReason}>
-                سبب الخادم: {order.error_message ?? 'لم يرجع الخادم سبباً محدداً.'}
-              </Text>
-              <View style={styles.failedActions}>
-                <AppButton
-                  title="إعادة المحاولة"
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => void handleRetryOne(order)}
-                  disabled={!isOnline || syncing}
-                />
-                <AppButton
-                  title="حذف هذا الطلب"
-                  variant="danger"
-                  size="sm"
-                  onPress={() => setClearOrderId(order.client_order_id)}
-                  disabled={syncing || clearing}
-                />
+                <Text style={styles.failedMeta}>
+                  {dateText(order.created_at)} • {numberText(order.items.length)} أصناف
+                </Text>
+                {order.coupon_snapshot ? (
+                  <Text style={styles.failedMeta}>
+                    كوبون بانتظار التحقق: {order.coupon_snapshot.coupon_code ?? order.coupon_snapshot.coupon_id ?? '—'} • خصم {money(order.coupon_snapshot.coupon_discount)}
+                  </Text>
+                ) : null}
+                <Text style={styles.failedReason}>
+                  سبب الخادم: {order.error_message ?? 'لم يرجع الخادم سبباً محدداً.'}
+                </Text>
+                <View style={styles.failedActions}>
+                  <AppButton
+                    title="إعادة المحاولة"
+                    variant="secondary"
+                    size="sm"
+                    onPress={() => void handleRetryOne(order)}
+                    disabled={!isOnline || syncing}
+                  />
+                  <AppButton
+                    title="حذف هذا الطلب"
+                    variant="danger"
+                    size="sm"
+                    onPress={() => setClearOrderId(order.client_order_id)}
+                    disabled={syncing || clearing}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
-        </AppCard>
+            ))}
+          </MadarSurface>
+        </MadarSection>
       ) : null}
       <ConfirmDialog
         visible={clearConfirm}

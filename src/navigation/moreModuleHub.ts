@@ -1,6 +1,8 @@
 import type { MobileSidebarMenuItem } from './buildSidebarMenu';
 import type { SidebarNavAction } from './sidebarNavMap';
 import { webLinkToNav } from './sidebarNavMap';
+import { tu } from '@/i18n/tu';
+import i18n from '@/i18n';
 
 export type MoreHubGroupId =
   | 'operations'
@@ -20,7 +22,7 @@ export type MoreHubItem = {
   nav?: SidebarNavAction;
   disabled?: boolean;
   disabledReason?: string;
-  badge?: 'قراءة' | 'جديد';
+  badge?: string;
 };
 
 export type MoreHubGroup = {
@@ -30,15 +32,15 @@ export type MoreHubGroup = {
   items: MoreHubItem[];
 };
 
-const GROUP_META: Record<MoreHubGroupId, { title: string; subtitle: string }> = {
-  operations: { title: 'العمليات', subtitle: 'عملاء، مرتجعات، مصروفات، توصيل' },
-  restaurant: { title: 'المطعم والمطبخ', subtitle: 'صالات، مطبخ، نادل' },
-  inventory: { title: 'المخزون', subtitle: 'أرصدة، حركات، تسويات، صلاحية' },
-  purchases: { title: 'المشتريات والموردين', subtitle: 'فواتير، موردون، دفعات' },
-  finance: { title: 'المالية والورديات', subtitle: 'خزن، ورديات، مدفوعات' },
-  marketing: { title: 'التسويق', subtitle: 'كوبونات، عروض، بطاقات هدايا' },
-  reports: { title: 'التقارير', subtitle: 'مركز تقارير مطابق للويب' },
-  admin: { title: 'الإدارة والحساب', subtitle: 'إعدادات، موظفون، فروع، نشاط' },
+const GROUP_META: Record<MoreHubGroupId, { titleKey: string; subtitleKey: string }> = {
+  operations: { titleKey: 'mobile.more.operations', subtitleKey: 'mobile.more.operationsSub' },
+  restaurant: { titleKey: 'mobile.more.restaurant', subtitleKey: 'mobile.more.restaurantSub' },
+  inventory: { titleKey: 'mobile.more.inventory', subtitleKey: 'mobile.more.inventorySub' },
+  purchases: { titleKey: 'mobile.more.purchases', subtitleKey: 'mobile.more.purchasesSub' },
+  finance: { titleKey: 'mobile.more.finance', subtitleKey: 'mobile.more.financeSub' },
+  marketing: { titleKey: 'mobile.more.marketing', subtitleKey: 'mobile.more.marketingSub' },
+  reports: { titleKey: 'mobile.more.reports', subtitleKey: 'mobile.more.reportsSub' },
+  admin: { titleKey: 'mobile.more.admin', subtitleKey: 'mobile.more.adminSub' },
 };
 
 /** Route → hub group (bottom tabs excluded) */
@@ -104,7 +106,8 @@ function groupForLink(link?: string): MoreHubGroupId | null {
 }
 
 function descriptionForLink(link?: string): string | undefined {
-  return routeMetaForLink(link)?.description;
+  const raw = routeMetaForLink(link)?.description;
+  return raw ? tu(raw) : undefined;
 }
 
 export function buildMoreHubGroups(menuItems: MobileSidebarMenuItem[]): MoreHubGroup[] {
@@ -134,7 +137,7 @@ export function buildMoreHubGroups(menuItems: MobileSidebarMenuItem[]): MoreHubG
         description: descriptionForLink(link),
         icon: item.icon ?? 'ri-file-list-line',
         nav,
-        badge: isParity ? 'قراءة' : undefined,
+        badge: isParity ? i18n.t('mobile.badge.read') : undefined,
       });
     }
   };
@@ -156,8 +159,8 @@ export function buildMoreHubGroups(menuItems: MobileSidebarMenuItem[]): MoreHubG
     .filter((id) => (buckets.get(id)?.length ?? 0) > 0)
     .map((id) => ({
       id,
-      title: GROUP_META[id].title,
-      subtitle: GROUP_META[id].subtitle,
+      title: i18n.t(GROUP_META[id].titleKey),
+      subtitle: i18n.t(GROUP_META[id].subtitleKey),
       items: buckets.get(id) ?? [],
     }));
 }

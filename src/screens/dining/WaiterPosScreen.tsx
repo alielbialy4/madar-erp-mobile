@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { waiterAPI } from '@/api/waiter';
 import { kitchenPrintJobsAPI } from '@/api/kitchenPrintJobs';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
@@ -23,6 +24,7 @@ function tableDisplayName(table: WaiterTableRow): string {
 }
 
 export function WaiterPosScreen({ navigation }: { navigation: any }) {
+  const isFocused = useIsFocused();
   const c = useColors();
   const catalogProducts = usePosStore((s) => s.products);
   const [tables, setTables] = useState<WaiterTableRow[]>([]);
@@ -48,8 +50,9 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
 
   const pickerOpen = sheetMode === 'create' || sheetMode === 'add';
 
-  const loadTables = useCallback(async () => {
-    setLoading(true);
+  const loadTables = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await waiterAPI.getTables();
@@ -57,15 +60,16 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
     } catch (err) {
       setError(normalizeApiError(err).message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    if (!isFocused) return;
     void loadTables();
-    const t = setInterval(() => void loadTables(), 30000);
+    const t = setInterval(() => void loadTables({ silent: true }), 30000);
     return () => clearInterval(t);
-  }, [loadTables]);
+  }, [loadTables, isFocused]);
 
   const closePicker = () => {
     setSheetMode(null);
@@ -211,17 +215,17 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
       subtitle="اختر طاولة · اسحب للدمج أو النقل"
       onBack={navigation.goBack}
       refreshing={loading}
-      onRefresh={loadTables}
+      onRefresh={() => void loadTables()}
     >
       {message ? <Text style={{ color: c.info, marginBottom: spacing.sm }}>{message}</Text> : null}
-      {error ? <AppErrorState message={error} onRetry={loadTables} /> : null}
+      {error ? <AppErrorState message={error} onRetry={() => void loadTables()} /> : null}
       {!error ? (
         <WaiterTablesGrid
           tables={tables}
           loading={loading}
           selectedTableId={selected?.id ?? null}
           onSelectTable={(table) => void openTable(table)}
-          onTablesChanged={loadTables}
+          onTablesChanged={() => loadTables()}
           onMessage={setMessage}
           onReleasedTable={handleReleasedTable}
         />

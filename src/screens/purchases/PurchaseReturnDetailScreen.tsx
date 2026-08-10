@@ -3,7 +3,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { purchaseReturnsAPI } from '@/api/purchases';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
-import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { dateText, money, numberText , asText } from '@/utils/format';
 import type { MoreStackParamList } from '@/types/navigation';
 
@@ -27,16 +28,17 @@ export function PurchaseReturnDetailScreen({ navigation, route }: { navigation: 
       {(doc) => {
         const items = Array.isArray(doc.items) ? (doc.items as Record<string, unknown>[]) : [];
         return (
-          <AppCard>
-            <AppSectionHeader title="الأصناف" />
-            {items.map((it, index) => (
-              <AppListItem
-                key={String(it.id ?? index)}
-                title={asText((it.product as Record<string, unknown>)?.name, 'صنف')}
-                meta={`× ${numberText(it.quantity)}`}
-              />
-            ))}
-          </AppCard>
+          <MadarSection title="الأصناف">
+            <MadarSurface padded={false}>
+              {items.map((it, index) => (
+                <AppListItem
+                  key={String(it.id ?? index)}
+                  title={asText((it.product as Record<string, unknown>)?.name, 'صنف')}
+                  meta={`× ${numberText(it.quantity)}`}
+                />
+              ))}
+            </MadarSurface>
+          </MadarSection>
         );
       }}
     </DetailScreen>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
@@ -11,6 +11,7 @@ import { hasPermission, hasRole } from '@/utils/permissions';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
 import { useColors } from '@/hooks/useColors';
+import { useToast } from '@/components/feedback';
 import type { ShiftFilterUser } from '@/types/shifts';
 
 type Props = {
@@ -31,6 +32,7 @@ export function OpenShiftSheet({
   mode = 'default',
   onExitPos,
 }: Props) {
+  const toast = useToast();
   const c = useColors();
   const isRequired = mode === 'required';
   const user = useAuthStore((s) => s.user);
@@ -118,7 +120,7 @@ export function OpenShiftSheet({
         ...(forUserId != null ? { for_user_id: forUserId } : {}),
       });
       if (!isRequired) {
-        Alert.alert('تم', 'تم فتح الوردية بنجاح');
+        toast.success('تم فتح الوردية بنجاح');
       }
       onSuccess();
       if (!isRequired) onClose();

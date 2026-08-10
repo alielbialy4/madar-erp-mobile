@@ -1,8 +1,10 @@
 /**
  * Sidebar menu builder — mirrored from `front/src/Layouts/buildSidebarMenu.ts`.
  * Web paths are mapped to mobile navigation via `sidebarNavMap.ts`.
+ * Template `label` values are i18n keys (same as web `nav.*`), translated at build time.
  */
 
+import i18n from '@/i18n';
 import { webLinkToNav, type SidebarNavAction } from './sidebarNavMap';
 
 type PlanFeatureKey = string;
@@ -111,19 +113,19 @@ const DELIVERY_FINANCE_PERM: string[] = [
 export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  {
  id: 'nav-dashboard',
- label: 'الرئيسية',
+ label: 'nav.dashboard',
  icon: 'las la-tachometer-alt',
  link: '/',
  },
  {
  id: 'nav-pos',
- label: 'نقطة البيع',
+ label: 'nav.pos',
  icon: 'ri-shopping-cart-line',
  feature: 'pos',
  subItems: [
  {
  id: 'nav-pos-screen',
- label: 'شاشة البيع',
+ label: 'nav.pos.screen',
  icon: 'ri-shopping-cart-line',
  link: '/pos',
  perm: 'process_sales',
@@ -131,7 +133,7 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-waiter',
- label: 'النادل',
+ label: 'nav.waiter',
  icon: 'ri-restaurant-line',
  link: '/waiter',
  perm: ['process_sales', 'manage_dining'],
@@ -139,35 +141,35 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-sales',
- label: 'المبيعات',
+ label: 'nav.sales',
  icon: 'ri-receipt-line',
  link: '/sales',
  perm: 'process_sales',
  },
  {
  id: 'nav-sales-products',
- label: 'مبيعات المنتجات',
+ label: 'nav.sales.products',
  icon: 'las la-boxes',
  link: '/sales/products',
  perm: 'process_sales',
  },
  {
  id: 'nav-sales-layaway',
- label: 'خطط التقسيط',
+ label: 'nav.sales.layaway',
  icon: 'ri-time-line',
  link: '/sales/layaway',
  perm: 'process_sales',
  },
  {
  id: 'nav-sales-returns',
- label: 'مرتجعات المبيعات',
+ label: 'nav.sales.returns',
  icon: 'ri-clipboard-fill',
  link: '/sales/returns',
  perm: 'void_receipt',
  },
  {
  id: 'nav-expenses',
- label: 'المصروفات',
+ label: 'nav.expenses',
  icon: 'ri-bank-line',
  link: '/expenses',
  perm: ['process_sales', 'manage_expenses'],
@@ -176,12 +178,12 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-restaurant',
- label: 'المطعم والصالات',
+ label: 'nav.restaurant',
  icon: 'ri-restaurant-line',
  subItems: [
  {
  id: 'nav-dining-halls',
- label: 'القاعات والطاولات',
+ label: 'nav.diningHalls',
  icon: 'ri-building-line',
  link: '/dining-halls',
  perm: 'manage_dining',
@@ -191,12 +193,12 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-customers',
- label: 'العملاء',
+ label: 'nav.customers',
  icon: 'ri-user-line',
  subItems: [
  {
  id: 'nav-customers-list',
- label: 'العملاء',
+ label: 'nav.customers',
  icon: 'ri-user-line',
  link: '/customers',
  perm: ['manage_customers', 'process_sales'],
@@ -205,90 +207,90 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-inventory',
- label: 'المخزون',
+ label: 'nav.inventory',
  icon: 'las la-boxes',
  feature: 'inventory',
  subItems: [
  {
  id: 'nav-products',
- label: 'المنتجات',
+ label: 'nav.products',
  icon: 'las la-boxes',
  link: '/products',
  perm: 'manage_products',
  },
  {
  id: 'nav-raw-materials',
- label: 'الخامات / المواد الخام',
+ label: 'nav.rawMaterials',
  icon: 'ri-flask-line',
  link: '/raw-materials',
  perm: 'manage_products',
  },
  {
  id: 'nav-categories',
- label: 'التصنيفات',
+ label: 'nav.categories',
  icon: 'ri-folder-line',
  link: '/categories',
  perm: 'manage_categories',
  },
  {
  id: 'nav-inventory-main',
- label: 'نظرة عامة على المخزون',
+ label: 'nav.inventory.overview',
  icon: 'ri-store-2-line',
  link: '/inventory',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-balances',
- label: 'أرصدة المخازن',
+ label: 'nav.inventory.balances',
  icon: 'ri-file-list-line',
  link: '/inventory/balances',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-warehouses',
- label: 'المخازن',
+ label: 'nav.inventory.warehouses',
  icon: 'ri-store-2-line',
  link: '/inventory/warehouses',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-movements',
- label: 'حركات المخزون',
+ label: 'nav.inventory.movements',
  icon: 'ri-clipboard-fill',
  link: '/inventory/movements',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-reorder',
- label: 'قواعد إعادة الطلب',
+ label: 'mobile.nav.reorderRules',
  icon: 'ri-file-list-3-line',
  link: '/inventory/reorder-rules',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-requisitions',
- label: 'طلبات الشراء الداخلية',
+ label: 'nav.inventory.requisitions',
  icon: 'ri-shopping-bag-line',
  link: '/inventory/requisitions',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-stock-counts',
- label: 'الجرد',
+ label: 'nav.inventory.stockCounts',
  icon: 'ri-clipboard-fill',
  link: '/inventory/stock-counts',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-transfer',
- label: 'تحويل مخزني',
+ label: 'inventory.movement.type.transfer',
  icon: 'ri-node-tree',
  link: '/inventory/transfers',
  perm: 'manage_inventory',
  },
  {
  id: 'nav-inventory-adjustment',
- label: 'تسوية مخزنية',
+ label: 'inventory.movement.type.adjustment',
  icon: 'ri-clipboard-fill',
  link: '/inventory/adjustments',
  perm: 'manage_inventory',
@@ -297,41 +299,41 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-purchases',
- label: 'المشتريات والموردين',
+ label: 'mobile.nav.purchasesSuppliers',
  icon: 'ri-truck-line',
  feature: 'purchases',
  subItems: [
  {
  id: 'nav-purchases-list',
- label: 'فواتير الشراء',
+ label: 'nav.purchases.invoices',
  icon: 'ri-file-list-line',
  link: '/purchases',
  perm: 'manage_purchases',
  },
  {
  id: 'nav-purchases-returns',
- label: 'مرتجعات الشراء',
+ label: 'nav.purchases.returns',
  icon: 'ri-clipboard-fill',
  link: '/purchases/returns',
  perm: 'manage_purchases',
  },
  {
  id: 'nav-purchases-suppliers-nested',
- label: 'موردي المشتريات',
+ label: 'nav.purchases.suppliers',
  icon: 'ri-user-line',
  link: '/purchases/suppliers',
  perm: 'manage_purchases',
  },
  {
  id: 'nav-suppliers',
- label: 'الموردون',
+ label: 'nav.suppliers',
  icon: 'ri-user-line',
  link: '/suppliers',
  perm: 'manage_suppliers',
  },
  {
  id: 'nav-supplier-payments',
- label: 'دفعات الموردين',
+ label: 'nav.supplierPayments',
  icon: 'ri-money-dollar-circle-line',
  link: '/supplier-payments',
  perm: 'manage_supplier_payments',
@@ -340,61 +342,61 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-delivery',
- label: 'التوصيل',
+ label: 'nav.delivery',
  icon: 'ri-truck-line',
  subItems: [
  {
  id: 'nav-delivery-orders',
- label: 'طلبات التوصيل',
+ label: 'nav.delivery.orders',
  icon: 'ri-truck-line',
  link: '/delivery',
  perm: ['process_sales', 'manage_deliveries'],
  },
  {
  id: 'nav-drivers',
- label: 'السائقون',
+ label: 'nav.drivers',
  icon: 'ri-user-line',
  link: '/drivers',
  perm: 'manage_drivers',
  },
  {
  id: 'nav-delivery-zones',
- label: 'مناطق التوصيل',
+ label: 'nav.delivery.zones',
  icon: 'ri-layout-grid-line',
  link: '/delivery-zones',
  perm: 'manage_deliveries',
  },
  {
  id: 'nav-driver-settlements',
- label: 'تسويات السائقين',
+ label: 'nav.driverSettlements',
  icon: 'ri-receipt-line',
  link: '/driver-settlements',
  perm: DELIVERY_FINANCE_PERM,
  },
  {
  id: 'nav-delivery-finance',
- label: 'مالية التوصيل',
+ label: 'nav.deliveryFinance',
  icon: 'ri-file-list-3-line',
  link: '/delivery-finance',
  perm: DELIVERY_FINANCE_PERM,
  },
  {
  id: 'nav-delivery-finance-liabilities',
- label: 'التزامات التوصيل',
+ label: 'nav.deliveryFinance.liabilities',
  icon: 'ri-bank-line',
  link: '/delivery-finance/liabilities',
  perm: DELIVERY_FINANCE_PERM,
  },
  {
  id: 'nav-delivery-finance-settlements',
- label: 'تسويات المالية',
+ label: 'nav.deliveryFinance.settlements',
  icon: 'ri-receipt-line',
  link: '/delivery-finance/settlements',
  perm: DELIVERY_FINANCE_PERM,
  },
  {
  id: 'nav-delivery-finance-alerts',
- label: 'تنبيهات المالية',
+ label: 'nav.deliveryFinance.alerts',
  icon: 'ri-file-list-line',
  link: '/delivery-finance/alerts',
  perm: DELIVERY_FINANCE_PERM,
@@ -403,12 +405,12 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-kitchen',
- label: 'المطبخ',
+ label: 'nav.kitchen',
  icon: 'ri-restaurant-line',
  subItems: [
  {
  id: 'nav-kitchen-display',
- label: 'شاشة المطبخ',
+ label: 'nav.kitchen.display',
  icon: 'ri-restaurant-line',
  link: '/kitchen',
  perm: ['view_kitchen', 'manage_kitchen'],
@@ -416,7 +418,7 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-kitchen-print-jobs',
- label: 'طوابير الطباعة',
+ label: 'nav.kitchen.printJobs',
  icon: 'ri-printer-line',
  link: '/kitchen/print-jobs',
  perm: ['view_kitchen', 'manage_kitchen'],
@@ -424,7 +426,7 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-kitchen-stations',
- label: 'محطات شاشة المطبخ',
+ label: 'nav.kitchen.stations',
  icon: 'ri-layout-grid-line',
  link: '/kitchen/stations',
  perm: 'manage_kitchen',
@@ -434,33 +436,33 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-shifts-vaults',
- label: 'الورديات والخزن',
+ label: 'nav.shiftsVaults',
  icon: 'ri-bank-line',
  subItems: [
  {
  id: 'nav-shifts',
- label: 'الورديات',
+ label: 'nav.shifts',
  icon: 'ri-time-line',
  link: '/shifts',
  perm: ['open_shift', 'close_shift', 'manage_shifts', 'access_admin_routes', 'process_sales'],
  },
  {
  id: 'nav-vaults',
- label: 'الخزن',
+ label: 'mobile.nav.vaults',
  icon: 'ri-safe-2-line',
  link: '/vaults',
  perm: ['access_admin_routes', 'open_shift', 'process_sales'],
  },
  {
  id: 'nav-vault-transactions',
- label: 'حركات الخزن',
+ label: 'nav.vaultTransactions',
  icon: 'ri-receipt-line',
  link: '/vaults/transactions',
  perm: 'manage_treasuries',
  },
  {
  id: 'nav-financial-accounts',
- label: 'الحسابات المالية',
+ label: 'nav.reports.financialAccounts',
  icon: 'ri-bank-card-line',
  link: '/financial-accounts',
  perm: ['view_account_transactions', 'view_account_balances', 'manage_financial_accounts', 'manage_treasuries', 'access_admin_routes'],
@@ -469,20 +471,20 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-marketing',
- label: 'التسويق',
+ label: 'Marketing',
  icon: 'ri-price-tag-3-line',
  perm: MARKETING_PERM,
  subItems: [
  {
  id: 'nav-marketing-promotions',
- label: 'العروض',
+ label: 'nav.marketing.promotions',
  icon: 'ri-price-tag-3-line',
  link: '/marketing/promotions',
  perm: 'manage_promotions',
  },
  {
  id: 'nav-marketing-coupons',
- label: 'الكوبونات',
+ label: 'nav.marketing.coupons',
  icon: 'ri-file-list-line',
  link: '/marketing/coupons',
  perm: 'manage_coupons',
@@ -492,50 +494,50 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-reports',
- label: 'التقارير',
+ label: 'nav.reports',
  icon: 'ri-file-list-3-line',
  perm: 'view_reports',
  feature: 'reports',
  subItems: [
- { id: 'nav-reports-hub', label: 'مركز التقارير', icon: 'ri-file-list-3-line', link: '/reports', perm: 'view_reports' },
- { id: 'nav-rep-sales-dash', label: 'لوحة المبيعات', icon: 'ri-file-list-3-line', link: '/reports/sales/dashboard', perm: 'view_reports' },
- { id: 'nav-rep-sales-refunds', label: 'تقرير المرتجعات', icon: 'ri-receipt-line', link: '/reports/sales/refunds', perm: 'view_reports' },
- { id: 'nav-rep-sales-ret-by-prod', label: 'مرتجعات بيع بالمنتج', icon: 'ri-receipt-line', link: '/reports/sales-returns-by-product', perm: 'view_reports' },
- { id: 'nav-rep-purch-ret-by-prod', label: 'مرتجعات شراء بالمنتج', icon: 'ri-arrow-go-back-line', link: '/reports/purchase-returns-by-product', perm: 'view_reports' },
- { id: 'nav-rep-sales-tax', label: 'تقرير الضرائب', icon: 'ri-bank-line', link: '/reports/sales/tax', perm: 'view_reports' },
- { id: 'nav-rep-sales-layaway', label: 'تقرير البيع الآجل', icon: 'ri-time-line', link: '/reports/sales/layaway', perm: 'view_reports' },
- { id: 'nav-rep-sales-hourly', label: 'مبيعات بالساعة', icon: 'ri-file-list-3-line', link: '/reports/sales/hourly', perm: 'view_reports' },
- { id: 'nav-rep-treasury', label: 'الخزائن', icon: 'ri-safe-2-line', link: '/reports/treasury', perm: 'view_reports', feature: 'advanced_reports' },
- { id: 'nav-rep-expenses', label: 'تقرير المصروفات', icon: 'ri-bank-line', link: '/reports/expenses', perm: 'view_reports', feature: 'advanced_reports' },
- { id: 'nav-rep-profit-loss', label: 'الأرباح والخسائر', icon: 'ri-line-chart-line', link: '/reports/profit-loss', perm: 'view_reports', feature: 'advanced_reports' },
- { id: 'nav-rep-budget-vs-actual', label: 'الموازنة مقابل الفعلي', icon: 'ri-funds-line', link: '/reports/budget-vs-actual', perm: 'view_reports', feature: 'advanced_reports' },
- { id: 'nav-rep-inv-val', label: 'تقييم المخزون', icon: 'las la-boxes', link: '/reports/inventory/valuation', perm: 'view_reports' },
- { id: 'nav-rep-inv-mov', label: 'حركات المخزون', icon: 'ri-clipboard-fill', link: '/reports/inventory/movements', perm: 'view_reports' },
- { id: 'nav-rep-inv-expiry', label: 'تقرير الصلاحية', icon: 'las la-boxes', link: '/reports/inventory/expiry', perm: 'view_reports' },
- { id: 'nav-rep-raw-materials', label: 'تقارير الخامات', icon: 'ri-flask-line', link: '/reports/inventory/raw-materials', perm: 'view_reports' },
- { id: 'nav-rep-recipes', label: 'تقارير تكلفة الوصفات', icon: 'ri-restaurant-line', link: '/reports/recipes', perm: 'view_reports' },
- { id: 'nav-rep-cust-aging', label: 'أعمار ديون العملاء', icon: 'ri-user-line', link: '/reports/customers/aging', perm: 'view_reports' },
- { id: 'nav-rep-sup-aging', label: 'أعمار الموردين', icon: 'ri-truck-line', link: '/reports/suppliers/aging', perm: 'view_reports' },
- { id: 'nav-rep-mkt-coupons', label: 'تقرير الكوبونات', icon: 'ri-file-list-line', link: '/reports/marketing/coupons', perm: 'view_reports' },
- { id: 'nav-rep-mkt-promo', label: 'تقرير العروض', icon: 'ri-price-tag-3-line', link: '/reports/marketing/promotions', perm: 'view_reports' },
- { id: 'nav-rep-gift', label: 'تقرير بطاقات الهدايا', icon: 'ri-gift-line', link: '/reports/gift-cards', perm: 'view_reports' },
- { id: 'nav-rep-dining', label: 'تقرير المطاعم', icon: 'ri-restaurant-line', link: '/reports/dining', perm: 'view_reports' },
- { id: 'nav-rep-delivery', label: 'تقرير التوصيل', icon: 'ri-truck-line', link: '/reports/delivery', perm: 'view_reports' },
- { id: 'nav-rep-shifts', label: 'أداء الورديات', icon: 'ri-time-line', link: '/reports/shifts', perm: 'view_reports', feature: 'advanced_reports' },
- { id: 'nav-rep-device-sync-manifest', label: 'حالة مزامنة أجهزة نقطة البيع', icon: 'ri-device-line', link: '/reports/operations/device-sync-manifest', perm: 'view_reports' },
- { id: 'nav-rep-drawer-reconciliation', label: 'تسوية الدرج', icon: 'ri-scales-3-line', link: '/reports/operations/drawer-reconciliation', perm: 'view_reports' },
- { id: 'nav-rep-saved', label: 'التقارير المحفوظة', icon: 'ri-clipboard-fill', link: '/reports/saved', perm: 'view_reports' },
- { id: 'nav-reports-legacy', label: 'التقارير الكلاسيكية', icon: 'ri-file-list-line', link: '/reports/legacy', perm: 'view_reports' },
+ { id: 'nav-reports-hub', label: 'nav.reports.hub', icon: 'ri-file-list-3-line', link: '/reports', perm: 'view_reports' },
+ { id: 'nav-rep-sales-dash', label: 'nav.reports.salesDashboard', icon: 'ri-file-list-3-line', link: '/reports/sales/dashboard', perm: 'view_reports' },
+ { id: 'nav-rep-sales-refunds', label: 'nav.reports.salesRefunds', icon: 'ri-receipt-line', link: '/reports/sales/refunds', perm: 'view_reports' },
+ { id: 'nav-rep-sales-ret-by-prod', label: 'nav.reports.salesReturnsByProduct', icon: 'ri-receipt-line', link: '/reports/sales-returns-by-product', perm: 'view_reports' },
+ { id: 'nav-rep-purch-ret-by-prod', label: 'nav.reports.purchaseReturnsByProduct', icon: 'ri-arrow-go-back-line', link: '/reports/purchase-returns-by-product', perm: 'view_reports' },
+ { id: 'nav-rep-sales-tax', label: 'nav.reports.salesTax', icon: 'ri-bank-line', link: '/reports/sales/tax', perm: 'view_reports' },
+ { id: 'nav-rep-sales-layaway', label: 'mobile.nav.creditSalesReport', icon: 'ri-time-line', link: '/reports/sales/layaway', perm: 'view_reports' },
+ { id: 'nav-rep-sales-hourly', label: 'nav.reports.salesHourly', icon: 'ri-file-list-3-line', link: '/reports/sales/hourly', perm: 'view_reports' },
+ { id: 'nav-rep-treasury', label: 'nav.reports.treasury', icon: 'ri-safe-2-line', link: '/reports/treasury', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-expenses', label: 'nav.reports.expenses', icon: 'ri-bank-line', link: '/reports/expenses', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-profit-loss', label: 'nav.reports.profitLoss', icon: 'ri-line-chart-line', link: '/reports/profit-loss', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-budget-vs-actual', label: 'nav.reports.budgetVsActual', icon: 'ri-funds-line', link: '/reports/budget-vs-actual', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-inv-val', label: 'nav.reports.inventoryValuation', icon: 'las la-boxes', link: '/reports/inventory/valuation', perm: 'view_reports' },
+ { id: 'nav-rep-inv-mov', label: 'nav.inventory.movements', icon: 'ri-clipboard-fill', link: '/reports/inventory/movements', perm: 'view_reports' },
+ { id: 'nav-rep-inv-expiry', label: 'nav.reports.inventoryExpiry', icon: 'las la-boxes', link: '/reports/inventory/expiry', perm: 'view_reports' },
+ { id: 'nav-rep-raw-materials', label: 'nav.reports.rawMaterials', icon: 'ri-flask-line', link: '/reports/inventory/raw-materials', perm: 'view_reports' },
+ { id: 'nav-rep-recipes', label: 'nav.reports.recipes', icon: 'ri-restaurant-line', link: '/reports/recipes', perm: 'view_reports' },
+ { id: 'nav-rep-cust-aging', label: 'nav.reports.customerAging', icon: 'ri-user-line', link: '/reports/customers/aging', perm: 'view_reports' },
+ { id: 'nav-rep-sup-aging', label: 'nav.reports.supplierAging', icon: 'ri-truck-line', link: '/reports/suppliers/aging', perm: 'view_reports' },
+ { id: 'nav-rep-mkt-coupons', label: 'nav.reports.marketingCoupons', icon: 'ri-file-list-line', link: '/reports/marketing/coupons', perm: 'view_reports' },
+ { id: 'nav-rep-mkt-promo', label: 'nav.reports.marketingPromotions', icon: 'ri-price-tag-3-line', link: '/reports/marketing/promotions', perm: 'view_reports' },
+ { id: 'nav-rep-gift', label: 'nav.reports.giftCards', icon: 'ri-gift-line', link: '/reports/gift-cards', perm: 'view_reports' },
+ { id: 'nav-rep-dining', label: 'nav.reports.dining', icon: 'ri-restaurant-line', link: '/reports/dining', perm: 'view_reports' },
+ { id: 'nav-rep-delivery', label: 'nav.reports.delivery', icon: 'ri-truck-line', link: '/reports/delivery', perm: 'view_reports' },
+ { id: 'nav-rep-shifts', label: 'nav.reports.shifts', icon: 'ri-time-line', link: '/reports/shifts', perm: 'view_reports', feature: 'advanced_reports' },
+ { id: 'nav-rep-device-sync-manifest', label: 'mobile.nav.posDeviceSync', icon: 'ri-device-line', link: '/reports/operations/device-sync-manifest', perm: 'view_reports' },
+ { id: 'nav-rep-drawer-reconciliation', label: 'mobile.nav.drawerSettlement', icon: 'ri-scales-3-line', link: '/reports/operations/drawer-reconciliation', perm: 'view_reports' },
+ { id: 'nav-rep-saved', label: 'nav.reports.saved', icon: 'ri-clipboard-fill', link: '/reports/saved', perm: 'view_reports' },
+ { id: 'nav-reports-legacy', label: 'nav.reports.legacy', icon: 'ri-file-list-line', link: '/reports/legacy', perm: 'view_reports' },
  ],
  },
  {
  id: 'nav-system',
- label: 'الإعدادات والإدارة',
+ label: 'nav.system',
  icon: 'ri-settings-line',
  subItems: [
  {
  id: 'nav-settings',
- label: 'الإعدادات',
+ label: 'nav.settings',
  icon: 'ri-settings-line',
  link: '/settings',
  /** Matches who can use Settings tabs (users/roles/branches); cashiers use profile elsewhere. */
@@ -543,7 +545,7 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-branches',
- label: 'الفروع',
+ label: 'nav.branches',
  icon: 'ri-building-line',
  link: '/branches',
  perm: 'manage_branches',
@@ -552,35 +554,35 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  {
  id: 'nav-employees',
- label: 'الموظفون',
+ label: 'employees.tabs.staff',
  icon: 'ri-shield-user-line',
  link: '/employees',
  perm: 'manage_users',
  },
  {
  id: 'nav-payments',
- label: 'المدفوعات',
+ label: 'nav.payments',
  icon: 'ri-bank-line',
  link: '/payments',
  perm: 'manage_treasuries',
  },
  {
  id: 'nav-gift-cards',
- label: 'بطاقات الهدايا',
+ label: 'nav.giftCards',
  icon: 'ri-gift-line',
  link: '/gift-cards',
  perm: 'manage_gift_cards',
  },
  {
  id: 'nav-activity-logs',
- label: 'سجل النشاط',
+ label: 'nav.activityLogs',
  icon: 'ri-file-list-3-line',
  link: '/activity-logs',
  perm: 'view_activity_logs',
  },
  {
  id: 'nav-settingsBackup',
- label: 'النسخ الاحتياطي',
+ label: 'nav.settingsBackup',
  icon: 'ri-database-2-line',
  link: '/backup',
  perm: 'manage_settings',
@@ -590,6 +592,14 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  },
  ];
 
+function translateMenuLabels(items: SidebarMenuItem[]): SidebarMenuItem[] {
+  return items.map((item) => ({
+    ...item,
+    label: i18n.t(item.label),
+    subItems: item.subItems ? translateMenuLabels(item.subItems) : undefined,
+  }));
+}
+
 export function buildSidebarMenu(
  isSuperAdmin: boolean,
  hasPermission: HasPermission,
@@ -597,7 +607,8 @@ export function buildSidebarMenu(
  hasFeature: HasFeature = () => true,
 ): SidebarMenuItem[] {
  const mode = normalizeViewMode(viewMode)
- return filterItems(SIDEBAR_MENU_TEMPLATE, isSuperAdmin, hasPermission, hasFeature, mode)
+ const filtered = filterItems(SIDEBAR_MENU_TEMPLATE, isSuperAdmin, hasPermission, hasFeature, mode)
+ return translateMenuLabels(filtered)
 }
 
 export type MobileSidebarMenuItem = {

@@ -6,6 +6,7 @@ import { AppButton } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { PosSheetHeader, usePosSheetStyles } from '@/components/pos/posSheetUi';
 import { flexRow, textStart } from '@/constants/layout';
+import { chevronForwardIcon } from '@/utils/rtl';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -78,7 +79,7 @@ export function VariantPickerSheet({ visible, product, onClose, onSelect }: Prop
               <Text style={{ fontFamily: fonts.extraBold, fontWeight: '800', color: c.primary }}>
                 {product ? money(variantPrice(product, variant)) : money(0)}
               </Text>
-              <MaterialIcons name="chevron-left" size={22} color={c.textMuted} />
+              <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textMuted} />
             </Pressable>
           );
         })}

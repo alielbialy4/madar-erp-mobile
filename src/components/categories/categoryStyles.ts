@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/colors';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -37,7 +37,7 @@ export function createCategoryStyles(c: AppColors) {
       fontFamily: fonts.medium,
       color: c.textMuted,
       textAlign: 'center',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     searchWrap: {
       ...flexRow,
@@ -69,7 +69,7 @@ export function createCategoryStyles(c: AppColors) {
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.textMuted,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     filterTextActive: { color: c.accent },
     listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
@@ -139,7 +139,7 @@ export function createCategoryStyles(c: AppColors) {
       fontFamily: fonts.bold,
       fontWeight: '700',
       color: c.textMuted,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     actionTextPrimary: { color: c.accent },
     sectionLabel: {

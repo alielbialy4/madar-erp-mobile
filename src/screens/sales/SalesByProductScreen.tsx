@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { salesAPI } from '@/api/sales';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppDateRangePicker, AppInput } from '@/components/ui';
+import { AppBadge, AppButton, AppDateRangePicker, AppInput } from '@/components/ui';
+import { MadarSurface } from '@/components/madar';
 import { AppText } from '@/components/ui/AppText';
 import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
@@ -168,25 +169,27 @@ export function SalesByProductScreen({ navigation }: { navigation: any }) {
           emptyTitle="لا توجد منتجات مباعة"
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <AppCard style={styles.card} onPress={() => openSale(item)}>
-              <View style={styles.cardTop}>
-                <AppBadge label={saleStatusLabel(item.status)} tone={saleStatusBadgeTone(item.status)} />
-                <AppText style={styles.invoiceText}>{item.invoice_number}</AppText>
-              </View>
-              <AppText style={styles.title}>{item.product_name}</AppText>
-              <AppText style={styles.meta}>{item.customer_name} • {dateText(item.sale_date)}</AppText>
-              <View style={styles.metrics}>
-                <AppText style={styles.metric}>الكمية: {numberText(item.quantity)}</AppText>
-                <AppText style={styles.metric}>السعر: {money(item.unit_price)}</AppText>
-                <AppText style={styles.metricStrong}>الإجمالي: {money(item.subtotal)}</AppText>
-              </View>
-              <View style={styles.actions}>
-                <AppButton title="فتح الفاتورة" size="sm" variant="secondary" onPress={() => openSale(item)} />
-                {item.status === 'completed' || item.status === 'partially_refunded' ? (
-                  <AppButton title="مرتجع كامل" size="sm" variant="danger" onPress={() => setRefundTarget(item)} />
-                ) : null}
-              </View>
-            </AppCard>
+            <Pressable onPress={() => openSale(item)}>
+              <MadarSurface style={styles.card}>
+                <View style={styles.cardTop}>
+                  <AppBadge label={saleStatusLabel(item.status)} tone={saleStatusBadgeTone(item.status)} />
+                  <AppText style={styles.invoiceText}>{item.invoice_number}</AppText>
+                </View>
+                <AppText style={styles.title}>{item.product_name}</AppText>
+                <AppText style={styles.meta}>{item.customer_name} • {dateText(item.sale_date)}</AppText>
+                <View style={styles.metrics}>
+                  <AppText style={styles.metric}>الكمية: {numberText(item.quantity)}</AppText>
+                  <AppText style={styles.metric}>السعر: {money(item.unit_price)}</AppText>
+                  <AppText style={styles.metricStrong}>الإجمالي: {money(item.subtotal)}</AppText>
+                </View>
+                <View style={styles.actions}>
+                  <AppButton title="فتح الفاتورة" size="sm" variant="secondary" onPress={() => openSale(item)} />
+                  {item.status === 'completed' || item.status === 'partially_refunded' ? (
+                    <AppButton title="مرتجع كامل" size="sm" variant="danger" onPress={() => setRefundTarget(item)} />
+                  ) : null}
+                </View>
+              </MadarSurface>
+            </Pressable>
           )}
         />
       ) : null}

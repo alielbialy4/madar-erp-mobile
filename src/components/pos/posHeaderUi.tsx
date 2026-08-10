@@ -27,15 +27,15 @@ export function PosBranchMark({ size = 'md' }: { size?: 'sm' | 'md' }) {
       style={{
         width: dim,
         height: dim,
-        borderRadius: size === 'sm' ? radius.lg : radius.xl,
+        borderRadius: radius.control,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: c.primarySoftMuted,
-        borderWidth: 1,
-        borderColor: c.primarySoftBorder,
+        backgroundColor: c.surface,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.border,
       }}
     >
-      <MaterialIcons name="storefront" size={icon} color={c.primary} />
+      <MaterialIcons name="storefront" size={icon} color={c.text} />
     </View>
   );
 }
@@ -79,15 +79,16 @@ function createChipStyles(c: AppColors) {
       gap: 5,
       paddingHorizontal: spacing.sm,
       paddingVertical: 5,
-      borderRadius: radius.pill,
-      borderWidth: 1,
+      borderRadius: radius.control,
+      borderWidth: StyleSheet.hairlineWidth,
+      backgroundColor: c.surface,
       maxWidth: 140,
     },
     chipCompact: { paddingHorizontal: 7, paddingVertical: 4 },
-    chipOnline: { backgroundColor: c.softSuccess, borderColor: c.softSuccessBorder },
-    chipOffline: { backgroundColor: c.softDanger, borderColor: c.softDangerBorder },
-    chipShiftOpen: { backgroundColor: c.softSuccess, borderColor: c.softSuccessBorder },
-    chipShiftClosed: { backgroundColor: c.softWarning, borderColor: c.softWarningBorder },
+    chipOnline: { borderColor: c.success },
+    chipOffline: { borderColor: c.danger },
+    chipShiftOpen: { borderColor: c.success },
+    chipShiftClosed: { borderColor: c.warning },
     dot: { width: 6, height: 6, borderRadius: 3 },
     chipText: { fontSize: typography.tiny, fontFamily: fonts.bold, fontWeight: '700' },
     chipTextOnline: { color: c.success },

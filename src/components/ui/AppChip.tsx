@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable } from 'react-native';
-import { flexRow } from '@/constants/layout';
+import { flexRow, appWritingDirection } from '@/constants/layout';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
@@ -33,7 +33,7 @@ export function AppChip({ label, active, onPress, icon }: { label: string; activ
         fontFamily: active ? fonts.bold : fonts.medium,
         fontWeight: active ? '700' : '500',
         color: active ? c.accent : c.textMuted,
-        writingDirection: 'rtl',
+        writingDirection: appWritingDirection,
       }}>
         {label}
       </AppText>

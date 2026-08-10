@@ -4,7 +4,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { OPTION_GROUPS_HELPER_AR } from './productFormLabels';
-import { flexRow } from '@/constants/layout';
+import { flexRow, appTextAlignStart } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ProductOptionGroupInput, ProductOptionInput } from '@/types/api';
@@ -50,12 +50,12 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
 
   return (
     <View style={{ gap: spacing.md }}>
-      <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: 'right' }}>{OPTION_GROUPS_HELPER_AR}</Text>
+      <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>{OPTION_GROUPS_HELPER_AR}</Text>
       <View style={{ ...flexRow, justifyContent: 'flex-end' }}>
         <AppButton title="إضافة مجموعة" size="sm" variant="secondary" onPress={addGroup} />
       </View>
       {groups.length === 0 ? (
-        <Text style={{ color: c.textMuted, textAlign: 'right' }}>لا توجد مجموعات خيارات</Text>
+        <Text style={{ color: c.textMuted, textAlign: appTextAlignStart }}>لا توجد مجموعات خيارات</Text>
       ) : null}
       {groups.map((group, gi) => {
         const expanded = expandedIndex === gi;
@@ -67,8 +67,8 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
             style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between' }}
           >
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: c.text, fontFamily: 'Tajawal-Bold', textAlign: 'right' }}>{groupLabel}</Text>
-              <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: 'right' }}>
+              <Text style={{ color: c.text, fontFamily: 'Tajawal-Bold', textAlign: appTextAlignStart }}>{groupLabel}</Text>
+              <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>
                 {(group.options ?? []).length} خيار · {group.selection_type === 'multiple' ? 'متعدد' : 'واحد'}
               </Text>
             </View>

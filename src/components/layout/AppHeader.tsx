@@ -7,6 +7,7 @@ import { spacing, radius } from '@/constants/spacing';
 import { textStyle } from '@/constants/textStyles';
 import { Text } from '@/components/ui/AppText';
 import { AppIcon } from '@/components/ui/AppIcon';
+import { useTu } from '@/i18n/useTu';
 
 type Props = {
   title: string;
@@ -18,6 +19,7 @@ type Props = {
 
 export function AppHeader({ title, subtitle, breadcrumb, onBack, right }: Props) {
   const c = useColors();
+  const tx = useTu();
 
   return (
     <View
@@ -36,7 +38,7 @@ export function AppHeader({ title, subtitle, breadcrumb, onBack, right }: Props)
             onPress={onBack}
             style={[styles.backBtn, { backgroundColor: c.surfaceMuted }]}
             accessibilityRole="button"
-            accessibilityLabel="رجوع"
+            accessibilityLabel={tx('رجوع')}
           >
             <AppIcon name={backArrowIcon()} size={20} color={c.text} />
           </Pressable>

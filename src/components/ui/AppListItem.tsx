@@ -20,6 +20,8 @@ type Props = {
   onPressIn?: () => void;
   onLongPress?: () => void;
   showChevron?: boolean;
+  /** Entity rows are data — keep false (default). Pass true only for static UI labels. */
+  translate?: boolean;
 };
 
 export function AppListItem({
@@ -33,6 +35,7 @@ export function AppListItem({
   onPressIn,
   onLongPress,
   showChevron = !!onPress,
+  translate = false,
 }: Props) {
   const c = useColors();
   const chrome = useMemo(() => createListRowChrome(c), [c]);
@@ -73,9 +76,9 @@ export function AppListItem({
       {leading ? <View>{leading}</View> : null}
       {badge ? <View>{badge}</View> : null}
       <View style={chrome.content}>
-        <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitleText} numberOfLines={2}>{subtitle}</Text> : null}
-        {meta ? <Text style={[styles.metaText, metaLtr ? textLtr : undefined]} numberOfLines={1}>{meta}</Text> : null}
+        <Text style={styles.titleText} numberOfLines={1} translate={translate}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitleText} numberOfLines={2} translate={translate}>{subtitle}</Text> : null}
+        {meta ? <Text style={[styles.metaText, metaLtr ? textLtr : undefined]} numberOfLines={1} translate={translate}>{meta}</Text> : null}
       </View>
       {showChevron && onPress ? (
         <MaterialIcons name={chevronForwardIcon()} size={20} color={c.textCaption} />

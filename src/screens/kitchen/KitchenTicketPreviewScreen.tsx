@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { kitchenAPI } from '@/api/kitchen';
@@ -269,15 +270,15 @@ export function KitchenTicketPreviewScreen({ route, navigation }: { route: any; 
       {!loading && !error && !ticket ? <AppEmptyState title="تعذر تحميل التذكرة" /> : null}
       {ticket && order ? (
         <View style={{ gap: spacing.md }}>
-          <AppCard>
+          <MadarSurface>
             <AppSectionHeader title={ticket.store?.name ?? 'تذكرة مطبخ'} />
             <AppListItem title="الفاتورة" subtitle={String(order.invoice_number ?? order.id ?? '—')} />
             <AppListItem title="تسلسل الطباعة" subtitle={String(order.print_sequence ?? '—')} />
             <AppListItem title="نوع الطلب" subtitle={String(order.order_type ?? '—')} />
             <AppListItem title="الطاولة" subtitle={String(order.dining_table?.name ?? order.dining_table?.number ?? '—')} />
             <AppListItem title="الوقت" subtitle={dateText(order.created_at ?? undefined)} />
-          </AppCard>
-          <AppCard>
+          </MadarSurface>
+          <MadarSurface>
             <AppSectionHeader title="الأصناف" />
             {(order.items ?? []).map((item, index) => (
               <AppListItem
@@ -287,11 +288,11 @@ export function KitchenTicketPreviewScreen({ route, navigation }: { route: any; 
                 meta={item.options?.flatMap((group) => group.options?.map((option) => option.name).filter(Boolean) ?? []).join(', ')}
               />
             ))}
-          </AppCard>
+          </MadarSurface>
           {order.kitchen_notes ? (
-            <AppCard>
+            <MadarSurface>
               <Text style={{ ...textStart, color: c.text }}>{order.kitchen_notes}</Text>
-            </AppCard>
+            </MadarSurface>
           ) : null}
           {message ? <Text style={{ ...textStart, color: c.info, fontWeight: '700' }}>{message}</Text> : null}
           <View style={{ gap: spacing.sm }}>

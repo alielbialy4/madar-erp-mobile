@@ -4,6 +4,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import { PrintText as Text } from '@/components/printing/PrintText';
 import { useReceiptCaptureLite } from '@/components/printing/receiptCaptureLite';
 import { useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
+import { textLtr } from '@/constants/layout';
 
 type MetaRowProps = {
   label: string;
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
     color: designColors.black,
     fontWeight: '500',
     maxWidth: '62%',
-    textAlign: 'left',
+    ...textLtr,
   },
   orderHero: {
     borderWidth: 1.5,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   totalValue: {
     color: designColors.black,
     fontWeight: '500',
-    textAlign: 'left',
+    ...textLtr,
   },
   bold: {
     fontWeight: '500',

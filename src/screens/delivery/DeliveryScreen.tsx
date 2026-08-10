@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { ListParams } from '@/types/api';
 import { HeroActionChip, ListScreenLayout } from '@/components/layout';
-import { AppDomainCard, AppSegmentedControl, AppSelect } from '@/components/ui';
+import { AppSegmentedControl, AppSelect } from '@/components/ui';
+import { OperationalRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
@@ -12,7 +13,6 @@ import {
   type DeliveryTrackingResponse,
 } from '@/api/deliveries';
 import { deliveryStatusLabel, deliveryStatusTone } from '@/utils/deliveryStatus';
-import { moduleIcons } from '@/constants/iconMap';
 import { asText, dateText, money, numberText } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 
@@ -129,18 +129,18 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
             ? `تحصيل ${money(item.amount_to_collect ?? 0)}`
             : null;
           return (
-            <AppDomainCard
-              title={`فاتورة ${asText(item.sale?.invoice_number ?? item.sale_id ?? item.id)}`}
-              subtitle={`${customer} · ${driver}`}
+            <OperationalRow
+              primary={`فاتورة ${asText(item.sale?.invoice_number ?? item.sale_id ?? item.id)}`}
+              secondary={`${customer} · ${driver}`}
               meta={[
                 zone,
                 wait > 0 ? `انتظار ${numberText(wait)} د` : dateText(asText(item.created_at, '')),
                 collection,
               ].filter(Boolean).join(' · ')}
-              metric={money(item.sale?.total ?? item.delivery_fee ?? 0)}
-              badgeLabel={deliveryStatusLabel(item.status)}
-              badgeTone={deliveryStatusTone(item.status)}
-              leadingIcon={moduleIcons.delivery}
+              amount={item.sale?.total ?? item.delivery_fee ?? 0}
+              currency="ج.م"
+              statusLabel={deliveryStatusLabel(item.status)}
+              statusTone={deliveryStatusTone(item.status)}
               onPress={() => navigation.navigate('DeliveryDetail', { id: String(item.id) })}
             />
           );

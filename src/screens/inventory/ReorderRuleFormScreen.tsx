@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { reorderRulesAPI } from '@/api/reorderRules';
@@ -39,7 +38,7 @@ export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; 
 
   const submit = async () => {
     if (!productId) {
-      Alert.alert('تنبيه', 'اختر منتجاً');
+      toast.show('اختر منتجاً', 'warning');
       return;
     }
     setConfirmVisible(false);
@@ -64,7 +63,6 @@ export function ReorderRuleFormScreen({ navigation, route }: { navigation: Nav; 
       const msg = normalizeApiError(err).message;
       toast.error(msg);
       void hapticError();
-      Alert.alert('خطأ', msg);
     } finally {
       setSubmitting(false);
     }

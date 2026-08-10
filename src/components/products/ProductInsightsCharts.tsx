@@ -3,7 +3,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { RevenueTrendChart } from '@/components/dashboard/RevenueTrendChart';
 import { DashboardSection } from '@/components/dashboard/DashboardSection';
 import { numberText } from '@/utils/format';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, textLtr } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -204,7 +204,7 @@ function createBarStyles(c: ReturnType<typeof useColors>, fillColor?: string) {
     },
     qty: {
       width: 48,
-      textAlign: 'left',
+      ...textLtr,
       fontSize: typography.tiny,
       fontFamily: fonts.bold,
       color: c.textMuted,

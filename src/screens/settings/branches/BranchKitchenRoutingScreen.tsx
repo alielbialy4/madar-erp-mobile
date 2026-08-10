@@ -12,11 +12,11 @@ import { AppBottomSheet } from '@/components/layout/AppBottomSheet';
 import { ListScreenLayout } from '@/components/layout';
 import {
   AppButton,
-  AppCard,
-  AppChip,
+    AppChip,
   AppSearchField,
   AppSelect,
 } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppErrorState, AppInlineAlert, AppLoadingState, useToast } from '@/components/feedback';
 import {
@@ -352,7 +352,7 @@ export function BranchKitchenRoutingScreen({ navigation, route }: Props) {
                 const selected = selectedCategoryIds.includes(cat.id);
                 return (
                   <Pressable key={cat.id} onPress={() => openEdit({ kind: 'category', row: cat })}>
-                    <AppCard>
+                    <MadarSurface>
                       <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm }}>
                         <Pressable
                           onPress={(e) => {
@@ -377,7 +377,7 @@ export function BranchKitchenRoutingScreen({ navigation, route }: Props) {
                           </Text>
                         </View>
                       </View>
-                    </AppCard>
+                    </MadarSurface>
                   </Pressable>
                 );
               })}
@@ -408,7 +408,7 @@ export function BranchKitchenRoutingScreen({ navigation, route }: Props) {
                   prod.kitchen_routing_type == null ? 'inherit' : prod.kitchen_routing_type;
                 return (
                   <Pressable key={prod.id} onPress={() => openEdit({ kind: 'product', row: prod })}>
-                    <AppCard>
+                    <MadarSurface>
                       <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm }}>
                         <Pressable
                           onPress={() => toggleProduct(prod.id)}
@@ -430,7 +430,7 @@ export function BranchKitchenRoutingScreen({ navigation, route }: Props) {
                           </Text>
                         </View>
                       </View>
-                    </AppCard>
+                    </MadarSurface>
                   </Pressable>
                 );
               })}

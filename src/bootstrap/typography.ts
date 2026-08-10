@@ -1,13 +1,14 @@
 /**
  * Apply Tajawal as the default font for all Text / TextInput nodes.
- * RTL defaults apply immediately; Tajawal faces apply after useFonts (see FontProvider).
+ * Direction defaults follow APP_IS_RTL (ar → rtl, en/fr → ltr).
  */
 import { Platform, Text, TextInput, type TextStyle } from 'react-native';
+import { APP_IS_RTL } from '@/bootstrap/rtl';
 import { textAlignStart } from '@/constants/layout';
 import { fonts, resolveTajawalFontOnly } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
 
-let rtlDefaultsApplied = false;
+let directionDefaultsApplied = false;
 let fontsApplied = false;
 
 const WEB_FONT_FAMILY =
@@ -18,9 +19,9 @@ type WithDefaultProps = { defaultProps?: { style?: TextStyle } };
 const T = Text as typeof Text & WithDefaultProps;
 const I = TextInput as typeof TextInput & WithDefaultProps;
 
-function defaultRtlTextStyle(): TextStyle {
+function defaultDirectionTextStyle(): TextStyle {
   return {
-    writingDirection: 'rtl',
+    writingDirection: APP_IS_RTL ? 'rtl' : 'ltr',
     textAlign: textAlignStart.textAlign,
   };
 }
@@ -38,14 +39,13 @@ function applyWebTypography() {
 
   const style = document.createElement('style');
   style.id = WEB_FONT_ID;
+  // Direction comes from html/body/root `dir` (applyWebDocumentDirection) — do not hard-lock RTL.
   style.textContent = `
     html, body, #root {
       font-family: ${WEB_FONT_FAMILY};
-      direction: rtl;
     }
     input, textarea, select, button {
       font-family: ${WEB_FONT_FAMILY};
-      direction: rtl;
     }
     [data-numeric="true"] {
       direction: ltr;
@@ -55,14 +55,14 @@ function applyWebTypography() {
   document.head.appendChild(style);
 }
 
-/** RTL writing direction on all RN Text/TextInput — safe before fonts load. */
+/** Direction-aware text defaults — safe before fonts load. */
 export function applyEarlyRtlDefaults() {
-  if (rtlDefaultsApplied) return;
-  rtlDefaultsApplied = true;
+  if (directionDefaultsApplied) return;
+  directionDefaultsApplied = true;
 
-  const rtlOnly = defaultRtlTextStyle();
-  T.defaultProps = { ...(T.defaultProps ?? {}), style: rtlOnly };
-  I.defaultProps = { ...(I.defaultProps ?? {}), style: { ...rtlOnly, fontSize: typography.body } };
+  const dirStyle = defaultDirectionTextStyle();
+  T.defaultProps = { ...(T.defaultProps ?? {}), style: dirStyle };
+  I.defaultProps = { ...(I.defaultProps ?? {}), style: { ...dirStyle, fontSize: typography.body } };
 
   applyWebTypography();
 }
@@ -74,10 +74,10 @@ export function applyGlobalTypography() {
   fontsApplied = true;
 
   const defaultText: TextStyle = {
-    ...resolveTajawalFontOnly(defaultRtlTextStyle()),
+    ...resolveTajawalFontOnly(defaultDirectionTextStyle()),
   };
   const defaultInput: TextStyle = {
-    ...resolveTajawalFontOnly({ fontSize: typography.body, ...defaultRtlTextStyle() }, fonts.medium),
+    ...resolveTajawalFontOnly({ fontSize: typography.body, ...defaultDirectionTextStyle() }, fonts.medium),
   };
 
   T.defaultProps = { ...(T.defaultProps ?? {}), style: defaultText };

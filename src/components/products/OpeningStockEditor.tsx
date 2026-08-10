@@ -8,6 +8,7 @@ import type { OpeningStockInput, ProductUnitInput } from '@/types/api';
 import { createEditorStyles } from '@/styles/createEditorStyles';
 import { useColors } from '@/hooks/useColors';
 import { typography } from '@/constants/typography';
+import { appTextAlignStart } from '@/constants/layout';
 
 type WarehouseOption = { id: string; name: string };
 
@@ -29,7 +30,7 @@ export function OpeningStockEditor({ value, onChange, warehouses, units, embedde
 
   const body = (
     <View style={styles.section}>
-      <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: 'right' }}>{OPENING_STOCK_HELPER_AR}</Text>
+      <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>{OPENING_STOCK_HELPER_AR}</Text>
       {rows.map((row, index) => (
         <View key={index} style={styles.row}>
           <AppPicker

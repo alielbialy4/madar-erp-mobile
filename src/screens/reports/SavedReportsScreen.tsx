@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppButton, AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { ConfirmDialog, AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { reportsAPI } from '@/api/reports';
@@ -101,8 +102,8 @@ export function SavedReportsScreen({ navigation }: { navigation: any }) {
       {message ? <Text style={{ ...textStart, color: c.info, fontWeight: '700' }}>{message}</Text> : null}
       {!loading && !error && rows.length === 0 ? <AppEmptyState title="لا توجد تقارير محفوظة" /> : null}
       {rows.length > 0 ? (
-        <AppCard>
-          <AppSectionHeader title="المحفوظة" />
+        <MadarSection title="المحفوظة">
+          <MadarSurface>
           <Text style={{ ...textStart, color: c.textMuted, marginBottom: spacing.sm }}>{summary}</Text>
           <View style={{ gap: spacing.md }}>
             {rows.map((row) => {
@@ -143,7 +144,8 @@ export function SavedReportsScreen({ navigation }: { navigation: any }) {
               );
             })}
           </View>
-        </AppCard>
+          </MadarSurface>
+        </MadarSection>
       ) : null}
       {rows.length > 0 ? (
         <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>

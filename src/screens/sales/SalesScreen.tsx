@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { salesAPI } from '@/api/sales';
-import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
+import { ListScreenLayout, MasterDetailLayout } from '@/components/layout';
 import { ResourceList } from '@/components/lists';
 import { SaleInvoiceCard } from '@/components/sales/SaleInvoiceCard';
+import { SaleDetail } from '@/screens/sales/SaleDetailScreen';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
+import { isTablet } from '@/constants/responsive';
 import { money } from '@/utils/format';
 import type { Sale } from '@/types/api';
 
@@ -19,7 +22,11 @@ function isCompletedStatus(status: string | null | undefined): boolean {
 }
 
 export function SalesScreen({ navigation }: { navigation: { navigate: (a: string, b?: object) => void } }) {
+  const { width } = useWindowDimensions();
+  const tablet = isTablet(width);
   const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<string | undefined>();
   const debounced = useDebouncedValue(query);
   const listParams = useMemo(() => (debounced ? { search: debounced } : {}), [debounced]);
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Sale & Record<string, unknown>>(
@@ -41,6 +48,15 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
     ];
   }, [items]);
 
+  const openSale = (sale: Sale) => {
+    if (tablet) {
+      setSelectedId(Number(sale.id));
+      setSelectedInvoice(sale.invoice_number ?? undefined);
+      return;
+    }
+    navigation.navigate('SaleDetail', { id: sale.id, invoice: sale.invoice_number });
+  };
+
   return (
     <ListScreenLayout
       title="المبيعات"
@@ -51,6 +67,7 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
       searchPlaceholder="بحث برقم الفاتورة أو العميل..."
       onRefresh={refresh}
       refreshing={refreshing}
+      contentStyle={tablet ? { flex: 1 } : undefined}
       hero={{
         eyebrow: 'الإيرادات',
         title: 'المبيعات',
@@ -59,24 +76,43 @@ export function SalesScreen({ navigation }: { navigation: { navigate: (a: string
         compact: true,
       }}
     >
-      <ResourceList
-        data={items}
-        loading={loading}
-        refreshing={refreshing}
-        error={error}
-        onRefresh={refresh}
-        onEndReached={loadMore}
-        emptyTitle="لا توجد مبيعات"
-        keyExtractor={(item, index) => `sale-${String(item.id ?? index)}-${index}`}
-        renderItem={({ item }) => {
-          const sale = item as Sale;
-          return (
-            <SaleInvoiceCard
-              sale={sale}
-              onPress={() => navigation.navigate('SaleDetail', { id: sale.id, invoice: sale.invoice_number })}
+      <MasterDetailLayout
+        emptyTitle="اختر فاتورة"
+        emptyMessage="اختر فاتورة من القائمة لمراجعة الأصناف والمدفوعات دون مغادرة الشاشة."
+        master={
+          <ResourceList
+            data={items}
+            loading={loading}
+            refreshing={refreshing}
+            error={error}
+            onRefresh={refresh}
+            onEndReached={loadMore}
+            emptyTitle="لا توجد مبيعات"
+            keyExtractor={(item, index) => `sale-${String(item.id ?? index)}-${index}`}
+            renderItem={({ item }) => {
+              const sale = item as Sale;
+              return (
+                <SaleInvoiceCard
+                  sale={sale}
+                  selected={tablet && selectedId === Number(sale.id)}
+                  onPress={() => openSale(sale)}
+                />
+              );
+            }}
+          />
+        }
+        detail={
+          selectedId != null ? (
+            <SaleDetail
+              key={selectedId}
+              id={selectedId}
+              invoice={selectedInvoice}
+              navigation={navigation}
+              embedded
+              onBack={() => setSelectedId(null)}
             />
-          );
-        }}
+          ) : null
+        }
       />
     </ListScreenLayout>
   );

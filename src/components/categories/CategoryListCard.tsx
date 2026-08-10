@@ -6,7 +6,7 @@ import { useColors } from '@/hooks/useColors';
 import { resolveMediaUrl } from '@/utils/media';
 import { numberText } from '@/utils/format';
 import { chevronForwardIcon } from '@/utils/rtl';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 import type { Category } from '@/types/api';
 import { createCategoryStyles } from './categoryStyles';
 import { Text } from '@/components/ui/AppText';
@@ -132,7 +132,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontSize: typography.tiny,
       fontFamily: fonts.medium,
       color: c.textMuted,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
   });
 }

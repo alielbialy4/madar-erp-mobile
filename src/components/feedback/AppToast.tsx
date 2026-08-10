@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { AnimatePresence, MotiView } from 'moti';
+import { AnimatePresence, MotiView } from '@/lib/moti';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText } from '@/components/ui/AppText';
 import { flexRow, textStart } from '@/constants/layout';

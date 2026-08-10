@@ -2,7 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, View , Platform } from 'react-native';
 import { AppScreen } from '@/components/layout';
 import { AppInlineAlert } from '@/components/feedback';
-import { AppBadge, AppButton, AppCard, AppListItem, AppSectionHeader, AppText as Text } from '@/components/ui';
+import { AppBadge, AppButton, AppListItem, AppSectionHeader, AppText as Text } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { getPrinterProfiles, getPrinterProfilesStrict } from '@/services/printing/printerProfiles';
 import { printEngine } from '@/services/printing/printEngine';
 import {
@@ -184,7 +185,7 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
       {!viewShotReady ? (
         <AppInlineAlert tone="warning" message={VIEW_SHOT_UNAVAILABLE_MESSAGE} />
       ) : null}
-      <AppCard>
+      <MadarSurface>
         <AppSectionHeader title="الطابعة" />
         {profiles.map((p) => (
           <AppListItem
@@ -195,9 +196,9 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
             badge={selected?.id === p.id ? <AppBadge label="محددة" tone="success" /> : undefined}
           />
         ))}
-      </AppCard>
+      </MadarSurface>
       {selected ? (
-        <AppCard>
+        <MadarSurface>
           <AppSectionHeader title="إعدادات الملف" />
           <Text style={{ ...textStart, color: c.text }}>الترميز: {selected.encoding}</Text>
           <Text style={{ ...textStart, color: c.textMuted }}>
@@ -207,9 +208,9 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
               : ''}
           </Text>
           <Text style={{ ...textStart, color: c.textMuted }}>عرض الورق: {selected.paper_width}</Text>
-        </AppCard>
+        </MadarSurface>
       ) : null}
-      <AppCard>
+      <MadarSurface>
         <AppSectionHeader title="آخر حالة" />
         <Text style={{ ...textStart, color: c.text }}>نجاح: {diag.last_success_at ?? '—'}</Text>
         <Text style={{ ...textStart, color: c.text }}>
@@ -229,7 +230,7 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
           آخر قياس ({diag.timing.measured_at ?? '—'}):
         </Text>
         <TimingBreakdown timing={diag.timing} muted={c.textMuted} />
-      </AppCard>
+      </MadarSurface>
       <View style={{ gap: 8 }}>
         <AppButton title="اختبار التقاط صورة" onPress={() => run('capture')} loading={busy} disabled={!selected} />
         <AppButton title="اختبار الاتصال" onPress={() => run('test')} loading={busy} disabled={!selected} />
@@ -338,13 +339,13 @@ export function PrinterDiagnosticsScreen({ navigation, route }: Props) {
         <AppButton title="قائمة انتظار الطباعة" variant="secondary" onPress={() => navigation.navigate('PrintQueue')} />
       </View>
       {result ? (
-        <AppCard>
+        <MadarSurface>
           <AppSectionHeader title="نتيجة الاختبار" />
           <AppInlineAlert
             tone={result.includes('✗') || result.includes('فشل') || result.includes('غير متاح') ? 'warning' : 'success'}
             message={result}
           />
-        </AppCard>
+        </MadarSurface>
       ) : null}
     </AppScreen>
   );

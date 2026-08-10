@@ -169,13 +169,13 @@ function GroupButton({ label, count, active, onPress }: { label: string; count: 
         paddingHorizontal: spacing.md,
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: active ? c.primary : c.borderSubtle,
-        backgroundColor: active ? c.primarySoftMuted : c.surface,
+        borderColor: active ? c.accent : c.borderSubtle,
+        backgroundColor: c.surface,
       }}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
     >
-      <Text style={{ color: active ? c.primary : c.text, fontFamily: fonts.bold, fontSize: typography.caption }}>{label}</Text>
+      <Text style={{ color: active ? c.accent : c.text, fontFamily: fonts.bold, fontSize: typography.caption }}>{label}</Text>
       <Text style={{ color: c.textCaption, fontFamily: fonts.bold, fontSize: typography.micro }}>{count}</Text>
     </Pressable>
   );

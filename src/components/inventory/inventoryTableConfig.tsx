@@ -2,7 +2,7 @@ import React from 'react';
 import { AppBadge } from '@/components/ui';
 import type { DashboardTableColumn } from '@/components/dashboard/DashboardDataTable';
 import type { InventoryListSurface } from '@/components/inventory/inventoryListPresets';
-import { docRowMeta, docRowSubtitle, docRowTitle } from '@/components/inventory/ResourceListScreen';
+import { docRowMeta, docRowSubtitle, docRowTitle } from '@/components/inventory/inventoryDocRow';
 import { asText, dateText, numberText } from '@/utils/format';
 
 export type InventoryTableConfig = {

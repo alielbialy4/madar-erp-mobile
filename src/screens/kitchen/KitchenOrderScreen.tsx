@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { textStart } from '@/constants/layout';
-import { View } from 'react-native';
-import { AppText as Text } from '@/components/ui/AppText';
 import { kitchenAPI } from '@/api/kitchen';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { AppText as Text } from '@/components/ui/AppText';
+import { MadarSection, MadarSurface, QuickActionBar } from '@/components/madar';
 import { ConfirmDialog } from '@/components/feedback';
 import { AppScreen } from '@/components/layout';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
 import type { KitchenOrder } from '@/types/api';
 import { dateText, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { textStart } from '@/constants/layout';
 
 export function KitchenOrderScreen({ route, navigation }: { route: any; navigation: any }) {
   const rawId = route.params?.id;
@@ -81,28 +81,32 @@ function KitchenOrderInner({ id, navigation }: { id: number; navigation: any }) 
       >
         {(order) => (
           <>
-            <AppCard>
-              <AppSectionHeader title="الأصناف" />
-              {(order.items ?? []).map((item: Record<string, unknown>, index: number) => (
-                <AppListItem
-                  key={String(item.id ?? index)}
-                  title={String((item.product as Record<string, unknown>)?.name ?? 'صنف')}
-                  subtitle={`الكمية: ${numberText(item.quantity)}`}
-                  meta={String(item.kitchen_status ?? '')}
-                  onPress={() => setPendingItem({ itemId: Number(item.id), status: 'ready' })}
+            <MadarSection title="الأصناف">
+              <MadarSurface padded={false}>
+                {(order.items ?? []).map((item: Record<string, unknown>, index: number) => (
+                  <AppListItem
+                    key={String(item.id ?? index)}
+                    title={String((item.product as Record<string, unknown>)?.name ?? 'صنف')}
+                    subtitle={`الكمية: ${numberText(item.quantity)}`}
+                    meta={String(item.kitchen_status ?? '')}
+                    onPress={() => setPendingItem({ itemId: Number(item.id), status: 'ready' })}
+                  />
+                ))}
+              </MadarSurface>
+            </MadarSection>
+            <MadarSection title="حالة الطلب">
+              <MadarSurface>
+                {message ? <Text style={{ ...textStart, marginBottom: 8 }}>{message}</Text> : null}
+                <QuickActionBar
+                  actions={[
+                    { id: 'ticket', label: 'تذكرة', icon: 'print', onPress: () => navigation.navigate('KitchenTicketPreview', { id }) },
+                    { id: 'preparing', label: 'قيد التحضير', icon: 'timer', onPress: () => setPendingStatus('preparing') },
+                    { id: 'ready', label: 'جاهز', icon: 'check-circle', onPress: () => setPendingStatus('ready'), tone: 'accent' },
+                    { id: 'served', label: 'تم التقديم', icon: 'restaurant', onPress: () => setPendingStatus('served') },
+                  ]}
                 />
-              ))}
-            </AppCard>
-            <AppCard>
-              <AppSectionHeader title="حالة الطلب" />
-              {message ? <Text style={{ ...textStart, marginBottom: 8 }}>{message}</Text> : null}
-              <View style={{ gap: 12 }}>
-                <AppButton title="معاينة / طباعة التذكرة" variant="outline" onPress={() => navigation.navigate('KitchenTicketPreview', { id })} />
-                <AppButton title="قيد التحضير" variant="secondary" onPress={() => setPendingStatus('preparing')} />
-                <AppButton title="جاهز" onPress={() => setPendingStatus('ready')} />
-                <AppButton title="تم التقديم" variant="secondary" onPress={() => setPendingStatus('served')} />
-              </View>
-            </AppCard>
+              </MadarSurface>
+            </MadarSection>
           </>
         )}
       </DetailScreen>

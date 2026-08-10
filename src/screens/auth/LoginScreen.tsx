@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,24 +17,21 @@ import { spacing } from '@/constants/spacing';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { LoginFormPanel } from '@/components/auth/LoginFormPanel';
 import { LoginHeroPanel } from '@/components/auth/LoginHeroPanel';
-import { authCopy } from '@/constants/authCopy';
 import { rootRtl } from '@/constants/layout';
 import { responsive } from '@/constants/responsive';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
+import { useLocaleStore } from '@/store/localeStore';
 
-const schema = z.object({
-  tenant_slug: z.string().optional(),
-  email: z
-    .string()
-    .min(1, authCopy.emailRequired)
-    .email(authCopy.emailInvalid),
-  password: z.string().min(6, authCopy.passwordMinLength),
-});
-
-type LoginForm = z.infer<typeof schema>;
+type LoginForm = {
+  tenant_slug?: string;
+  email: string;
+  password: string;
+};
 
 export function LoginScreen() {
+  const { t } = useTranslation();
+  const language = useLocaleStore((s) => s.language);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -44,6 +42,16 @@ export function LoginScreen() {
   const loading = useAuthStore((state) => state.loading);
   const storeError = useAuthStore((state) => state.error);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        tenant_slug: z.string().optional(),
+        email: z.string().min(1, t('auth.emailRequired')).email(t('auth.emailInvalid')),
+        password: z.string().min(6, t('auth.passwordMinLength')),
+      }),
+    [t, language],
+  );
 
   const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.top : 0;
   const scrollPaddingBottom = keyboardHeight + insets.bottom + spacing.xl;
@@ -76,7 +84,7 @@ export function LoginScreen() {
       tenant_slug: values.tenant_slug?.trim() || undefined,
     });
     if (ok) {
-      setSuccessMessage(authCopy.loginSuccess);
+      setSuccessMessage(t('auth.loginSuccess'));
     }
   });
 

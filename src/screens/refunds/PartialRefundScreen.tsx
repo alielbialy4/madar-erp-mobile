@@ -9,6 +9,7 @@ import { AppScreen, FormScreenLayout } from '@/components/layout';
 import { FormSection } from '@/components/forms/FormSection';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { AppBanner, ConfirmDialog, AppLoadingState, AppErrorState } from '@/components/feedback';
+import { MadarSection, MetricBlock } from '@/components/madar';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
@@ -92,12 +93,16 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       backgroundColor: c.surface,
       gap: spacing.sm,
     },
-    itemRowSelected: { borderColor: c.softDangerBorder, backgroundColor: c.softDanger },
+    itemRowSelected: {
+      borderColor: c.refund,
+      borderStartWidth: 3,
+      backgroundColor: c.surface,
+    },
     itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     itemInfo: { flex: 1, gap: 2 },
-    itemName: { fontSize: typography.body, fontWeight: '700', color: c.text, ...textStart },
-    itemMeta: { fontSize: typography.small, color: c.textMuted, ...textStart },
-    itemTotal: { fontSize: typography.body, fontWeight: '800', color: c.text },
+    itemName: { fontSize: typography.rowPrimary, fontWeight: '600', color: c.text, ...textStart },
+    itemMeta: { fontSize: typography.rowSecondary, color: c.textMuted, ...textStart },
+    itemTotal: { fontSize: typography.rowPrimary, fontWeight: '700', color: c.refund },
     itemDetails: { gap: 2 },
     qtyInfo: { fontSize: typography.tiny, color: c.textMuted, ...textStart },
     itemActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
@@ -264,7 +269,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       title="استرداد جزئي"
       onBack={navigation.goBack}
       heroTitle={`فاتورة #${sale.invoice_number ?? saleId}`}
-      heroSubtitle={`${sale.customer?.name ?? 'بيع مباشر'} · اختر الكمية التي سيتم ردها`}
+      heroSubtitle={`${sale.customer?.name ?? 'بيع مباشر'} · سير عمل رد مالي على خطوات`}
       heroAmount={money(totalRefund)}
       footer={
         <AppButton
@@ -277,136 +282,158 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         />
       }
     >
+      <MadarSection title="الأثر المالي المتوقع">
+        <MetricBlock
+          label="مبلغ الاسترداد التقديري"
+          value={money(totalRefund)}
+          hint={hasItems ? 'الخادم يثبت المبلغ النهائي عند التنفيذ' : 'اختر أصنافًا وكمية ليظهر الأثر'}
+          level="A"
+          tone={hasItems ? 'negative' : 'neutral'}
+        />
+      </MadarSection>
+
       <AppBanner
         tone="warning"
         icon="account-balance"
-        message="القيمة المعروضة تقديرية. الخادم يثبت المبلغ النهائي وتوزيع الحسابات عند التنفيذ. إعادة الصنف للمخزون اختيار مستقل لكل سطر."
+        message="القيمة تقديرية. إعادة الصنف للمخزون اختيار مستقل لكل سطر."
       />
 
-      <FormSection
-        title="الأصناف والكميات"
-        subtitle="الحد المتاح يراعي أي مرتجعات سابقة لهذه الفاتورة"
-        icon="assignment-return"
-      >
-        {items.length === 0 ? (
-          <Text style={styles.emptyText}>لا توجد أصناف</Text>
-        ) : (
-          items.map((item, index) => {
-            const itemId = Number(item.id);
-            const originalQty = Number(item.quantity ?? 0);
-            const refundedQty = Number(item.refunded_quantity ?? 0);
-            const availableQty = item.remaining_quantity != null
-              ? Math.max(0, Number(item.remaining_quantity))
-              : originalQty - refundedQty;
-            const line = getLine(itemId);
-            const unitPrice = Number(item.unit_price ?? 0);
-            const productName = String((item.product as any)?.name ?? item.product_name ?? 'صنف');
+      <MadarSection title="١ · الأصناف والكميات">
+        <FormSection
+          title="اختر ما سيتم رده"
+          subtitle="الحد المتاح يراعي أي مرتجعات سابقة لهذه الفاتورة"
+          icon="assignment-return"
+        >
+          {items.length === 0 ? (
+            <Text style={styles.emptyText}>لا توجد أصناف</Text>
+          ) : (
+            items.map((item, index) => {
+              const itemId = Number(item.id);
+              const originalQty = Number(item.quantity ?? 0);
+              const refundedQty = Number(item.refunded_quantity ?? 0);
+              const availableQty = item.remaining_quantity != null
+                ? Math.max(0, Number(item.remaining_quantity))
+                : originalQty - refundedQty;
+              const line = getLine(itemId);
+              const unitPrice = Number(item.unit_price ?? 0);
+              const productName = String((item.product as any)?.name ?? item.product_name ?? 'صنف');
 
-            return (
-              <View key={String(itemId ?? index)} style={[styles.itemRow, line.quantity > 0 && styles.itemRowSelected]}>
-                <View style={styles.itemHeader}>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{productName}</Text>
-                    <Text style={styles.itemMeta}>
-                      {`السعر: ${money(unitPrice)}`}
+              return (
+                <View key={String(itemId ?? index)} style={[styles.itemRow, line.quantity > 0 && styles.itemRowSelected]}>
+                  <View style={styles.itemHeader}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{productName}</Text>
+                      <Text style={styles.itemMeta}>
+                        {`السعر: ${money(unitPrice)}`}
+                      </Text>
+                    </View>
+                    <Text style={styles.itemTotal}>{money(line.quantity * unitPrice)}</Text>
+                  </View>
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.qtyInfo}>
+                      {`الأصلية: ${numberText(originalQty)} | المستردة: ${numberText(refundedQty)} | المتاحة: ${numberText(availableQty)}`}
                     </Text>
                   </View>
-                  <Text style={styles.itemTotal}>{money(line.quantity * unitPrice)}</Text>
-                </View>
-                <View style={styles.itemDetails}>
-                  <Text style={styles.qtyInfo}>
-                    {`الأصلية: ${numberText(originalQty)} | المستردة: ${numberText(refundedQty)} | المتاحة: ${numberText(availableQty)}`}
-                  </Text>
-                </View>
-                <View style={styles.itemActions}>
-                  <View style={styles.qtyRow}>
-                    <Pressable
-                      style={[styles.qtyBtn, (line.quantity <= 0 || availableQty <= 0) && styles.qtyBtnDisabled]}
-                      onPress={() => setQuantity(itemId, line.quantity - 1, availableQty)}
-                      disabled={line.quantity <= 0 || availableQty <= 0}
-                    >
-                      <Text style={styles.qtyBtnText}>−</Text>
-                    </Pressable>
-                    <TextInput
-                      style={styles.qtyInput}
-                      value={String(line.quantity)}
-                      onChangeText={(text) => setQuantity(itemId, Number(text) || 0, availableQty)}
-                      keyboardType="number-pad"
-                      editable={availableQty > 0}
-                    />
-                    <Pressable
-                      style={[styles.qtyBtn, (line.quantity >= availableQty || availableQty <= 0) && styles.qtyBtnDisabled]}
-                      onPress={() => setQuantity(itemId, line.quantity + 1, availableQty)}
-                      disabled={line.quantity >= availableQty || availableQty <= 0}
-                    >
-                      <Text style={styles.qtyBtnText}>+</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.restockRow}>
-                    <Switch
-                      value={line.restock}
-                      onValueChange={() => toggleRestock(itemId)}
-                      trackColor={{ false: c.border, true: c.primary }}
-                      thumbColor={c.surface}
-                      disabled={availableQty <= 0}
-                    />
-                    <Text style={styles.restockLabel}>إعادة للمخزون</Text>
+                  <View style={styles.itemActions}>
+                    <View style={styles.qtyRow}>
+                      <Pressable
+                        style={[styles.qtyBtn, (line.quantity <= 0 || availableQty <= 0) && styles.qtyBtnDisabled]}
+                        onPress={() => setQuantity(itemId, line.quantity - 1, availableQty)}
+                        disabled={line.quantity <= 0 || availableQty <= 0}
+                      >
+                        <Text style={styles.qtyBtnText}>−</Text>
+                      </Pressable>
+                      <TextInput
+                        style={styles.qtyInput}
+                        value={String(line.quantity)}
+                        onChangeText={(text) => setQuantity(itemId, Number(text) || 0, availableQty)}
+                        keyboardType="number-pad"
+                        editable={availableQty > 0}
+                      />
+                      <Pressable
+                        style={[styles.qtyBtn, (line.quantity >= availableQty || availableQty <= 0) && styles.qtyBtnDisabled]}
+                        onPress={() => setQuantity(itemId, line.quantity + 1, availableQty)}
+                        disabled={line.quantity >= availableQty || availableQty <= 0}
+                      >
+                        <Text style={styles.qtyBtnText}>+</Text>
+                      </Pressable>
+                    </View>
+                    <View style={styles.restockRow}>
+                      <Switch
+                        value={line.restock}
+                        onValueChange={() => toggleRestock(itemId)}
+                        trackColor={{ false: c.border, true: c.primary }}
+                        thumbColor={c.surface}
+                        disabled={availableQty <= 0}
+                      />
+                      <Text style={styles.restockLabel}>إعادة للمخزون</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            );
-          })
-        )}
-      </FormSection>
+              );
+            })
+          )}
+        </FormSection>
+      </MadarSection>
 
-      <FormSection
-        title="رد المبلغ"
-        subtitle="اختر الوجهة المحاسبية التي سيُرحّل عليها الاسترداد"
-        icon="account-balance-wallet"
-      >
-        <AppInput label="السبب" value={reason} onChangeText={setReason} placeholder="سبب الاسترداد (اختياري)" />
-        <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} placeholder="ملاحظات إضافية (اختياري)" multiline numberOfLines={3} />
-        <AppSelect
-          label="طريقة الاسترداد"
-          value={refundMethod}
-          options={methodOptions}
-          onChange={(v) => {
-            const next = v as typeof refundMethod;
-            setRefundMethod(next);
-            if (next !== 'alternative_account') setRefundAccountId('');
-          }}
-        />
-        {refundMethod === 'cash' ? (
+      <MadarSection title="٢ · وجهة رد المبلغ">
+        <FormSection
+          title="التوجيه المحاسبي"
+          subtitle="اختر أين يُرحَّل الاسترداد"
+          icon="account-balance-wallet"
+        >
+          <AppInput label="السبب" value={reason} onChangeText={setReason} placeholder="سبب الاسترداد (اختياري)" />
+          <AppInput label="ملاحظات" value={notes} onChangeText={setNotes} placeholder="ملاحظات إضافية (اختياري)" multiline numberOfLines={3} />
           <AppSelect
-            label="مصدر رد النقد"
-            value={cashRefundSource}
-            options={cashSourceOptions}
-            onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
+            label="طريقة الاسترداد"
+            value={refundMethod}
+            options={methodOptions}
+            onChange={(v) => {
+              const next = v as typeof refundMethod;
+              setRefundMethod(next);
+              if (next !== 'alternative_account') setRefundAccountId('');
+            }}
           />
-        ) : null}
-        {refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault') ? (
-          <AppSelect
-            label="الحساب المالي للرد"
-            value={refundAccountId}
-            options={availableRefundSources.map((source) => ({
-              label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
-              value: source.id,
-            }))}
-            onChange={setRefundAccountId}
-          />
-        ) : null}
-        {refundSources.some((source) => source.is_available === false) ? (
-          <AppBanner message="بعض حسابات الرد غير متاحة حاليًا ولن تُستخدم تلقائيًا." />
-        ) : null}
-        {refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer' ? (
-          <AppBanner message="الرد من الدرج يُخصم من النقد المتوقع؛ ولا يغيّر إجمالي القناة الإلكترونية في التقرير." />
-        ) : null}
-        {isElectronicSale ? (
+          {refundMethod === 'cash' ? (
+            <AppSelect
+              label="مصدر رد النقد"
+              value={cashRefundSource}
+              options={cashSourceOptions}
+              onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
+            />
+          ) : null}
+          {refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault') ? (
+            <AppSelect
+              label="الحساب المالي للرد"
+              value={refundAccountId}
+              options={availableRefundSources.map((source) => ({
+                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                value: source.id,
+              }))}
+              onChange={setRefundAccountId}
+            />
+          ) : null}
+          {refundSources.some((source) => source.is_available === false) ? (
+            <AppBanner message="بعض حسابات الرد غير متاحة حاليًا ولن تُستخدم تلقائيًا." />
+          ) : null}
+          {refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer' ? (
+            <AppBanner message="الرد من الدرج يُخصم من النقد المتوقع؛ ولا يغيّر إجمالي القناة الإلكترونية في التقرير." />
+          ) : null}
+          {isElectronicSale ? (
+            <Text style={styles.sourceHint}>
+              الدفع الأصلي إلكتروني — اختر الدرج للرد نقداً أو القناة الإلكترونية للتسوية.
+            </Text>
+          ) : null}
+        </FormSection>
+      </MadarSection>
+
+      <MadarSection title="٣ · التأكيد">
+        <View style={{ gap: spacing.sm }}>
           <Text style={styles.sourceHint}>
-            الدفع الأصلي إلكتروني — اختر الدرج للرد نقداً أو القناة الإلكترونية للتسوية.
+            الخطوة الأخيرة تفتح مراجعة صريحة للأثر المالي قبل التنفيذ.
           </Text>
-        ) : null}
-      </FormSection>
+        </View>
+      </MadarSection>
 
       {submitNotice ? (
         <AppBanner message={submitNotice.message} tone={submitNotice.tone} onDismiss={() => setSubmitNotice(null)} />
@@ -429,7 +456,12 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       <ConfirmDialog
         visible={confirmOpen}
         title="تأكيد الاسترداد الجزئي"
-        message={`سيتم استرداد ${money(totalRefund)}. هل أنت متأكد؟`}
+        message={`الأثر المالي المتوقع: استرداد ${money(totalRefund)} إلى ${
+          refundMethod === 'cash' ? (cashRefundSource === 'drawer' ? 'درج الوردية' : 'الخزنة/حساب مالي')
+            : refundMethod === 'wallet' ? 'محفظة العميل'
+              : refundMethod === 'original_account' ? 'حساب الدفع الأصلي'
+                : 'حساب بديل'
+        }. الخادم يثبت المبلغ النهائي. هل تؤكد التنفيذ؟`}
         confirmLabel="تنفيذ الاسترداد"
         onConfirm={submit}
         onCancel={() => setConfirmOpen(false)}

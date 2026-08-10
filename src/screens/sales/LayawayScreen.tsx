@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { layawayAPI, type LayawayInstallment, type LayawayPlan } from '@/api/layaway';
 import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { useBranchStore } from '@/store/branchStore';
 import { AppBottomSheet } from '@/components/layout';
 import { ListScreenLayout } from '@/components/layout/ListScreenLayout';
-import { AppBadge, AppButton, AppCard, AppInput, AppSelect } from '@/components/ui';
+import { AppBadge, AppButton, AppInput, AppSelect } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
+import { MadarSurface } from '@/components/madar';
 import { AppEmptyState, ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
@@ -189,25 +190,27 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
         renderItem={({ item }) => {
           const canPay = item.status === 'active' && remaining(item) > 0.01;
           return (
-            <AppCard style={styles.card} onPress={() => void openDetails(item)}>
-              <View style={styles.cardTop}>
-                <AppBadge label={asText(item.status)} tone={statusTone(item.status)} />
-                <AppText style={styles.customer}>{item.customer?.name ?? `#${item.customer_id ?? item.id}`}</AppText>
-              </View>
-              <View style={styles.metrics}>
-                <AppText style={styles.metric}>الإجمالي: {money(item.total_amount ?? 0)}</AppText>
-                <AppText style={styles.metric}>المدفوع: {money(item.paid_amount ?? 0)}</AppText>
-                <AppText style={styles.remaining}>المتبقي: {money(remaining(item))}</AppText>
-              </View>
-              <AppText style={styles.meta}>الاستحقاق القادم: {dateText(item.next_due_date)}</AppText>
-              <View style={styles.actions}>
-                <AppButton title="الجدول" size="sm" variant="secondary" onPress={() => void openDetails(item)} />
-                <AppButton title="تسجيل دفعة" size="sm" disabled={!canPay} onPress={() => startPlanPayment(item)} />
-                {item.status === 'active' ? (
-                  <AppButton title="إلغاء" size="sm" variant="danger" onPress={() => { setCancelPlan(item); setCancelConfirmOpen(true); }} />
-                ) : null}
-              </View>
-            </AppCard>
+            <Pressable onPress={() => void openDetails(item)}>
+              <MadarSurface style={styles.card}>
+                <View style={styles.cardTop}>
+                  <AppBadge label={asText(item.status)} tone={statusTone(item.status)} />
+                  <AppText style={styles.customer}>{item.customer?.name ?? `#${item.customer_id ?? item.id}`}</AppText>
+                </View>
+                <View style={styles.metrics}>
+                  <AppText style={styles.metric}>الإجمالي: {money(item.total_amount ?? 0)}</AppText>
+                  <AppText style={styles.metric}>المدفوع: {money(item.paid_amount ?? 0)}</AppText>
+                  <AppText style={styles.remaining}>المتبقي: {money(remaining(item))}</AppText>
+                </View>
+                <AppText style={styles.meta}>الاستحقاق القادم: {dateText(item.next_due_date)}</AppText>
+                <View style={styles.actions}>
+                  <AppButton title="الجدول" size="sm" variant="secondary" onPress={() => void openDetails(item)} />
+                  <AppButton title="تسجيل دفعة" size="sm" disabled={!canPay} onPress={() => startPlanPayment(item)} />
+                  {item.status === 'active' ? (
+                    <AppButton title="إلغاء" size="sm" variant="danger" onPress={() => { setCancelPlan(item); setCancelConfirmOpen(true); }} />
+                  ) : null}
+                </View>
+              </MadarSurface>
+            </Pressable>
           );
         }}
       />
@@ -220,11 +223,11 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
       >
         {detailsPlan ? (
           <View style={{ gap: spacing.md }}>
-            <AppCard variant="flat" elevated={false}>
+            <MadarSurface>
               <AppText style={styles.customer}>{detailsPlan.customer?.name ?? `#${detailsPlan.customer_id ?? detailsPlan.id}`}</AppText>
               <AppText style={styles.metric}>الإجمالي: {money(detailsPlan.total_amount ?? 0)} • المتبقي: {money(remaining(detailsPlan))}</AppText>
               {nextDue ? <AppText style={styles.remaining}>التالي: {dateText(nextDue.due_date)} بقيمة {money(installmentRemaining(nextDue))}</AppText> : null}
-            </AppCard>
+            </MadarSurface>
             {detailsError ? <AppEmptyState title="تعذر تحميل الجدول" message={detailsError} /> : null}
             {detailsLoading ? <AppEmptyState title="جاري تحميل جدول الأقساط..." /> : null}
             {!detailsLoading && installments.length === 0 && !detailsError ? <AppEmptyState title="لا توجد أقساط مسجلة" /> : null}
@@ -238,7 +241,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
             {installments.map((row) => {
               const canPay = detailsPlan.status === 'active' && row.status !== 'paid' && installmentRemaining(row) > 0.01;
               return (
-                <AppCard key={row.id} style={styles.installmentCard} elevated={false}>
+                <MadarSurface key={row.id} style={styles.installmentCard}>
                   <View style={styles.cardTop}>
                     <AppBadge label={asText(row.status)} tone={row.status === 'paid' ? 'success' : 'warning'} />
                     <AppText style={styles.customer}>القسط #{row.installment_no}</AppText>
@@ -246,7 +249,7 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
                   <AppText style={styles.metric}>تاريخ الاستحقاق: {dateText(row.due_date)}</AppText>
                   <AppText style={styles.metric}>المبلغ: {money(row.amount)} • المدفوع: {money(row.paid_amount ?? 0)}</AppText>
                   <AppButton title="دفع القسط" size="sm" disabled={!canPay} onPress={() => startInstallmentPayment(detailsPlan, row)} />
-                </AppCard>
+                </MadarSurface>
               );
             })}
           </View>

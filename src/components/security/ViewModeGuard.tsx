@@ -4,6 +4,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { AppButton, AppText } from '@/components/ui';
 import { flexRow, textStart } from '@/constants/layout';
+import { backArrowIcon } from '@/utils/rtl';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -109,7 +110,7 @@ export function ViewModeGuard({ allowedModes, children }: ViewModeGuardProps) {
                       {branch.code ? `كود ${branch.code}` : 'فرع متاح'}
                     </AppText>
                   </View>
-                  <MaterialIcons name="arrow-back" size={18} color={c.textCaption} />
+                  <MaterialIcons name={backArrowIcon()} size={18} color={c.textCaption} />
                 </Pressable>
               );
             })}

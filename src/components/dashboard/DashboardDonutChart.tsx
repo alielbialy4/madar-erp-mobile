@@ -4,7 +4,7 @@ import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, textLtr } from '@/constants/layout';
 import { Text } from '@/components/ui/AppText';
 import { DashboardSection } from './DashboardSection';
 
@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
   row: { ...flexRow, minHeight: 48, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 2 },
   label: { ...textStart, flex: 1, fontFamily: fonts.medium, fontSize: typography.small },
-  rawValue: { width: 62, textAlign: 'left', fontFamily: fonts.medium, fontSize: typography.caption },
-  percent: { width: 46, textAlign: 'left', fontFamily: fonts.extraBold, fontSize: typography.small },
+  rawValue: { width: 62, ...textLtr, fontFamily: fonts.medium, fontSize: typography.caption },
+  percent: { width: 46, ...textLtr, fontFamily: fonts.extraBold, fontSize: typography.small },
 });

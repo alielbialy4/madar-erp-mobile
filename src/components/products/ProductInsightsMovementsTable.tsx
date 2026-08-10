@@ -5,7 +5,8 @@ import { AppBadge } from '@/components/ui';
 import { DashboardDataTable, type DashboardTableColumn } from '@/components/dashboard/DashboardDataTable';
 import { dateText, numberText } from '@/utils/format';
 import { movementTypeLabel } from './productInsightsUtils';
-import { flexRow, textLtr, textStart } from '@/constants/layout';
+import { flexRow, textLtr, textStart, appTextAlignStart } from '@/constants/layout';
+import { chevronBackwardIcon, chevronForwardIcon } from '@/utils/rtl';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -114,7 +115,7 @@ export function ProductInsightsMovementsTable({
             accessibilityLabel="الصفحة السابقة"
             style={({ pressed }) => [styles.pageBtn, !canPrev && styles.pageBtnDisabled, pressed && canPrev && { opacity: 0.85 }]}
           >
-            <MaterialIcons name="chevron-right" size={22} color={canPrev ? c.text : c.textMuted} />
+            <MaterialIcons name={chevronBackwardIcon()} size={22} color={canPrev ? c.text : c.textMuted} />
             <Text style={[styles.pageBtnText, !canPrev && { color: c.textMuted }]}>السابق</Text>
           </Pressable>
           <Text style={styles.pageInfo}>
@@ -128,7 +129,7 @@ export function ProductInsightsMovementsTable({
             style={({ pressed }) => [styles.pageBtn, !canNext && styles.pageBtnDisabled, pressed && canNext && { opacity: 0.85 }]}
           >
             <Text style={[styles.pageBtnText, !canNext && { color: c.textMuted }]}>التالي</Text>
-            <MaterialIcons name="chevron-left" size={22} color={canNext ? c.text : c.textMuted} />
+            <MaterialIcons name={chevronForwardIcon()} size={22} color={canNext ? c.text : c.textMuted} />
           </Pressable>
         </View>
       ) : null}
@@ -142,7 +143,7 @@ function createStyles(c: ReturnType<typeof useColors>) {
     delta: {
       fontSize: typography.body,
       fontFamily: fonts.bold,
-      textAlign: 'right',
+      textAlign: appTextAlignStart,
     },
     reference: {
       fontSize: typography.tiny,

@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppEmptyState, AppErrorState, AppLoadingState, useToast } from '@/components/feedback';
+import { AppEmptyState, AppErrorState, AppLoadingState, useAppDialog, useToast } from '@/components/feedback';
 import { notifyPostCheckoutPrint } from '@/services/pos/notifyPostCheckoutPrint';
 import {
   PosCatalogPanel,
@@ -21,6 +21,7 @@ import { responsive } from '@/constants/responsive';
 import { spacing } from '@/constants/spacing';
 import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useTu } from '@/i18n/useTu';
 import { couponsAPI } from '@/api/coupons';
 import { revalidateAppliedCoupon, validateCouponOffline } from '@/api/couponOffline';
 import { giftCardsAPI } from '@/api/giftCards';
@@ -93,8 +94,10 @@ function toExtendedShift(shift: ActiveShift): ActiveShiftExtended {
 }
 
 export function POSScreen({ navigation }: { navigation: any }) {
+  const tx = useTu();
   const c = useColors();
   const toast = useToast();
+  const dialog = useAppDialog();
   const { width } = useWindowDimensions();
   const isTablet = width >= responsive.tabletMinSplit;
   const tabBarInset = useTabBarBottomInset(spacing.sm);
@@ -428,7 +431,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
             }
             const msg =
               (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
-              'تم تعديل الطلب من جهاز آخر. تمت مزامنة السلة من السيرفر.';
+              tx('تم تعديل الطلب من جهاز آخر. تمت مزامنة السلة من السيرفر.');
             if (lastDraftErrorRef.current !== 'table-order-conflict') {
               lastDraftErrorRef.current = 'table-order-conflict';
               setPosNotice(msg);
@@ -439,7 +442,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
           const signature = `${tableId}:${normalized.message}`;
           if (lastDraftErrorRef.current !== signature) {
             lastDraftErrorRef.current = signature;
-            setPosNotice(normalized.message || 'تعذر حفظ طلب الطاولة.');
+            setPosNotice(normalized.message || tx('تعذر حفظ طلب الطاولة.'));
           }
         });
     }, 600);
@@ -463,17 +466,25 @@ export function POSScreen({ navigation }: { navigation: any }) {
     if (!selectedTable) return;
     const switchToTakeaway = () => {
       void setDiningTable(null);
-      setPosNotice('تم التحويل إلى تيك أواي.');
+      setPosNotice(tx('تم التحويل إلى تيك أواي.'));
     };
     if (cart.length > 0) {
-      Alert.alert('تيك أواي', 'سيتم حفظ سلة الطاولة والتحويل إلى تيك أواي.', [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'متابعة', onPress: switchToTakeaway },
-      ]);
+      void dialog
+        .confirm({
+          title: tx('تيك أواي'),
+          message: tx('سيتم حفظ سلة الطاولة والتحويل إلى تيك أواي.'),
+          confirmLabel: tx('متابعة'),
+          cancelLabel: tx('إلغاء'),
+          tone: 'warning',
+          icon: 'takeout-dining',
+        })
+        .then((ok) => {
+          if (ok) switchToTakeaway();
+        });
       return;
     }
     switchToTakeaway();
-  }, [selectedTable, cart.length, setDiningTable]);
+  }, [selectedTable, cart.length, setDiningTable, dialog]);
 
   const handleSelectDineIn = useCallback(() => {
     setTablesOpen(true);
@@ -496,7 +507,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       });
       setNeedsDelivery(false);
       setTablesOpen(false);
-      setPosNotice(`تم اختيار ${table.name ?? 'الطاولة'}.`);
+      setPosNotice(tx('mobile.pos.tableSelected', { name: table.name ?? tx('mobile.pos.table') }));
     },
     [setDiningTable],
   );
@@ -558,7 +569,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
           number: table.number,
           hallName: table.hallName,
         });
-        setPosNotice('تم دمج الطاولات بنجاح.');
+        setPosNotice(tx('تم دمج الطاولات بنجاح.'));
       } catch {
         let recovered = false;
         try {
@@ -579,8 +590,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
         }
         setPosNotice(
           recovered
-            ? 'تم الدمج على السيرفر وتمت مزامنة السلة من الطاولة الهدف.'
-            : 'تم الدمج على السيرفر لكن تعذر مزامنة السلة. حدّث عرض الطاولات.',
+            ? tx('تم الدمج على السيرفر وتمت مزامنة السلة من الطاولة الهدف.')
+            : tx('تم الدمج على السيرفر لكن تعذر مزامنة السلة. حدّث عرض الطاولات.'),
         );
       }
       setLocallyOccupiedIds((prev) => {
@@ -667,14 +678,14 @@ export function POSScreen({ navigation }: { navigation: any }) {
     prevCartCount.current = cartItemCount;
   }, [cartItemCount, isTablet]);
 
-  const refreshCatalog = async () => {
+  const refreshCatalog = useCallback(async () => {
     setCatalogRefreshing(true);
     try {
       await loadCatalog();
     } finally {
       setCatalogRefreshing(false);
     }
-  };
+  }, [loadCatalog]);
 
   const filteredProducts = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -696,7 +707,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     ? new Date(lastSyncedAt).toLocaleString('ar-EG-u-nu-latn')
     : null;
 
-  const shiftLabel = shift ? 'وردية نشطة' : 'لا توجد وردية';
+  const shiftLabel = shift ? tx('وردية نشطة') : tx('لا توجد وردية');
 
   const needOpenShift = Boolean(activeBranch?.id) && !shiftLoading && !shift;
 
@@ -713,20 +724,23 @@ export function POSScreen({ navigation }: { navigation: any }) {
     checkoutTotals.deliveryFee > 0 ? `رسوم التوصيل: ${money(checkoutTotals.deliveryFee)}` : null;
   const taxLabel = checkoutTotals.tax > 0 ? `الضريبة: ${money(checkoutTotals.tax)}` : null;
 
-  const handleProductPress = (product: Product) => {
-    if (productHasVariants(product)) {
-      setVariantProduct(product);
-      setVariantOpen(true);
-      return;
-    }
-    if (productHasOptions(product)) {
-      setModifierProduct(product);
-      setModifierVariant(null);
-      setModifierOpen(true);
-      return;
-    }
-    addProduct(product);
-  };
+  const handleProductPress = useCallback(
+    (product: Product) => {
+      if (productHasVariants(product)) {
+        setVariantProduct(product);
+        setVariantOpen(true);
+        return;
+      }
+      if (productHasOptions(product)) {
+        setModifierProduct(product);
+        setModifierVariant(null);
+        setModifierOpen(true);
+        return;
+      }
+      addProduct(product);
+    },
+    [addProduct],
+  );
 
   const handleVariantSelect = (variant: ProductVariantSelection) => {
     if (!variantProduct) return;
@@ -752,7 +766,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
     if (!allowCoupons) {
-      setCouponMessage('الكوبونات غير مفعلة في إعدادات هذا الفرع.');
+      setCouponMessage(tx('الكوبونات غير مفعلة في إعدادات هذا الفرع.'));
       return;
     }
     setCouponMessage(null);
@@ -761,9 +775,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
       const offline = validateCouponOffline(coupons, couponCode, cartTotal, activeBranch?.id ?? null);
       if (offline) {
         setAppliedCoupon(offline);
-        setCouponMessage(`تم تطبيق الكوبون (بدون اتصال). الخصم: ${money(offline.discount)}`);
+        setCouponMessage(`${tx('تم تطبيق الكوبون (بدون اتصال). الخصم:')} ${money(offline.discount)}`);
       } else {
-        setCouponMessage('الكوبون غير صالح أو منتهي أو لا ينطبق على هذا المبلغ.');
+        setCouponMessage(tx('الكوبون غير صالح أو منتهي أو لا ينطبق على هذا المبلغ.'));
       }
       return;
     }
@@ -779,12 +793,12 @@ export function POSScreen({ navigation }: { navigation: any }) {
         const discount = Number((response.data as any)?.discount ?? 0);
         if (coupon && discount > 0) {
           setAppliedCoupon({ coupon, discount });
-          setCouponMessage(`تم تطبيق الكوبون. الخصم: ${money(discount)}`);
+          setCouponMessage(`${tx('تم تطبيق الكوبون. الخصم:')} ${money(discount)}`);
         } else {
-          setCouponMessage(response.message || 'الكوبون صالح');
+          setCouponMessage(response.message || tx('الكوبون صالح'));
         }
       } else {
-        setCouponMessage(response.message || 'الكوبون غير صالح');
+        setCouponMessage(response.message || tx('الكوبون غير صالح'));
       }
     } catch (err) {
       setCouponMessage(normalizeApiError(err).message);
@@ -810,10 +824,10 @@ export function POSScreen({ navigation }: { navigation: any }) {
       if (cancelled) return;
       if (!next) {
         setAppliedCoupon(null);
-        setCouponMessage('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.');
+        setCouponMessage(tx('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.'));
       } else if (next.discount !== appliedCoupon.discount) {
         setAppliedCoupon(next);
-        setCouponMessage(`تم تحديث خصم الكوبون: ${money(next.discount)}`);
+        setCouponMessage(`${tx('تم تحديث خصم الكوبون:')} ${money(next.discount)}`);
       }
     })();
     return () => {
@@ -853,7 +867,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const validateGiftCard = async () => {
     if (!isOnline) {
-      setGiftCardMessage('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+      setGiftCardMessage(tx('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.'));
       return;
     }
     const code = giftCardCode.trim();
@@ -863,12 +877,12 @@ export function POSScreen({ navigation }: { navigation: any }) {
       const res = await giftCardsAPI.check(code);
       const data = res.data as { id?: number; balance?: number; code?: string; status?: string } | null;
       if (res.status !== 'success' || !data?.id) {
-        setGiftCardMessage(res.message || 'بطاقة الهدايا غير صالحة');
+        setGiftCardMessage(res.message || tx('بطاقة الهدايا غير صالحة'));
         return;
       }
       const balance = Number(data.balance ?? 0);
       if (balance <= 0) {
-        setGiftCardMessage('رصيد البطاقة غير كافٍ');
+        setGiftCardMessage(tx('رصيد البطاقة غير كافٍ'));
         return;
       }
       const amount = Math.min(balance, effectiveTotal);
@@ -888,11 +902,11 @@ export function POSScreen({ navigation }: { navigation: any }) {
     try {
     setCheckoutMessage(null);
     if (!shift) {
-      setCheckoutMessage('يجب فتح وردية قبل إتمام البيع.');
+      setCheckoutMessage(tx('يجب فتح وردية قبل إتمام البيع.'));
       return;
     }
     if (!isOnline && selectedTable) {
-      setCheckoutMessage('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.');
+      setCheckoutMessage(tx('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.'));
       return;
     }
     let settleOrderId: number | string | null = selectedTable?.activeOrderId ?? null;
@@ -918,7 +932,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         restoreCartContext,
       });
       if (!syncResult.ok) {
-        setCheckoutMessage(syncResult.message || 'تعذر حفظ طلب الطاولة');
+        setCheckoutMessage(syncResult.message || tx('تعذر حفظ طلب الطاولة'));
         return;
       }
       settleOrderId = selectedTable.activeOrderId ?? settleOrderId;
@@ -927,56 +941,56 @@ export function POSScreen({ navigation }: { navigation: any }) {
         if (settleOrderId) updateTableMeta({ activeOrderId: settleOrderId });
       }
       if (!settleOrderId && cart.length > 0) {
-        setCheckoutMessage('تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.');
+        setCheckoutMessage(tx('تعذر حفظ طلب الطاولة على الخادم قبل التحصيل. حاول مرة أخرى.'));
         return;
       }
     }
     if (!isOnline && loyaltyPointsNum > 0) {
-      setCheckoutMessage('استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+      setCheckoutMessage(tx('استبدال النقاط يحتاج اتصالاً بالخادم للتحقق من الرصيد.'));
       return;
     }
     if (loyaltyPointsNum > 0 && pointsBalance != null && loyaltyPointsNum > pointsBalance) {
-      setCheckoutMessage('النقاط أكثر من الرصيد المتاح');
+      setCheckoutMessage(tx('النقاط أكثر من الرصيد المتاح'));
       return;
     }
     if (paymentType === 'gift_card') {
       if (!isOnline) {
-        setCheckoutMessage('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.');
+        setCheckoutMessage(tx('الدفع ببطاقة الهدايا يحتاج اتصالاً بالخادم للتحقق من الرصيد.'));
         return;
       }
       if (!appliedGiftCard) {
-        setCheckoutMessage('تحقق من بطاقة الهدايا أولاً');
+        setCheckoutMessage(tx('تحقق من بطاقة الهدايا أولاً'));
         return;
       }
     }
     if (needsDelivery) {
       if (!selectedCustomer) {
-        setCheckoutMessage('يجب اختيار عميل قبل التوصيل.');
+        setCheckoutMessage(tx('يجب اختيار عميل قبل التوصيل.'));
         return;
       }
       if (!deliveryAddress.trim()) {
-        setCheckoutMessage('أدخل عنوان التوصيل.');
+        setCheckoutMessage(tx('أدخل عنوان التوصيل.'));
         return;
       }
       const deliveryPhoneReady =
         deliveryPhone.trim() || (selectedCustomer.phone ? String(selectedCustomer.phone).trim() : '');
       if (!deliveryPhoneReady) {
-        setCheckoutMessage('أدخل هاتف التوصيل.');
+        setCheckoutMessage(tx('أدخل هاتف التوصيل.'));
         return;
       }
     }
     if (paymentType === 'layaway') {
       if (!selectedCustomer) {
-        setCheckoutMessage('التقسيط يتطلب اختيار عميل.');
+        setCheckoutMessage(tx('التقسيط يتطلب اختيار عميل.'));
         return;
       }
       if (!isOnline) {
-        setCheckoutMessage('بيع التقسيط يحتاج اتصالاً بالخادم.');
+        setCheckoutMessage(tx('بيع التقسيط يحتاج اتصالاً بالخادم.'));
         return;
       }
       const terms = buildLayawayTerms();
       if (!terms) {
-        setCheckoutMessage('أكمل شروط التقسيط (الأقساط، التاريخ، الدفعة المقدمة).');
+        setCheckoutMessage(tx('أكمل شروط التقسيط (الأقساط، التاريخ، الدفعة المقدمة).'));
         return;
       }
     }
@@ -995,7 +1009,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       });
       if (!next) {
         setAppliedCoupon(null);
-        setCheckoutMessage('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.');
+        setCheckoutMessage(tx('لم يعد الكوبون المطبّق صالحاً لهذا المبلغ.'));
         return;
       }
       if (next.discount !== appliedCoupon.discount) {
@@ -1090,9 +1104,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const openCheckout = () => {
+  const openCheckout = useCallback(() => {
     if (!shift) {
-      setPosNotice('يجب فتح وردية قبل إتمام البيع.');
+      setPosNotice(tx('يجب فتح وردية قبل إتمام البيع.'));
       return;
     }
     setPaymentType((current) =>
@@ -1101,7 +1115,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
     setPaid(paymentType === 'credit' || paymentType === 'layaway' ? '0' : String(effectiveTotal));
     checkoutClientUuidRef.current = createUuid();
     setCheckoutOpen(true);
-  };
+  }, [effectiveTotal, paymentType, shift]);
 
   const handleExitCategory = useCallback(() => {
     setShowCategoryCards(true);
@@ -1112,6 +1126,28 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const handleCategoryChange = useCallback((id: string) => {
     setCategoryId(id);
     setShowCategoryCards(false);
+  }, []);
+
+  const handleShowAllProducts = useCallback(() => {
+    setCategoryId('all');
+    setShowCategoryCards(false);
+  }, []);
+
+  const handleSelectCategory = useCallback((id: string) => {
+    setCategoryId(id);
+    setShowCategoryCards(false);
+  }, []);
+
+  const openCustomerSheet = useCallback(() => setCustomerOpen(true), []);
+  const openCashMovement = useCallback(() => setCashMovementOpen(true), []);
+  const openTables = useCallback(() => setTablesOpen(true), []);
+  const openHoldList = useCallback(() => {
+    setHoldCartsMode('list');
+    setHoldCartsOpen(true);
+  }, []);
+  const openHoldSave = useCallback(() => {
+    setHoldCartsMode('save');
+    setHoldCartsOpen(true);
   }, []);
 
   const activeCategoryName = useMemo(() => {
@@ -1137,13 +1173,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
         catalogSettings: catalogSettings ?? {},
       });
       void cashDrawerAPI.logOpen().catch(() => {});
-      setPosNotice('تم فتح الدرج.');
+      setPosNotice(tx('تم فتح الدرج.'));
     } catch (err) {
-      Alert.alert('فتح الدرج', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setDrawerBusy(false);
     }
-  }, [activeBranch?.id, catalogSettings, drawerBusy]);
+  }, [activeBranch?.id, catalogSettings, drawerBusy, toast]);
 
   const shiftToolbarProps = useMemo(
     () => ({
@@ -1157,29 +1193,32 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const handleExitPos = useCallback(() => {
     const hasCartItems = cart.length > 0;
-    const title = 'خروج من نقطة البيع';
+    const title = tx('خروج من نقطة البيع');
     const message = hasCartItems
-      ? 'توجد منتجات في السلة. هل تريد الخروج من نقطة البيع؟'
-      : 'هل تريد الخروج من شاشة نقطة البيع؟';
+      ? tx('توجد منتجات في السلة. هل تريد الخروج من نقطة البيع؟')
+      : tx('هل تريد الخروج من شاشة نقطة البيع؟');
 
-    Alert.alert(title, message, [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'خروج',
-        style: 'destructive',
-        onPress: () => {
-          const parent = navigation.getParent?.();
-          if (parent?.navigate) {
-            parent.navigate('DashboardTab');
-            return;
-          }
-          if (navigation.canGoBack?.()) {
-            navigation.goBack();
-          }
-        },
-      },
-    ]);
-  }, [cart.length, navigation]);
+    void dialog
+      .confirm({
+        title,
+        message,
+        confirmLabel: tx('خروج'),
+        cancelLabel: tx('إلغاء'),
+        tone: 'danger',
+        icon: 'logout',
+      })
+      .then((ok) => {
+        if (!ok) return;
+        const parent = navigation.getParent?.();
+        if (parent?.navigate) {
+          parent.navigate('DashboardTab');
+          return;
+        }
+        if (navigation.canGoBack?.()) {
+          navigation.goBack();
+        }
+      });
+  }, [cart.length, navigation, dialog]);
 
   const showCatalog = isTablet || mobileTab === 'catalog';
   const showCart = isTablet || mobileTab === 'cart';
@@ -1189,7 +1228,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const handlePrintKitchen = useCallback(async () => {
     if (!activeBranch?.id) {
-      setPosNotice('اختر فرعاً أولاً.');
+      setPosNotice(tx('اختر فرعاً أولاً.'));
       return;
     }
     try {
@@ -1209,15 +1248,15 @@ export function POSScreen({ navigation }: { navigation: any }) {
 
   const handlePrintTableInvoice = useCallback(async () => {
     if (!activeBranch?.id) {
-      setPosNotice('اختر فرعاً أولاً.');
+      setPosNotice(tx('اختر فرعاً أولاً.'));
       return;
     }
     if (!selectedTable) {
-      setPosNotice('اختر طاولة أولاً.');
+      setPosNotice(tx('اختر طاولة أولاً.'));
       return;
     }
     if (cart.length === 0) {
-      setPosNotice('السلة فارغة.');
+      setPosNotice(tx('السلة فارغة.'));
       return;
     }
     try {
@@ -1255,46 +1294,81 @@ export function POSScreen({ navigation }: { navigation: any }) {
     user?.name,
   ]);
 
-  const cartPanelProps = {
-    cart,
-    effectiveTotal,
-    subtotal: totals.subtotal,
-    selectedTableId: selectedTable?.id ?? null,
-    onSelectTakeaway: handleSelectTakeaway,
-    onSelectDineIn: handleSelectDineIn,
-    orderModeDisabled: tableSwitching,
-    shiftError,
-    hasShift: !!shift,
-    pendingCount: pendingOrders.length,
-    selectedCustomerName: selectedCustomer?.name ?? null,
-    selectedTableName,
-    taxLabel,
-    serviceChargeLabel,
-    deliveryFeeLabel,
-    splitPaid: paymentType === 'split' && splitLines.length > 0 ? splitPaid : null,
-    splitRemaining: paymentType === 'split' && splitLines.length > 0 ? splitRemaining : null,
-    onSelectCustomer: () => setCustomerOpen(true),
-    onClearCart: clearCart,
-    onCheckout: openCheckout,
-    onCashMovement: () => setCashMovementOpen(true),
-    ...(POS_HOLD_CARTS_ENABLED
-      ? {
-          onOpenHoldCarts: () => {
-            setHoldCartsMode('list');
-            setHoldCartsOpen(true);
-          },
-          onSaveHoldCart: () => {
-            setHoldCartsMode('save');
-            setHoldCartsOpen(true);
-          },
-        }
-      : {}),
-    onUpdateQty: updateQuantity,
-    onRemoveLine: removeLine,
-    onPrintKitchen: kitchenPrintEnabled ? () => void handlePrintKitchen() : undefined,
-    onPrintTableInvoice: selectedTable ? () => void handlePrintTableInvoice() : undefined,
-    kitchenPrintEnabled,
-  };
+  const printKitchenAction = useCallback(() => {
+    void handlePrintKitchen();
+  }, [handlePrintKitchen]);
+  const printTableInvoiceAction = useCallback(() => {
+    void handlePrintTableInvoice();
+  }, [handlePrintTableInvoice]);
+
+  const cartPanelProps = useMemo(
+    () => ({
+      cart,
+      effectiveTotal,
+      subtotal: totals.subtotal,
+      selectedTableId: selectedTable?.id ?? null,
+      onSelectTakeaway: handleSelectTakeaway,
+      onSelectDineIn: handleSelectDineIn,
+      orderModeDisabled: tableSwitching,
+      shiftError,
+      hasShift: !!shift,
+      pendingCount: pendingOrders.length,
+      selectedCustomerName: selectedCustomer?.name ?? null,
+      selectedTableName,
+      taxLabel,
+      serviceChargeLabel,
+      deliveryFeeLabel,
+      splitPaid: paymentType === 'split' && splitLines.length > 0 ? splitPaid : null,
+      splitRemaining: paymentType === 'split' && splitLines.length > 0 ? splitRemaining : null,
+      onSelectCustomer: openCustomerSheet,
+      onClearCart: clearCart,
+      onCheckout: openCheckout,
+      onCashMovement: openCashMovement,
+      ...(POS_HOLD_CARTS_ENABLED
+        ? {
+            onOpenHoldCarts: openHoldList,
+            onSaveHoldCart: openHoldSave,
+          }
+        : {}),
+      onUpdateQty: updateQuantity,
+      onRemoveLine: removeLine,
+      onPrintKitchen: kitchenPrintEnabled ? printKitchenAction : undefined,
+      onPrintTableInvoice: selectedTable ? printTableInvoiceAction : undefined,
+      kitchenPrintEnabled,
+    }),
+    [
+      cart,
+      clearCart,
+      deliveryFeeLabel,
+      effectiveTotal,
+      handleSelectDineIn,
+      handleSelectTakeaway,
+      kitchenPrintEnabled,
+      openCashMovement,
+      openCheckout,
+      openCustomerSheet,
+      openHoldList,
+      openHoldSave,
+      paymentType,
+      pendingOrders.length,
+      printKitchenAction,
+      printTableInvoiceAction,
+      removeLine,
+      selectedCustomer?.name,
+      selectedTable,
+      selectedTableName,
+      serviceChargeLabel,
+      shift,
+      shiftError,
+      splitLines.length,
+      splitPaid,
+      splitRemaining,
+      tableSwitching,
+      taxLabel,
+      totals.subtotal,
+      updateQuantity,
+    ],
+  );
 
   return (
     <SafeAreaView
@@ -1308,8 +1382,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
           cashierName={user?.name}
           lastSyncedLabel={lastSyncedLabel}
           onExitPos={handleExitPos}
-          onCashMovement={() => setCashMovementOpen(true)}
-          onOpenTables={() => setTablesOpen(true)}
+          onCashMovement={openCashMovement}
+          onOpenTables={openTables}
           {...shiftToolbarProps}
           {...(POS_HOLD_CARTS_ENABLED
             ? {
@@ -1330,14 +1404,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
           onCategoryChange={handleCategoryChange}
           showCategoryCards={showCategoryCards}
           onShowCategoryCards={handleExitCategory}
-          onShowAllProducts={() => {
-            setCategoryId('all');
-            setShowCategoryCards(false);
-          }}
-          onSelectCategory={(id) => {
-            setCategoryId(id);
-            setShowCategoryCards(false);
-          }}
+          onShowAllProducts={handleShowAllProducts}
+          onSelectCategory={handleSelectCategory}
           onExitCategory={handleExitCategory}
           activeCategoryName={activeCategoryName}
           filteredProducts={filteredProducts}
@@ -1361,13 +1429,25 @@ export function POSScreen({ navigation }: { navigation: any }) {
             lastSyncedLabel={lastSyncedLabel}
             showMobileTabs
             onExit={handleExitPos}
-            onCashMovement={() => setCashMovementOpen(true)}
-            onOpenTables={() => setTablesOpen(true)}
+            onCashMovement={openCashMovement}
+            onOpenTables={openTables}
             {...shiftToolbarProps}
           />
           <OfflinePrintIndicators compact />
           {posNotice ? (
-            <Text style={[styles.noticeText, { color: c.info, backgroundColor: c.softInfo }]}>{posNotice}</Text>
+            <Text
+              style={[
+                styles.noticeText,
+                {
+                  color: c.info,
+                  backgroundColor: c.surface,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: c.info,
+                },
+              ]}
+            >
+              {posNotice}
+            </Text>
           ) : null}
           {!activeBranch ? (
             <View style={styles.centered}>
@@ -1405,14 +1485,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
                 onCategoryChange={handleCategoryChange}
                 showCategoryCards={showCategoryCards}
                 onShowCategoryCards={handleExitCategory}
-                onShowAllProducts={() => {
-                  setCategoryId('all');
-                  setShowCategoryCards(false);
-                }}
-                onSelectCategory={(id) => {
-                  setCategoryId(id);
-                  setShowCategoryCards(false);
-                }}
+                onShowAllProducts={handleShowAllProducts}
+                onSelectCategory={handleSelectCategory}
                 onExitCategory={handleExitCategory}
                 activeCategoryName={activeCategoryName}
                 products={filteredProducts}
@@ -1582,7 +1656,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onCreated={(customer) => {
           setCustomer(customer);
           setQuickCustomerOpen(false);
-          setPosNotice('تم إضافة العميل واختياره في الطلب.');
+          setPosNotice(tx('تم إضافة العميل واختياره في الطلب.'));
           void loadCatalog();
         }}
       />
@@ -1592,7 +1666,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         shift={shift}
         onClose={() => setCashMovementOpen(false)}
         onSuccess={() => {
-          setPosNotice('تم تسجيل الحركة النقدية.');
+          setPosNotice(tx('تم تسجيل الحركة النقدية.'));
           void refreshShift();
         }}
       />
@@ -1655,7 +1729,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
               customer: data.customer,
               appliedCoupon: data.appliedCoupon,
             });
-            setPosNotice('تم استعادة السلة المحفوظة.');
+            setPosNotice(tx('تم استعادة السلة المحفوظة.'));
           }}
         />
       ) : null}
@@ -1664,6 +1738,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
 }
 
 function PosCustomerList({ customers, onSelect, onClear }: { customers: Customer[]; onSelect: (c: Customer) => void; onClear: () => void }) {
+  const tx = useTu();
   const visibleCustomers = customers.slice(0, 80);
   return (
     <View style={{ gap: spacing.sm }}>
@@ -1673,7 +1748,7 @@ function PosCustomerList({ customers, onSelect, onClear }: { customers: Customer
             key={String(item.id)}
             title={item.name}
             subtitle={item.phone ?? undefined}
-            meta={item.wallet_balance != null ? `محفظة: ${money(item.wallet_balance)}` : undefined}
+            meta={item.wallet_balance != null ? `${tx('محفظة:')} ${money(item.wallet_balance)}` : undefined}
             onPress={() => onSelect(item)}
           />
         ))

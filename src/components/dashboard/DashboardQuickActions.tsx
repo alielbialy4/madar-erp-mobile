@@ -14,6 +14,7 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '@/types/navigation';
 import { Text } from '@/components/ui/AppText';
+import { useTu } from '@/i18n/useTu';
 
 type Props = {
   navigation: BottomTabNavigationProp<MainTabParamList>;
@@ -34,6 +35,7 @@ type Action = {
 };
 
 export function DashboardQuickActions({ navigation, variant = 'default' }: Props) {
+  const tx = useTu();
   const c = useColors();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
@@ -46,7 +48,7 @@ export function DashboardQuickActions({ navigation, variant = 'default' }: Props
   if (isSuperAdmin || hasPermission(user, 'process_sales')) {
     actions.push({
       key: 'pos',
-      label: 'نقطة البيع',
+      label: tx('نقطة البيع'),
       icon: 'storefront',
       heroIcon: 'store',
       primary: true,
@@ -56,7 +58,7 @@ export function DashboardQuickActions({ navigation, variant = 'default' }: Props
   if (isSuperAdmin || hasPermission(user, 'view_reports')) {
     actions.push({
       key: 'reports',
-      label: 'التقارير',
+      label: tx('التقارير'),
       icon: 'chart-bar',
       heroIcon: 'bar-chart',
       onPress: () => navigation.navigate('MoreTab', { screen: 'Reports' }),
@@ -65,7 +67,7 @@ export function DashboardQuickActions({ navigation, variant = 'default' }: Props
   if (isSuperAdmin || hasPermission(user, ['manage_users', 'manage_branches'])) {
     actions.push({
       key: 'settings',
-      label: 'الإعدادات',
+      label: tx('الإعدادات'),
       icon: 'gear',
       heroIcon: 'settings',
       onPress: () => navigation.navigate('MoreTab', { screen: 'Settings' }),

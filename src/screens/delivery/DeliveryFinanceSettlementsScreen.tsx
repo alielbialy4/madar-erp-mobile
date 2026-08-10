@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { deliveryFinanceAPI } from '@/api/deliveryFinance';
 import { AppScreen } from '@/components/layout';
-import { AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { asText, dateText, money } from '@/utils/format';
@@ -34,12 +35,18 @@ export function DeliveryFinanceSettlementsScreen({ navigation }: { navigation: a
     <AppScreen title="تسويات مالية التوصيل" onBack={navigation.goBack} onRefresh={() => void load()} refreshing={loading}>
       {loading ? <AppLoadingState /> : null}
       {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      <AppCard>
-        <AppSectionHeader title="سجل التسويات (قراءة)" />
-        {rows.map((row, i) => (
-          <AppListItem key={String(row.id ?? i)} title={asText(row.driver_name, '—')} subtitle={dateText(asText(row.settled_at ?? row.created_at, ''))} meta={money(row.amount_received ?? row.total_collected ?? 0)} />
-        ))}
-      </AppCard>
+      <MadarSection title="سجل التسويات (قراءة)">
+        <MadarSurface padded={false}>
+          {rows.map((row, i) => (
+            <AppListItem
+              key={String(row.id ?? i)}
+              title={asText(row.driver_name, '—')}
+              subtitle={dateText(asText(row.settled_at ?? row.created_at, ''))}
+              meta={money(row.amount_received ?? row.total_collected ?? 0)}
+            />
+          ))}
+        </MadarSurface>
+      </MadarSection>
     </AppScreen>
   );
 }

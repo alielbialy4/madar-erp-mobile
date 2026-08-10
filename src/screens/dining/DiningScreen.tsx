@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { diningAPI } from '@/api/dining';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppButton } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useBranchStore } from '@/store/branchStore';
 import { useAuthStore } from '@/store/authStore';
@@ -72,11 +73,11 @@ export function DiningScreen({ navigation }: { navigation: any }) {
   return (
     <AppScreen title="القاعات والطاولات" subtitle="حالة الطاولات والطلبات النشطة" refreshing={loading} onRefresh={load}>
       {!activeBranch ? <AppEmptyState title="اختر فرعاً أولاً" /> : null}
-      <AppCard style={styles.banner}>
+      <MadarSurface style={styles.banner}>
         <Text style={{ color: c.textMuted, fontSize: 13 }}>
           التخزين دون اتصال للقاعات غير مفعّل: لا يوجد عقد آمن لمزامنة طلبات الطاولات دون شبكة. يتطلب اتصالاً بالخادم.
         </Text>
-      </AppCard>
+      </MadarSurface>
       <View style={styles.actionsRow}>
         <AppButton title="وضع النادل" onPress={() => navigation.navigate('WaiterPos')} />
         {canManage ? (
@@ -100,8 +101,7 @@ export function DiningScreen({ navigation }: { navigation: any }) {
           <AppEmptyState title="لا توجد طاولات" />
         ) : (
           grouped.map(([hallName, hallTables]) => (
-            <AppCard key={hallName} style={styles.card}>
-              <AppSectionHeader title={hallName} />
+            <MadarSection key={hallName} title={hallName}>
               <View style={styles.grid}>
                 {hallTables.map((table) => (
                   <Pressable
@@ -114,7 +114,11 @@ export function DiningScreen({ navigation }: { navigation: any }) {
                     }
                     style={({ pressed }) => [
                       styles.tableTile,
-                      { borderColor: tableStatusColor(c, table.status), backgroundColor: c.surface, opacity: pressed ? 0.9 : 1 },
+                      {
+                        borderColor: tableStatusColor(c, table.status),
+                        backgroundColor: c.surface,
+                        opacity: pressed ? 0.9 : 1,
+                      },
                     ]}
                   >
                     <Text style={[styles.tableName, { color: c.text }]} numberOfLines={1}>
@@ -123,14 +127,14 @@ export function DiningScreen({ navigation }: { navigation: any }) {
                     <AppBadge label={tableStatusLabel(table.status)} tone={tableStatusTone(table.status)} />
                     <Text style={{ fontSize: 11, color: c.textMuted }}>{table.capacity ?? '—'} أشخاص</Text>
                     {(table as TableRow & { current_order?: { id: number; total?: number } }).current_order ? (
-                      <Text style={{ fontSize: 11, color: c.accent, fontWeight: '700' }}>
+                      <Text style={{ fontSize: 11, color: c.text, fontWeight: '700' }}>
                         طلب #{(table as TableRow & { current_order?: { id: number } }).current_order!.id}
                       </Text>
                     ) : null}
                   </Pressable>
                 ))}
               </View>
-            </AppCard>
+            </MadarSection>
           ))
         )
       ) : null}
@@ -150,11 +154,12 @@ const styles = StyleSheet.create({
     width: '30%',
     minWidth: 100,
     flexGrow: 1,
-    borderWidth: 2,
-    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStartWidth: 3,
+    borderRadius: 10,
     padding: spacing.sm,
     gap: 4,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  tableName: { fontWeight: '800', fontSize: 14 },
+  tableName: { fontWeight: '700', fontSize: 14 },
 });

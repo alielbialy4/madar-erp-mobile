@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { activityLogsAPI } from '@/api/activityLogs';
 import { ListScreenLayout } from '@/components/layout';
-import { AppDomainCard, AppInput, AppSelect } from '@/components/ui';
+import { AppInput, AppSelect } from '@/components/ui';
+import { DenseRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListResource } from '@/hooks/useListResource';
@@ -70,11 +71,10 @@ export function ActivityLogsScreen({ navigation }: { navigation: any }) {
         emptyTitle="لا سجلات"
         keyExtractor={(item, i) => String(item.id ?? i)}
         renderItem={({ item }) => (
-          <AppDomainCard
-            title={asText(item.description ?? item.action, '—')}
-            subtitle={`${asText(item.user_name ?? (item.user as Record<string, unknown>)?.name, '—')} • ${dateText(asText(item.created_at, ''))}`}
-            meta={asText(item.model_type, '')}
-            leadingIcon="history"
+          <DenseRow
+            primary={asText(item.description ?? item.action, '—')}
+            secondary={`${asText(item.user_name ?? (item.user as Record<string, unknown>)?.name, '—')} · ${dateText(asText(item.created_at, ''))}`}
+            meta={asText(item.model_type, '') || undefined}
             onPress={() => item.id != null && navigation.navigate('ActivityLogDetail', { id: Number(item.id) })}
           />
         )}

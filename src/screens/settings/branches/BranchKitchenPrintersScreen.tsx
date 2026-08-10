@@ -9,11 +9,11 @@ import { ListScreenLayout } from '@/components/layout';
 import { FormSection, SwitchRow } from '@/components/forms/FormSection';
 import {
   AppButton,
-  AppCard,
   AppInput,
   AppListItem,
   AppSelect,
 } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppErrorState, AppInlineAlert, AppLoadingState, useToast } from '@/components/feedback';
 import {
@@ -304,12 +304,12 @@ export function BranchKitchenPrintersScreen({ navigation, route }: Props) {
         ) : null}
 
         {printers.length === 0 ? (
-          <AppCard>
+          <MadarSurface>
             <Text style={{ color: c.textMuted }}>لا توجد طابعات مطبخ على السيرفر لهذا الفرع.</Text>
-          </AppCard>
+          </MadarSurface>
         ) : (
           printers.map((printer) => (
-            <AppCard key={printer.id}>
+            <MadarSurface key={printer.id}>
               <AppListItem
                 title={printer.name}
                 subtitle={`${printer.printer_name} · ${printer.is_active ? 'نشطة' : 'معطّلة'}`}
@@ -329,7 +329,7 @@ export function BranchKitchenPrintersScreen({ navigation, route }: Props) {
                   loading={saving}
                 />
               ) : null}
-            </AppCard>
+            </MadarSurface>
           ))
         )}
       </ScrollView>

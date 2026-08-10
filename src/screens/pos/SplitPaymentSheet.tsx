@@ -6,6 +6,7 @@ import type { FinancialAccount } from '@/types/api';
 import { AppBottomSheet } from '@/components/layout';
 import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { PosSheetHeader, PosTotalHero, usePosSheetStyles } from '@/components/pos/posSheetUi';
+import { MetricBlock } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
 import { flexRow, textStart } from '@/constants/layout';
 import { spacing } from '@/constants/spacing';
@@ -89,21 +90,19 @@ export function SplitPaymentSheet({ visible, totalDue, financialAccounts, hasCus
     <AppBottomSheet visible={visible} onClose={onClose}>
       <View style={s.root}>
         <PosSheetHeader title="دفع مقسم" subtitle="وزّع المبلغ على أكثر من طريقة دفع وخزنة" />
-        <PosTotalHero label="المستحق" amount={money(totalDue)} />
+        <PosTotalHero label="المستحق" amount={money(totalDue)} hint={mismatch && totalPaid > 0 ? `فرق ${money(Math.abs(totalDue - totalPaid))}` : `متبقي ${money(remaining)}`} />
 
-        <View style={s.splitMeter}>
-          <View style={s.meterBox}>
-            <Text style={[s.meterValue, s.meterDue]}>{money(totalDue)}</Text>
-            <Text style={s.meterLabel}>المستحق</Text>
-          </View>
-          <View style={s.meterBox}>
-            <Text style={[s.meterValue, s.meterPaid]}>{money(totalPaid)}</Text>
-            <Text style={s.meterLabel}>المدفوع</Text>
-          </View>
-          <View style={s.meterBox}>
-            <Text style={[s.meterValue, s.meterRemain]}>{money(remaining)}</Text>
-            <Text style={s.meterLabel}>المتبقي</Text>
-          </View>
+        <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+          <MetricBlock label="المستحق" value={totalDue} currency="ج.م" level="C" style={{ flex: 1, minWidth: '28%' }} />
+          <MetricBlock label="المدفوع" value={totalPaid} currency="ج.م" level="C" tone="positive" style={{ flex: 1, minWidth: '28%' }} />
+          <MetricBlock
+            label="المتبقي"
+            value={remaining}
+            currency="ج.م"
+            level="C"
+            tone={remaining > 0.02 ? 'warning' : 'positive'}
+            style={{ flex: 1, minWidth: '28%' }}
+          />
         </View>
 
         {mismatch && totalPaid > 0 ? (

@@ -8,6 +8,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import type { Customer } from '@/types/api';
 import { money } from '@/utils/format';
 import { flexRow, textStart } from '@/constants/layout';
+import { chevronForwardIcon } from '@/utils/rtl';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -124,7 +125,7 @@ export function PosCustomerPickerTrigger({ customers, selectedCustomer, onSelect
             <MaterialIcons name="close" size={18} color={c.textMuted} />
           </Pressable>
         ) : (
-          <MaterialIcons name="chevron-left" size={24} color={c.textCaption} />
+          <MaterialIcons name={chevronForwardIcon()} size={24} color={c.textCaption} />
         )}
       </Pressable>
 

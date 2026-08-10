@@ -5,6 +5,7 @@ import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
+import { appWritingDirection } from '@/constants/layout';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'dangerGhost' | 'ghost' | 'outline' | 'success';
 type Size = 'sm' | 'default' | 'lg' | 'xl';
@@ -59,7 +60,7 @@ export function AppButton({ title, onPress, disabled, loading, variant = 'primar
           : c.text;
 
   const borderColor = variant === 'outline' || variant === 'secondary' ? c.border : 'transparent';
-  const minHeight = size === 'sm' ? 40 : size === 'lg' ? 48 : size === 'xl' ? 54 : 44;
+  const minHeight = size === 'sm' ? 40 : size === 'lg' ? 48 : size === 'xl' ? 52 : 48;
   const horizontalPadding = size === 'sm' ? spacing.md : size === 'lg' ? spacing.xxl : size === 'xl' ? spacing.xxxl : spacing.lg;
   const titleSize = size === 'sm' ? typography.label : size === 'xl' ? typography.cardTitle : typography.body;
 
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.bold,
     fontWeight: '700',
-    writingDirection: 'rtl',
+    writingDirection: appWritingDirection,
     textAlign: 'center',
   },
 });

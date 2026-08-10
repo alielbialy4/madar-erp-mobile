@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { budgetsAPI, type Budget, type BudgetScope, type BudgetStatus } from '@/api/budgets';
 import { ListScreenLayout } from '@/components/layout';
-import { ConfirmDialog, useToast } from '@/components/feedback';
+import { AppBanner, ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
-import { AppButton, AppDomainCard, AppInput, AppSelect, AppSwipeRow } from '@/components/ui';
+import { AppButton, AppInput, AppSelect, AppSwipeRow } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { FinancialRow } from '@/components/madar';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -136,7 +138,7 @@ export function BudgetsScreen({ navigation }: { navigation: any }) {
   if (!canView) {
     return (
       <ListScreenLayout title="الموازنات" subtitle="إدارة ومتابعة الموازنات">
-        <AppDomainCard title="غير مسموح" subtitle="تتطلب هذه الشاشة صلاحية عرض الموازنات أو إدارتها." leadingIcon="lock" badgeLabel="صلاحية مطلوبة" badgeTone="warning" />
+        <AppBanner tone="warning" message="تتطلب هذه الشاشة صلاحية عرض الموازنات أو إدارتها." />
       </ListScreenLayout>
     );
   }
@@ -184,15 +186,13 @@ export function BudgetsScreen({ navigation }: { navigation: any }) {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const card = (
-            <AppDomainCard
-              title={item.name}
-              subtitle={`${item.year} • ${item.scope === 'company' ? 'الشركة' : item.branch?.name || 'فرع'}`}
+            <FinancialRow
+              primary={item.name}
+              secondary={`${item.year} · ${item.scope === 'company' ? 'الشركة' : item.branch?.name || 'فرع'}`}
               meta={item.notes || undefined}
-              metric={money(item.annual_total)}
-              metricLabel="الإجمالي السنوي"
-              leadingIcon="account-balance-wallet"
-              badgeLabel={statusLabel(item.status)}
-              badgeTone={statusTone(item.status)}
+              amount={Number(item.annual_total ?? 0)}
+              currency="ج.م"
+              status={<AppBadge label={statusLabel(item.status)} tone={statusTone(item.status)} />}
               onPress={() => navigation.navigate('BudgetForm', { id: item.id })}
             />
           );

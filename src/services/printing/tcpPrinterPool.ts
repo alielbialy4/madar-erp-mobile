@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { PrintTransportError } from './networkTcpPrinter';
+import { PrintTransportError } from './printTransportError';
 import { recordPrintTimingSync } from './printTimingBuffer';
 import { withTcpSendLock } from './tcpSendQueue';
 import { chunkUint8Array, DEFAULT_TCP_CHUNK_SIZE, DEFAULT_TCP_SETTLE_MS } from './tcpChunkUtils';

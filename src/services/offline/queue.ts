@@ -43,3 +43,16 @@ export async function markOfflineMutationFailed(id: string, message: string): Pr
   const queue = await getOfflineQueue();
   await storageSet(storageKeys.offlineQueue, queue.map((item) => item.id === id ? { ...item, retry_count: item.retry_count + 1, status: 'failed', last_error: message } : item));
 }
+
+export async function requeueOfflineMutations(ids?: Set<string>): Promise<number> {
+  const queue = await getOfflineQueue();
+  let count = 0;
+  const next = queue.map((item) => {
+    if (item.status !== 'failed') return item;
+    if (ids && !ids.has(item.id)) return item;
+    count += 1;
+    return { ...item, status: 'pending' as const, last_error: null };
+  });
+  await storageSet(storageKeys.offlineQueue, next);
+  return count;
+}

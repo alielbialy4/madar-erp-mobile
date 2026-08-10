@@ -16,6 +16,7 @@ import {
   AppText,
 } from '@/components/ui';
 import { AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { FinancialRow, DocumentHeader, QuickActionBar } from '@/components/madar';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { hasPermission } from '@/utils/permissions';
@@ -38,11 +39,6 @@ const DEPOSIT_PERMISSIONS = ['create_external_deposit', 'create_deposit', 'recor
 const WITHDRAW_PERMISSIONS = ['create_external_withdrawal', 'create_withdrawal', 'record_owner_drawing', 'record_loan_movement', 'manage_financial_accounts', 'manage_treasuries', 'access_admin_routes'];
 const TRANSFER_PERMISSIONS = ['create_transfer', 'manage_financial_accounts', 'manage_treasuries', 'access_admin_routes'];
 
-function transactionAmount(row: FinancialAccountTransaction): string {
-  const amount = money(row.amount ?? 0);
-  return row.direction === 'out' ? `− ${amount}` : `+ ${amount}`;
-}
-
 function CapabilityCell({ label, enabled }: { label: string; enabled?: boolean }) {
   const c = useColors();
   return (
@@ -56,56 +52,26 @@ function CapabilityCell({ label, enabled }: { label: string; enabled?: boolean }
 }
 
 function FinancialTransactionRow({ row }: { row: FinancialAccountTransaction }) {
-  const c = useColors();
   const outgoing = row.direction === 'out';
-  const amountColor = outgoing ? c.danger : row.direction === 'in' ? c.success : c.text;
+  const directionLabel = outgoing ? 'صادر' : row.direction === 'in' ? 'وارد' : 'حركة';
   return (
-    <View
-      style={{
-        ...flexRow,
-        minHeight: 76,
-        alignItems: 'center',
-        gap: spacing.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: c.border,
-        backgroundColor: c.surface,
-      }}
-      accessibilityLabel={`${row.transaction_type ?? row.type ?? 'حركة مالية'}، ${transactionAmount(row)}`}
-    >
-      <View style={{ width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: outgoing ? c.softDanger : c.softSuccess }}>
-        <MaterialIcons name={outgoing ? 'south-west' : 'north-east'} size={17} color={amountColor} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.small }} numberOfLines={1}>
-          {row.transaction_type ?? row.type ?? 'حركة مالية'}
-        </AppText>
-        <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }} numberOfLines={1}>
-          {[row.branch?.name, row.note, row.reference].filter(Boolean).join(' · ') || 'بدون تفاصيل إضافية'}
-        </AppText>
-        <AppText style={{ ...textStart, color: c.textCaption, fontFamily: fonts.regular, fontSize: typography.micro }} numberOfLines={1}>
-          {dateText(row.occurred_at)}
-        </AppText>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
-        <AppText style={{ ...textLtr, color: amountColor, fontFamily: fonts.extraBold, fontWeight: '800', fontSize: typography.body }}>
-          {transactionAmount(row)}
-        </AppText>
-        {row.balance_after != null ? (
-          <AppText style={{ ...textLtr, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.micro }}>
-            رصيد {numberText(row.balance_after)}
-          </AppText>
-        ) : null}
-      </View>
-    </View>
+    <FinancialRow
+      primary={String(row.transaction_type ?? row.type ?? 'حركة مالية')}
+      secondary={[directionLabel, row.branch?.name, row.note, row.reference].filter(Boolean).join(' · ')}
+      meta={dateText(row.occurred_at)}
+      amount={Math.abs(Number(row.amount ?? 0))}
+      currency="ج.م"
+      amountPrefix={outgoing ? '−' : '+'}
+      amountTone={outgoing ? 'negative' : row.direction === 'in' ? 'positive' : 'default'}
+    />
   );
 }
 
 export function FinancialAccountDetailScreen({ route, navigation }: Props) {
   const c = useColors();
+  const embedded = Boolean((route.params as { embedded?: boolean } | undefined)?.embedded);
   const { width } = useWindowDimensions();
-  const maxWidth = productContentMaxWidth(getProductLayoutTier(width));
+  const maxWidth = embedded ? undefined : productContentMaxWidth(getProductLayoutTier(width));
   const user = useAuthStore((state) => state.user);
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const viewMode = useBranchStore((state) => state.viewMode);
@@ -263,56 +229,55 @@ export function FinancialAccountDetailScreen({ route, navigation }: Props) {
 
   if (!canView) {
     return (
-      <AppScreen title="الحساب المالي" onBack={navigation.goBack}>
+      <AppScreen title="الحساب المالي" onBack={navigation.goBack} noHeader={embedded} safeEdges={embedded ? [] : undefined}>
         <AppErrorState message="لا تملك صلاحية عرض هذا الحساب أو حركاته." />
       </AppScreen>
     );
   }
 
   if (loading && !account) {
-    return <AppScreen title="الحساب المالي" onBack={navigation.goBack}><AppLoadingState /></AppScreen>;
+    return (
+      <AppScreen title="الحساب المالي" onBack={navigation.goBack} noHeader={embedded} safeEdges={embedded ? [] : undefined}>
+        <AppLoadingState />
+      </AppScreen>
+    );
   }
 
   if (error && !account) {
-    return <AppScreen title="الحساب المالي" onBack={navigation.goBack}><AppErrorState message={error} onRetry={() => void loadAccount()} /></AppScreen>;
+    return (
+      <AppScreen title="الحساب المالي" onBack={navigation.goBack} noHeader={embedded} safeEdges={embedded ? [] : undefined}>
+        <AppErrorState message={error} onRetry={() => void loadAccount()} />
+      </AppScreen>
+    );
   }
 
   const active = account?.is_active !== false;
   const actionTitle = action === 'deposit' ? 'إيداع' : action === 'withdraw' ? 'سحب' : 'تحويل';
 
   return (
-    <AppScreen title={account?.name ?? route.params.name ?? 'الحساب المالي'} onBack={navigation.goBack} onRefresh={() => void refreshAll()} refreshing={refreshing}>
-      <View style={{ width: '100%', maxWidth, alignSelf: 'center', padding: spacing.lg, gap: spacing.xl }}>
+    <AppScreen
+      title={account?.name ?? route.params.name ?? 'الحساب المالي'}
+      onBack={embedded ? undefined : navigation.goBack}
+      onRefresh={() => void refreshAll()}
+      refreshing={refreshing}
+      noHeader={embedded}
+      safeEdges={embedded ? [] : undefined}
+      contentStyle={embedded ? { padding: spacing.md, paddingTop: spacing.sm } : undefined}
+    >      <View style={{ width: '100%', maxWidth, alignSelf: 'center', padding: spacing.lg, gap: spacing.xl }}>
         {error ? <AppErrorState message={error} onRetry={() => void loadAccount()} /> : null}
         {account ? (
           <>
-            <View style={{ gap: spacing.md, paddingBottom: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }}>
-              <View style={{ ...flexRow, justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
-                <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm, flex: 1 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialIcons name="account-balance-wallet" size={20} color={c.textMuted} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText style={{ ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body }} numberOfLines={1}>
-                      {account.provider_name ?? 'حساب مالي'}
-                    </AppText>
-                    <AppText style={{ ...textStart, color: c.textMuted, fontFamily: fonts.regular, fontSize: typography.caption }} numberOfLines={1}>
-                      {account.payment_method} · {account.masked_identifier ?? 'معرف محمي'}
-                    </AppText>
-                  </View>
-                </View>
-                <AppBadge label={active ? 'نشط' : 'متوقف'} tone={active ? 'success' : 'danger'} />
-              </View>
-              <View style={{ gap: 2 }}>
-                <AppText style={{ ...textStart, color: c.textCaption, fontFamily: fonts.medium, fontSize: typography.caption }}>الرصيد الحالي</AppText>
-                <AppText style={{ ...textLtr, color: c.text, fontFamily: fonts.extraBold, fontWeight: '900', fontSize: width >= 600 ? 36 : 30, lineHeight: width >= 600 ? 44 : 38 }}>
-                  {account.balance == null ? 'غير متاح' : money(account.balance, account.currency ?? 'ج.م')}
-                </AppText>
-              </View>
+            <View style={{ gap: spacing.md, paddingBottom: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSubtle }}>
+              <DocumentHeader
+                title={account.name}
+                subtitle={[account.provider_name, account.payment_method, account.masked_identifier].filter(Boolean).join(' · ')}
+                statusLabel={active ? 'نشط' : 'متوقف'}
+                statusTone={active ? 'success' : 'danger'}
+                amount={account.balance == null ? '—' : Number(account.balance)}
+                currency={account.balance == null ? undefined : (account.currency ?? 'ج.م')}
+              />
               {identifier ? (
-                <View style={{ padding: spacing.sm, borderRadius: radius.md, backgroundColor: c.softWarning }}>
-                  <AppText style={{ ...textLtr, color: c.warning, fontFamily: fonts.bold }}>{identifier}</AppText>
-                </View>
+                <AppText style={{ ...textLtr, color: c.warning, fontFamily: fonts.bold }}>{identifier}</AppText>
               ) : null}
               {hasPermission(user, ['view_sensitive_account_identifiers', 'manage_treasuries', 'access_admin_routes']) && account.masked_identifier && !identifier ? (
                 <AppButton title="كشف المعرف بإذن" variant="outline" size="sm" onPress={() => void reveal()} />
@@ -320,14 +285,19 @@ export function FinancialAccountDetailScreen({ route, navigation }: Props) {
             </View>
 
             {active ? (
-              <View style={{ gap: spacing.sm }}>
-                <AppSectionHeader title="إجراء جديد" />
-                <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
-                  {canDeposit && account.allow_deposits !== false ? <AppButton title="إيداع" onPress={() => void openAction('deposit')} style={{ flex: 1, minWidth: 100 }} /> : null}
-                  {canWithdraw && account.allow_withdrawals !== false ? <AppButton title="سحب" variant="secondary" onPress={() => void openAction('withdraw')} style={{ flex: 1, minWidth: 100 }} /> : null}
-                  {canTransfer && account.allow_transfers !== false ? <AppButton title="تحويل" variant="outline" onPress={() => void openAction('transfer')} style={{ flex: 1, minWidth: 100 }} /> : null}
-                </View>
-              </View>
+              <QuickActionBar
+                actions={[
+                  ...(canDeposit && account.allow_deposits !== false
+                    ? [{ id: 'deposit', label: 'إيداع', icon: 'plus-circle' as const, onPress: () => void openAction('deposit'), tone: 'accent' as const }]
+                    : []),
+                  ...(canWithdraw && account.allow_withdrawals !== false
+                    ? [{ id: 'withdraw', label: 'سحب', icon: 'minus-circle' as const, onPress: () => void openAction('withdraw') }]
+                    : []),
+                  ...(canTransfer && account.allow_transfers !== false
+                    ? [{ id: 'transfer', label: 'تحويل', icon: 'arrows-left-right' as const, onPress: () => void openAction('transfer') }]
+                    : []),
+                ]}
+              />
             ) : <AppErrorState message="هذا الحساب متوقف؛ الحركات الجديدة معطلة." />}
 
             <View style={{ gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface }}>
@@ -347,7 +317,7 @@ export function FinancialAccountDetailScreen({ route, navigation }: Props) {
                 <CapabilityCell label="تحويل" enabled={account.allow_transfers} />
               </View>
               {account.reconciliation ? (
-                <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.md, backgroundColor: c.softWarning }}>
+                <View style={{ ...flexRow, alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.warning, backgroundColor: c.surface }}>
                   <MaterialIcons name="warning-amber" size={18} color={c.warning} />
                   <AppText style={{ ...textStart, flex: 1, color: c.warning, fontFamily: fonts.bold, fontSize: typography.caption }}>راجع حالة المطابقة قبل تنفيذ حركة جديدة.</AppText>
                 </View>

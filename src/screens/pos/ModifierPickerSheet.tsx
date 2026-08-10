@@ -7,7 +7,7 @@ import { AppBottomSheet } from '@/components/layout';
 import { AppButton } from '@/components/ui';
 import { PosSheetHeader, usePosSheetStyles } from '@/components/pos/posSheetUi';
 import { useColors } from '@/hooks/useColors';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -229,7 +229,7 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
                                 fontSize: typography.small,
                                 fontFamily: fonts.bold,
                                 color: isSelected ? c.accent : c.text,
-                                writingDirection: 'rtl',
+                                writingDirection: appWritingDirection,
                               }}
                               numberOfLines={2}
                             >

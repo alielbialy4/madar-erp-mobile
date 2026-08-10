@@ -4,7 +4,7 @@ import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { fonts } from '@/constants/fonts';
 import { typography } from '@/constants/typography';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 import { Text } from '@/components/ui/AppText';
 import { money } from '@/utils/format';
 import { DashboardSection } from './DashboardSection';
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0, gap: spacing.xs },
   labelRow: { ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   label: { ...textStart, flex: 1, fontFamily: fonts.bold, fontSize: typography.small },
-  value: { fontFamily: fonts.extraBold, fontSize: typography.caption, writingDirection: 'rtl' },
+  value: { fontFamily: fonts.extraBold, fontSize: typography.caption, writingDirection: appWritingDirection },
   track: { height: 5, borderRadius: radius.pill, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: radius.pill },
 });

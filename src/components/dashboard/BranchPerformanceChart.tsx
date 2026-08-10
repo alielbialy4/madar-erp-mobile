@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { money } from '@/utils/format';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textLtr, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   summaryMeta: { ...textStart, fontFamily: fonts.medium, fontSize: typography.micro },
   columnHeader: { ...flexRow, alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth },
   headerBranch: { ...textStart, flex: 1, fontFamily: fonts.bold, fontSize: typography.micro },
-  headerAmount: { width: 92, textAlign: 'left', fontFamily: fonts.bold, fontSize: typography.micro },
+  headerAmount: { width: 92, ...textLtr, fontFamily: fonts.bold, fontSize: typography.micro },
   row: { ...flexRow, minHeight: 68, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   branchCell: { flex: 1, minWidth: 0, gap: spacing.xs },
   branchTitleRow: { ...flexRow, alignItems: 'center', gap: spacing.xs },
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   branchName: { ...textStart, flex: 1, fontFamily: fonts.bold, fontSize: typography.small },
   track: { height: 4, borderRadius: radius.pill, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: radius.pill },
-  amount: { width: 92, textAlign: 'left', writingDirection: 'rtl', fontFamily: fonts.bold, fontSize: typography.caption },
+  amount: { width: 92, ...textLtr, fontFamily: fonts.bold, fontSize: typography.caption },
   monthAmount: { fontFamily: fonts.extraBold },
   moreNote: { ...textStart, padding: spacing.md, fontFamily: fonts.regular, fontSize: typography.caption },
   noData: { minHeight: 108, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, padding: spacing.lg, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md },

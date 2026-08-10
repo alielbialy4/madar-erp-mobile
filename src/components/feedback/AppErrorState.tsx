@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useColors } from '@/hooks/useColors';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -7,7 +8,7 @@ import { fonts } from '@/constants/fonts';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
-import { textStart } from '@/constants/layout';
+import { textStart, appWritingDirection } from '@/constants/layout';
 
 type IconName = Parameters<typeof AppIcon>[0]['name'];
 
@@ -18,11 +19,15 @@ type Props = {
   retryLabel?: string;
 };
 
-function splitMessage(message: string): { summary: string; detail: string | null } {
+function splitMessage(
+  message: string,
+  fallbackLatin: string,
+  fallbackLong: string,
+): { summary: string; detail: string | null } {
   const trimmed = message.trim();
   const latinCharacters = (trimmed.match(/[A-Za-z]/g) ?? []).length;
   if (latinCharacters > trimmed.length * 0.35) {
-    return { summary: 'تعذر تحميل البيانات المطلوبة.', detail: trimmed };
+    return { summary: fallbackLatin, detail: trimmed };
   }
   if (trimmed.length <= 96) return { summary: trimmed, detail: null };
   const firstPeriod = trimmed.indexOf('. ');
@@ -33,20 +38,34 @@ function splitMessage(message: string): { summary: string; detail: string | null
     };
   }
   return {
-    summary: 'تعذر تحميل البيانات. تحقق من الاتصال ثم أعد المحاولة.',
+    summary: fallbackLong,
     detail: trimmed,
   };
 }
 
 export function AppErrorState({
-  message = 'حدث خطأ أثناء تحميل البيانات',
-  title = 'عذراً، حدث خطأ',
+  message,
+  title,
   onRetry,
-  retryLabel = 'إعادة المحاولة',
+  retryLabel,
 }: Props) {
+  const { t } = useTranslation();
   const c = useColors();
-  const { summary, detail } = useMemo(() => splitMessage(message), [message]);
-  const isNetwork = /اتصال|خادم|EXPO_PUBLIC_API_URL|انتهت مهلة/i.test(message);
+  const resolvedMessage = message ?? t('mobile.common.errorTitle');
+  const resolvedTitle = title ?? t('mobile.common.errorTitle');
+  const resolvedRetry = retryLabel ?? t('mobile.common.retry');
+  const { summary, detail } = useMemo(
+    () =>
+      splitMessage(
+        resolvedMessage,
+        t('mobile.errors.loadFailed'),
+        t('mobile.errors.loadFailedRetry'),
+      ),
+    [resolvedMessage, t],
+  );
+  const isNetwork = /اتصال|خادم|EXPO_PUBLIC_API_URL|انتهت مهلة|network|server|timeout/i.test(
+    resolvedMessage,
+  );
 
   return (
     <View style={styles.container}>
@@ -65,14 +84,14 @@ export function AppErrorState({
           fontFamily: fonts.extraBold,
           color: c.text,
           textAlign: 'center',
-          writingDirection: 'rtl',
-        }}>{title}</AppText>
+          writingDirection: appWritingDirection,
+        }}>{resolvedTitle}</AppText>
         <AppText style={{
           fontSize: typography.body,
           fontFamily: fonts.medium,
           color: c.text,
           textAlign: 'center',
-          writingDirection: 'rtl',
+          writingDirection: appWritingDirection,
           lineHeight: 24,
         }}>{summary}</AppText>
 
@@ -92,7 +111,7 @@ export function AppErrorState({
         ) : null}
       </View>
 
-      {onRetry ? <AppButton title={retryLabel} variant="primary" onPress={onRetry} size="default" /> : null}
+      {onRetry ? <AppButton title={resolvedRetry} variant="primary" onPress={onRetry} size="default" /> : null}
     </View>
   );
 }

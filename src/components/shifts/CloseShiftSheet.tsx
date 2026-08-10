@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
 import { AppBadge, AppButton, AppChip, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
@@ -14,6 +14,8 @@ import { flexRow, textStart } from '@/constants/layout';
 import type { ActiveShiftExtended, ClosePreview, ShiftDetailedSummary } from '@/types/shifts';
 import { ShiftClosingAmountBanner } from './ShiftClosingAmountBanner';
 import { ShiftKpiRow, ShiftSectionCard, ShiftSheetFooter } from './shiftSheetUi';
+import { MetricBlock } from '@/components/madar';
+import { useToast } from '@/components/feedback';
 
 function closingPaymentBanners(
   totals: {
@@ -93,6 +95,7 @@ type Props = {
 
 export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }: Props) {
   const c = useColors();
+  const toast = useToast();
   const [actualCash, setActualCash] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositFollowsActual, setDepositFollowsActual] = useState(true);
@@ -280,17 +283,17 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
       if (failedPrint) {
         setPrintFailed(true);
         setClosedShiftId(shift.id);
-        Alert.alert('تم الإغلاق', printRes.message || 'تم إغلاق الوردية، لكن فشلت الطباعة');
+        toast.show(printRes.message || 'تم إغلاق الوردية، لكن فشلت الطباعة', 'warning');
       } else {
-        Alert.alert('تم', 'تم إغلاق الوردية وطباعة التقرير');
+        toast.success('تم إغلاق الوردية وطباعة التقرير');
       }
 
       if (openNextShift && vaultIdForNext) {
         try {
           await shiftsAPI.open({ vault_id: vaultIdForNext, starting_cash: nextStart });
-          Alert.alert('تم', 'تم فتح وردية جديدة');
+          toast.success('تم فتح وردية جديدة');
         } catch (err) {
-          Alert.alert('تنبيه', normalizeApiError(err).message || 'فشل فتح الوردية التالية');
+          toast.show(normalizeApiError(err).message || 'فشل فتح الوردية التالية', 'warning');
         }
       }
 
@@ -309,11 +312,11 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
     try {
       const res = await printShiftSummaryForShift(closedShiftId);
       if (res.ok) {
-        Alert.alert('تم', res.message);
+        toast.success(res.message);
         onSuccess();
         onClose();
       } else {
-        Alert.alert('خطأ', res.message);
+        toast.error(res.message);
       }
     } finally {
       setSubmitting(false);
@@ -342,16 +345,46 @@ export function CloseShiftSheet({ visible, shift, isAdmin, onClose, onSuccess }:
             </AppText>
           </View>
         ) : null}
+        {isAdmin && Number.isFinite(expectedCashNum) ? (
+          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
+            <MetricBlock
+              label="المتوقع"
+              value={expectedCashNum}
+              currency="ج.م"
+              level="B"
+              style={{ flex: 1, minWidth: '30%' }}
+            />
+            <MetricBlock
+              label="المعدود"
+              value={countedCashNum ?? '—'}
+              currency={countedCashNum != null ? 'ج.م' : undefined}
+              level="B"
+              style={{ flex: 1, minWidth: '30%' }}
+            />
+            <MetricBlock
+              label="الفرق"
+              value={liveDifference ?? '—'}
+              currency={liveDifference != null ? 'ج.م' : undefined}
+              level="B"
+              tone={
+                liveDifference == null ? 'neutral'
+                  : liveDifference === 0 ? 'positive'
+                    : 'negative'
+              }
+              style={{ flex: 1, minWidth: '30%' }}
+            />
+          </View>
+        ) : null}
         {expectedIsNegative ? (
-          <View style={[styles.hintBox, { backgroundColor: c.softInfo, borderColor: c.softInfoBorder }]}>
-            <AppText style={{ ...textStart, color: c.info, fontSize: 13, fontWeight: '700' }}>
+          <View style={[styles.hintBox, { backgroundColor: c.surfaceMuted, borderColor: c.border }]}>
+            <AppText style={{ ...textStart, color: c.text, fontSize: 13, fontWeight: '700' }}>
               الرصيد المتوقع للدرج سالب. أغلق بجرد فعلي (≥ 0) مع سبب إلزامي — الإيداع فقط بدون سحب من الخزنة.
             </AppText>
           </View>
         ) : null}
         {isAdmin && liveDifference != null && liveDifference !== 0 ? (
-          <View style={[styles.hintBox, { backgroundColor: c.softInfo, borderColor: c.softInfoBorder }]}>
-            <AppText style={{ ...textStart, fontWeight: '800' }}>
+          <View style={[styles.hintBox, { backgroundColor: c.surfaceMuted, borderColor: c.border }]}>
+            <AppText style={{ ...textStart, fontWeight: '800', color: liveDifference < 0 ? c.danger : c.success }}>
               {liveDifference < 0 ? 'عجز (Shortage)' : 'زيادة (Surplus)'}: {money(liveDifference)}
             </AppText>
           </View>

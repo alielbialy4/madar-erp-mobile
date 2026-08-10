@@ -25,6 +25,7 @@ import {
 } from '@/constants/printThermalLayout';
 import { ReceiptPrintLayoutProvider, useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 import { useReceiptCaptureLite } from '@/components/printing/receiptCaptureLite';
+import { appContentDirection } from '@/constants/layout';
 
 type Props = {
   payload: ReceiptPrintPayload;
@@ -324,7 +325,7 @@ function ReceiptPrintContentInner({ payload, paperWidth, onAssetsReady }: Props)
 const styles = StyleSheet.create({
   root: {
     backgroundColor: designColors.white,
-    direction: 'rtl',
+    direction: appContentDirection.direction,
   },
   rootLite: {
     backgroundColor: designColors.white,

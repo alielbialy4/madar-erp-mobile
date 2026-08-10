@@ -7,7 +7,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppInput, AppPasswordInput } from '@/components/ui';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { authCopy } from '@/constants/authCopy';
-import { textStart } from '@/constants/layout';
+import { textStart, appTextAlignStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -83,13 +83,13 @@ export function LoginFormPanel({
           fontSize: typography.cardTitle,
           fontFamily: fonts.bold,
           fontWeight: '700',
-          textAlign: 'left',
+          textAlign: appTextAlignStart,
         },
         brandContext: {
           color: c.textMuted,
           fontSize: typography.tiny,
           fontFamily: fonts.medium,
-          textAlign: 'left',
+          textAlign: appTextAlignStart,
         },
         header: {
           gap: spacing.xs,

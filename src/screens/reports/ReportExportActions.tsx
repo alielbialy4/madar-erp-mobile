@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Platform, View } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Platform, View } from 'react-native';import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { AppButton } from '@/components/ui';
 import { reportsAPI } from '@/api/reports';
 import type { ReportDefinition, ReportFilters } from '@/reports/types';
 import { spacing } from '@/constants/spacing';
 import { normalizeApiError } from '@/utils/errors';
+import { useToast, useAppDialog } from '@/components/feedback';
 
 type Props = {
   definition: ReportDefinition;
@@ -27,6 +27,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export function ReportExportActions({ definition, filters }: Props) {
+  const toast = useToast();
+  const dialog = useAppDialog();
   const [exporting, setExporting] = useState(false);
 
   if (!definition.exportSupported || !definition.exportType) {
@@ -66,14 +68,14 @@ export function ReportExportActions({ definition, filters }: Props) {
       const base64 = await blobToBase64(blob);
       const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
       if (!dir) {
-        Alert.alert('تصدير', 'تعذر الوصول إلى مجلد الملفات على الجهاز.');
+        toast.error('تعذر الوصول إلى مجلد الملفات على الجهاز.');
         return;
       }
       const path = `${dir}${filename}`;
       await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('تم الحفظ', `تم حفظ الملف في:\n${path}`);
+        await dialog.alert({ title: 'تم الحفظ', message: `تم حفظ الملف في:\n${path}`, tone: 'info' });
         return;
       }
       await Sharing.shareAsync(path, {
@@ -82,7 +84,7 @@ export function ReportExportActions({ definition, filters }: Props) {
         UTI: format === 'pdf' ? 'com.adobe.pdf' : 'org.openxmlformats.spreadsheetml.sheet',
       });
     } catch (err) {
-      Alert.alert('فشل التصدير', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setExporting(false);
     }

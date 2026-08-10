@@ -5,7 +5,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import type { DashboardTableColumn } from '@/components/dashboard/DashboardDataTable';
 import { useColors } from '@/hooks/useColors';
 import { chevronForwardIcon } from '@/utils/rtl';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, textLtr } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -227,6 +227,6 @@ function createStyles(c: ReturnType<typeof useColors>) {
       color: c.text,
     },
     cellTextCenter: { textAlign: 'center', width: '100%' },
-    cellTextEnd: { writingDirection: 'ltr', textAlign: 'left', width: '100%' },
+    cellTextEnd: { ...textLtr, width: '100%' },
   });
 }

@@ -5,6 +5,7 @@ import { radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from './AppText';
+import { appWritingDirection } from '@/constants/layout';
 
 type Tone = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'outline';
 
@@ -30,7 +31,7 @@ export function AppBadge({ label, tone = 'default' }: { label: string; tone?: To
       borderWidth: t.border ? 1 : 0,
       borderColor: t.border,
     }}>
-      <AppText style={{ fontSize: typography.micro, fontFamily: fonts.bold, fontWeight: '700', color: t.fg, writingDirection: 'rtl' }}>
+      <AppText style={{ fontSize: typography.micro, fontFamily: fonts.bold, fontWeight: '700', color: t.fg, writingDirection: appWritingDirection }}>
         {label}
       </AppText>
     </View>

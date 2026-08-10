@@ -16,6 +16,8 @@ import { buildMobileSidebarMenu, type MobileSidebarMenuItem } from '@/navigation
 import { hasActiveDescendant, getMenuKey, SidebarNavItem, SidebarTree } from './sidebarParts';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { BrandLogo } from '@/components/brand/BrandLogo';
+import { useAppDialog } from '@/components/feedback';
+import { useTranslation } from 'react-i18next';
 
 export type SidebarPanelProps = {
   activeRoute?: string;
@@ -34,6 +36,8 @@ export function SidebarPanel({
   expandActiveGroups = false,
 }: SidebarPanelProps) {
   const c = useColors();
+  const { t } = useTranslation();
+  const dialog = useAppDialog();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const viewMode = useBranchStore((s) => s.viewMode);
@@ -154,7 +158,26 @@ export function SidebarPanel({
           <FooterIcon icon="person-outline" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Profile' })} />
           <FooterIcon icon="settings" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Settings' })} />
           <FooterIcon icon={theme === 'dark' ? 'light-mode' : 'dark-mode'} fg={fg} bg={c.surfaceMuted} border={border} onPress={toggleTheme} />
-          <FooterIcon icon="logout" fg={c.danger} bg={c.surfaceMuted} border={border} onPress={() => void logout()} />
+          <FooterIcon
+            icon="logout"
+            fg={c.danger}
+            bg={c.surfaceMuted}
+            border={border}
+            onPress={() => {
+              void dialog
+                .confirm({
+                  title: t('header.logout'),
+                  message: t('header.logout'),
+                  confirmLabel: t('header.logout'),
+                  cancelLabel: t('header.cancel'),
+                  destructive: true,
+                  icon: 'logout',
+                })
+                .then((ok) => {
+                  if (ok) void logout();
+                });
+            }}
+          />
         </View>
       </View>
     </View>

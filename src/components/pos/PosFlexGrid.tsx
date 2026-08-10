@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   FlatList,
   Platform,
@@ -78,6 +78,32 @@ export function PosFlexGrid<T>({
     [contentPadding, gap, tileWidth],
   );
 
+  const renderRow = useCallback<ListRenderItem<T[]>>(
+    ({ item: row, index: rowIndex }) => (
+      <View style={styles.row}>
+        {row.map((item, colIndex) => {
+          const itemIndex = rowIndex * safeCols + colIndex;
+          const cell = renderItem({
+            item,
+            index: itemIndex,
+            separators: {
+              highlight: () => undefined,
+              unhighlight: () => undefined,
+              updateProps: () => undefined,
+            },
+          });
+          if (!cell) return null;
+          return (
+            <View key={keyExtractor(item, itemIndex)} style={tileWidth ? styles.cell : styles.cellFlex}>
+              {cell}
+            </View>
+          );
+        })}
+      </View>
+    ),
+    [keyExtractor, renderItem, safeCols, styles, tileWidth],
+  );
+
   return (
     <FlatList
       style={styles.list}
@@ -93,31 +119,12 @@ export function PosFlexGrid<T>({
           <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={c.accent} />
         ) : undefined
       }
-      renderItem={({ item: row, index: rowIndex }) => (
-        <View style={styles.row}>
-          {row.map((item, colIndex) => {
-            const itemIndex = rowIndex * safeCols + colIndex;
-            const cell = renderItem({
-              item,
-              index: itemIndex,
-              separators: {
-                highlight: () => undefined,
-                unhighlight: () => undefined,
-                updateProps: () => undefined,
-              },
-            });
-            if (!cell) return null;
-            return (
-              <View
-                key={keyExtractor(item, itemIndex)}
-                style={tileWidth ? styles.cell : styles.cellFlex}
-              >
-                {cell}
-              </View>
-            );
-          })}
-        </View>
-      )}
+      renderItem={renderRow}
+      removeClippedSubviews
+      windowSize={5}
+      maxToRenderPerBatch={6}
+      initialNumToRender={8}
+      updateCellsBatchingPeriod={50}
       {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : null)}
     />
   );

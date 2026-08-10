@@ -2,15 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { branchesManageAPI } from '@/api/branchesManage';
 import { ListScreenLayout } from '@/components/layout';
-import {
-  AppButton,
-  AppCard,
-  AppDomainCard,
-  AppListItem,
-  AppSectionHeader,
-  AppStatCard,
-} from '@/components/ui';
-import { AppText as Text } from '@/components/ui/AppText';
+import { AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AttentionBand, DenseRow, MadarSection, MadarSurface, MetricBlock } from '@/components/madar';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { useBranchPrintSummary } from '@/hooks/useBranchPrintSummary';
 import { useBranchStore } from '@/store/branchStore';
@@ -19,7 +12,6 @@ import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
 import { spacing } from '@/constants/spacing';
 import { flexRow } from '@/constants/layout';
-import { useColors } from '@/hooks/useColors';
 import type { BranchManageRow, BranchSummary } from '@/types/branches';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
@@ -28,7 +20,6 @@ type Props = NativeStackScreenProps<MoreStackParamList, 'BranchDetail'>;
 
 export function BranchDetailScreen({ route, navigation }: Props) {
   const id = String(route.params?.id ?? '');
-  const c = useColors();
   const activeBranch = useBranchStore((s) => s.activeBranch);
   const switchBranch = useBranchStore((s) => s.switchBranch);
   const printSummary = useBranchPrintSummary(id);
@@ -112,47 +103,42 @@ export function BranchDetailScreen({ route, navigation }: Props) {
             onPress={() => void switchBranch(id)}
           />
         ) : (
-          <AppCard>
-            <Text style={{ color: c.success, fontWeight: '600' }}>● الفرع النشط في POS</Text>
-          </AppCard>
+          <AttentionBand
+            title="حالة الفرع"
+            items={[{ id: 'active-pos', title: 'الفرع النشط في POS', tone: 'info' }]}
+          />
         )}
 
         {summary ? (
           <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.sm }}>
-            <View style={{ width: '48%' }}>
-              <AppStatCard label="مبيعات اليوم" value={money(summary.today_sales ?? 0)} />
-            </View>
-            <View style={{ width: '48%' }}>
-              <AppStatCard label="طلبات اليوم" value={String(summary.today_orders ?? 0)} />
-            </View>
-            <View style={{ width: '48%' }}>
-              <AppStatCard label="مبيعات الشهر" value={money(summary.month_sales ?? 0)} />
-            </View>
-            <View style={{ width: '48%' }}>
-              <AppStatCard label="قيمة المخزون" value={money(summary.inventory_value ?? 0)} />
-            </View>
+            <MetricBlock label="مبيعات اليوم" value={money(summary.today_sales ?? 0)} level="B" style={{ width: '48%' }} />
+            <MetricBlock label="طلبات اليوم" value={String(summary.today_orders ?? 0)} level="B" style={{ width: '48%' }} />
+            <MetricBlock label="مبيعات الشهر" value={money(summary.month_sales ?? 0)} level="B" style={{ width: '48%' }} />
+            <MetricBlock label="قيمة المخزون" value={money(summary.inventory_value ?? 0)} level="B" style={{ width: '48%' }} />
           </View>
         ) : null}
 
         <AppSectionHeader title="الإعدادات" />
-        <AppDomainCard
-          title="بيانات الفرع"
-          subtitle="الاسم، الكود، المخزن، الخزينة"
-          leadingIcon="edit"
-          onPress={() => navigation.navigate('BranchForm', { id })}
-        />
-        <AppDomainCard
-          title="إعدادات POS"
-          subtitle="ضريبة، رسوم خدمة، خصومات"
-          leadingIcon="point-of-sale"
-          onPress={() => navigation.navigate('BranchPosSettings', { id })}
-        />
-        <AppDomainCard
-          title="الطباعة والإيصالات"
-          subtitle={statusLine}
-          leadingIcon="print"
-          onPress={() => navigation.navigate('BranchPrintHub', { id })}
-        />
+        <MadarSurface padded={false}>
+          <DenseRow
+            primary="بيانات الفرع"
+            secondary="الاسم، الكود، المخزن، الخزينة"
+            onPress={() => navigation.navigate('BranchForm', { id })}
+            showDivider
+          />
+          <DenseRow
+            primary="إعدادات POS"
+            secondary="ضريبة، رسوم خدمة، خصومات"
+            onPress={() => navigation.navigate('BranchPosSettings', { id })}
+            showDivider
+          />
+          <DenseRow
+            primary="الطباعة والإيصالات"
+            secondary={statusLine}
+            onPress={() => navigation.navigate('BranchPrintHub', { id })}
+            showDivider={false}
+          />
+        </MadarSurface>
 
         <AppButton
           title={showDetails ? 'إخفاء التفاصيل' : 'عرض تفاصيل الفرع'}
@@ -161,20 +147,19 @@ export function BranchDetailScreen({ route, navigation }: Props) {
         />
 
         {showDetails && branch ? (
-          <AppCard>
-            <AppListItem title="الموقع" subtitle={branch.location ?? '—'} />
-            <AppListItem title="العنوان" subtitle={branch.address ?? '—'} />
-            <AppListItem title="هاتف" subtitle={branch.contact_info?.phone ?? branch.phone ?? '—'} />
-            <AppListItem title="بريد" subtitle={branch.contact_info?.email ?? branch.email ?? '—'} />
-            <AppListItem
-              title="المخزن الافتراضي"
-              subtitle={branch.default_warehouse?.name ?? '—'}
-            />
-            <AppListItem title="الخزينة الافتراضية" subtitle={branch.default_vault?.name ?? '—'} />
-            <AppListItem title="الطاولات" subtitle={String(branch.dining_tables_count ?? 0)} />
-            <AppListItem title="الموظفين" subtitle={String(branch.users_count ?? 0)} />
-            <AppListItem title="فرع رئيسي" subtitle={branch.is_main ? 'نعم' : 'لا'} />
-          </AppCard>
+          <MadarSection title="تفاصيل الفرع">
+            <MadarSurface padded={false}>
+              <AppListItem title="الموقع" subtitle={branch.location ?? '—'} />
+              <AppListItem title="العنوان" subtitle={branch.address ?? '—'} />
+              <AppListItem title="هاتف" subtitle={branch.contact_info?.phone ?? branch.phone ?? '—'} />
+              <AppListItem title="بريد" subtitle={branch.contact_info?.email ?? branch.email ?? '—'} />
+              <AppListItem title="المخزن الافتراضي" subtitle={branch.default_warehouse?.name ?? '—'} />
+              <AppListItem title="الخزينة الافتراضية" subtitle={branch.default_vault?.name ?? '—'} />
+              <AppListItem title="الطاولات" subtitle={String(branch.dining_tables_count ?? 0)} />
+              <AppListItem title="الموظفين" subtitle={String(branch.users_count ?? 0)} />
+              <AppListItem title="فرع رئيسي" subtitle={branch.is_main ? 'نعم' : 'لا'} />
+            </MadarSurface>
+          </MadarSection>
         ) : null}
       </ScrollView>
     </ListScreenLayout>

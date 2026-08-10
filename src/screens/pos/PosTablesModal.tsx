@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   Platform,
   Pressable,
@@ -13,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppSelect } from '@/components/ui/AppSelect';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppEmptyState } from '@/components/feedback';
+import { AppBanner, AppEmptyState } from '@/components/feedback';
 import { TablePosCard, type MergedTableSource } from '@/components/pos/TablePosCard';
 import { diningAPI } from '@/api/dining';
 import { useTableCardDragDrop } from '@/hooks/useTableCardDragDrop';
@@ -24,7 +25,8 @@ import { cartTotals } from '@/store/posStore';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { numberText } from '@/utils/format';
-import { flexRow, rtlDirection, textStart } from '@/constants/layout';
+import { flexRow, rtlDirection, textStart, appContentDirection } from '@/constants/layout';
+import { backArrowIcon } from '@/utils/rtl';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -335,8 +337,8 @@ export function PosTablesModal({
     setLoading(true);
     setMessage(null);
     try {
-      const apiStatus = status === 'all' ? undefined : status;
-      const response = await diningAPI.listTablesForBranch(branchId, apiStatus);
+      // Keep status/hall filtering client-side so hall options don't disappear on status change.
+      const response = await diningAPI.listTablesForBranch(branchId);
       if (response.status === 'error') {
         throw new Error(response.message || 'تعذر جلب الطاولات');
       }
@@ -350,7 +352,7 @@ export function PosTablesModal({
     } finally {
       setLoading(false);
     }
-  }, [branchId, visible, status]);
+  }, [branchId, visible]);
 
   const occupiedTableKey = locallyOccupiedIds.join('|');
 
@@ -428,6 +430,26 @@ export function PosTablesModal({
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b, 'ar'));
   }, [filteredTables]);
+
+  type TablesListRow =
+    | { kind: 'header'; key: string; hallName: string; count: number }
+    | { kind: 'row'; key: string; tables: TableRow[] };
+
+  const virtualRows = useMemo(() => {
+    const rows: TablesListRow[] = [];
+    const cols = Math.max(1, gridCols);
+    for (const [hallName, hallTables] of tablesByHall) {
+      rows.push({ kind: 'header', key: `h:${hallName}`, hallName, count: hallTables.length });
+      for (let i = 0; i < hallTables.length; i += cols) {
+        rows.push({
+          kind: 'row',
+          key: `r:${hallName}:${i}`,
+          tables: hallTables.slice(i, i + cols),
+        });
+      }
+    }
+    return rows;
+  }, [gridCols, tablesByHall]);
 
   const selectionFromTable = (table: TableRow): TableSelection => ({
     id: String(table.id),
@@ -546,7 +568,7 @@ export function PosTablesModal({
         <View style={s.headerCard}>
           <View style={s.headerTop}>
             <Pressable onPress={onClose} style={s.backBtn} accessibilityLabel="رجوع">
-              <MaterialIcons name="arrow-forward" size={22} color={c.text} />
+              <MaterialIcons name={backArrowIcon()} size={22} color={c.text} />
             </Pressable>
             <View style={s.headerIcon}>
               <MaterialIcons name="table-restaurant" size={22} color={c.primary} />
@@ -565,22 +587,27 @@ export function PosTablesModal({
         </View>
 
         {!isOnline ? (
-          <View style={s.warningBanner}>
-            <MaterialIcons name="cloud-off" size={18} color={c.warning} />
-            <Text style={s.warningText}>
-              وضع الطاولات يحتاج اتصالاً: يُحفظ الطلب على الخادم لحجز المخزون ومنع التكرار.
-            </Text>
+          <View style={s.bannerWrap}>
+            <AppBanner
+              tone="warning"
+              icon="cloud-off"
+              message="وضع الطاولات يحتاج اتصالاً: يُحفظ الطلب على الخادم لحجز المخزون ومنع التكرار."
+            />
           </View>
         ) : null}
 
         {message ? (
-          <View style={s.errorBanner}>
-            <MaterialIcons name="error-outline" size={18} color={c.danger} />
-            <Text style={s.errorText}>{message}</Text>
+          <View style={s.bannerWrap}>
+            <AppBanner tone="danger" message={message} />
           </View>
         ) : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtersScroll}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.filtersRow}
+          contentContainerStyle={s.filtersScroll}
+        >
           {STATUS_KEYS.map((key) => (
             <FilterChip
               key={key}
@@ -604,25 +631,36 @@ export function PosTablesModal({
             <AppEmptyState title="لا توجد طاولات" message="جرّب تغيير الفلتر." />
           </View>
         ) : (
-          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-            {tablesByHall.map(([hallName, hallTables]) => (
-              <View key={hallName}>
-                <View style={s.sectionHeader}>
-                  <Text style={s.sectionTitle}>{hallName}</Text>
-                  <Text style={s.sectionCount}>{numberText(hallTables.length)}</Text>
+          <FlatList
+            style={s.scroll}
+            contentContainerStyle={s.scrollContent}
+            data={virtualRows}
+            keyExtractor={(item) => item.key}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width - spacing.lg * 2;
+              if (w > 0 && w !== gridWidth) setGridWidth(w);
+            }}
+            removeClippedSubviews
+            windowSize={7}
+            maxToRenderPerBatch={8}
+            initialNumToRender={10}
+            updateCellsBatchingPeriod={50}
+            renderItem={({ item }) => {
+              if (item.kind === 'header') {
+                return (
+                  <View style={s.sectionHeader}>
+                    <Text style={s.sectionTitle}>{item.hallName}</Text>
+                    <Text style={s.sectionCount}>{numberText(item.count)}</Text>
+                  </View>
+                );
+              }
+              return (
+                <View style={[s.grid, { gap: gridGap }]}>
+                  {item.tables.map((table) => renderTableCard(table, cardCtx))}
                 </View>
-                <View
-                  style={[s.grid, { gap: gridGap }]}
-                  onLayout={(e) => {
-                    const w = e.nativeEvent.layout.width;
-                    if (w > 0 && w !== gridWidth) setGridWidth(w);
-                  }}
-                >
-                  {hallTables.map((table) => renderTableCard(table, cardCtx))}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+              );
+            }}
+          />
         )}
 
         {session ? (
@@ -707,72 +745,50 @@ function createStyles(c: AppColors) {
       fontFamily: fonts.medium,
       color: c.textMuted,
     },
-    warningBanner: {
-      ...flexRow,
-      alignItems: 'flex-start',
-      gap: spacing.sm,
+    bannerWrap: {
       marginHorizontal: spacing.md,
       marginBottom: spacing.sm,
-      padding: spacing.md,
-      borderRadius: radius.xl,
-      backgroundColor: c.softWarning,
-      borderWidth: 1,
-      borderColor: c.softWarningBorder,
     },
-    warningText: {
-      ...textStart,
-      flex: 1,
-      fontSize: typography.tiny,
-      fontFamily: fonts.medium,
-      color: c.warning,
-      lineHeight: 18,
+    filtersRow: {
+      flexGrow: 0,
+      flexShrink: 0,
     },
-    errorBanner: {
-      ...flexRow,
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      padding: spacing.md,
-      borderRadius: radius.xl,
-      backgroundColor: c.softDanger,
-      borderWidth: 1,
-      borderColor: c.softDangerBorder,
-    },
-    errorText: { ...textStart, flex: 1, fontSize: typography.small, fontFamily: fonts.bold, color: c.danger },
     filtersScroll: {
       ...flexRow,
-      direction: 'rtl',
+      direction: appContentDirection.direction,
+      alignItems: 'center',
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.sm,
+      flexGrow: 0,
     },
     filterChip: {
       ...flexRow,
-      direction: 'rtl',
+      direction: appContentDirection.direction,
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 8,
+      alignSelf: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 5,
       borderRadius: radius.pill,
       backgroundColor: c.surfaceMuted,
       borderWidth: 1,
       borderColor: c.borderSubtle,
     },
     filterChipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    filterChipLabel: { ...textStart, fontSize: typography.small, fontFamily: fonts.bold, color: c.textMuted },
+    filterChipLabel: { ...textStart, fontSize: typography.caption, fontFamily: fonts.bold, color: c.textMuted },
     filterChipLabelActive: { color: c.primaryForeground },
     filterChipCount: {
-      minWidth: 20,
-      height: 20,
-      paddingHorizontal: 6,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 4,
       borderRadius: radius.pill,
       backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     filterChipCountActive: { backgroundColor: `${c.primaryForeground}33` },
-    filterChipCountText: { fontSize: 10, fontFamily: fonts.bold, color: c.textMuted },
+    filterChipCountText: { fontSize: 9, fontFamily: fonts.bold, color: c.textMuted },
     filterChipCountTextActive: { color: c.primaryForeground },
     loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
     loadingText: { fontSize: typography.small, fontFamily: fonts.medium, color: c.textMuted },

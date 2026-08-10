@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { LayoutChangeEvent, ScrollView, StyleSheet, View } from 'react-native';
 import { AppBadge, AppText as Text } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
-import { contentAreaRtl, flexRow, textStart } from '@/constants/layout';
+import { contentAreaRtl, flexRow, textStart, textLtr } from '@/constants/layout';
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -228,7 +228,7 @@ function createStyles(c: ReturnType<typeof useColors>) {
     },
     cellTextEnd: {
       writingDirection: 'ltr',
-      textAlign: 'left',
+      ...textLtr,
       width: '100%',
     },
     empty: {

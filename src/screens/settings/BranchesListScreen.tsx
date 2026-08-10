@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { branchesManageAPI } from '@/api/branchesManage';
 import { ListScreenLayout } from '@/components/layout';
 import { ConfirmDialog } from '@/components/feedback';
-import { AppDomainCard, AppSelect, AppSwipeRow } from '@/components/ui';
+import { AppSelect, AppSwipeRow } from '@/components/ui';
+import { DenseRow } from '@/components/madar';
+import { AppBadge } from '@/components/ui/AppBadge';
 import { ResourceList } from '@/components/lists';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
@@ -128,13 +130,11 @@ export function BranchesListScreen({ navigation }: { navigation: any }) {
           const row = item as unknown as BranchManageRow;
           const inactive = row.status === 'inactive';
           const card = (
-            <AppDomainCard
-              title={asText(row.name, 'فرع')}
-              subtitle={`${asText(row.code)}${row.location ? ` • ${row.location}` : ''}`}
-              meta={[row.default_warehouse?.name, row.default_vault?.name].filter(Boolean).join(' • ') || undefined}
-              badgeLabel={inactive ? 'غير نشط' : 'نشط'}
-              badgeTone={inactive ? 'warning' : 'success'}
-              leadingIcon="store"
+            <DenseRow
+              primary={asText(row.name, 'فرع')}
+              secondary={`${asText(row.code)}${row.location ? ` · ${row.location}` : ''}`}
+              meta={[row.default_warehouse?.name, row.default_vault?.name].filter(Boolean).join(' · ') || undefined}
+              status={<AppBadge label={inactive ? 'غير نشط' : 'نشط'} tone={inactive ? 'warning' : 'success'} />}
               onPress={() => navigation.navigate('BranchDetail', { id: String(row.id) })}
             />
           );

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { stockCountsAPI } from '@/api/stockCounts';
 import { inventoryAPI } from '@/api/inventory';
@@ -8,7 +7,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { AppBanner } from '@/components/feedback/AppBanner';
 import { AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
-import { ConfirmDialog, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { ConfirmDialog, AppErrorState, AppLoadingState, useToast } from '@/components/feedback';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { useInventoryScope } from '@/hooks/useInventoryScope';
@@ -17,6 +16,7 @@ import type { MoreStackParamList } from '@/types/navigation';
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockCountCreate'>;
 
 export function StockCountCreateScreen({ navigation }: { navigation: Nav }) {
+  const toast = useToast();
   const { canOperateDocuments } = useInventoryScope();
   const [warehouses, setWarehouses] = useState<SelectOption[]>([]);
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
@@ -53,11 +53,11 @@ export function StockCountCreateScreen({ navigation }: { navigation: Nav }) {
       if (id) {
         navigation.replace('StockCountDetail', { id });
       } else {
-        Alert.alert('تم', 'تم إنشاء جلسة الجرد');
+        toast.success('تم إنشاء جلسة الجرد');
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }

@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { notificationsAPI } from '@/api/notifications';
 import { ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard } from '@/components/ui';
+import { AppButton } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { DenseRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
-import { moduleIcons } from '@/constants/iconMap';
 import { dateText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 
@@ -54,14 +55,12 @@ export function NotificationsScreen() {
         emptyTitle="لا توجد إشعارات"
         keyExtractor={(item, index) => String(item.id ?? index)}
         renderItem={({ item }) => (
-          <AppDomainCard
-            title={String(item.title ?? item.message ?? 'إشعار')}
-            subtitle={String(item.message ?? item.body ?? '')}
+          <DenseRow
+            primary={String(item.title ?? item.message ?? 'إشعار')}
+            secondary={String(item.message ?? item.body ?? '')}
             meta={dateText(String(item.created_at ?? ''))}
-            badgeLabel={item.read_at ? 'مقروء' : 'جديد'}
-            badgeTone={item.read_at ? 'default' : 'info'}
-            leadingIcon={moduleIcons.notifications}
-            onPress={() => item.id ? notificationsAPI.markAsRead(Number(item.id)).then(refresh).catch(() => undefined) : undefined}
+            status={<AppBadge label={item.read_at ? 'مقروء' : 'جديد'} tone={item.read_at ? 'neutral' : 'info'} />}
+            onPress={() => (item.id ? notificationsAPI.markAsRead(Number(item.id)).then(refresh).catch(() => undefined) : undefined)}
           />
         )}
       />

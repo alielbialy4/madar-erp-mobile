@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { flexRow, rtlDirection, textStart } from '@/constants/layout';
@@ -9,7 +9,12 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { backArrowIcon } from '@/utils/rtl';
-import { PosBranchMark, PosOnlineChip, PosShiftChip, usePosHeaderBarStyle } from '@/components/pos/posHeaderUi';
+import { PosOnlineChip, PosShiftChip, usePosHeaderBarStyle } from '@/components/pos/posHeaderUi';
+import { HeaderEndTools } from '@/components/layout/header';
+import { BranchSwitcher } from '@/components/layout/BranchSwitcher';
+import { useNavShell } from '@/navigation/NavShellContext';
+import { useImmersiveStore } from '@/store/immersiveStore';
+import { getProductLayoutTier } from '@/constants/productLayout';
 
 type MobileTab = 'catalog' | 'cart';
 
@@ -57,6 +62,10 @@ export function PosTopBar({
   const styles = useMemo(() => createStyles(c), [c]);
   const cartScale = useRef(new Animated.Value(1)).current;
   const [menuOpen, setMenuOpen] = useState(false);
+  const { navigate } = useNavShell();
+  const immersive = useImmersiveStore((s) => s.enabled);
+  const { width } = useWindowDimensions();
+  const compact = getProductLayoutTier(width) === 'compactPhone';
 
   const menuActions = useMemo(() => {
     const items: { key: string; label: string; icon: keyof typeof MaterialIcons.glyphMap; onPress?: () => void }[] = [];
@@ -83,6 +92,8 @@ export function PosTopBar({
     ]).start();
   }, [cartPulse, cartScale]);
 
+  if (immersive) return null;
+
   const metaParts = [cashierName, lastSyncedLabel ? `مزامنة ${lastSyncedLabel}` : null].filter(Boolean);
 
   return (
@@ -94,19 +105,31 @@ export function PosTopBar({
           </Pressable>
         ) : null}
 
-        <PosBranchMark size="sm" />
+        <View style={styles.branchSlot}>
+          <BranchSwitcher density="icon" />
+        </View>
 
         <View style={styles.identity}>
           <Text style={bar.title}>نقطة البيع</Text>
-          <Text style={bar.branchName} numberOfLines={1}>
-            {branchName?.trim() || 'بدون فرع'}
-          </Text>
+          {!compact ? (
+            <Text style={bar.branchName} numberOfLines={1}>
+              {branchName?.trim() || 'بدون فرع'}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.chips}>
           <PosShiftChip active={hasShift} label={shiftLabel} />
-          <PosOnlineChip compact />
+          {!compact ? <PosOnlineChip compact /> : null}
         </View>
+
+        <HeaderEndTools
+          onNavigate={navigate}
+          compact
+          showLabels={false}
+          showSeparators={false}
+          include={{ search: false, notifications: true }}
+        />
 
         {menuActions.length > 0 ? (
           <Pressable onPress={() => setMenuOpen(true)} style={styles.menuBtn} accessibilityLabel="إجراءات الوردية">
@@ -115,7 +138,7 @@ export function PosTopBar({
         ) : null}
       </View>
 
-      {metaParts.length > 0 ? (
+      {metaParts.length > 0 && !compact ? (
         <Text style={bar.meta} numberOfLines={1}>
           {metaParts.join(' · ')}
         </Text>
@@ -181,6 +204,7 @@ function createStyles(c: AppColors) {
 
   return StyleSheet.create({
     mainRow: { ...flexRow, alignItems: 'center', gap: spacing.sm },
+    branchSlot: { flexShrink: 0 },
     exitBtn: {
       width: 36,
       height: 36,

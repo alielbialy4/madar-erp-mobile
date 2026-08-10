@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { View } from 'react-native';import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { stockAdjustmentsAPI } from '@/api/stockAdjustments';
 import { DetailScreen } from '@/screens/shared/DetailScreen';
-import { AppButton, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
-import { ConfirmDialog } from '@/components/feedback';
+import { AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface, QuickActionBar } from '@/components/madar';
+import { ConfirmDialog, useToast } from '@/components/feedback';
 import { dateText, money, numberText , asText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
-import { spacing } from '@/constants/spacing';
 import type { MoreStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'StockAdjustmentDetail'>;
@@ -16,6 +15,7 @@ type Route = RouteProp<MoreStackParamList, 'StockAdjustmentDetail'>;
 
 export function StockAdjustmentDetailScreen({ navigation, route }: { navigation: Nav; route: Route }) {
   const id = route.params.id;
+  const toast = useToast();
   const [confirmPost, setConfirmPost] = useState(false);
   const [posting, setPosting] = useState(false);
 
@@ -41,21 +41,22 @@ export function StockAdjustmentDetailScreen({ navigation, route }: { navigation:
           const canPost = doc.status !== 'posted';
           return (
             <>
-              <AppCard>
-                <AppSectionHeader title="الأصناف" />
-                {items.map((item, index) => (
-                  <AppListItem
-                    key={String(item.id ?? index)}
-                    title={asText((item.product as Record<string, unknown>)?.name ?? item.product_name, 'صنف')}
-                    subtitle={`كمية: ${numberText(item.quantity)}`}
-                    meta={money(item.unit_cost ?? 0)}
-                  />
-                ))}
-              </AppCard>
+              <MadarSection title="الأصناف">
+                <MadarSurface padded={false}>
+                  {items.map((item, index) => (
+                    <AppListItem
+                      key={String(item.id ?? index)}
+                      title={asText((item.product as Record<string, unknown>)?.name ?? item.product_name, 'صنف')}
+                      subtitle={`كمية: ${numberText(item.quantity)}`}
+                      meta={money(item.unit_cost ?? 0)}
+                    />
+                  ))}
+                </MadarSurface>
+              </MadarSection>
               {canPost ? (
-                <View style={{ paddingVertical: spacing.md }}>
-                  <AppButton title="ترحيل التسوية" onPress={() => setConfirmPost(true)} />
-                </View>
+                <QuickActionBar
+                  actions={[{ id: 'post', label: 'ترحيل التسوية', icon: 'check-circle', onPress: () => setConfirmPost(true), tone: 'accent' }]}
+                />
               ) : null}
               <ConfirmDialog
                 visible={confirmPost}
@@ -70,10 +71,10 @@ export function StockAdjustmentDetailScreen({ navigation, route }: { navigation:
                   void stockAdjustmentsAPI
                     .post(id)
                     .then(() => {
-                      Alert.alert('تم', 'تم ترحيل التسوية');
+                      toast.success('تم ترحيل التسوية');
                       refresh();
                     })
-                    .catch((err) => Alert.alert('خطأ', normalizeApiError(err).message))
+                    .catch((err) => toast.error(normalizeApiError(err).message))
                     .finally(() => setPosting(false));
                 }}
               />

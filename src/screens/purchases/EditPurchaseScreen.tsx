@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { StyleSheet, View } from 'react-native';import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { purchasesAPI, type PurchasePayload } from '@/api/purchases';
 import { AppScreen, FormScreenLayout } from '@/components/layout';
 import { FormSection } from '@/components/forms/FormSection';
 import { AppDatePicker, AppInput, AppListItem } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AppBanner, AppErrorState, AppLoadingState, ConfirmDialog } from '@/components/feedback';
+import { AppBanner, AppErrorState, AppLoadingState, ConfirmDialog, useToast } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { money, asText, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
@@ -31,6 +30,7 @@ type Line = {
 };
 
 export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; route: Route }) {
+  const toast = useToast();
   const c = useColors();
   const purchaseId = route.params.id;
   const [loading, setLoading] = useState(true);
@@ -102,10 +102,10 @@ export function EditPurchaseScreen({ navigation, route }: { navigation: Nav; rou
         notes: notes.trim() || undefined,
       };
       await purchasesAPI.update(purchaseId, payload);
-      Alert.alert('تم', 'تم تحديث فاتورة الشراء');
+      toast.success('تم تحديث فاتورة الشراء');
       navigation.goBack();
     } catch (err) {
-      Alert.alert('خطأ', normalizeApiError(err).message);
+      toast.error(normalizeApiError(err).message);
     } finally {
       setSubmitting(false);
     }

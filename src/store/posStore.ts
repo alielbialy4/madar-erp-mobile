@@ -17,13 +17,18 @@ import { getPaymentPrintLabel } from '@/constants/printLabels';
 import { runPostCheckoutPrint } from '@/services/pos/posCheckoutPrint';
 import type { PostCheckoutPrintResult } from '@/services/pos/posCheckoutPrint';
 import { prewarmReceiptLogoFromSettings } from '@/services/printing/printLogoCache';
-import { syncAll } from '@/services/sync/syncEngine';
 import { normalizeApiError } from '@/utils/errors';
 import { useAuthStore } from './authStore';
 import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
 import { buildCanonicalPaymentLine, buildCanonicalSplitPaymentLines } from '@/utils/paymentAccounts';
 import { createBranchScopeRequestGuard } from '@/utils/branchScopeRequest';
+
+function triggerBackgroundSync() {
+  void import('@/services/sync/syncEngine').then(({ syncAll }) => {
+    void syncAll();
+  });
+}
 
 export type { CartLine } from '@/utils/cartLine';
 export { cartLineKey } from '@/utils/cartLine';
@@ -592,7 +597,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           };
           get().clearCart();
           schedulePostCheckoutPrint(printInput, extras?.onPrintComplete);
-          void syncAll();
+          void triggerBackgroundSync();
           return {
             ok: true,
             message: settleRes.message || 'تم تحصيل طلب الطاولة بنجاح',
@@ -659,7 +664,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         };
         get().clearCart();
         schedulePostCheckoutPrint(printInput, extras?.onPrintComplete);
-        void syncAll();
+        void triggerBackgroundSync();
         return {
           ok: true,
           message: response.message || 'تمت عملية البيع بنجاح',

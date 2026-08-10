@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { paymentsAPI, type PaymentLedgerRow } from '@/api/payments';
 import { AppBottomSheet, AppScreen } from '@/components/layout';
-import { AppBadge, AppButton, AppCard, AppDateRangePicker, AppInput, AppStatCard } from '@/components/ui';
+import { AppBadge, AppButton, AppDateRangePicker, AppInput } from '@/components/ui';
 import { AppText } from '@/components/ui/AppText';
+import { MadarSurface, MetricBlock } from '@/components/madar';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { useListResource } from '@/hooks/useListResource';
@@ -91,7 +92,7 @@ export function PaymentsLedgerScreen({ navigation }: { navigation: any }) {
       )}
     >
       <View style={styles.statWrap}>
-        <AppStatCard label="الإجمالي" value={grandTotal} tone="info" />
+        <MetricBlock label="الإجمالي" value={grandTotal} level="A" tone="info" />
       </View>
       {totalsError ? <AppErrorState message={totalsError} onRetry={() => void loadTotals()} /> : null}
       {loading && items.length === 0 ? <AppLoadingState variant="skeleton" skeletonRows={8} /> : null}
@@ -110,7 +111,7 @@ export function PaymentsLedgerScreen({ navigation }: { navigation: any }) {
           const clientPhone = item.invoice?.client?.phone_number ?? item.client_phone ?? '';
           const method = item.payment_method ?? item.payment_type;
           return (
-            <AppCard style={styles.card}>
+            <MadarSurface style={styles.card}>
               <View style={styles.cardTop}>
                 <AppBadge label={methodLabel(method)} tone={method === 'cash' ? 'success' : 'info'} />
                 <AppText style={styles.invoice}>{invoice}</AppText>
@@ -118,7 +119,7 @@ export function PaymentsLedgerScreen({ navigation }: { navigation: any }) {
               <AppText style={styles.title}>{clientName}</AppText>
               <AppText style={styles.meta}>{clientPhone || 'بدون هاتف'} • {dateText(item.created_at)}</AppText>
               <AppText style={styles.amount}>{money(item.amount ?? 0)}</AppText>
-            </AppCard>
+            </MadarSurface>
           );
         }}
       />
@@ -147,7 +148,7 @@ function createStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     headerActions: { ...flexRow, gap: spacing.md },
     statWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-    card: { gap: spacing.sm },
+    card: { gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
     cardTop: { ...flexRow, justifyContent: 'space-between', alignItems: 'center' },
     invoice: { color: c.textMuted, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.label },
     title: { ...textStart, color: c.text, fontFamily: fonts.bold, fontWeight: '700', fontSize: typography.body },

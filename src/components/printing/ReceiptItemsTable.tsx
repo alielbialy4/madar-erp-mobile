@@ -5,6 +5,7 @@ import { PrintText as Text } from '@/components/printing/PrintText';
 import type { ReceiptPrintLabels } from '@/constants/printLabels';
 import { useReceiptLineHeight } from '@/components/printing/receiptPrintLayout';
 import type { ReceiptPrintItem } from '@/types/printing';
+import { appTextAlignStart } from '@/constants/layout';
 
 type Props = {
   items: ReceiptPrintItem[];
@@ -200,18 +201,18 @@ const styles = StyleSheet.create({
   itemName: {
     color: designColors.black,
     fontWeight: '400',
-    textAlign: 'right',
+    textAlign: appTextAlignStart,
   },
   lineDesc: {
     color: designColors.black,
     fontWeight: '500',
-    textAlign: 'right',
+    textAlign: appTextAlignStart,
     marginTop: 1,
   },
   lineExtra: {
     color: designColors.black,
     fontWeight: '500',
-    textAlign: 'right',
+    textAlign: appTextAlignStart,
     marginTop: 1,
   },
 });

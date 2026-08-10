@@ -8,6 +8,7 @@ import { shiftsAPI } from '@/api/shifts';
 import { useBranchStore } from '@/store/branchStore';
 import { AppScreen, ModuleHeader } from '@/components/layout';
 import { AppBadge, AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
+import { MetricBlock, FinancialValue } from '@/components/madar';
 import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
@@ -252,6 +253,29 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
           <AppEmptyState title="اختر فرعاً" message="حدد فرعاً لعرض الوردية المفتوحة (من الفلاتر أو مبدّل الفرع)." />
         ) : currentShift ? (
           <>
+            <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+              <Text style={[styles.currentValue, { fontSize: typography.entityTitle }]}>
+                {formatShiftLabel(currentShift, currentShift.id, currentShift.branch?.name)}
+              </Text>
+              {statusBadge(currentShift.status ?? 'open')}
+            </View>
+            <View style={styles.currentRow}>
+              <MetricBlock
+                label="النقد المتوقع"
+                value={drawerExpected ?? currentShift.starting_cash ?? 0}
+                currency="ج.م"
+                level="B"
+                style={{ flex: 1, minWidth: '45%' }}
+              />
+              <MetricBlock
+                label="رصيد الخزنة"
+                value={vaultLedger ?? '—'}
+                currency={vaultLedger != null ? 'ج.م' : undefined}
+                level="B"
+                tone="info"
+                style={{ flex: 1, minWidth: '45%' }}
+              />
+            </View>
             <View style={styles.currentRow}>
               <View style={styles.currentItem}>
                 <Text style={styles.currentLabel}>الخزنة</Text>
@@ -259,25 +283,12 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
               </View>
               <View style={styles.currentItem}>
                 <Text style={styles.currentLabel}>نقدية الافتتاح</Text>
-                <Text style={styles.currentValue}>{money(currentShift.starting_cash ?? 0)}</Text>
+                <FinancialValue amount={currentShift.starting_cash ?? 0} currency="ج.م" level="inline" align="start" />
               </View>
               <View style={styles.currentItem}>
                 <Text style={styles.currentLabel}>وقت الافتتاح</Text>
                 <Text style={styles.currentValue}>{dateText(currentShift.opened_at)}</Text>
               </View>
-              {vaultLedger !== null ? (
-                <View style={styles.currentItem}>
-                  <Text style={styles.currentLabel}>رصيد الخزنة الدفتري</Text>
-                  <Text style={styles.currentValue}>{money(vaultLedger)}</Text>
-                </View>
-              ) : null}
-              {drawerExpected !== null ? (
-                <View style={styles.currentItem}>
-                  <Text style={styles.currentLabel}>النقد المتوقع في الدرج</Text>
-                  <Text style={styles.currentValue}>{money(drawerExpected)}</Text>
-                </View>
-              ) : null}
-              {statusBadge(currentShift.status ?? 'open')}
             </View>
             <View style={styles.actions}>
               {canViewShiftSummary ? (

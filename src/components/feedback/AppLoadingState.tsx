@@ -6,6 +6,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from '@/components/ui/AppText';
 import { AppSkeletonList } from './AppSkeletonList';
+import { appWritingDirection } from '@/constants/layout';
 
 type Props = {
   message?: string;
@@ -29,7 +30,7 @@ export function AppLoadingState({ message = 'جاري التحميل...', varian
       <ActivityIndicator size="large" color={c.accent} />
       <AppText style={{
         fontSize: typography.body, fontFamily: fonts.medium,
-        color: c.textMuted, textAlign: 'center', writingDirection: 'rtl',
+        color: c.textMuted, textAlign: 'center', writingDirection: appWritingDirection,
       }}>
         {message}
       </AppText>

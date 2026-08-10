@@ -34,6 +34,8 @@ type Props<T extends Record<string, unknown>> = {
   heroAmount?: (item: T) => string | undefined;
   actions?: (item: T, refresh: () => void) => React.ReactNode;
   children?: (item: T, actions: { refresh: () => void }) => React.ReactNode;
+  /** Pane mode inside MasterDetailLayout — no stack header chrome. */
+  embedded?: boolean;
 };
 
 export function DetailScreenLayout<T extends Record<string, unknown>>({
@@ -48,6 +50,7 @@ export function DetailScreenLayout<T extends Record<string, unknown>>({
   heroAmount,
   actions,
   children,
+  embedded = false,
 }: Props<T>) {
   const c = useColors();
   const { width } = useWindowDimensions();
@@ -56,12 +59,12 @@ export function DetailScreenLayout<T extends Record<string, unknown>>({
   const allSections = sections ?? (fields ? [{ title: 'البيانات', fields }] : []);
   const actionContent = data ? actions?.(data, refresh) : null;
 
-  return (
-    <AppScreen title={title} onBack={onBack} headerRight={headerRight} onRefresh={refresh} refreshing={refreshing}>
+  const body = (
+    <>
       {loading && !data ? <AppLoadingState /> : null}
       {error && !data ? <AppErrorState message={error} onRetry={refresh} /> : null}
       {data ? (
-        <View style={[styles.frame, { maxWidth: tablet ? 960 : undefined }]}>
+        <View style={[styles.frame, { maxWidth: embedded ? undefined : tablet ? 960 : undefined }]}>
           <View style={[styles.identity, { borderBottomColor: c.border }]}>
             <View style={styles.identityCopy}>
               {badge?.(data) ? <View style={styles.badgeSlot}><AppBadge {...badge(data)!} /></View> : null}
@@ -101,6 +104,21 @@ export function DetailScreenLayout<T extends Record<string, unknown>>({
           {children?.(data, { refresh })}
         </View>
       ) : null}
+    </>
+  );
+
+  return (
+    <AppScreen
+      title={title}
+      onBack={embedded ? undefined : onBack}
+      headerRight={embedded ? undefined : headerRight}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      noHeader={embedded}
+      safeEdges={embedded ? [] : undefined}
+      contentStyle={embedded ? { padding: spacing.md, paddingTop: spacing.sm } : undefined}
+    >
+      {body}
     </AppScreen>
   );
 }

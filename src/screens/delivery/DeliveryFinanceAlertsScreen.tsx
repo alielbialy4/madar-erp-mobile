@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { deliveryFinanceAPI } from '@/api/deliveryFinance';
 import { AppScreen } from '@/components/layout';
-import { AppBadge, AppCard, AppListItem, AppSectionHeader } from '@/components/ui';
+import { AppBadge, AppListItem } from '@/components/ui';
+import { MadarSection, MadarSurface } from '@/components/madar';
 import { AppErrorState, AppLoadingState } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { asText } from '@/utils/format';
@@ -34,17 +35,18 @@ export function DeliveryFinanceAlertsScreen({ navigation }: { navigation: any })
     <AppScreen title="تنبيهات مالية التوصيل" onBack={navigation.goBack} onRefresh={() => void load()} refreshing={loading}>
       {loading ? <AppLoadingState /> : null}
       {error ? <AppErrorState message={error} onRetry={load} /> : null}
-      <AppCard>
-        <AppSectionHeader title="تنبيهات" />
-        {rows.map((row, i) => (
-          <AppListItem
-            key={String(row.id ?? i)}
-            title={asText(row.title, 'تنبيه')}
-            subtitle={asText(row.message, '')}
-            badge={<AppBadge label={String(row.severity ?? 'medium')} tone={row.severity === 'high' ? 'danger' : 'warning'} />}
-          />
-        ))}
-      </AppCard>
+      <MadarSection title="تنبيهات">
+        <MadarSurface padded={false}>
+          {rows.map((row, i) => (
+            <AppListItem
+              key={String(row.id ?? i)}
+              title={asText(row.title, 'تنبيه')}
+              subtitle={asText(row.message, '')}
+              badge={<AppBadge label={String(row.severity ?? 'medium')} tone={row.severity === 'high' ? 'danger' : 'warning'} />}
+            />
+          ))}
+        </MadarSurface>
+      </MadarSection>
     </AppScreen>
   );
 }

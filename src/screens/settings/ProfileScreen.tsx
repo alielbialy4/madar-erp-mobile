@@ -3,12 +3,13 @@ import { View } from 'react-native';
 import { flexRow } from '@/constants/layout';
 import { AppText } from '@/components/ui/AppText';
 import { AppScreen } from '@/components/layout';
-import { AppButton, AppCard, AppListItem, AppSectionHeader, AppBadge } from '@/components/ui';
+import { AppButton, AppListItem, AppBadge } from '@/components/ui';
+import { DocumentHeader, MadarSection, MadarSurface } from '@/components/madar';
 import { ConfirmDialog } from '@/components/feedback';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useColors } from '@/hooks/useColors';
-import { spacing } from '@/constants/spacing';
+import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 
@@ -25,50 +26,62 @@ export function ProfileScreen() {
 
   return (
     <AppScreen title="الملف الشخصي">
-      <View style={{
-        backgroundColor: c.accent, borderRadius: 20, padding: spacing.xl,
-        alignItems: 'center', gap: spacing.md,
-      }}>
-        <View style={{
-          width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)',
-          alignItems: 'center', justifyContent: 'center',
-        }}>
-          <AppText style={{ color: c.onPrimary, fontSize: 28, fontFamily: fonts.extraBold, fontWeight: '800' }}>
-            {user?.name?.charAt(0) ?? 'U'}
-          </AppText>
-        </View>
-        <AppText style={{ color: c.onPrimary, fontSize: typography.h2, fontFamily: fonts.bold, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' }}>
-          {user?.name ?? 'مستخدم'}
-        </AppText>
-        <AppText style={{ color: 'rgba(255,255,255,0.8)', fontSize: typography.body, textAlign: 'center', writingDirection: 'rtl' }}>
-          {user?.email ?? user?.phone ?? ''}
+      <DocumentHeader
+        title={user?.name ?? 'مستخدم'}
+        subtitle={user?.email ?? user?.phone ?? undefined}
+        statusLabel={user?.is_super_admin ? 'مدير أعلى' : undefined}
+        statusTone="danger"
+        meta={activeBranch?.name ? `فرع: ${activeBranch.name}` : 'عرض عام'}
+      />
+
+      <View
+        style={{
+          alignSelf: 'flex-start',
+          width: 56,
+          height: 56,
+          borderRadius: radius.control,
+          borderWidth: 1,
+          borderColor: c.borderSubtle,
+          backgroundColor: c.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
+        <AppText style={{ color: c.accent, fontSize: typography.h2, fontFamily: fonts.extraBold, fontWeight: '800' }}>
+          {user?.name?.charAt(0) ?? 'U'}
         </AppText>
       </View>
 
-      <AppCard>
-        <AppSectionHeader title="بيانات المستخدم" />
-        <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.xs }}>
-          {(user?.roles ?? []).map((role) => (
-            <AppBadge key={role} label={role} tone="info" />
-          ))}
-        </View>
-        <AppListItem title="الصلاحيات" subtitle={`${permCount} صلاحية فعالة`} />
-        {user?.is_super_admin ? <AppBadge label="مدير أعلى" tone="danger" /> : null}
-      </AppCard>
+      <MadarSection title="بيانات المستخدم">
+        <MadarSurface padded={false}>
+          <View style={{ ...flexRow, flexWrap: 'wrap', gap: spacing.xs, padding: spacing.lg }}>
+            {(user?.roles ?? []).map((role) => (
+              <AppBadge key={role} label={role} tone="info" />
+            ))}
+          </View>
+          <AppListItem title="الصلاحيات" subtitle={`${permCount} صلاحية فعالة`} />
+        </MadarSurface>
+      </MadarSection>
 
-      <AppCard>
-        <AppSectionHeader title="السياق الحالي" />
-        <AppListItem title="الفرع" subtitle={activeBranch?.name ?? 'عرض عام'} />
-        <AppListItem title="وضع العرض" subtitle={viewMode === 'global' ? 'عرض عام' : 'فرع'} />
-      </AppCard>
+      <MadarSection title="السياق الحالي">
+        <MadarSurface padded={false}>
+          <AppListItem title="الفرع" subtitle={activeBranch?.name ?? 'عرض عام'} />
+          <AppListItem title="وضع العرض" subtitle={viewMode === 'global' ? 'عرض عام' : 'فرع'} />
+        </MadarSurface>
+      </MadarSection>
 
       <AppButton title="تسجيل الخروج" variant="danger" onPress={() => setLogoutConfirm(true)} loading={loading} fullWidth />
+
       <ConfirmDialog
         visible={logoutConfirm}
         title="تسجيل الخروج"
         message="سيتم تسجيل خروجك من التطبيق."
         confirmLabel="خروج"
-        onConfirm={() => { setLogoutConfirm(false); void logout(); }}
+        onConfirm={() => {
+          setLogoutConfirm(false);
+          void logout();
+        }}
         onCancel={() => setLogoutConfirm(false)}
       />
     </AppScreen>

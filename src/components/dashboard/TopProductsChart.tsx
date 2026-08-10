@@ -54,8 +54,8 @@ export function TopProductsChart({ products }: Props) {
               const name = String(p.product_name ?? p.name ?? '—');
               return (
                 <View key={`${name}-${i}`} style={styles.row}>
-                  <View style={[styles.rank, { backgroundColor: c.softPrimary, borderColor: c.accentBorder }]}>
-                    <Text style={[styles.rankText, { color: c.accent }]}>{i + 1}</Text>
+                  <View style={[styles.rank, { backgroundColor: c.surface, borderColor: c.border }]}>
+                    <Text style={[styles.rankText, { color: c.textMuted }]}>{i + 1}</Text>
                   </View>
                   <View style={styles.rowBody}>
                     <View style={[styles.nameRow, flexRow]}>

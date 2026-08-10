@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppBadge } from '@/components/ui';
+import { EntityRow } from '@/components/madar';
 import { useColors } from '@/hooks/useColors';
 import { resolveMediaUrl } from '@/utils/media';
 import { money, numberText } from '@/utils/format';
@@ -18,7 +19,7 @@ import { getProductBadge, getProductPrices, getProductQuantity } from './product
 import { spacing, radius } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
-import { flexRow, textStart } from '@/constants/layout';
+import { flexRow, textStart, appWritingDirection } from '@/constants/layout';
 
 type CardVariant = 'full' | 'compact' | 'grid';
 
@@ -60,6 +61,23 @@ export function ProductListCard({
 
   const handleLongPress = canManage && onEdit ? onEdit : undefined;
 
+  if (variant === 'compact') {
+    return (
+      <EntityRow
+        primary={product.name}
+        secondary={`${product.category?.name ?? 'بدون تصنيف'} · متاح ${numberText(qty)}`}
+        imageUri={thumb}
+        fallback={<MaterialIcons name="inventory-2" size={18} color={c.textCaption} />}
+        amount={prices.display}
+        currency="ج.م"
+        badgeLabel={badge.label}
+        badgeTone={badgeTone}
+        onPress={onPress}
+        onLongPress={handleLongPress}
+      />
+    );
+  }
+
   if (variant === 'grid') {
     return (
       <View style={[styles.categoryCard, extra.gridCard]}>
@@ -88,9 +106,7 @@ export function ProductListCard({
     );
   }
 
-  const showActions = variant === 'full' && ((canManage && onEdit) || onInsights);
-  const showChevron = variant === 'full';
-  const showBarcode = variant === 'full';
+  const showActions = (canManage && onEdit) || onInsights;
 
   return (
     <View style={styles.categoryCard}>
@@ -99,7 +115,6 @@ export function ProductListCard({
         onLongPress={handleLongPress}
         style={({ pressed }) => [
           styles.cardPressable,
-          variant === 'compact' && extra.compactPressable,
           pressed && { opacity: 0.92 },
         ]}
       >
@@ -107,12 +122,12 @@ export function ProductListCard({
           {thumb ? (
             <Image
               source={{ uri: thumb }}
-              style={[styles.thumb, variant === 'compact' && extra.compactThumb]}
+              style={styles.thumb}
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.thumbPlaceholder, variant === 'compact' && extra.compactThumb]}>
-              <MaterialIcons name="inventory-2" size={variant === 'compact' ? 22 : 28} color={c.textCaption} />
+            <View style={styles.thumbPlaceholder}>
+              <MaterialIcons name="inventory-2" size={28} color={c.textCaption} />
             </View>
           )}
           <View style={styles.cardBody}>
@@ -124,27 +139,22 @@ export function ProductListCard({
             </View>
             <Text style={styles.cardDesc} numberOfLines={1}>
               {product.category?.name ?? 'بدون تصنيف'}
-              {variant === 'compact' ? ` • ${numberText(qty)} متاح` : ''}
             </Text>
             <View style={extra.priceRow}>
-              <Text style={[extra.priceMain, variant === 'compact' && extra.priceMainCompact]}>
+              <Text style={extra.priceMain}>
                 {money(prices.display)}
               </Text>
               {prices.compare != null ? (
                 <Text style={extra.priceCompare}>{money(prices.compare)}</Text>
               ) : null}
             </View>
-            {showBarcode ? (
-              <Text style={styles.cardMeta}>
-                باركود: {(product.barcodes ?? []).filter(Boolean).join('، ') || product.barcode || '—'} • متاح: {numberText(qty)}
-              </Text>
-            ) : null}
+            <Text style={styles.cardMeta}>
+              باركود: {(product.barcodes ?? []).filter(Boolean).join('، ') || product.barcode || '—'} • متاح: {numberText(qty)}
+            </Text>
           </View>
-          {showChevron ? (
-            <View style={styles.cardChevron}>
-              <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textCaption} />
-            </View>
-          ) : null}
+          <View style={styles.cardChevron}>
+            <MaterialIcons name={chevronForwardIcon()} size={22} color={c.textCaption} />
+          </View>
         </View>
       </Pressable>
 
@@ -177,7 +187,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontFamily: fonts.extraBold,
       fontWeight: '800',
       color: c.text,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     priceMainCompact: {
       fontSize: typography.body,
@@ -187,7 +197,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontFamily: fonts.medium,
       color: c.textCaption,
       textDecorationLine: 'line-through',
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     compactPressable: {
       minHeight: 76,
@@ -237,7 +247,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontFamily: fonts.extraBold,
       fontWeight: '800',
       color: c.text,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
     gridFooter: {
       ...flexRow,
@@ -249,7 +259,7 @@ function createExtraStyles(c: ReturnType<typeof useColors>) {
       fontSize: typography.tiny,
       fontFamily: fonts.medium,
       color: c.textMuted,
-      writingDirection: 'rtl',
+      writingDirection: appWritingDirection,
     },
   });
 }

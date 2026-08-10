@@ -3,17 +3,21 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { ApiEnvelope, ListParams } from '@/types/api';
 import type { Expense, ExpenseCategory } from '@/types/expenses';
 import { expensesAPI } from '@/api/expenses';
-import { HeroActionChip, ListScreenLayout } from '@/components/layout';
-import { AppButton, AppDomainCard } from '@/components/ui';
+import { HeroActionChip, ListScreenLayout, MasterDetailLayout } from '@/components/layout';
+import { AppButton } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { FinancialRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
+import { ExpenseDetailScreen } from '@/screens/expenses/ExpenseDetailScreen';
 import { useListResource } from '@/hooks/useListResource';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useBranchStore } from '@/store/branchStore';
 import { usePermissions } from '@/hooks/usePermissions';
+import { isTablet } from '@/constants/responsive';
+import { useWindowDimensions } from 'react-native';
 import { extractArray } from '@/utils/data';
 import { dateText, money, numberText } from '@/utils/format';
 import { expensePaymentTotals } from '@/utils/expenseFinancials';
-import { moduleIcons } from '@/constants/iconMap';
 import {
   EMPTY_EXPENSE_FILTERS,
   ExpenseFiltersSheet,
@@ -41,11 +45,14 @@ function paymentSourceLabel(expense: Expense): string {
 }
 
 export function ExpensesScreen({ navigation }: { navigation: any }) {
+  const { width } = useWindowDimensions();
+  const tablet = isTablet(width);
   const { can } = usePermissions();
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const viewMode = useBranchStore((state) => state.viewMode);
   const branches = useBranchStore((state) => state.branches);
   const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filters, setFilters] = useState<ExpenseListFilters>({ ...EMPTY_EXPENSE_FILTERS });
   const [filterOpen, setFilterOpen] = useState(false);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -108,6 +115,14 @@ export function ExpensesScreen({ navigation }: { navigation: any }) {
   const { items, loading, refreshing, error, refresh, loadMore } = useListResource<Expense>(loader, listParams);
   const activeFilterCount = countExpenseFilters(filters);
 
+  const openExpense = (id: number) => {
+    if (tablet) {
+      setSelectedId(id);
+      return;
+    }
+    navigation.navigate('ExpenseDetail', { id });
+  };
+
   return (
     <>
       <ListScreenLayout
@@ -120,6 +135,7 @@ export function ExpensesScreen({ navigation }: { navigation: any }) {
         commandsInlineOnPhone
         onRefresh={refresh}
         refreshing={refreshing}
+        contentStyle={tablet ? { flex: 1 } : undefined}
         filters={(
           <AppButton
             title={activeFilterCount > 0 ? `الفلاتر (${numberText(activeFilterCount)})` : 'الفلاتر'}
@@ -148,38 +164,62 @@ export function ExpensesScreen({ navigation }: { navigation: any }) {
         }}
         fab={canCreate ? { onPress: () => navigation.navigate('ExpenseCreate'), label: 'مصروف جديد' } : undefined}
       >
-        <ResourceList<Expense>
-          data={items}
-          loading={loading}
-          refreshing={refreshing}
-          error={error}
-          onRefresh={refresh}
-          onEndReached={loadMore}
-          emptyTitle="لا توجد مصروفات مطابقة"
-          emptyCtaLabel={canCreate ? 'تسجيل مصروف' : undefined}
-          onEmptyCta={canCreate ? () => navigation.navigate('ExpenseCreate') : undefined}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => {
-            const payment = expensePaymentTotals(item);
-            const status = statusPresentation(item.status);
-            return (
-              <AppDomainCard
-                title={item.category?.name ?? `مصروف #${item.id}`}
-                subtitle={item.description?.trim() || 'بدون وصف'}
-                meta={[
-                  dateText(item.expense_date ?? item.created_at ?? ''),
-                  globalView ? item.branch?.name ?? 'مصروف عام' : null,
-                  paymentSourceLabel(item),
-                  payment.remaining > 0 ? `متبقي ${money(payment.remaining)}` : null,
-                ].filter(Boolean).join(' · ')}
-                metric={money(item.amount)}
-                badgeLabel={status.label}
-                badgeTone={status.tone}
-                leadingIcon={moduleIcons.expenses}
-                onPress={() => navigation.navigate('ExpenseDetail', { id: item.id })}
+        <MasterDetailLayout
+          emptyTitle="اختر مصروفًا"
+          emptyMessage="اختر مصروفًا من القائمة لمراجعة الالتزام والدفع دون مغادرة الشاشة."
+          master={
+            <ResourceList<Expense>
+              data={items}
+              loading={loading}
+              refreshing={refreshing}
+              error={error}
+              onRefresh={refresh}
+              onEndReached={loadMore}
+              emptyTitle="لا توجد مصروفات مطابقة"
+              emptyCtaLabel={canCreate ? 'تسجيل مصروف' : undefined}
+              onEmptyCta={canCreate ? () => navigation.navigate('ExpenseCreate') : undefined}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => {
+                const payment = expensePaymentTotals(item);
+                const status = statusPresentation(item.status);
+                return (
+                  <FinancialRow
+                    primary={item.category?.name ?? `مصروف #${item.id}`}
+                    secondary={item.description?.trim() || 'بدون وصف'}
+                    meta={[
+                      dateText(item.expense_date ?? item.created_at ?? ''),
+                      globalView ? item.branch?.name ?? 'مصروف عام' : null,
+                      paymentSourceLabel(item),
+                      payment.remaining > 0 ? `متبقي ${money(payment.remaining)}` : 'مسدد',
+                    ].filter(Boolean).join(' · ')}
+                    amount={item.amount}
+                    currency="ج.م"
+                    amountTone={payment.remaining > 0 ? 'negative' : 'default'}
+                    status={<AppBadge label={status.label} tone={status.tone} />}
+                    selected={tablet && selectedId === item.id}
+                    onPress={() => openExpense(item.id)}
+                  />
+                );
+              }}
+            />
+          }
+          detail={
+            selectedId != null ? (
+              <ExpenseDetailScreen
+                key={selectedId}
+                route={{
+                  key: `embedded-expense-${selectedId}`,
+                  name: 'ExpenseDetail',
+                  params: { id: selectedId, embedded: true },
+                } as any}
+                navigation={{
+                  goBack: () => setSelectedId(null),
+                  navigate: navigation.navigate,
+                  setOptions: () => undefined,
+                } as any}
               />
-            );
-          }}
+            ) : null
+          }
         />
       </ListScreenLayout>
 

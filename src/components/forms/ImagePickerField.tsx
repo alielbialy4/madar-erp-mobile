@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/useColors';
 import { resolveMediaUrl } from '@/utils/media';
 import type { PickedImage } from '@/types/api';
 import { radius, spacing } from '@/constants/spacing';
+import { appWritingDirection, appTextAlignStart } from '@/constants/layout';
 
 type Props = {
   label?: string;
@@ -59,7 +60,7 @@ export function ImagePickerField({ label, value, remoteUrl, onChange }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  label: { fontSize: 13, textAlign: 'right', writingDirection: 'rtl' },
+  label: { fontSize: 13, textAlign: appTextAlignStart, writingDirection: appWritingDirection },
   box: {
     width: 96,
     height: 96,

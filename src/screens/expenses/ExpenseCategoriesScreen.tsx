@@ -5,13 +5,14 @@ import { expensesAPI } from '@/api/expenses';
 import { ListScreenLayout, SheetFormLayout } from '@/components/layout';
 import { FormSection, SwitchRow } from '@/components/forms/FormSection';
 import { AppBanner, AppErrorState, ConfirmDialog, useToast } from '@/components/feedback';
-import { AppButton, AppDomainCard, AppInput, AppPicker } from '@/components/ui';
+import { AppButton, AppInput, AppPicker } from '@/components/ui';
+import { AppBadge } from '@/components/ui/AppBadge';
+import { DenseRow } from '@/components/madar';
 import { ResourceList } from '@/components/lists';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
-import { moduleIcons } from '@/constants/iconMap';
 import { spacing } from '@/constants/spacing';
 import { normalizeApiError } from '@/utils/errors';
 import type { ExpenseCategory } from '@/types/expenses';
@@ -179,13 +180,16 @@ export function ExpenseCategoriesScreen({ navigation }: Props) {
           onEmptyCta={openCreate}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <AppDomainCard
-              title={item.name}
-              subtitle={item.description?.trim() || (item.is_labor ? 'يدخل ضمن تكلفة العمالة التشغيلية' : 'تصنيف مصروف تشغيلي')}
+            <DenseRow
+              primary={item.name}
+              secondary={item.description?.trim() || (item.is_labor ? 'يدخل ضمن تكلفة العمالة التشغيلية' : 'تصنيف مصروف تشغيلي')}
               meta={item.branch_id ? item.branch?.name ?? 'خاص بفرع' : 'عام لكل الفروع'}
-              badgeLabel={item.is_active === false ? 'متوقف' : item.is_labor ? 'عمالة' : 'نشط'}
-              badgeTone={item.is_active === false ? 'danger' : item.is_labor ? 'info' : 'success'}
-              leadingIcon={moduleIcons.expenses}
+              status={
+                <AppBadge
+                  label={item.is_active === false ? 'متوقف' : item.is_labor ? 'عمالة' : 'نشط'}
+                  tone={item.is_active === false ? 'danger' : item.is_labor ? 'info' : 'success'}
+                />
+              }
               onPress={() => openEdit(item)}
             />
           )}

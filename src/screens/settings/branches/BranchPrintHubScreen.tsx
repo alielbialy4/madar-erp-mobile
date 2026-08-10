@@ -1,7 +1,8 @@
 import React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { ListScreenLayout } from '@/components/layout';
-import { AppDomainCard, AppSectionHeader } from '@/components/ui';
+import { AppSectionHeader } from '@/components/ui';
+import { DenseRow, MadarSurface } from '@/components/madar';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppInlineAlert } from '@/components/feedback';
 import { useBranchPrintSummary } from '@/hooks/useBranchPrintSummary';
@@ -57,7 +58,7 @@ export function BranchPrintHubScreen({ navigation, route }: Props) {
             gap: spacing.xs,
             padding: spacing.md,
             borderRadius: 12,
-            borderWidth: 1,
+            borderWidth: StyleSheet.hairlineWidth,
             borderColor: c.borderSubtle,
             backgroundColor: c.surfaceMuted,
           }}
@@ -75,37 +76,41 @@ export function BranchPrintHubScreen({ navigation, route }: Props) {
           <Text style={{ color: c.textMuted }}>○ توجيه المطبخ (تصنيف/منتج → طابعة)</Text>
         </View>
         <AppSectionHeader title="مثل تبويب الطباعة في الويب" />
-        <AppDomainCard
-          title="إعدادات الإيصال والسلوك"
-          subtitle="طباعة تلقائية، محتوى الإيصال، أحجام الخط"
-          leadingIcon="receipt-long"
-          onPress={() => navigation.navigate('BranchPrintSettings', { id: branchId })}
-        />
-        <AppDomainCard
-          title="طابعات هذا الجهاز"
-          subtitle={`${printSummary.printerCount} ملف · شبكة · بلوتوث · AirPrint`}
-          leadingIcon="print"
-          onPress={() => navigation.navigate('PrinterProfiles', { branchId })}
-        />
-        <AppDomainCard
-          title="طابعات المطبخ (السيرفر)"
-          subtitle="سجلات المطبخ على السيرفر + ربط بالجهاز"
-          leadingIcon="kitchen"
-          onPress={() => navigation.navigate('BranchKitchenPrinters', { branchId })}
-        />
-        <AppDomainCard
-          title="توجيه المطبخ"
-          subtitle="تصنيفات · منتجات · محطات · طابعات"
-          leadingIcon="swap-horiz"
-          onPress={() => navigation.navigate('BranchKitchenRouting', { branchId })}
-        />
-        <AppDomainCard
-          title="تشخيص الطباعة"
-          subtitle="اختبار اتصال وقائمة انتظار"
-          leadingIcon="bug-report"
-          onPress={() => navigation.navigate('PrinterDiagnostics', { branchId })}
-        />
+        <MadarSurface padded={false}>
+          <DenseRow
+            primary="إعدادات الإيصال والسلوك"
+            secondary="طباعة تلقائية، محتوى الإيصال، أحجام الخط"
+            onPress={() => navigation.navigate('BranchPrintSettings', { id: branchId })}
+            showDivider
+          />
+          <DenseRow
+            primary="طابعات هذا الجهاز"
+            secondary={`${printSummary.printerCount} ملف · شبكة · بلوتوث · AirPrint`}
+            onPress={() => navigation.navigate('PrinterProfiles', { branchId })}
+            showDivider
+          />
+          <DenseRow
+            primary="طابعات المطبخ (السيرفر)"
+            secondary="سجلات المطبخ على السيرفر + ربط بالجهاز"
+            onPress={() => navigation.navigate('BranchKitchenPrinters', { branchId })}
+            showDivider
+          />
+          <DenseRow
+            primary="توجيه المطبخ"
+            secondary="تصنيفات · منتجات · محطات · طابعات"
+            onPress={() => navigation.navigate('BranchKitchenRouting', { branchId })}
+            showDivider
+          />
+          <DenseRow
+            primary="تشخيص الطباعة"
+            secondary="اختبار اتصال وقائمة انتظار"
+            onPress={() => navigation.navigate('PrinterDiagnostics', { branchId })}
+            showDivider={false}
+          />
+        </MadarSurface>
       </ScrollView>
     </ListScreenLayout>
   );
 }
+
+

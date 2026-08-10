@@ -8,6 +8,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { AppText } from './AppText';
 import { AppTextInput } from './AppTextInput';
+import { useTu } from '@/i18n/useTu';
 
 type Props = TextInputProps & {
   label?: string;
@@ -16,16 +17,18 @@ type Props = TextInputProps & {
   prefixIcon?: keyof typeof MaterialIcons.glyphMap;
 };
 
-export function AppInput({ label, error, required, style, textAlign, prefixIcon, onFocus, onBlur, ...props }: Props) {
+export function AppInput({ label, error, required, style, textAlign, prefixIcon, placeholder, onFocus, onBlur, ...props }: Props) {
   const c = useColors();
+  const tx = useTu();
   const [focused, setFocused] = useState(false);
+  const resolvedPlaceholder = typeof placeholder === 'string' ? tx(placeholder) : placeholder;
 
   return (
     <View style={{ gap: spacing.xs }}>
       {label ? (
         <View style={{ ...flexRow, alignItems: 'center', gap: 2 }}>
           <AppText style={{ color: c.text, fontSize: typography.label, fontFamily: fonts.medium, fontWeight: '600' }}>{label}</AppText>
-          {required ? <AppText style={{ color: c.danger, fontSize: typography.label }}>*</AppText> : null}
+          {required ? <AppText style={{ color: c.danger, fontSize: typography.label }} translate={false}>*</AppText> : null}
         </View>
       ) : null}
       <View style={{ position: 'relative' }}>
@@ -35,6 +38,7 @@ export function AppInput({ label, error, required, style, textAlign, prefixIcon,
           </View>
         ) : null}
         <AppTextInput
+          placeholder={resolvedPlaceholder}
           placeholderTextColor={c.textCaption}
           textAlign={textAlign ?? inputTextAlign}
           onFocus={(e) => {

@@ -89,4 +89,62 @@ assert.equal(fallbackTaxTotals.gross, 300);
 assert.equal(fallbackTaxTotals.tax, 20);
 assert.equal(fallbackTaxTotals.total, 320);
 
+const scopedPromotion = {
+  id: 'promo-1',
+  name: 'Selected only',
+  type: 'percentage_discount',
+  reward_value: 10,
+  priority: 10,
+  config: {
+    schema_version: 2,
+    scope_type: 'products',
+    product_ids: [1],
+    order_types: ['takeaway'],
+    stackable: false,
+  },
+};
+const scopedPromotionTotals = computePosCheckoutTotals({
+  lines: [
+    { product_id: 1, product_name: 'A', quantity: 1, unit_price: 100, discount: 0 },
+    { product_id: 2, product_name: 'B', quantity: 1, unit_price: 200, discount: 0 },
+  ],
+  products: [{ id: 1, name: 'A' } as Product, { id: 2, name: 'B' } as Product],
+  promotions: [scopedPromotion],
+  settings: { tax_enabled: false },
+  branchId: '1',
+  orderType: 'takeaway',
+});
+assert.equal(scopedPromotionTotals.promotionDiscount, 10);
+assert.equal(scopedPromotionTotals.total, 290);
+
+const wrongChannelTotals = computePosCheckoutTotals({
+  lines: [{ product_id: 1, product_name: 'A', quantity: 1, unit_price: 100, discount: 0 }],
+  products: [{ id: 1, name: 'A' } as Product],
+  promotions: [scopedPromotion],
+  settings: { tax_enabled: false },
+  branchId: '1',
+  orderType: 'delivery',
+});
+assert.equal(wrongChannelTotals.promotionDiscount, 0);
+
+const bogoTotals = computePosCheckoutTotals({
+  lines: [
+    { product_id: 1, product_name: 'A', quantity: 1, unit_price: 10, discount: 0 },
+    { product_id: 2, product_name: 'B', quantity: 1, unit_price: 20, discount: 0 },
+    { product_id: 3, product_name: 'C', quantity: 1, unit_price: 30, discount: 0 },
+  ],
+  products: [{ id: 1, name: 'A' } as Product, { id: 2, name: 'B' } as Product, { id: 3, name: 'C' } as Product],
+  promotions: [{
+    id: 'bogo-1', name: 'Cheapest free', type: 'bogo', reward_value: 100, priority: 10,
+    config: {
+      schema_version: 2, scope_type: 'all', order_types: ['takeaway'], stackable: false,
+      buy_qty: 2, get_qty: 1, discount_percent_on_get: 100,
+    },
+  }],
+  settings: { tax_enabled: false },
+  branchId: '1',
+  orderType: 'takeaway',
+});
+assert.equal(bogoTotals.promotionDiscount, 10);
+
 console.log('posTotals.spec.ts: OK');

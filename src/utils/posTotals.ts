@@ -149,6 +149,7 @@ export function computePosCheckoutTotals(params: {
     params.lines,
     params.products,
     params.branchId,
+    { orderType: params.orderType },
   );
   const promotionDiscount = promoEval.promotionDiscountTotal;
   const manualDiscount = Math.min(

@@ -17,6 +17,10 @@ export type CatalogPromotion = {
   }[];
 };
 
+export type PromotionContext = {
+  orderType?: 'dine_in' | 'takeaway' | 'delivery' | null;
+};
+
 export type EnrichedLine = {
   _idx: number;
   product_id: number;
@@ -81,8 +85,58 @@ function conditionPasses(
   }
 }
 
-function promotionMatches(p: CatalogPromotion, items: EnrichedLine[], originalTotal: number, branchId: string | null): boolean {
+function usesVersionTwoConfig(p: CatalogPromotion): boolean {
+  return Number(p.config?.schema_version ?? 0) >= 2;
+}
+
+function scopeType(p: CatalogPromotion): 'all' | 'products' | 'categories' {
+  if (!usesVersionTwoConfig(p)) {
+    if ((p.conditions ?? []).some((c) => c.condition_type === 'specific_product')) return 'products';
+    if ((p.conditions ?? []).some((c) => ['specific_category', 'specific_brand'].includes(c.condition_type))) {
+      return 'categories';
+    }
+    return 'all';
+  }
+  const value = String(p.config?.scope_type ?? 'all');
+  return value === 'products' || value === 'categories' ? value : 'all';
+}
+
+function filterVersionTwoScope(p: CatalogPromotion, items: EnrichedLine[]): EnrichedLine[] {
+  const scope = scopeType(p);
+  if (scope === 'products') {
+    const ids = ((p.config?.product_ids ?? []) as (number | string)[]).map(Number);
+    return items.filter((row) => ids.includes(row.product_id));
+  }
+  if (scope === 'categories') {
+    const ids = ((p.config?.category_ids ?? []) as (number | string)[]).map(Number);
+    return items.filter((row) => row.category_id != null && ids.includes(row.category_id));
+  }
+  return items;
+}
+
+function promotionMatches(
+  p: CatalogPromotion,
+  items: EnrichedLine[],
+  originalTotal: number,
+  branchId: string | null,
+  context: PromotionContext,
+): boolean {
   if (p.branch_id && branchId && p.branch_id !== branchId) return false;
+  if (usesVersionTwoConfig(p)) {
+    const orderTypes = (p.config?.order_types ?? []) as string[];
+    if (orderTypes.length > 0 && (!context.orderType || !orderTypes.includes(context.orderType))) return false;
+    const minimumTotal = p.config?.minimum_cart_total;
+    if (minimumTotal != null && minimumTotal !== '' && originalTotal < Number(minimumTotal)) return false;
+    const qualifying = filterVersionTwoScope(p, items);
+    if (qualifying.length === 0) return false;
+    const minimumQuantity = p.config?.minimum_item_quantity;
+    if (
+      minimumQuantity != null
+      && minimumQuantity !== ''
+      && qualifying.reduce((sum, row) => sum + row.quantity, 0) < Number(minimumQuantity)
+    ) return false;
+    return true;
+  }
   const conds = p.conditions ?? [];
   for (const c of conds) {
     const val = (c.condition_value ?? {}) as Record<string, unknown>;
@@ -128,6 +182,7 @@ function lineMatchesBogoFilters(p: CatalogPromotion, row: EnrichedLine): boolean
 }
 
 function filterQualifyingLines(p: CatalogPromotion, items: EnrichedLine[]): EnrichedLine[] {
+  if (usesVersionTwoConfig(p)) return filterVersionTwoScope(p, items);
   const hasScoped = (p.conditions ?? []).some((c) =>
     ['specific_product', 'specific_category', 'specific_brand'].includes(c.condition_type),
   );
@@ -147,8 +202,9 @@ function computeBogoDiscount(p: CatalogPromotion, items: EnrichedLine[]): number
   const qualifying = filterQualifyingLines(p, items);
   const units: { price: number }[] = [];
   for (const row of qualifying) {
+    const payableUnitPrice = row.quantity > 0 ? Math.max(0, row.line_total / row.quantity) : 0;
     for (let i = 0; i < row.quantity; i++) {
-      units.push({ price: row.unit_price });
+      units.push({ price: payableUnitPrice });
     }
   }
   if (units.length === 0) return 0;
@@ -159,7 +215,7 @@ function computeBogoDiscount(p: CatalogPromotion, items: EnrichedLine[]): number
   for (let i = 0; i + groupSize <= units.length; i += groupSize) {
     const chunk = units.slice(i, i + groupSize);
     for (let j = 0; j < getQty; j++) {
-      const u = chunk[buyQty + j];
+      const u = chunk[j];
       if (u) discount += (u.price * pct) / 100;
     }
   }
@@ -168,11 +224,14 @@ function computeBogoDiscount(p: CatalogPromotion, items: EnrichedLine[]): number
 
 function computeDiscount(p: CatalogPromotion, items: EnrichedLine[], runningTotal: number): number {
   const rv = parseFloat(String(p.reward_value ?? 0)) || 0;
+  const qualifying = filterQualifyingLines(p, items);
+  const qualifyingSubtotal = sumLines(qualifying);
+  const base = scopeType(p) === 'all' ? runningTotal : Math.min(runningTotal, qualifyingSubtotal);
   switch (p.type) {
     case 'percentage_discount':
-      return Math.round(runningTotal * (rv / 100) * 10000) / 10000;
+      return Math.round(base * (Math.max(0, Math.min(100, rv)) / 100) * 10000) / 10000;
     case 'fixed_discount':
-      return Math.min(rv, runningTotal);
+      return Math.min(rv, base);
     case 'bogo':
       return computeBogoDiscount(p, items);
     default:
@@ -191,6 +250,7 @@ export function evaluateLocalCartPromotions(
   lines: CartLine[],
   products: Product[],
   branchId: string | null,
+  context: PromotionContext = {},
 ): LocalPromotionResult {
   const items = enrichCartLines(lines, products);
   const originalTotal = sumLines(items);
@@ -203,7 +263,7 @@ export function evaluateLocalCartPromotions(
   const applied: LocalPromotionResult['applied'] = [];
 
   for (const promo of sorted) {
-    if (!promotionMatches(promo, items, originalTotal, branchId)) continue;
+    if (!promotionMatches(promo, items, originalTotal, branchId, context)) continue;
     const d = computeDiscount(promo, items, running);
     if (d <= 0) continue;
     const take = Math.min(d, running);
@@ -215,6 +275,8 @@ export function evaluateLocalCartPromotions(
       amount: Math.round(take * 10000) / 10000,
     });
     if (running <= 0) break;
+    // Legacy promotions never had an explicit stacking decision, so they also stop here.
+    if (!usesVersionTwoConfig(promo) || promo.config?.stackable !== true) break;
   }
 
   const promotionDiscountTotal = Math.round((originalTotal - running) * 100) / 100;

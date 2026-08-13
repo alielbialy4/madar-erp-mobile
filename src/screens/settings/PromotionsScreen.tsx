@@ -9,7 +9,7 @@ import { asText, dateText } from '@/utils/format';
 
 export function PromotionsScreen({ navigation }: { navigation: any }) {
   const user = useAuthStore((s) => s.user);
-  const canManage = hasPermission(user, ['manage_coupons', 'manage_settings']);
+  const canManage = hasPermission(user, ['manage_promotions']);
 
   return (
     <ListScreenTemplate<Record<string, unknown>>

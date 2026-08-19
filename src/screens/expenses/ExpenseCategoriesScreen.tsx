@@ -15,6 +15,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { spacing } from '@/constants/spacing';
 import { normalizeApiError } from '@/utils/errors';
+import { isSystemPayrollCategory } from '@/utils/expenseCategories';
 import type { ExpenseCategory } from '@/types/expenses';
 import type { MoreStackParamList } from '@/types/navigation';
 
@@ -75,6 +76,10 @@ export function ExpenseCategoriesScreen({ navigation }: Props) {
   };
 
   const openEdit = (category: ExpenseCategory) => {
+    if (isSystemPayrollCategory(category)) {
+      toast.show('فئة الرواتب النظامية تُستخدم من مسير الرواتب فقط ولا يمكن تعديلها.', 'info');
+      return;
+    }
     setEditing(category);
     setForm({
       name: category.name,
@@ -182,12 +187,16 @@ export function ExpenseCategoriesScreen({ navigation }: Props) {
           renderItem={({ item }) => (
             <DenseRow
               primary={item.name}
-              secondary={item.description?.trim() || (item.is_labor ? 'يدخل ضمن تكلفة العمالة التشغيلية' : 'تصنيف مصروف تشغيلي')}
+              secondary={
+                isSystemPayrollCategory(item)
+                  ? 'فئة نظامية من مسير الرواتب — لا تُستخدم للمصروف اليدوي'
+                  : (item.description?.trim() || (item.is_labor ? 'يدخل ضمن تكلفة العمالة التشغيلية' : 'تصنيف مصروف تشغيلي'))
+              }
               meta={item.branch_id ? item.branch?.name ?? 'خاص بفرع' : 'عام لكل الفروع'}
               status={
                 <AppBadge
-                  label={item.is_active === false ? 'متوقف' : item.is_labor ? 'عمالة' : 'نشط'}
-                  tone={item.is_active === false ? 'danger' : item.is_labor ? 'info' : 'success'}
+                  label={isSystemPayrollCategory(item) ? 'نظامي' : item.is_active === false ? 'متوقف' : item.is_labor ? 'عمالة' : 'نشط'}
+                  tone={isSystemPayrollCategory(item) ? 'info' : item.is_active === false ? 'danger' : item.is_labor ? 'info' : 'success'}
                 />
               }
               onPress={() => openEdit(item)}

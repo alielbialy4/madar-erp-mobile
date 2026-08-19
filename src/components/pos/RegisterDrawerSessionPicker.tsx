@@ -5,6 +5,7 @@ import { AppBanner } from '@/components/feedback';
 import { posRegistersAPI, type EligibleRegisterMoneySession } from '@/api/posRegisters';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useColors } from '@/hooks/useColors';
+import { useBranchStore } from '@/store/branchStore';
 import { flexRow, textStart } from '@/constants/layout';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -62,6 +63,8 @@ export function RegisterDrawerSessionPicker({
 }: Props) {
   const c = useColors();
   const { user, can } = usePermissions();
+  const registerMode = String(useBranchStore((state) => state.activeBranch?.settings?.register_mode) ?? 'legacy_shared_drawer');
+  const showPicker = visible && registerMode === 'multi_register';
   const [sessions, setSessions] = useState<EligibleRegisterMoneySession[]>([]);
   const [loading, setLoading] = useState(false);
   const onChangeRef = useRef(onChange);
@@ -79,7 +82,7 @@ export function RegisterDrawerSessionPicker({
   });
 
   useEffect(() => {
-    if (!visible) {
+    if (!showPicker) {
       setSessions([]);
       setLoading(false);
       return;
@@ -115,14 +118,14 @@ export function RegisterDrawerSessionPicker({
     return () => {
       cancelled = true;
     };
-  }, [canPickAny, saleId, user?.id, visible]);
+  }, [canPickAny, saleId, showPicker, user?.id]);
 
   useEffect(() => {
     onAvailabilityChangeRef.current?.({
-      loading: visible ? loading : false,
-      sessions: visible ? sessions : [],
+      loading: showPicker ? loading : false,
+      sessions: showPicker ? sessions : [],
       requiredBlocked: requiredDrawerBlocked({
-        visible,
+        visible: showPicker,
         required,
         hideWhenEmpty,
         loading,
@@ -130,9 +133,9 @@ export function RegisterDrawerSessionPicker({
         value,
       }),
     });
-  }, [hideWhenEmpty, loading, required, sessions, value, visible]);
+  }, [hideWhenEmpty, loading, required, sessions, showPicker, value]);
 
-  if (!visible) return null;
+  if (!showPicker) return null;
   if (hideWhenEmpty && !loading && sessions.length === 0) return null;
 
   return (

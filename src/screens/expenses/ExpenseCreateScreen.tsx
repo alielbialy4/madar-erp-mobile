@@ -21,6 +21,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { extractArray } from '@/utils/data';
+import { isManualExpenseCategory } from '@/utils/expenseCategories';
 import { normalizeApiError } from '@/utils/errors';
 import { validateExpenseSplit, type ExpenseSplitDraft } from '@/utils/expenseFinancials';
 import { createUuid } from '@/utils/uuid';
@@ -67,6 +68,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
   const [paymentState, setPaymentState] = useState<PaymentState>('paid');
   const [cashSource, setCashSource] = useState<'drawer' | 'vault'>('vault');
   const [drawerAvailable, setDrawerAvailable] = useState(false);
+  const [shiftMode, setShiftMode] = useState<'legacy_shared_drawer' | 'multi_register' | null>(null);
   const [shiftLoading, setShiftLoading] = useState(false);
   const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(false);
@@ -78,20 +80,22 @@ export function ExpenseCreateScreen({ navigation }: Props) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [drawerSessionId, setDrawerSessionId] = useState('');
   const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
-  const [drawerSessionCount, setDrawerSessionCount] = useState(0);
   const [drawerBlocked, setDrawerBlocked] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
   const submitLockRef = useRef(false);
-  const globalView = viewMode === 'global';
+  const needsRegisterSession = shiftMode === 'multi_register';
 
   useEffect(() => {
     setCategoriesLoading(true);
     expensesAPI.getCategories({
       is_active: true,
+      for_manual: true,
       ...(branchId ? { branch_id: branchId } : {}),
     })
       .then((response) => {
-        const rows = extractArray<ExpenseCategory>(response).filter((category) => category.is_active !== false);
+        const rows = extractArray<ExpenseCategory>(response).filter(
+          (category) => category.is_active !== false && isManualExpenseCategory(category),
+        );
         setCategories(rows);
         setCategoryId((current) => current && rows.some((category) => String(category.id) === current) ? current : null);
       })
@@ -101,6 +105,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
 
   useEffect(() => {
     setDrawerAvailable(false);
+    setShiftMode(null);
     setCashSource('vault');
     if (viewMode !== 'branch' || !branchId) return;
     setShiftLoading(true);
@@ -108,9 +113,13 @@ export function ExpenseCreateScreen({ navigation }: Props) {
       .then((response) => {
         const available = Boolean(response.data?.drawer_ledger_enabled);
         setDrawerAvailable(available);
+        setShiftMode(response.data?.mode ?? 'legacy_shared_drawer');
         if (available) setCashSource('drawer');
       })
-      .catch(() => setDrawerAvailable(false))
+      .catch(() => {
+        setDrawerAvailable(false);
+        setShiftMode(null);
+      })
       .finally(() => setShiftLoading(false));
   }, [branchId, viewMode]);
 
@@ -168,11 +177,11 @@ export function ExpenseCreateScreen({ navigation }: Props) {
       setError('تسجيل المصروف المالي يحتاج اتصالاً مباشراً حالياً؛ لن نخزّن حركة مالية غير مؤكدة على الجهاز.');
       return;
     }
-    if (paymentState === 'paid' && cashSource === 'drawer' && drawerBlocked) {
+    if (paymentState === 'paid' && cashSource === 'drawer' && needsRegisterSession && drawerBlocked) {
       setError('اختر درجاً مفتوحاً قبل الصرف من النقدية.');
       return;
     }
-    if (paymentState === 'paid' && cashSource === 'drawer' && !drawerAvailable && drawerSessionCount === 0) {
+    if (paymentState === 'paid' && cashSource === 'drawer' && !drawerAvailable) {
       setError('الصرف من الدرج يتطلب وردية مفتوحة تستخدم دفتر الدرج.');
       return;
     }
@@ -197,7 +206,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(reference.trim() ? { reference_number: reference.trim() } : {}),
-        ...(paymentState === 'paid' && cashSource === 'drawer'
+        ...(paymentState === 'paid' && cashSource === 'drawer' && needsRegisterSession
           ? await registerMoneyContextFromSession(drawerSession)
           : {}),
       };
@@ -260,7 +269,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
           title={paymentState === 'paid' ? `مراجعة وتسجيل — ${money(Number(amount) || 0)}` : `تسجيل كمستحق — ${money(Number(amount) || 0)}`}
           onPress={() => setConfirmVisible(true)}
           loading={submitting}
-          disabled={!isOnline || !categoryId || !amount || (paymentState === 'paid' && cashSource === 'vault' && !splitValidation.ok) || (paymentState === 'paid' && cashSource === 'drawer' && drawerBlocked)}
+          disabled={!isOnline || !categoryId || !amount || (paymentState === 'paid' && cashSource === 'vault' && !splitValidation.ok) || (paymentState === 'paid' && cashSource === 'drawer' && needsRegisterSession && drawerBlocked)}
           fullWidth
         />
       )}
@@ -328,6 +337,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
             />
             {shiftLoading ? <AppBanner tone="info" message="جاري التحقق من الوردية ودفتر الدرج..." /> : null}
             {cashSource === 'drawer' ? (
+              needsRegisterSession ? (
               <>
                 <RegisterDrawerSessionPicker
                   visible
@@ -337,8 +347,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
                     setDrawerSessionId(id);
                     setDrawerSession(session);
                   }}
-                  onAvailabilityChange={({ sessions, requiredBlocked }) => {
-                    setDrawerSessionCount(sessions.length);
+                  onAvailabilityChange={({ requiredBlocked }) => {
                     setDrawerBlocked(requiredBlocked);
                   }}
                 />
@@ -347,6 +356,12 @@ export function ExpenseCreateScreen({ navigation }: Props) {
                   message="سيُسجل الصرف على الجلسة المختارة ويؤثر مباشرة في النقد المتوقع عند الإغلاق."
                 />
               </>
+              ) : (
+                <AppBanner
+                  tone="info"
+                  message="وردية مفتوحة على الدرج المشترك. سيتم الصرف من درج الوردية دون جلسة كاشير منفصلة."
+                />
+              )
             ) : (
               <>
                 <AppPicker

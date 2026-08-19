@@ -16,6 +16,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { spacing } from '@/constants/spacing';
 import { extractArray } from '@/utils/data';
+import { isManualExpenseCategory } from '@/utils/expenseCategories';
 import { dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import type { ExpenseCategory, RecurringExpense, RecurringExpensePage } from '@/types/expenses';
@@ -102,8 +103,8 @@ export function RecurringExpensesScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (!formOpen) return;
-    expensesAPI.getCategories({ is_active: true, ...(form.branch_id ? { branch_id: form.branch_id } : {}) })
-      .then((response) => setCategories(extractArray<ExpenseCategory>(response).filter((category) => category.is_active !== false)))
+    expensesAPI.getCategories({ is_active: true, for_manual: true, ...(form.branch_id ? { branch_id: form.branch_id } : {}) })
+      .then((response) => setCategories(extractArray<ExpenseCategory>(response).filter((category) => category.is_active !== false && isManualExpenseCategory(category))))
       .catch(() => setCategories([]));
   }, [form.branch_id, formOpen]);
 

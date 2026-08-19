@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { layawayAPI, type LayawayInstallment, type LayawayPlan } from '@/api/layaway';
 import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
@@ -15,12 +15,16 @@ import { useColors } from '@/hooks/useColors';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { asText, dateText, money } from '@/utils/format';
+import { completeIdempotencyAttempt, idempotencyKeyForAttempt, resolveIdempotencyAttemptAfterError } from '@/utils/idempotencyAttempt';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { flexRow, textStart } from '@/constants/layout';
 import { statusTone } from '@/utils/statusTone';
 import { hapticSuccess } from '@/utils/haptics';
+import { RegisterDrawerSessionPicker } from '@/components/pos/RegisterDrawerSessionPicker';
+import type { EligibleRegisterMoneySession } from '@/api/posRegisters';
+import { isCashDrawerPaymentSource, registerMoneyContextFromSession } from '@/services/storage/registerSessionContext';
 
 function amount(value: unknown): number {
   const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : 0;
@@ -57,9 +61,13 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
   const [submitting, setSubmitting] = useState(false);
   const [paymentSources, setPaymentSources] = useState<PaymentSource[]>([]);
   const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [drawerSessionId, setDrawerSessionId] = useState('');
+  const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
+  const [drawerSessionCount, setDrawerSessionCount] = useState(0);
   const [cancelPlan, setCancelPlan] = useState<LayawayPlan | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const paymentIdempotencyKeyRef = useRef<string | null>(null);
   const activeBranch = useBranchStore((s) => s.activeBranch);
 
   useEffect(() => {
@@ -126,12 +134,22 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
     setSubmitting(true);
     try {
       const paymentSource = paymentSources.find((source) => String(source.id) === paymentAccountId);
+      if (isCashDrawerPaymentSource(paymentSource) && drawerSessionCount > 0 && !drawerSessionId) {
+        setDetailsError('اختر درجاً مفتوحاً.');
+        return;
+      }
+      const idempotencyKey = idempotencyKeyForAttempt(paymentIdempotencyKeyRef);
+      const sessionFields = isCashDrawerPaymentSource(paymentSource)
+        ? await registerMoneyContextFromSession(drawerSession)
+        : await (await import('@/services/storage/registerSessionContext')).registerMoneyContextFields();
       if (paymentTarget.type === 'plan') {
         await layawayAPI.addPayment(paymentTarget.plan.id, {
           amount: parsed,
           payment_method: paymentSource?.payment_method ?? 'cash',
           financial_account_id: paymentAccountId || null,
           vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
+          idempotency_key: idempotencyKey,
+          ...sessionFields,
         });
       } else {
         await layawayAPI.payInstallment(paymentTarget.plan.id, paymentTarget.installment.id, {
@@ -139,8 +157,11 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
           payment_method: paymentSource?.payment_method ?? 'cash',
           financial_account_id: paymentAccountId || null,
           vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
+          idempotency_key: idempotencyKey,
+          ...sessionFields,
         });
       }
+      completeIdempotencyAttempt(paymentIdempotencyKeyRef);
       setPaymentConfirmOpen(false);
       const planToReload = paymentTarget.plan;
       setPaymentTarget(null);
@@ -150,11 +171,13 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
       await refresh();
       if (detailsPlan?.id === planToReload.id) await openDetails(planToReload);
     } catch (err) {
-      setDetailsError(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      resolveIdempotencyAttemptAfterError(paymentIdempotencyKeyRef, normalized);
+      setDetailsError(normalized.message);
     } finally {
       setSubmitting(false);
     }
-  }, [detailsPlan?.id, openDetails, payAmount, paymentAccountId, paymentSources, paymentTarget, refresh, toast]);
+  }, [detailsPlan?.id, drawerSession, drawerSessionCount, drawerSessionId, openDetails, payAmount, paymentAccountId, paymentSources, paymentTarget, refresh, toast]);
 
   const nextDue = useMemo(() => {
     return installments
@@ -264,15 +287,38 @@ export function LayawayScreen({ navigation }: { navigation: any }) {
         <View style={{ gap: spacing.md }}>
           <AppInput label="المبلغ" value={payAmount} onChangeText={setPayAmount} keyboardType="decimal-pad" />
           {paymentSources.length > 0 ? (
-            <AppSelect
-              label="حساب التحصيل"
-              value={paymentAccountId}
-              options={paymentSources.map((source) => ({
-                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
-                value: String(source.id),
-              }))}
-              onChange={setPaymentAccountId}
-            />
+            <>
+              <RegisterDrawerSessionPicker
+                visible={Boolean(paymentTarget)}
+                hideWhenEmpty
+                value={drawerSessionId}
+                onChange={(sessionId, session) => {
+                  setDrawerSessionId(sessionId);
+                  setDrawerSession(session);
+                  if (session?.drawer?.financial_account_id) {
+                    const match = paymentSources.find((source) => String(source.id) === String(session.drawer?.financial_account_id));
+                    if (match) setPaymentAccountId(String(match.id));
+                  }
+                }}
+                onAvailabilityChange={({ sessions }) => setDrawerSessionCount(sessions.length)}
+              />
+              <AppSelect
+                label="حساب التحصيل"
+                value={paymentAccountId}
+                options={paymentSources
+                  .filter((source) => {
+                    if (!isCashDrawerPaymentSource(source) || drawerSessionCount === 0) return true;
+                    return drawerSession?.drawer?.financial_account_id
+                      ? String(source.id) === String(drawerSession.drawer.financial_account_id)
+                      : false;
+                  })
+                  .map((source) => ({
+                    label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                    value: String(source.id),
+                  }))}
+                onChange={setPaymentAccountId}
+              />
+            </>
           ) : (
             <AppText style={styles.meta}>لا يوجد حساب تحصيل متاح لهذا الفرع.</AppText>
           )}

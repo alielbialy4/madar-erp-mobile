@@ -13,6 +13,7 @@ import { MadarSection, MetricBlock } from '@/components/madar';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { decideRefundClientUuidLifecycle } from '@/utils/refundClientUuidLifecycle';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
@@ -20,6 +21,9 @@ import type { Sale } from '@/types/api';
 import { createUuid } from '@/utils/uuid';
 import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { useBranchStore } from '@/store/branchStore';
+import { RegisterDrawerSessionPicker } from '@/components/pos/RegisterDrawerSessionPicker';
+import type { EligibleRegisterMoneySession } from '@/api/posRegisters';
+import { registerMoneyContextFromSession } from '@/services/storage/registerSessionContext';
 
 type RefundLine = {
   saleItemId: number;
@@ -52,6 +56,9 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [cashRefundSource, setCashRefundSource] = useState<'drawer' | 'vault'>('drawer');
   const [refundSources, setRefundSources] = useState<PaymentSource[]>([]);
   const [refundAccountId, setRefundAccountId] = useState('');
+  const [payoutSessionId, setPayoutSessionId] = useState('');
+  const [payoutSession, setPayoutSession] = useState<EligibleRegisterMoneySession | null>(null);
+  const [drawerBlocked, setDrawerBlocked] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawerElectronicConfirmOpen, setDrawerElectronicConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -191,6 +198,10 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
       setSubmitNotice({ message: 'سبب استخدام الحساب البديل مطلوب.', tone: 'danger' });
       return;
     }
+    if (refundMethod === 'cash' && cashRefundSource === 'drawer' && drawerBlocked) {
+      setSubmitNotice({ message: 'اختر درجاً مفتوحاً لرد النقد.', tone: 'danger' });
+      return;
+    }
     if (refundMethod === 'cash' && isElectronicSale && cashRefundSource === 'drawer') {
       setDrawerElectronicConfirmOpen(true);
       return;
@@ -235,8 +246,12 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
               alternative_refund_reason: reason.trim() || undefined,
             }
           : {}),
+        ...(refundMethod === 'cash' && cashRefundSource === 'drawer'
+          ? await registerMoneyContextFromSession(payoutSession)
+          : await (await import('@/services/storage/registerSessionContext')).registerMoneyContextFields()),
       });
       setSubmitNotice({ message: response.message || 'تم تسجيل الاسترداد الجزئي بنجاح', tone: 'success' });
+      clientUuidRef.current = null;
       setConfirmOpen(false);
       setDrawerElectronicConfirmOpen(false);
       await reload();
@@ -257,7 +272,15 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
         }
       }
     } catch (err) {
-      setSubmitNotice({ message: normalizeApiError(err).message, tone: 'danger' });
+      const normalized = normalizeApiError(err);
+      const decision = decideRefundClientUuidLifecycle({
+        status: normalized.status,
+        code: normalized.code,
+      });
+      if (decision.action === 'clear') {
+        clientUuidRef.current = null;
+      }
+      setSubmitNotice({ message: normalized.message, tone: 'danger' });
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
@@ -276,7 +299,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
           title={hasItems ? `مراجعة رد ${money(totalRefund)}` : 'اختر أصنافًا للاسترداد'}
           variant="danger"
           onPress={openSubmitConfirm}
-          disabled={!hasItems || submitting}
+          disabled={!hasItems || submitting || (refundMethod === 'cash' && cashRefundSource === 'drawer' && drawerBlocked)}
           loading={submitting}
           fullWidth
         />
@@ -400,6 +423,19 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
               value={cashRefundSource}
               options={cashSourceOptions}
               onChange={(v) => setCashRefundSource(v as 'drawer' | 'vault')}
+            />
+          ) : null}
+          {refundMethod === 'cash' && cashRefundSource === 'drawer' ? (
+            <RegisterDrawerSessionPicker
+              visible
+              required
+              saleId={saleId}
+              value={payoutSessionId}
+              onChange={(id, session) => {
+                setPayoutSessionId(id);
+                setPayoutSession(session);
+              }}
+              onAvailabilityChange={({ requiredBlocked }) => setDrawerBlocked(requiredBlocked)}
             />
           ) : null}
           {refundMethod === 'alternative_account' || (refundMethod === 'cash' && cashRefundSource === 'vault') ? (

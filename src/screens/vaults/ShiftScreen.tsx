@@ -23,6 +23,7 @@ import { dateDaysAgoLocal, todayLocalDateString } from '@/utils/dateLocal';
 import { useColors } from '@/hooks/useColors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { hasRole } from '@/utils/permissions';
+import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
@@ -208,6 +209,13 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
 
   const canCloseCurrent =
     currentShift &&
+    cashierMayCloseBranchShift({
+      isCashier,
+      registerMode:
+        currentShift.mode ??
+        String((activeBranch?.settings as { register_mode?: string } | undefined)?.register_mode ?? 'legacy_shared_drawer'),
+      canManageShifts: can(['manage_shifts', 'access_admin_routes']),
+    }) &&
     (currentMeta?.can_close_shift !== false || can(['manage_shifts', 'access_admin_routes']));
 
   const vaultLedger =
@@ -387,6 +395,7 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
         onSuccess={() => void refreshAll()}
       />
 
+      {canCloseCurrent ? (
       <CloseShiftSheet
         visible={closeSheet}
         shift={currentShift}
@@ -394,6 +403,7 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
         onClose={() => setCloseSheet(false)}
         onSuccess={() => void refreshAll()}
       />
+      ) : null}
 
       {canViewShiftSummary ? (
         <ShiftSummarySheet

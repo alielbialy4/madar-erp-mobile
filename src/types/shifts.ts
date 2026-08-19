@@ -164,10 +164,21 @@ export type ShiftDetailedSummary = {
     note: string | null;
     created_at: string;
   }[];
+  sessions?: Array<{
+    id: string;
+    status: string;
+    cashier: { id: number | null; name: string | null };
+    register: { id?: string | null; uuid?: string | null; code: string | null; name: string | null };
+    drawer: { financial_account_id: string | null; name: string | null; account_type: string | null };
+    expected_cash: string;
+    counted_cash: string | null;
+    variance: string | null;
+  }>;
 };
 
 export type ActiveShiftExtended = {
   id: string;
+  mode?: 'legacy_shared_drawer' | 'multi_register';
   shift_no?: number | null;
   user_id?: number;
   opened_by?: number | null;

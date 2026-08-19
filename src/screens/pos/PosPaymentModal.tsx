@@ -30,6 +30,12 @@ import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { money } from '@/utils/format';
+import {
+  availablePaymentAccounts,
+  defaultPaymentAccount,
+  resolvePosCashTarget,
+  type PosCashTargetContext,
+} from '@/utils/paymentAccounts';
 
 type CouponState = { coupon: { code: string }; discount: number } | null;
 
@@ -89,6 +95,9 @@ type Props = {
   onSelectCustomer: (customer: Customer | null) => void;
   branchId?: string | null;
   shiftVaultId?: string | null;
+  registerMode?: string | null;
+  sessionDrawerAccountId?: string | null;
+  hasActiveRegisterSession?: boolean;
   onCustomerCreated: (customer: Customer) => void;
   financialAccounts: FinancialAccount[];
   paymentAccountId: string;
@@ -169,6 +178,9 @@ export function PosPaymentModal({
   onSelectCustomer,
   branchId,
   shiftVaultId,
+  registerMode = 'legacy_shared_drawer',
+  sessionDrawerAccountId = null,
+  hasActiveRegisterSession = false,
   onCustomerCreated,
   financialAccounts,
   paymentAccountId,
@@ -216,19 +228,19 @@ export function PosPaymentModal({
   const footerSafeBottom = Math.max(insets.bottom, androidNavFallback) + spacing.md;
   const modalHeightRatio = isLandscape ? 0.88 : 0.92;
   const modalMaxHeight = Math.floor(shellHeight * modalHeightRatio);
+  const cashTarget = useMemo<PosCashTargetContext>(() => resolvePosCashTarget({
+    registerMode,
+    shiftVaultId,
+    sessionDrawerAccountId,
+    hasActiveRegisterSession,
+  }), [registerMode, shiftVaultId, sessionDrawerAccountId, hasActiveRegisterSession]);
   const accountForMethod = useCallback(
-    (method: string) => financialAccounts.find((account) => account.payment_method === method
-      && account.is_active !== false
-      && account.allow_sales !== false
-      && (method !== 'cash' || !shiftVaultId || account.legacy_vault_id === shiftVaultId)),
-    [financialAccounts, shiftVaultId],
+    (method: string) => defaultPaymentAccount(financialAccounts, method, cashTarget),
+    [financialAccounts, cashTarget],
   );
   const accountsForMethod = useCallback(
-    (method: string) => financialAccounts.filter((account) => account.payment_method === method
-      && account.is_active !== false
-      && account.allow_sales !== false
-      && (method !== 'cash' || !shiftVaultId || account.legacy_vault_id === shiftVaultId)),
-    [financialAccounts, shiftVaultId],
+    (method: string) => availablePaymentAccounts(financialAccounts, method, cashTarget),
+    [financialAccounts, cashTarget],
   );
   const accountsEmpty = financialAccounts.length === 0;
   const orderScrollRef = useRef<ScrollView>(null);

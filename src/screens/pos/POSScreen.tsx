@@ -48,6 +48,15 @@ import { HoldCartsSheet } from './HoldCartsSheet';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { ShiftSummarySheet } from '@/components/shifts/ShiftSummarySheet';
+import { RegisterSessionGateSheet } from './RegisterSessionGateSheet';
+import { CloseRegisterSessionSheet } from './CloseRegisterSessionSheet';
+import {
+  assertActiveRegisterSessionForSale,
+  getActiveRegisterSessionId,
+  getCachedSessionDrawerFaId,
+  getSelectedPosRegisterId,
+} from '@/services/storage/registerSessionContext';
+import { resolvePosCashTarget } from '@/utils/paymentAccounts';
 import { usePosDiningTable } from '@/hooks/usePosDiningTable';
 import { diningAPI } from '@/api/dining';
 import { buildTableOrderDraftPayload, cartContextFromSale, saleMetaFromServer } from '@/utils/posDining';
@@ -61,6 +70,7 @@ import { isKitchenPrintEnabled, printKitchenFromCart } from '@/services/pos/posK
 import { printTablePreInvoiceFromCart } from '@/services/pos/posTablePreInvoicePrint';
 import { openCashDrawer } from '@/services/printing/openCashDrawer';
 import { hasPermission } from '@/utils/permissions';
+import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import type { ActiveShiftExtended } from '@/types/shifts';
 
 type ProductVariantSelection = { id: string; name?: string | null };
@@ -80,6 +90,7 @@ function isCashierRole(user: { roles?: string[] } | null | undefined): boolean {
 function toExtendedShift(shift: ActiveShift): ActiveShiftExtended {
   return {
     id: shift.id,
+    mode: shift.mode,
     shift_no: shift.shift_no,
     branch_id: shift.branch_id,
     vault_id: shift.vault_id,
@@ -175,6 +186,11 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [cashMovementOpen, setCashMovementOpen] = useState(false);
   const [shiftSummaryOpen, setShiftSummaryOpen] = useState(false);
   const [closeShiftOpen, setCloseShiftOpen] = useState(false);
+  const [registerSessionReady, setRegisterSessionReady] = useState(false);
+  const [sessionDrawerAccountId, setSessionDrawerAccountId] = useState<string | null>(null);
+  const [closeRegisterOpen, setCloseRegisterOpen] = useState(false);
+  const [registerLabel, setRegisterLabel] = useState<string | null>(null);
+  const [sessionLabel, setSessionLabel] = useState<string | null>(null);
   const [drawerBusy, setDrawerBusy] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
   const [holdCartsOpen, setHoldCartsOpen] = useState(false);
@@ -710,6 +726,39 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const shiftLabel = shift ? tx('وردية نشطة') : tx('لا توجد وردية');
 
   const needOpenShift = Boolean(activeBranch?.id) && !shiftLoading && !shift;
+  const registerMode = String(
+    (activeBranch?.settings as any)?.register_mode
+    || (catalogSettings as any)?.register_mode
+    || 'legacy_shared_drawer',
+  );
+  const needRegisterSession = registerMode === 'multi_register' && !needOpenShift && !!shift && !registerSessionReady;
+
+  useEffect(() => {
+    if (registerMode !== 'multi_register') {
+      setRegisterSessionReady(true);
+      setSessionDrawerAccountId(null);
+      return;
+    }
+    void (async () => {
+      const reg = await getSelectedPosRegisterId();
+      const sess = await getActiveRegisterSessionId();
+      setRegisterLabel(reg);
+      setSessionLabel(sess);
+      setRegisterSessionReady(Boolean(reg && sess));
+      setSessionDrawerAccountId(await getCachedSessionDrawerFaId({
+        branchId: activeBranch?.id ?? null,
+        registerId: reg,
+        sessionId: sess,
+      }));
+    })();
+  }, [registerMode, shift?.id, activeBranch?.id]);
+
+  const paymentCashTarget = useMemo(() => resolvePosCashTarget({
+    registerMode,
+    shiftVaultId: shift?.vault_id ?? null,
+    sessionDrawerAccountId,
+    hasActiveRegisterSession: registerSessionReady,
+  }), [registerMode, shift?.vault_id, sessionDrawerAccountId, registerSessionReady]);
 
   const walletText =
     selectedCustomer && walletBalance !== null
@@ -905,6 +954,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setCheckoutMessage(tx('يجب فتح وردية قبل إتمام البيع.'));
       return;
     }
+    try {
+      await assertActiveRegisterSessionForSale(registerMode);
+    } catch {
+      setCheckoutMessage(tx('يجب فتح جلسة كاشير قبل إتمام البيع.'));
+      setCheckoutOpen(false);
+      return;
+    }
     if (!isOnline && selectedTable) {
       setCheckoutMessage(tx('طلب الطاولة يحتاج اتصالاً بالخادم لحفظ حالة الطاولة ومنع تكرار الطلب.'));
       return;
@@ -1053,6 +1109,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         tableName: selectedTable?.name ?? null,
         shiftId: shift?.id ?? null,
         shiftVaultId: shift?.vault_id ?? null,
+        cashTarget: paymentCashTarget,
         settleTable:
           selectedTable && orderType === 'dine_in'
             ? { tableId: selectedTable.id, orderId: settleOrderId }
@@ -1109,13 +1166,17 @@ export function POSScreen({ navigation }: { navigation: any }) {
       setPosNotice(tx('يجب فتح وردية قبل إتمام البيع.'));
       return;
     }
+    if (registerMode === 'multi_register' && !registerSessionReady) {
+      setPosNotice(tx('يجب فتح جلسة كاشير قبل إتمام البيع.'));
+      return;
+    }
     setPaymentType((current) =>
       current === 'layaway' || current === 'split' || current === 'wallet' ? 'cash' : current,
     );
     setPaid(paymentType === 'credit' || paymentType === 'layaway' ? '0' : String(effectiveTotal));
     checkoutClientUuidRef.current = createUuid();
     setCheckoutOpen(true);
-  }, [effectiveTotal, paymentType, shift]);
+  }, [effectiveTotal, paymentType, registerMode, registerSessionReady, shift]);
 
   const handleExitCategory = useCallback(() => {
     setShowCategoryCards(true);
@@ -1161,8 +1222,23 @@ export function POSScreen({ navigation }: { navigation: any }) {
   );
   const canCloseShift = hasPermission(user, 'close_shift');
   const showShiftSummaryAction = Boolean(shift && !isCashierRole(user));
-  const showCloseShiftAction = Boolean(shift && canCloseShift);
+  const showCloseShiftAction = Boolean(
+    shift &&
+      canCloseShift &&
+      cashierMayCloseBranchShift({
+        isCashier: isCashierRole(user),
+        registerMode,
+        canManageShifts:
+          hasPermission(user, 'manage_shifts') || hasPermission(user, 'access_admin_routes'),
+      }),
+  );
   const showOpenDrawerAction = Boolean(shift);
+
+  useEffect(() => {
+    if (!showCloseShiftAction && closeShiftOpen) {
+      setCloseShiftOpen(false);
+    }
+  }, [showCloseShiftAction, closeShiftOpen]);
 
   const handleOpenDrawer = useCallback(async () => {
     if (drawerBusy) return;
@@ -1431,6 +1507,13 @@ export function POSScreen({ navigation }: { navigation: any }) {
             onExit={handleExitPos}
             onCashMovement={openCashMovement}
             onOpenTables={openTables}
+            registerLabel={registerMode === 'multi_register' ? registerLabel : null}
+            sessionLabel={registerMode === 'multi_register' ? sessionLabel : null}
+            onCloseRegisterSession={
+              registerMode === 'multi_register' && registerSessionReady
+                ? () => setCloseRegisterOpen(true)
+                : undefined
+            }
             {...shiftToolbarProps}
           />
           <OfflinePrintIndicators compact />
@@ -1554,6 +1637,9 @@ export function POSScreen({ navigation }: { navigation: any }) {
         customerName={selectedCustomer?.name ?? null}
         financialAccounts={financialAccounts}
         shiftVaultId={shift?.vault_id ?? null}
+        registerMode={registerMode}
+        sessionDrawerAccountId={sessionDrawerAccountId}
+        hasActiveRegisterSession={registerSessionReady}
         paymentAccountId={paymentAccountId}
         onPaymentAccountIdChange={setPaymentAccountId}
         splitLines={splitLines}
@@ -1678,6 +1764,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
         onClose={() => setShiftSummaryOpen(false)}
       />
 
+      {showCloseShiftAction ? (
       <CloseShiftSheet
         visible={closeShiftOpen}
         shift={shift ? toExtendedShift(shift) : null}
@@ -1688,14 +1775,40 @@ export function POSScreen({ navigation }: { navigation: any }) {
           void refreshShift();
         }}
       />
+      ) : null}
 
       <OpenShiftSheet
         visible={needOpenShift}
         branchId={activeBranch?.id ?? null}
         mode="required"
+        registerMode={registerMode === 'multi_register' ? 'multi_register' : 'legacy_shared_drawer'}
         onExitPos={handleExitPos}
         onClose={() => {}}
         onSuccess={() => void refreshShift()}
+      />
+
+      <RegisterSessionGateSheet
+        visible={needRegisterSession}
+        branchId={activeBranch?.id ?? null}
+        onReady={() => {
+          setRegisterSessionReady(true);
+          void (async () => {
+            setRegisterLabel(await getSelectedPosRegisterId());
+            setSessionLabel(await getActiveRegisterSessionId());
+            setSessionDrawerAccountId(await getCachedSessionDrawerFaId({
+              branchId: activeBranch?.id ?? null,
+            }));
+          })();
+        }}
+      />
+
+      <CloseRegisterSessionSheet
+        visible={closeRegisterOpen}
+        onClose={() => setCloseRegisterOpen(false)}
+        onClosed={() => {
+          setRegisterSessionReady(false);
+          setSessionLabel(null);
+        }}
       />
 
       <PosTablesModal

@@ -147,6 +147,8 @@ export type ShiftClosePrintLabels = {
   expectedCash: string;
   actualCash: string;
   variance: string;
+  registers: string;
+  awaitingCount: string;
   developerFooter: string;
 };
 
@@ -181,5 +183,7 @@ export const shiftClosePrintLabels: ShiftClosePrintLabels = {
   expectedCash: 'النقدية المتوقعة',
   actualCash: 'النقدية الفعلية',
   variance: 'الفرق',
+  registers: 'نقاط البيع',
+  awaitingCount: 'بانتظار العد',
   developerFooter: 'تم التطوير بواسطة madar - 01055566412',
 };

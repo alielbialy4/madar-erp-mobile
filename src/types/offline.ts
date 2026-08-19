@@ -23,6 +23,8 @@ export type OfflinePosOrderRecord = {
   client_uuid: string;
   branch_id: string;
   shift_id?: string | null;
+  pos_register_id?: string | null;
+  register_session_id?: string | null;
   cashier_id?: number | null;
   customer_id?: number | null;
   items: SalePayload['items'];

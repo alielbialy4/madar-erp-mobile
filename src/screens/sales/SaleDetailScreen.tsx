@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BillSplitSheet } from './BillSplitSheet';
 import { textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -11,12 +11,14 @@ import { DetailScreen } from '@/screens/shared/DetailScreen';
 import type { Sale } from '@/types/api';
 import { dateText, money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
+import { decideRefundClientUuidLifecycle } from '@/utils/refundClientUuidLifecycle';
 import { extractData } from '@/utils/data';
 import { saleTimelineEvents } from '@/utils/saleTimeline';
 import { paymentTypeLabel } from '@/utils/paymentLabels';
 import { saleStatusBadgeTone, saleStatusLabel } from '@/utils/saleStatus';
 import { printSaleReceiptLocal } from '@/services/pos/posReceiptPrint';
 import { useBranchStore } from '@/store/branchStore';
+import { createUuid } from '@/utils/uuid';
 
 export function SaleDetailScreen({ route, navigation }: { route: any; navigation: any }) {
   const rawId = route.params?.id;
@@ -57,6 +59,7 @@ export function SaleDetail({
   onBack?: () => void;
   embedded?: boolean;
 }) {
+  const refundClientUuidRef = useRef<string | null>(null);
   const branchId = useBranchStore((s) => s.activeBranch?.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
@@ -96,8 +99,10 @@ export function SaleDetail({
     setBusy(true);
     setMessage(null);
     try {
-      const response = await salesAPI.refund(id);
+      if (!refundClientUuidRef.current) refundClientUuidRef.current = createUuid();
+      const response = await salesAPI.refund(id, { client_uuid: refundClientUuidRef.current });
       setMessage(response.message || 'تم تسجيل المرتجع');
+      refundClientUuidRef.current = null;
       setConfirmOpen(false);
       if (branchId) {
         const refundId = Number((response as any)?.refund?.id ?? (response as any)?.data?.refund?.id ?? 0) || undefined;
@@ -113,7 +118,15 @@ export function SaleDetail({
         }
       }
     } catch (err) {
-      setMessage(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      const decision = decideRefundClientUuidLifecycle({
+        status: normalized.status,
+        code: normalized.code,
+      });
+      if (decision.action === 'clear') {
+        refundClientUuidRef.current = null;
+      }
+      setMessage(normalized.message);
     } finally {
       setBusy(false);
     }

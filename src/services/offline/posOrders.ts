@@ -18,6 +18,8 @@ export type CreateOfflineOrderInput = {
   cashierId?: number | null;
   coupon?: Coupon | null;
   couponDiscount?: number;
+  posRegisterId?: string | null;
+  registerSessionId?: string | null;
 };
 
 function isLegacyOrder(row: unknown): row is LegacyPendingOfflineOrder {
@@ -135,8 +137,10 @@ async function persistOrders(orders: OfflinePosOrderRecord[]): Promise<void> {
 
 export async function addPendingOrder(input: CreateOfflineOrderInput): Promise<OfflinePosOrderRecord> {
   const orders = await getAllOfflineOrders();
-  const clientId = createUuid();
+  const clientId = input.payload.client_uuid || createUuid();
   const createdAt = new Date().toISOString();
+  const registerId = input.posRegisterId ?? input.payload.pos_register_id ?? null;
+  const sessionId = input.registerSessionId ?? input.payload.register_session_id ?? null;
   const couponSnapshot: CouponSnapshot | null = input.coupon
     ? {
         coupon_id: String(input.coupon.id),
@@ -150,12 +154,21 @@ export async function addPendingOrder(input: CreateOfflineOrderInput): Promise<O
         }
       : null;
 
+  const stampedPayload: SalePayload = {
+    ...input.payload,
+    client_uuid: clientId,
+    pos_register_id: registerId,
+    register_session_id: sessionId,
+  };
+
   const order: OfflinePosOrderRecord = {
     local_order_id: createUuid(),
     client_order_id: clientId,
     client_uuid: clientId,
     branch_id: input.branchId,
     shift_id: input.shiftId ?? null,
+    pos_register_id: registerId,
+    register_session_id: sessionId,
     cashier_id: input.cashierId ?? null,
     customer_id: input.payload.customer_id ?? null,
     items: input.payload.items,
@@ -169,7 +182,7 @@ export async function addPendingOrder(input: CreateOfflineOrderInput): Promise<O
       total: Number(input.payload.total ?? 0),
       paid: Number(input.payload.paid ?? 0),
     },
-    payload: { ...input.payload, sale_date: createdAt },
+    payload: { ...stampedPayload, sale_date: createdAt },
     status: 'pending',
     created_at: createdAt,
   };
@@ -258,18 +271,32 @@ export function countByStatus(orders: OfflinePosOrderRecord[]) {
 export function toApiOfflineOrder(
   order: OfflinePosOrderRecord,
   shiftIdFallback?: string | null,
-): LegacyPendingOfflineOrder & { sale_date: string } {
+): LegacyPendingOfflineOrder & {
+  sale_date: string
+  pos_register_id?: string | null
+  register_session_id?: string | null
+  offline_schema_version?: number
+} {
   const payload = order.payload ?? ({} as SalePayload);
+  // Never invent a shift for multi-register identity. Prefer the stamped
+  // original shift_id; only fall back for legacy shared-drawer payloads that
+  // truly omit shift and have no register session.
+  const hasRegisterSession = Boolean(order.register_session_id || (payload as any).register_session_id);
   const resolvedShiftId =
     order.shift_id ??
     payload.shift_id ??
-    (shiftIdFallback != null && String(shiftIdFallback).trim() !== '' ? String(shiftIdFallback) : undefined);
+    (hasRegisterSession
+      ? undefined
+      : (shiftIdFallback != null && String(shiftIdFallback).trim() !== '' ? String(shiftIdFallback) : undefined));
 
   return {
     ...payload,
     client_uuid: order.client_uuid,
     branch_id: order.branch_id,
     shift_id: resolvedShiftId,
+    pos_register_id: order.pos_register_id ?? (payload as any).pos_register_id ?? null,
+    register_session_id: order.register_session_id ?? (payload as any).register_session_id ?? null,
+    offline_schema_version: 3,
     warehouse_id: payload.warehouse_id ?? undefined,
     created_at_local: order.created_at,
     status: order.status === 'failed' ? 'failed' : 'pending',

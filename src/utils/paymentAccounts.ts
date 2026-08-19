@@ -7,29 +7,87 @@ export type CanonicalSplitLine = {
   payment_method: string;
 };
 
+export type PosCashTargetMode = 'legacy_shift_vault' | 'register_session_drawer';
+
+export type PosCashTargetContext = {
+  mode: PosCashTargetMode;
+  shiftVaultId: string;
+  sessionDrawerAccountId: string | null;
+};
+
 const CUSTOMER_WALLET = 'wallet';
 const NO_ACCOUNT_METHODS = new Set(['wallet', 'credit', 'layaway']);
+
+export function resolvePosCashTarget(input: {
+  registerMode?: string | null;
+  shiftVaultId?: string | null;
+  sessionDrawerAccountId?: string | null;
+  hasActiveRegisterSession?: boolean;
+} = {}): PosCashTargetContext {
+  const shiftVaultId = String(input.shiftVaultId ?? '');
+  const sessionDrawerAccountId = input.sessionDrawerAccountId
+    ? String(input.sessionDrawerAccountId)
+    : null;
+  const isMultiRegister = input.registerMode === 'multi_register';
+  const hasSession = Boolean(input.hasActiveRegisterSession) && Boolean(sessionDrawerAccountId);
+
+  if (isMultiRegister && hasSession && sessionDrawerAccountId) {
+    return {
+      mode: 'register_session_drawer',
+      shiftVaultId,
+      sessionDrawerAccountId,
+    };
+  }
+
+  return {
+    mode: 'legacy_shift_vault',
+    shiftVaultId,
+    sessionDrawerAccountId: null,
+  };
+}
+
+function normalizeCashTarget(cashTarget?: string | PosCashTargetContext | null): PosCashTargetContext {
+  if (typeof cashTarget === 'object' && cashTarget !== null) {
+    return cashTarget;
+  }
+  return resolvePosCashTarget({ shiftVaultId: cashTarget ?? '' });
+}
+
+function matchesCashAccount(
+  account: FinancialAccount,
+  cashTarget: PosCashTargetContext,
+): boolean {
+  if (account.payment_method !== 'cash') return false;
+  if (cashTarget.mode === 'register_session_drawer') {
+    return account.id === cashTarget.sessionDrawerAccountId;
+  }
+  return !cashTarget.shiftVaultId || account.legacy_vault_id === cashTarget.shiftVaultId;
+}
 
 export function availablePaymentAccounts(
   accounts: FinancialAccount[],
   paymentMethod: string,
-  shiftVaultId?: string | null,
+  cashTarget?: string | PosCashTargetContext | null,
 ): FinancialAccount[] {
+  const resolvedCashTarget = normalizeCashTarget(cashTarget);
   return accounts.filter(
     (account) => account.payment_method === paymentMethod
       && account.is_active !== false
       && account.allow_sales !== false
-      && (paymentMethod !== 'cash' || !shiftVaultId || account.legacy_vault_id === shiftVaultId),
+      && (paymentMethod !== 'cash' || matchesCashAccount(account, resolvedCashTarget)),
   );
 }
 
 export function defaultPaymentAccount(
   accounts: FinancialAccount[],
   paymentMethod: string,
-  shiftVaultId?: string | null,
+  cashTarget?: string | PosCashTargetContext | null,
 ): FinancialAccount | undefined {
-  return availablePaymentAccounts(accounts, paymentMethod, shiftVaultId).find((account) => account.is_default)
-    ?? availablePaymentAccounts(accounts, paymentMethod, shiftVaultId)[0];
+  const eligible = availablePaymentAccounts(accounts, paymentMethod, cashTarget);
+  if (paymentMethod === 'cash' && normalizeCashTarget(cashTarget).mode === 'register_session_drawer') {
+    return eligible[0];
+  }
+  return eligible.find((account) => account.is_default) ?? eligible[0];
 }
 
 export function buildCanonicalPaymentLine(input: {
@@ -38,9 +96,12 @@ export function buildCanonicalPaymentLine(input: {
   accountId?: string | null;
   amount: number;
   shiftVaultId?: string | null;
+  cashTarget?: PosCashTargetContext;
 }): SalePaymentLine | null {
   if (input.amount <= 0 || NO_ACCOUNT_METHODS.has(input.paymentMethod)) return null;
-  const account = availablePaymentAccounts(input.accounts, input.paymentMethod, input.shiftVaultId)
+  const cashTarget = input.cashTarget
+    ?? resolvePosCashTarget({ shiftVaultId: input.shiftVaultId });
+  const account = availablePaymentAccounts(input.accounts, input.paymentMethod, cashTarget)
     .find((row) => row.id === input.accountId);
   if (!account) return null;
   return {
@@ -54,14 +115,15 @@ export function buildCanonicalPaymentLine(input: {
 export function buildCanonicalSplitPaymentLines(
   splitLines: CanonicalSplitLine[],
   accounts: FinancialAccount[],
-  shiftVaultId?: string | null,
+  cashTarget?: string | PosCashTargetContext | null,
 ): SalePaymentLine[] {
+  const resolvedCashTarget = normalizeCashTarget(cashTarget);
   return splitLines
     .filter((line) => Number(line.amount) > 0)
     .map((line) => {
       const account = line.payment_method === CUSTOMER_WALLET
         ? undefined
-        : availablePaymentAccounts(accounts, line.payment_method, shiftVaultId)
+        : availablePaymentAccounts(accounts, line.payment_method, resolvedCashTarget)
           .find((row) => row.id === line.financial_account_id);
       return {
         ...(account ? { financial_account_id: account.id } : { financial_account_id: null }),

@@ -117,6 +117,8 @@ export async function saveOfflinePosOrder(input: {
     cashierId: input.cashierId,
     coupon: input.coupon,
     couponDiscount: input.couponDiscount,
+    posRegisterId: input.payload.pos_register_id,
+    registerSessionId: input.payload.register_session_id,
   });
 
   await enqueueOfflinePrintJobs(order, input.cartLines, input.products, {

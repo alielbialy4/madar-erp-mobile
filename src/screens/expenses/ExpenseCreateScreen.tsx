@@ -32,6 +32,9 @@ import { fonts } from '@/constants/fonts';
 import { useColors } from '@/hooks/useColors';
 import type { ExpenseCategory, ExpenseCreateInput } from '@/types/expenses';
 import type { MoreStackParamList } from '@/types/navigation';
+import { RegisterDrawerSessionPicker } from '@/components/pos/RegisterDrawerSessionPicker';
+import type { EligibleRegisterMoneySession } from '@/api/posRegisters';
+import { registerMoneyContextFromSession } from '@/services/storage/registerSessionContext';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'ExpenseCreate'>;
 type PaymentState = 'pending' | 'paid';
@@ -73,6 +76,10 @@ export function ExpenseCreateScreen({ navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [drawerSessionId, setDrawerSessionId] = useState('');
+  const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
+  const [drawerSessionCount, setDrawerSessionCount] = useState(0);
+  const [drawerBlocked, setDrawerBlocked] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
   const submitLockRef = useRef(false);
   const globalView = viewMode === 'global';
@@ -161,7 +168,11 @@ export function ExpenseCreateScreen({ navigation }: Props) {
       setError('تسجيل المصروف المالي يحتاج اتصالاً مباشراً حالياً؛ لن نخزّن حركة مالية غير مؤكدة على الجهاز.');
       return;
     }
-    if (paymentState === 'paid' && cashSource === 'drawer' && !drawerAvailable) {
+    if (paymentState === 'paid' && cashSource === 'drawer' && drawerBlocked) {
+      setError('اختر درجاً مفتوحاً قبل الصرف من النقدية.');
+      return;
+    }
+    if (paymentState === 'paid' && cashSource === 'drawer' && !drawerAvailable && drawerSessionCount === 0) {
       setError('الصرف من الدرج يتطلب وردية مفتوحة تستخدم دفتر الدرج.');
       return;
     }
@@ -186,6 +197,9 @@ export function ExpenseCreateScreen({ navigation }: Props) {
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(reference.trim() ? { reference_number: reference.trim() } : {}),
+        ...(paymentState === 'paid' && cashSource === 'drawer'
+          ? await registerMoneyContextFromSession(drawerSession)
+          : {}),
       };
 
       if (paymentState === 'paid' && cashSource === 'vault' && splitValidation.ok && primaryAccountId) {
@@ -246,7 +260,7 @@ export function ExpenseCreateScreen({ navigation }: Props) {
           title={paymentState === 'paid' ? `مراجعة وتسجيل — ${money(Number(amount) || 0)}` : `تسجيل كمستحق — ${money(Number(amount) || 0)}`}
           onPress={() => setConfirmVisible(true)}
           loading={submitting}
-          disabled={!isOnline || !categoryId || !amount || (paymentState === 'paid' && cashSource === 'vault' && !splitValidation.ok)}
+          disabled={!isOnline || !categoryId || !amount || (paymentState === 'paid' && cashSource === 'vault' && !splitValidation.ok) || (paymentState === 'paid' && cashSource === 'drawer' && drawerBlocked)}
           fullWidth
         />
       )}
@@ -314,10 +328,25 @@ export function ExpenseCreateScreen({ navigation }: Props) {
             />
             {shiftLoading ? <AppBanner tone="info" message="جاري التحقق من الوردية ودفتر الدرج..." /> : null}
             {cashSource === 'drawer' ? (
-              <AppBanner
-                tone="warning"
-                message="سيُسجل الصرف على الوردية المفتوحة ويؤثر مباشرة في النقد المتوقع عند الإغلاق."
-              />
+              <>
+                <RegisterDrawerSessionPicker
+                  visible
+                  required
+                  value={drawerSessionId}
+                  onChange={(id, session) => {
+                    setDrawerSessionId(id);
+                    setDrawerSession(session);
+                  }}
+                  onAvailabilityChange={({ sessions, requiredBlocked }) => {
+                    setDrawerSessionCount(sessions.length);
+                    setDrawerBlocked(requiredBlocked);
+                  }}
+                />
+                <AppBanner
+                  tone="warning"
+                  message="سيُسجل الصرف على الجلسة المختارة ويؤثر مباشرة في النقد المتوقع عند الإغلاق."
+                />
+              </>
             ) : (
               <>
                 <AppPicker

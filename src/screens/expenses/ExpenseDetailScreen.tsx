@@ -144,6 +144,7 @@ export function ExpenseDetailScreen({ route, navigation }: Props) {
         paid_at: `${paidAt} 00:00:00`,
         ...(payReference.trim() ? { reference: payReference.trim() } : {}),
         idempotency_key: `expense:${paymentExpense.id}:payment:${idempotencyKeyForAttempt(paymentAttemptRef)}`,
+        ...(await (await import('@/services/storage/registerSessionContext')).registerMoneyContextFields()),
       });
       toast.success(amount + 0.00005 >= totals.remaining ? 'تم سداد المصروف بالكامل' : 'تم تسجيل الدفعة الجزئية');
       completeIdempotencyAttempt(paymentAttemptRef);

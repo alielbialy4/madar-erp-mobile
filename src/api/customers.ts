@@ -52,6 +52,7 @@ export const customersAPI = {
       vault_id?: string | null;
       sale_id?: number | null;
       notes?: string;
+      idempotency_key?: string;
     },
   ) => post(`/customers/${id}/debt-payments`, payload),
 };

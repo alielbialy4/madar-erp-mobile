@@ -12,6 +12,9 @@ export const cashMovementsAPI = {
       notes?: string;
       source?: CashMovementSource;
       vault_id?: string;
+      idempotency_key?: string;
+      pos_register_id?: string;
+      register_session_id?: string;
     },
   ) => post(`/shifts/${shiftId}/cash-movement`, data),
 };

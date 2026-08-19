@@ -16,6 +16,7 @@ import { shiftsAPI } from '@/api/shifts';
 import { money } from '@/utils/format';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
 import { hasPermission } from '@/utils/permissions';
+import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import type { ActiveShift } from '@/types/api';
@@ -43,6 +44,7 @@ function numFromApi(v: string | number | null | undefined): number {
 function toExtendedShift(shift: ActiveShift): ActiveShiftExtended {
   return {
     id: shift.id,
+    mode: shift.mode,
     shift_no: shift.shift_no,
     branch_id: shift.branch_id,
     vault_id: shift.vault_id,
@@ -70,9 +72,18 @@ export function CashierDashboardView({ shell, navigation }: Props) {
   const [closeSheet, setCloseSheet] = useState(false);
 
   const canOpenShift = hasPermission(user, 'open_shift');
-  const canCloseShift = hasPermission(user, 'close_shift');
   const canPos = hasPermission(user, 'process_sales');
   const isAdmin = Boolean(user?.is_super_admin || hasPermission(user, 'access_admin_routes'));
+  const canCloseShift =
+    hasPermission(user, 'close_shift') &&
+    cashierMayCloseBranchShift({
+      isCashier: Boolean(user?.roles?.some((role) => String(role).toLowerCase() === 'cashier')),
+      registerMode:
+        myShift?.mode ??
+        String((activeBranch?.settings as { register_mode?: string } | undefined)?.register_mode ?? 'legacy_shared_drawer'),
+      canManageShifts:
+        hasPermission(user, 'manage_shifts') || hasPermission(user, 'access_admin_routes'),
+    });
 
   const load = useCallback(async () => {
     if (!branchId) {
@@ -229,6 +240,7 @@ export function CashierDashboardView({ shell, navigation }: Props) {
         }}
       />
 
+      {canCloseShift ? (
       <CloseShiftSheet
         visible={closeSheet}
         shift={myShift ? toExtendedShift(myShift) : null}
@@ -239,6 +251,7 @@ export function CashierDashboardView({ shell, navigation }: Props) {
           void load();
         }}
       />
+      ) : null}
     </View>
   );
 }

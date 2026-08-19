@@ -20,4 +20,8 @@ export const storageKeys = {
   reportsRecent: 'reports_recent',
   offlineTableOps: 'madar.offline.table_ops',
   syncLastSuccessAt: 'madar.sync.last_success_at',
+  posSelectedRegisterId: 'madar.pos.selected_register_id',
+  posActiveRegisterSessionId: 'madar.pos.active_register_session_id',
+  posActiveSessionDrawerFa: 'madar.pos.active_session_drawer_fa',
+  posDeviceUuid: 'madar.pos.device_uuid',
 };

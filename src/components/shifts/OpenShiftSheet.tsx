@@ -22,6 +22,7 @@ type Props = {
   /** POS gate: blocking sheet with exit action. Default: optional sheet from shift management. */
   mode?: 'default' | 'required';
   onExitPos?: () => void;
+  registerMode?: 'legacy_shared_drawer' | 'multi_register';
 };
 
 export function OpenShiftSheet({
@@ -31,10 +32,12 @@ export function OpenShiftSheet({
   onSuccess,
   mode = 'default',
   onExitPos,
+  registerMode = 'legacy_shared_drawer',
 }: Props) {
   const toast = useToast();
   const c = useColors();
   const isRequired = mode === 'required';
+  const isMultiRegister = registerMode === 'multi_register';
   const user = useAuthStore((s) => s.user);
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [vaultId, setVaultId] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function OpenShiftSheet({
   }, [visible, branchId]);
 
   useEffect(() => {
-    if (!visible || !canAssignShiftOwner || !branchId) return;
+    if (!visible || !canAssignShiftOwner || !branchId || isMultiRegister) return;
     shiftsAPI
       .filterUsers({ branch_id: branchId })
       .then((res) => {
@@ -88,7 +91,7 @@ export function OpenShiftSheet({
       .catch(() => {
         if (user?.id) setAssignableUsers([{ id: user.id, name: user.name || 'أنا' }]);
       });
-  }, [visible, canAssignShiftOwner, branchId, user]);
+  }, [visible, canAssignShiftOwner, branchId, user, isMultiRegister]);
 
   const handleOpen = async () => {
     if (!branchId) {
@@ -107,7 +110,11 @@ export function OpenShiftSheet({
     const meId = user?.id;
     const selectedOwner = Number(shiftOwnerId);
     const forUserId =
-      canAssignShiftOwner && meId != null && Number.isFinite(selectedOwner) && selectedOwner !== meId
+      !isMultiRegister
+      && canAssignShiftOwner
+      && meId != null
+      && Number.isFinite(selectedOwner)
+      && selectedOwner !== meId
         ? selectedOwner
         : undefined;
 
@@ -150,7 +157,7 @@ export function OpenShiftSheet({
           <AppText style={{ ...textStart, color: c.warning }}>اختر فرعاً لعرض الخزائن المتاحة.</AppText>
         ) : null}
 
-        {canAssignShiftOwner && assignableUsers.length > 0 ? (
+        {canAssignShiftOwner && !isMultiRegister && assignableUsers.length > 0 ? (
           <AppSelect
             label="كاشير الوردية"
             value={shiftOwnerId}

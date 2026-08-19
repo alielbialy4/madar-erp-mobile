@@ -113,6 +113,31 @@ export function buildShiftCloseReportPayload(
     });
   }
 
+  const sessions = data.sessions ?? [];
+  if (sessions.length > 0) {
+    sections.push({
+      title: labels.registers,
+      rows: [],
+      lineItems: sessions.map((session) => {
+        const code = session.register?.code?.trim();
+        const name = session.register?.name?.trim();
+        const title = code && name && code !== name ? `${code} · ${name}` : name || code || '—';
+        const cashier = session.cashier?.name ? ` — ${session.cashier.name}` : '';
+        const counted = session.counted_cash == null || session.counted_cash === ''
+          ? labels.awaitingCount
+          : money(session.counted_cash);
+        const variance = session.variance != null && session.variance !== ''
+          ? ` / ${labels.variance} ${money(session.variance)}`
+          : '';
+        return {
+          primary: `${title}${cashier}`,
+          secondary: session.drawer?.name ?? undefined,
+          amount: `${labels.expectedCash} ${money(session.expected_cash)} / ${labels.actualCash} ${counted}${variance}`,
+        };
+      }),
+    });
+  }
+
   sections.push({
     title: labels.finalAccounting,
     rows: [

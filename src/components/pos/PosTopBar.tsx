@@ -35,6 +35,9 @@ type Props = {
   onOpenDrawer?: () => void;
   openDrawerBusy?: boolean;
   onCashMovement?: () => void;
+  registerLabel?: string | null;
+  sessionLabel?: string | null;
+  onCloseRegisterSession?: () => void;
   onOpenTables?: () => void;
 };
 
@@ -55,6 +58,9 @@ export function PosTopBar({
   onOpenDrawer,
   openDrawerBusy = false,
   onCashMovement,
+  registerLabel,
+  sessionLabel,
+  onCloseRegisterSession,
   onOpenTables,
 }: Props) {
   const c = useColors();
@@ -79,10 +85,13 @@ export function PosTopBar({
       });
     }
     if (onCloseShift) items.push({ key: 'close', label: 'إغلاق الوردية', icon: 'logout', onPress: onCloseShift });
+    if (onCloseRegisterSession) {
+      items.push({ key: 'close-register', label: 'إغلاق جلسة نقطة البيع', icon: 'point-of-sale', onPress: onCloseRegisterSession });
+    }
     if (onOpenTables) items.push({ key: 'tables', label: 'الطاولات', icon: 'table-restaurant', onPress: onOpenTables });
     if (onCashMovement) items.push({ key: 'cash', label: 'حركة نقدية', icon: 'payments', onPress: onCashMovement });
     return items;
-  }, [onShiftSummary, onOpenDrawer, openDrawerBusy, onCloseShift, onOpenTables, onCashMovement]);
+  }, [onShiftSummary, onOpenDrawer, openDrawerBusy, onCloseShift, onCloseRegisterSession, onOpenTables, onCashMovement]);
 
   useEffect(() => {
     if (!cartPulse) return;
@@ -94,7 +103,12 @@ export function PosTopBar({
 
   if (immersive) return null;
 
-  const metaParts = [cashierName, lastSyncedLabel ? `مزامنة ${lastSyncedLabel}` : null].filter(Boolean);
+  const metaParts = [
+    cashierName,
+    registerLabel ? `نقطة ${registerLabel}` : null,
+    sessionLabel ? `جلسة ${sessionLabel.slice(0, 8)}` : null,
+    lastSyncedLabel ? `مزامنة ${lastSyncedLabel}` : null,
+  ].filter(Boolean);
 
   return (
     <View style={bar.bar}>

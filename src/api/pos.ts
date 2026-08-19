@@ -22,7 +22,7 @@ export const posAPI = {
   getSales: (params?: Record<string, unknown>) => get<Sale[]>('/pos/sales', params),
   getSale: (id: number) => get<Sale>(`/pos/sales/${id}`),
   timeline: (id: number) => get<{ sale_id?: number; invoice_number?: string | null; events?: Record<string, unknown>[] }>(`/pos/sales/${id}/timeline`),
-  refundSale: (id: number) => post(`/pos/sales/${id}/refund`),
+  refundSale: (id: number, data?: { client_uuid?: string }) => post(`/pos/sales/${id}/refund`, data),
   partialRefund: (saleId: number, data: {
     client_uuid?: string;
     items: { sale_item_id: number; quantity: number; restock?: boolean }[];

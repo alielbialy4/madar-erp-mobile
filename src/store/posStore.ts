@@ -21,7 +21,7 @@ import { normalizeApiError } from '@/utils/errors';
 import { useAuthStore } from './authStore';
 import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
-import { buildCanonicalPaymentLine, buildCanonicalSplitPaymentLines } from '@/utils/paymentAccounts';
+import { buildCanonicalPaymentLine, buildCanonicalSplitPaymentLines, type PosCashTargetContext } from '@/utils/paymentAccounts';
 import { createBranchScopeRequestGuard } from '@/utils/branchScopeRequest';
 
 function triggerBackgroundSync() {
@@ -116,8 +116,11 @@ export type SubmitSaleExtras = {
   diningTableId?: string | null;
   tableName?: string | null;
   shiftId?: string | null;
+  posRegisterId?: string | null;
+  registerSessionId?: string | null;
   /** Physical cash drawer vault linked to the active shift. */
   shiftVaultId?: string | null;
+  cashTarget?: PosCashTargetContext;
   /** Canonical financial account selected for a non-split sale payment. */
   paymentAccountId?: string | null;
   warehouseId?: string | null;
@@ -436,10 +439,17 @@ export const usePosStore = create<PosState>((set, get) => ({
     const clientUuid = extras?.clientUuid ?? createUuid();
     const shiftId = extras?.shiftId ?? get().openShiftId;
     const warehouseId = extras?.warehouseId ?? get().defaultWarehouseId;
+    const { getSelectedPosRegisterId, getActiveRegisterSessionId } = await import(
+      '@/services/storage/registerSessionContext'
+    );
+    const posRegisterId = extras?.posRegisterId ?? (await getSelectedPosRegisterId());
+    const registerSessionId = extras?.registerSessionId ?? (await getActiveRegisterSessionId());
 
     const payload: SalePayload = {
       client_uuid: clientUuid,
       shift_id: shiftId,
+      pos_register_id: posRegisterId,
+      register_session_id: registerSessionId,
       warehouse_id: warehouseId,
       customer_id: get().selectedCustomer?.id ?? null,
       items: cart.map((line) => ({
@@ -474,7 +484,11 @@ export const usePosStore = create<PosState>((set, get) => ({
       delivery_zone_id: orderType === 'delivery' ? (extras?.deliveryZoneId ?? null) : null,
       service_charge: checkout.serviceCharge,
       payment_lines: splitLines
-        ? buildCanonicalSplitPaymentLines(splitLines, get().financialAccounts, extras?.shiftVaultId)
+        ? buildCanonicalSplitPaymentLines(
+          splitLines,
+          get().financialAccounts,
+          extras?.cashTarget ?? extras?.shiftVaultId,
+        )
         : (() => {
             const line = buildCanonicalPaymentLine({
               accounts: get().financialAccounts,
@@ -482,6 +496,7 @@ export const usePosStore = create<PosState>((set, get) => ({
               accountId: extras?.paymentAccountId,
               amount: salePaid,
               shiftVaultId: extras?.shiftVaultId,
+              cashTarget: extras?.cashTarget,
             });
             return line ? [line] : null;
           })(),

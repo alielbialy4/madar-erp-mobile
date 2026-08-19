@@ -158,6 +158,9 @@ export function BranchFormScreen({ route, navigation }: { route: any; navigation
       warehouse_name: !form.warehouse_id && !isEdit ? form.warehouse_name.trim() || undefined : undefined,
       vault_name: !form.vault_id && !isEdit ? form.vault_name.trim() || undefined : undefined,
     };
+    if (!isEdit) {
+      payload.register_mode = 'legacy_shared_drawer';
+    }
 
     try {
       if (isEdit && id) {

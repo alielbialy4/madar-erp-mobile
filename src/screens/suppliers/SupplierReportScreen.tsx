@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';import { suppliersAPI } from '@/api/suppliers';
 import { supplierPaymentsAPI } from '@/api/supplierPayments';
 import { purchasesAPI } from '@/api/purchases';
@@ -10,6 +10,7 @@ import { AppErrorState, AppLoadingState, ConfirmDialog, useToast } from '@/compo
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money, dateText, asText } from '@/utils/format';
+import { completeIdempotencyAttempt, idempotencyKeyForAttempt, resolveIdempotencyAttemptAfterError } from '@/utils/idempotencyAttempt';
 import { getCurrentBalanceInterpretation } from '@/utils/supplierBalanceLabels';
 import { supplierVoucherTypeLabel } from '@/utils/supplierPaymentLabels';
 import { parsePositiveMoneyInput, purchaseRemainingAmount } from '@/utils/supplierPurchaseFinancials';
@@ -57,6 +58,7 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [availableCredit, setAvailableCredit] = useState(0);
   const [settleableBalance, setSettleableBalance] = useState(0);
+  const mutationIdempotencyKeyRef = useRef<string | null>(null);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -138,6 +140,7 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
     setSubmitting(true);
     setSheetError(null);
     try {
+      const clientUuid = idempotencyKeyForAttempt(mutationIdempotencyKeyRef);
       if (sheetMode === 'vault' || sheetMode === 'purchase_pay') {
         if (!paymentAccountId) {
           setSheetError('اختر حساب الدفع');
@@ -147,6 +150,7 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
         const paymentSource = paymentSources.find((source) => String(source.id) === paymentAccountId);
         if (sheetMode === 'vault') {
           await supplierPaymentsAPI.create({
+            client_uuid: clientUuid,
             supplier_id: id,
             purchase_id: selectedPurchase?.id ? Number(selectedPurchase.id) : null,
             financial_account_id: paymentAccountId,
@@ -162,16 +166,19 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
             notes: notes || undefined,
             financial_account_id: paymentAccountId,
             vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? undefined : undefined,
+            client_uuid: clientUuid,
           });
         }
       } else if (sheetMode === 'credit' && selectedPurchase?.id) {
         await supplierPaymentsAPI.applyPurchaseCredit(Number(selectedPurchase.id), {
+          client_uuid: clientUuid,
           amount: num,
           allocated_at: new Date().toISOString().split('T')[0],
           notes: notes || undefined,
         });
       } else if (sheetMode === 'balance' && selectedPurchase?.id) {
         await supplierPaymentsAPI.applyPurchaseBalanceSettlement(Number(selectedPurchase.id), {
+          client_uuid: clientUuid,
           supplier_id: id,
           purchase_id: Number(selectedPurchase.id),
           balance_settlement_amount: num,
@@ -179,12 +186,15 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
           notes: notes || undefined,
         });
       }
+      completeIdempotencyAttempt(mutationIdempotencyKeyRef);
       setSheetMode(null);
       setConfirmOpen(false);
       toast.success('تمت العملية بنجاح');
       await loadReport();
     } catch (err) {
-      setSheetError(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      resolveIdempotencyAttemptAfterError(mutationIdempotencyKeyRef, normalized);
+      setSheetError(normalized.message);
     } finally {
       setSubmitting(false);
     }

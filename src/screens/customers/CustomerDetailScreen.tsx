@@ -16,6 +16,10 @@ import type { Customer } from '@/types/api';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { dateText, money } from '@/utils/format';
+import { completeIdempotencyAttempt, idempotencyKeyForAttempt, resolveIdempotencyAttemptAfterError } from '@/utils/idempotencyAttempt';
+import { RegisterDrawerSessionPicker } from '@/components/pos/RegisterDrawerSessionPicker';
+import type { EligibleRegisterMoneySession } from '@/api/posRegisters';
+import { isCashDrawerPaymentSource, registerMoneyContextFromSession } from '@/services/storage/registerSessionContext';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
@@ -73,6 +77,10 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
   const [debtCreditSales, setDebtCreditSales] = useState<{ id: number; invoice_number?: string | null; remaining: number }[]>([]);
   const [debtLayawayCount, setDebtLayawayCount] = useState(0);
   const [debtConfirmOpen, setDebtConfirmOpen] = useState(false);
+  const [drawerSessionId, setDrawerSessionId] = useState('');
+  const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
+  const [drawerSessionCount, setDrawerSessionCount] = useState(0);
+  const debtIdempotencyKeyRef = useRef<string | null>(null);
   const [paymentRows, setPaymentRows] = useState<{
     id: number;
     amount: number;
@@ -215,6 +223,10 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
     setDebtError(null);
     try {
       const paymentSource = debtPaymentSources.find((source) => String(source.id) === debtPaymentAccountId);
+      if (isCashDrawerPaymentSource(paymentSource) && drawerSessionCount > 0 && !drawerSessionId) {
+        setDebtError('اختر درجاً مفتوحاً.');
+        return;
+      }
       const saleId = debtTarget !== 'auto' ? Number(debtTarget) : null;
       await customersAPI.recordDebtPayment(id, {
         amount: parsed,
@@ -223,7 +235,12 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
         vault_id: paymentSource?.payment_method === 'cash' ? paymentSource.linked_vault_id ?? null : null,
         sale_id: saleId && !Number.isNaN(saleId) ? saleId : null,
         notes: debtNotes.trim() || undefined,
+        idempotency_key: idempotencyKeyForAttempt(debtIdempotencyKeyRef),
+        ...(isCashDrawerPaymentSource(paymentSource)
+          ? await registerMoneyContextFromSession(drawerSession)
+          : await (await import('@/services/storage/registerSessionContext')).registerMoneyContextFields()),
       });
+      completeIdempotencyAttempt(debtIdempotencyKeyRef);
       setDebtConfirmOpen(false);
       setDebtOpen(false);
       setDebtAmount('');
@@ -231,11 +248,13 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
       refreshRef.current?.();
       void loadPayments();
     } catch (err) {
-      setDebtError(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      resolveIdempotencyAttemptAfterError(debtIdempotencyKeyRef, normalized);
+      setDebtError(normalized.message);
     } finally {
       setDebtSubmitting(false);
     }
-  }, [debtAmount, debtNotes, debtPaymentAccountId, debtPaymentSources, debtTarget, id, loadPayments]);
+  }, [debtAmount, debtNotes, debtPaymentAccountId, debtPaymentSources, debtTarget, drawerSession, drawerSessionCount, drawerSessionId, id, loadPayments]);
 
   const submitWalletAction = useCallback(async () => {
     const parsed = Number(walletAmount);
@@ -253,7 +272,11 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
       if (!shiftResponse.data) {
         throw new Error('يجب فتح وردية قبل تنفيذ إيداع أو سحب من محفظة العميل.');
       }
-      const payload = { amount: parsed, description: walletDescription.trim() || undefined };
+      const payload = {
+        amount: parsed,
+        description: walletDescription.trim() || undefined,
+        ...(await (await import('@/services/storage/registerSessionContext')).registerMoneyContextFields()),
+      };
       if (walletAction === 'deposit') await walletAPI.deposit(id, payload);
       else await walletAPI.withdraw(id, payload);
       setWalletConfirmOpen(false);
@@ -398,15 +421,38 @@ export function CustomerDetailScreen({ route, navigation }: { route: any; naviga
             ))}
           </View>
           {debtPaymentSources.length > 0 ? (
-            <AppSelect
-              label="حساب التحصيل"
-              value={debtPaymentAccountId}
-              options={debtPaymentSources.map((source) => ({
-                label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
-                value: String(source.id),
-              }))}
-              onChange={setDebtPaymentAccountId}
-            />
+            <>
+              <RegisterDrawerSessionPicker
+                visible={debtOpen}
+                hideWhenEmpty
+                value={drawerSessionId}
+                onChange={(sessionId, session) => {
+                  setDrawerSessionId(sessionId);
+                  setDrawerSession(session);
+                  if (session?.drawer?.financial_account_id) {
+                    const match = debtPaymentSources.find((source) => String(source.id) === String(session.drawer?.financial_account_id));
+                    if (match) setDebtPaymentAccountId(String(match.id));
+                  }
+                }}
+                onAvailabilityChange={({ sessions }) => setDrawerSessionCount(sessions.length)}
+              />
+              <AppSelect
+                label="حساب التحصيل"
+                value={debtPaymentAccountId}
+                options={debtPaymentSources
+                  .filter((source) => {
+                    if (!isCashDrawerPaymentSource(source) || drawerSessionCount === 0) return true;
+                    return drawerSession?.drawer?.financial_account_id
+                      ? String(source.id) === String(drawerSession.drawer.financial_account_id)
+                      : false;
+                  })
+                  .map((source) => ({
+                    label: [source.name, source.provider_name, source.masked_identifier].filter(Boolean).join(' · '),
+                    value: String(source.id),
+                  }))}
+                onChange={setDebtPaymentAccountId}
+              />
+            </>
           ) : null}
           <AppInput label="ملاحظات" value={debtNotes} onChangeText={setDebtNotes} />
           {debtError ? <AppErrorState message={debtError} /> : null}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { AppBottomSheet } from '@/components/layout';
 import { ConfirmDialog } from '@/components/feedback';
@@ -11,6 +11,10 @@ import type { ActiveShift, Vault } from '@/types/api';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money } from '@/utils/format';
+import { completeIdempotencyAttempt, idempotencyKeyForAttempt, resolveIdempotencyAttemptAfterError } from '@/utils/idempotencyAttempt';
+import { registerMoneyContextFields, registerMoneyContextFromSession } from '@/services/storage/registerSessionContext';
+import { RegisterDrawerSessionPicker } from '@/components/pos/RegisterDrawerSessionPicker';
+import type { EligibleRegisterMoneySession } from '@/api/posRegisters';
 import { spacing } from '@/constants/spacing';
 
 type MovementType = 'cash_in' | 'cash_out';
@@ -34,6 +38,10 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [drawerSessionId, setDrawerSessionId] = useState('');
+  const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
+  const [drawerSessionCount, setDrawerSessionCount] = useState(0);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
@@ -45,6 +53,10 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
       setError(null);
       setSaving(false);
       setConfirm(false);
+      completeIdempotencyAttempt(idempotencyKeyRef);
+      setDrawerSessionId('');
+      setDrawerSession(null);
+      setDrawerSessionCount(0);
       return;
     }
     if (!drawerLedger) {
@@ -120,6 +132,10 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
       setError('اختر الخزنة.');
       return;
     }
+    if ((source === 'drawer' || source === 'drop_to_vault') && drawerSessionCount > 0 && !drawerSessionId) {
+      setError('اختر درجاً مفتوحاً.');
+      return;
+    }
     setError(null);
     setConfirm(true);
   };
@@ -135,12 +151,19 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
         reason: reason.trim(),
         source: drawerLedger ? source : 'vault',
         ...((source === 'vault' || source === 'drop_to_vault') && vaultId ? { vault_id: vaultId } : {}),
+        idempotency_key: idempotencyKeyForAttempt(idempotencyKeyRef),
+        ...((source === 'drawer' || source === 'drop_to_vault')
+          ? await registerMoneyContextFromSession(drawerSession)
+          : await registerMoneyContextFields()),
       });
+      completeIdempotencyAttempt(idempotencyKeyRef);
       setConfirm(false);
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      resolveIdempotencyAttemptAfterError(idempotencyKeyRef, normalized);
+      setError(normalized.message);
     } finally {
       setSaving(false);
     }
@@ -190,6 +213,19 @@ export function CashMovementSheet({ visible, shift, onClose, onSuccess }: Props)
               value={source}
               onChange={(value) => setSource(value as CashMovementSource)}
               options={sourceOptions}
+            />
+          ) : null}
+          {(source === 'drawer' || source === 'drop_to_vault') ? (
+            <RegisterDrawerSessionPicker
+              visible={visible}
+              hideWhenEmpty
+              required
+              value={drawerSessionId}
+              onChange={(id, session) => {
+                setDrawerSessionId(id);
+                setDrawerSession(session);
+              }}
+              onAvailabilityChange={({ sessions }) => setDrawerSessionCount(sessions.length)}
             />
           ) : null}
           {(source === 'vault' || source === 'drop_to_vault') && vaults.length > 0 ? (

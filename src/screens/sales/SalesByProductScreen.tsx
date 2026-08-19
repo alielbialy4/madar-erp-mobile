@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { salesAPI } from '@/api/sales';
@@ -17,6 +17,8 @@ import type { Sale } from '@/types/api';
 import { asText, dateText, money, numberText } from '@/utils/format';
 import { saleStatusBadgeTone, saleStatusLabel } from '@/utils/saleStatus';
 import { normalizeApiError } from '@/utils/errors';
+import { decideRefundClientUuidLifecycle } from '@/utils/refundClientUuidLifecycle';
+import { createUuid } from '@/utils/uuid';
 
 type SoldProductItem = {
   id: string;
@@ -71,6 +73,7 @@ function saleItemsToProductLines(sales: Sale[]): SoldProductItem[] {
 }
 
 export function SalesByProductScreen({ navigation }: { navigation: any }) {
+  const refundClientUuidRef = useRef<string | null>(null);
   const c = useColors();
   const [rows, setRows] = useState<SoldProductItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,11 +130,21 @@ export function SalesByProductScreen({ navigation }: { navigation: any }) {
     if (!refundTarget) return;
     setRefunding(true);
     try {
-      await salesAPI.refund(refundTarget.sale_id);
+      if (!refundClientUuidRef.current) refundClientUuidRef.current = createUuid();
+      await salesAPI.refund(refundTarget.sale_id, { client_uuid: refundClientUuidRef.current });
+      refundClientUuidRef.current = null;
       setRefundTarget(null);
       await load('refresh');
     } catch (err) {
-      setError(normalizeApiError(err).message);
+      const normalized = normalizeApiError(err);
+      const decision = decideRefundClientUuidLifecycle({
+        status: normalized.status,
+        code: normalized.code,
+      });
+      if (decision.action === 'clear') {
+        refundClientUuidRef.current = null;
+      }
+      setError(normalized.message);
     } finally {
       setRefunding(false);
     }

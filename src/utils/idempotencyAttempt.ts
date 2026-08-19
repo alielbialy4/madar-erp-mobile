@@ -11,3 +11,18 @@ export function idempotencyKeyForAttempt(holder: IdempotencyKeyHolder): string {
 export function completeIdempotencyAttempt(holder: IdempotencyKeyHolder): void {
   holder.current = null;
 }
+
+/**
+ * Clear after success, or on deterministic key conflict (422), so the next
+ * logical operation gets a fresh key. Keep the key on transient failures.
+ */
+export function resolveIdempotencyAttemptAfterError(
+  holder: IdempotencyKeyHolder,
+  err: { status?: number | null; message?: string | null },
+): void {
+  const status = err.status ?? null;
+  const message = typeof err.message === 'string' ? err.message : '';
+  if (status === 422 && /مفتاح التكرار|idempotenc/i.test(message)) {
+    completeIdempotencyAttempt(holder);
+  }
+}

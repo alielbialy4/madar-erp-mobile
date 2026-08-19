@@ -29,6 +29,7 @@ export type SupplierPaymentPayload = {
 };
 
 export type CreditAllocationPayload = {
+  client_uuid?: string;
   supplier_id: number;
   purchase_id: number;
   amount: number | string;
@@ -37,6 +38,7 @@ export type CreditAllocationPayload = {
 };
 
 export type MixedSupplierBalanceSettlementPayload = {
+  client_uuid?: string;
   supplier_id?: number;
   purchase_id?: number;
   balance_settlement_amount?: number | string;

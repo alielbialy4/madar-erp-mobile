@@ -317,6 +317,8 @@ export type SalePayload = {
   /** Idempotency key for online create / offline sync. */
   client_uuid?: string;
   shift_id?: string | null;
+  pos_register_id?: string | null;
+  register_session_id?: string | null;
   customer_id?: number | null;
   items: SaleItemPayload[];
   subtotal: number;
@@ -475,6 +477,7 @@ export type InventoryBalance = {
 
 export type ActiveShift = {
   id: string;
+  mode?: 'legacy_shared_drawer' | 'multi_register';
   shift_no?: number | null;
   branch_id: string;
   vault_id: string;

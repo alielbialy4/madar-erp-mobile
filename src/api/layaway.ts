@@ -33,6 +33,7 @@ export type LayawayPaymentPayload = {
   financial_account_id?: string | null;
   vault_id?: string | null;
   notes?: string;
+  idempotency_key?: string;
 };
 
 export const layawayAPI = {

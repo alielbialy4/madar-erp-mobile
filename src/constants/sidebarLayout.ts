@@ -1,5 +1,12 @@
 export const SIDEBAR_WIDTH = 280;
 
+/** Keep a peek of the app behind the mobile drawer. */
+export const SIDEBAR_DRAWER_PEEK = 72;
+
+export function drawerWidthForScreen(screenWidth: number): number {
+  return Math.min(SIDEBAR_WIDTH, Math.max(248, screenWidth - SIDEBAR_DRAWER_PEEK));
+}
+
 export const SIDEBAR_MUTED = 'rgba(255,255,255,0.52)';
 
 export const SIDEBAR_BORDER = 'rgba(255,255,255,0.08)';

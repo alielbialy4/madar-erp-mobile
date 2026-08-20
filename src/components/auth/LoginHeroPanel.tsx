@@ -1,6 +1,7 @@
 import { designColors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppText as Text } from '@/components/ui/AppText';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { authCopy } from '@/constants/authCopy';
@@ -64,7 +65,12 @@ export function LoginHeroPanel({ compact = false }: Props) {
   );
 
   return (
-    <View style={styles.root}>
+    <LinearGradient
+      colors={[HERO_PANEL_BG, designColors.deepPanel, designColors.deepNavy]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.root}
+    >
       <View style={styles.inner}>
         <BrandLogo height={compact ? 48 : 64} inverted />
         <Text style={styles.title}>{authCopy.brandName}</Text>
@@ -76,6 +82,6 @@ export function LoginHeroPanel({ compact = false }: Props) {
           </>
         ) : null}
       </View>
-    </View>
+    </LinearGradient>
   );
 }

@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Madar ERP",
-    "slug": "madar-erp-mobile",
+    "name": "Madar POS",
+    "slug": "madar-pos-mobile",
     "version": "1.0.0",
     "orientation": "default",
-    "scheme": "madarerp",
+    "scheme": "madarpos",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
     "splash": {
@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "com.madar.erp.mobile",
+      "versionCode": 2,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -52,7 +53,7 @@
     "extra": {
       "timezone": "Africa/Cairo",
       "eas": {
-        "projectId": "e0696f4d-1542-4ccc-bfd0-748b4b0791c5"
+        "projectId": "b63733e8-60ca-4b95-8143-e34910b5cc04"
       }
     },
     "plugins": [
@@ -60,6 +61,6 @@
       "@react-native-community/datetimepicker",
       "expo-dev-client"
     ],
-    "owner": "alialiky"
+    "owner": "gamalxd"
   }
 }

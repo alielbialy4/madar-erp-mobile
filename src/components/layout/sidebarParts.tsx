@@ -23,9 +23,9 @@ export function hasActiveDescendant(item: MobileSidebarMenuItem, activeRoute?: s
   return Boolean(item.subItems?.some((sub) => hasActiveDescendant(sub, activeRoute)));
 }
 
-export function SidebarSectionHeader({ label, muted, border }: { label: string; muted: string; border: string }) {
+export function SidebarSectionHeader({ label, muted }: { label: string; muted: string; border: string }) {
   return (
-    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs }}>
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}>
       <Text style={{ ...textStart, fontSize: 10, letterSpacing: 0.5, fontFamily: fonts.bold, color: muted }}>{label}</Text>
     </View>
   );
@@ -35,6 +35,7 @@ export function SidebarNavItem({
   icon,
   label,
   active,
+  showIndicator = false,
   nested,
   expandable,
   expanded,
@@ -47,6 +48,7 @@ export function SidebarNavItem({
   icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   active: boolean;
+  showIndicator?: boolean;
   nested?: boolean;
   expandable?: boolean;
   expanded?: boolean;
@@ -60,35 +62,51 @@ export function SidebarNavItem({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active, expanded: expandable ? expanded : undefined }}
       style={({ pressed }) => [
         {
           ...flexRow,
           alignItems: 'center',
-          gap: spacing.md,
+          gap: spacing.sm,
           minHeight: 44,
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.sm,
-          borderRadius: radius.md,
+          paddingHorizontal: spacing.md,
+          paddingVertical: 6,
+          borderRadius: radius.lg,
           marginHorizontal: spacing.sm,
-          borderStartWidth: 2,
-          borderStartColor: 'transparent',
+          overflow: 'hidden',
+          position: 'relative',
         },
         nested ? { marginStart: spacing.lg, minHeight: 40 } : undefined,
-        active ? { backgroundColor: c.primarySoftMuted, borderStartColor: accent } : undefined,
+        active ? { backgroundColor: c.primarySoftMuted } : undefined,
         pressed ? { backgroundColor: c.surfaceMuted } : undefined,
       ]}
     >
+      {showIndicator ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 8,
+            bottom: 8,
+            start: 0,
+            width: 3,
+            borderRadius: 2,
+            backgroundColor: accent,
+          }}
+        />
+      ) : null}
       <View
         style={{
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
           borderRadius: radius.md,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: active ? c.primarySoftMuted : c.surfaceMuted,
         }}
       >
-        <MaterialIcons name={icon} size={18} color={active ? fg : muted} />
+        <MaterialIcons name={icon} size={16} color={active ? accent : muted} />
       </View>
       <Text
         style={{
@@ -104,8 +122,6 @@ export function SidebarNavItem({
       </Text>
       {expandable ? (
         <MaterialIcons name={expanded ? 'expand-less' : chevronForwardIcon()} size={18} color={muted} />
-      ) : active ? (
-        <View style={{ width: 4, height: 16, borderRadius: 2, backgroundColor: accent }} />
       ) : null}
     </Pressable>
   );
@@ -143,7 +159,8 @@ export function SidebarTree({
   }
 
   const icon = resolveSidebarIcon(item.icon);
-  const active = hasActiveDescendant(item, activeRoute);
+  const routeActive = isNavItemActive(item, activeRoute);
+  const branchActive = hasActiveDescendant(item, activeRoute);
   const hasChildren = Boolean(item.subItems?.length);
   const isOpen = Boolean(openMenus[menuKey]);
 
@@ -153,7 +170,8 @@ export function SidebarTree({
         <SidebarNavItem
           icon={icon}
           label={item.label}
-          active={active}
+          active={branchActive}
+          showIndicator={false}
           expandable
           expanded={isOpen}
           onPress={() => onToggle(menuKey)}
@@ -189,7 +207,8 @@ export function SidebarTree({
     <SidebarNavItem
       icon={icon}
       label={item.label}
-      active={isNavItemActive(item, activeRoute)}
+      active={routeActive}
+      showIndicator={routeActive}
       nested={depth > 0}
       onPress={() => onNavigate(item.nav!)}
       fg={fg}

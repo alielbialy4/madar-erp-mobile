@@ -13,6 +13,8 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+/credentials/android/keystore.properties
+/credentials/android/upload-certificate.pem
 *.p8
 *.p12
 *.key

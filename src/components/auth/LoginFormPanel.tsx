@@ -1,15 +1,15 @@
-import { designColors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { Control, FieldErrors } from 'react-hook-form';
 import { Controller } from 'react-hook-form';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppInput, AppPasswordInput } from '@/components/ui';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { authCopy } from '@/constants/authCopy';
-import { textStart, appTextAlignStart } from '@/constants/layout';
+import { flexRow, textStart, appTextAlignStart } from '@/constants/layout';
 import { fonts } from '@/constants/fonts';
-import { radius, spacing } from '@/constants/spacing';
+import { radius, shadows, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import { useColors } from '@/hooks/useColors';
 import { responsive } from '@/constants/responsive';
@@ -44,16 +44,17 @@ export function LoginFormPanel({
   const c = useColors();
   const { width, height } = useWindowDimensions();
   const isTablet = width >= responsive.tabletMinSplit;
+  const compact = keyboardOpen && !isTablet;
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
         root: {
           flex: 1,
-          backgroundColor: designColors.white,
           justifyContent: keyboardOpen ? 'flex-start' : 'center',
           paddingHorizontal: isTablet ? spacing.xxl : spacing.lg,
           paddingVertical: isTablet ? spacing.xxxl : spacing.xl,
-          paddingTop: keyboardOpen && !isTablet ? spacing.lg : undefined,
+          paddingTop: compact ? spacing.lg : undefined,
           minHeight: isTablet || keyboardOpen ? undefined : Math.max(height - spacing.xxxl, 560),
         },
         inner: {
@@ -63,59 +64,60 @@ export function LoginFormPanel({
           flexGrow: keyboardOpen ? 0 : 1,
           justifyContent: keyboardOpen ? 'flex-start' : 'center',
         },
-        brandRow: {
-          flexDirection: 'row',
+        brand: {
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: spacing.md,
-          paddingBottom: spacing.lg,
-          marginBottom: spacing.xl,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: c.border,
+          marginBottom: compact ? spacing.lg : spacing.xxl,
+          gap: spacing.sm,
         },
-        brandCopy: {
-          flex: 1,
-          alignItems: 'flex-start',
-          gap: 2,
+        logoMark: {
+          width: compact ? 52 : 64,
+          height: compact ? 52 : 64,
+          borderRadius: radius.xxl,
+          backgroundColor: c.darkNavy,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.md,
         },
         brandName: {
-          color: designColors.navy,
-          fontSize: typography.cardTitle,
+          color: c.text,
+          fontSize: typography.entityTitle,
           fontFamily: fonts.bold,
           fontWeight: '700',
-          textAlign: appTextAlignStart,
+          textAlign: 'center',
         },
         brandContext: {
           color: c.textMuted,
           fontSize: typography.tiny,
           fontFamily: fonts.medium,
-          textAlign: appTextAlignStart,
+          textAlign: 'center',
         },
         header: {
           gap: spacing.xs,
-          marginBottom: spacing.xl,
+          marginBottom: spacing.lg,
+          alignItems: 'center',
         },
         heading: {
-          ...textStart,
-          color: designColors.navy,
-          fontSize: typography.pageTitle,
+          color: c.text,
+          fontSize: compact ? typography.h3 : typography.pageTitle,
           fontFamily: fonts.bold,
           fontWeight: '700',
+          textAlign: 'center',
         },
         subheading: {
-          ...textStart,
-          color: designColors.slate700,
+          color: c.textMuted,
           fontSize: typography.body,
           fontFamily: fonts.regular,
+          textAlign: 'center',
         },
         card: {
-          borderWidth: isTablet ? StyleSheet.hairlineWidth : 0,
-          borderColor: designColors.slate300,
-          borderRadius: isTablet ? radius.xl : 0,
-          backgroundColor: designColors.white,
-          paddingHorizontal: isTablet ? spacing.xl : 0,
-          paddingVertical: isTablet ? spacing.xl : 0,
-          gap: spacing.md,
+          borderWidth: 1,
+          borderColor: c.borderSubtle,
+          borderRadius: radius.xxl,
+          backgroundColor: c.surface,
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.xl,
+          gap: spacing.lg,
+          ...shadows.card,
         },
         fieldBlock: {
           gap: spacing.xs,
@@ -127,15 +129,15 @@ export function LoginFormPanel({
           paddingVertical: spacing.sm,
         },
         bannerSuccess: {
-          borderColor: designColors.greenLight,
-          backgroundColor: designColors.greenSoft,
+          borderColor: c.softSuccessBorder,
+          backgroundColor: c.softSuccess,
         },
         bannerError: {
-          borderColor: c.danger,
-          backgroundColor: designColors.redSoft,
+          borderColor: c.softDangerBorder,
+          backgroundColor: c.softDanger,
         },
         bannerTextSuccess: {
-          color: designColors.greenDark,
+          color: c.success,
           fontSize: typography.body,
           fontFamily: fonts.medium,
           fontWeight: '600',
@@ -146,39 +148,69 @@ export function LoginFormPanel({
           fontFamily: fonts.medium,
           fontWeight: '600',
         },
-        tenantHint: {
-          ...textStart,
-          color: c.textMuted,
-          fontSize: typography.small,
-          fontFamily: fonts.medium,
-          fontWeight: '600',
-          marginTop: spacing.xs,
-          lineHeight: 20,
-        },
         submitWrap: {
-          marginTop: spacing.md,
-          paddingTop: spacing.sm,
+          marginTop: spacing.xs,
+        },
+        secureRow: {
+          ...flexRow,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing.xs,
+          paddingTop: spacing.xs,
+        },
+        secureText: {
+          color: c.textCaption,
+          fontSize: typography.tiny,
+          fontFamily: fonts.regular,
+          textAlign: 'center',
+          flexShrink: 1,
         },
         footer: {
           marginTop: spacing.xl,
-          paddingTop: spacing.lg,
           alignItems: 'center',
-          gap: spacing.sm,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: c.border,
         },
         footerText: {
-          color: designColors.slate500,
+          color: c.textCaption,
           fontSize: typography.tiny,
           fontFamily: fonts.regular,
           textAlign: 'center',
         },
         footerBrand: {
-          color: designColors.slate800,
+          color: c.textMuted,
           fontFamily: fonts.medium,
         },
+        tabletBrandName: {
+          color: c.text,
+          fontSize: typography.cardTitle,
+          fontFamily: fonts.bold,
+          fontWeight: '700',
+          textAlign: appTextAlignStart,
+        },
+        tabletBrandContext: {
+          color: c.textMuted,
+          fontSize: typography.tiny,
+          fontFamily: fonts.medium,
+          textAlign: appTextAlignStart,
+        },
+        tabletHeader: {
+          gap: spacing.xs,
+          marginBottom: spacing.lg,
+        },
+        tabletHeading: {
+          ...textStart,
+          color: c.text,
+          fontSize: typography.pageTitle,
+          fontFamily: fonts.bold,
+          fontWeight: '700',
+        },
+        tabletSubheading: {
+          ...textStart,
+          color: c.textMuted,
+          fontSize: typography.body,
+          fontFamily: fonts.regular,
+        },
       }),
-    [c.border, c.danger, c.textMuted, height, isTablet, keyboardOpen],
+    [c, compact, height, isTablet, keyboardOpen],
   );
 
   const bannerMessage = successMessage ?? errorMessage;
@@ -186,17 +218,27 @@ export function LoginFormPanel({
   return (
     <View style={styles.root}>
       <View style={styles.inner}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandCopy}>
-            <Text style={styles.brandName}>{authCopy.brandName}</Text>
-            <Text style={styles.brandContext}>منصة التشغيل والإدارة</Text>
+        {isTablet ? (
+          <View style={[styles.brand, { alignItems: 'flex-start' }]}>
+            <View style={styles.logoMark}>
+              <BrandLogo height={28} inverted />
+            </View>
+            <Text style={styles.tabletBrandName}>{authCopy.brandName}</Text>
+            <Text style={styles.tabletBrandContext} translate={false}>منصة التشغيل والإدارة</Text>
           </View>
-          <BrandLogo height={28} />
-        </View>
+        ) : (
+          <View style={styles.brand}>
+            <View style={styles.logoMark}>
+              <BrandLogo height={compact ? 24 : 28} inverted />
+            </View>
+            <Text style={styles.brandName}>{authCopy.brandName}</Text>
+            <Text style={styles.brandContext} translate={false}>منصة التشغيل والإدارة</Text>
+          </View>
+        )}
 
-        <View style={styles.header}>
-          <Text style={styles.heading}>{authCopy.loginHeading}</Text>
-          <Text style={styles.subheading}>{authCopy.loginSubheading}</Text>
+        <View style={isTablet ? styles.tabletHeader : styles.header}>
+          <Text style={isTablet ? styles.tabletHeading : styles.heading}>{authCopy.loginHeading}</Text>
+          <Text style={isTablet ? styles.tabletSubheading : styles.subheading}>{authCopy.loginSubheading}</Text>
         </View>
 
         <View style={styles.card}>
@@ -224,9 +266,9 @@ export function LoginFormPanel({
                   onChangeText={onChange}
                   placeholder={authCopy.tenantIdPlaceholder}
                   autoCapitalize="none"
+                  prefixIcon="apartment"
                   onFocus={onFieldFocus}
                 />
-                <Text style={styles.tenantHint}>{authCopy.tenantHint}</Text>
               </View>
             )}
           />
@@ -246,6 +288,7 @@ export function LoginFormPanel({
                   autoComplete="email"
                   error={errors.email?.message}
                   required
+                  prefixIcon="mail-outline"
                   onFocus={onFieldFocus}
                 />
               </View>
@@ -265,6 +308,7 @@ export function LoginFormPanel({
                   autoComplete="password"
                   error={errors.password?.message}
                   required
+                  prefixIcon="lock-outline"
                   onFocus={onFieldFocus}
                 />
               </View>
@@ -279,6 +323,11 @@ export function LoginFormPanel({
               fullWidth
               size="lg"
             />
+          </View>
+
+          <View style={styles.secureRow}>
+            <MaterialIcons name="verified-user" size={14} color={c.textCaption} />
+            <Text style={styles.secureText}>{authCopy.tenantHint}</Text>
           </View>
         </View>
 

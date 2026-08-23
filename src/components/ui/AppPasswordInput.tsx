@@ -13,12 +13,14 @@ type Props = Omit<TextInputProps, 'secureTextEntry'> & {
   label?: string;
   error?: string;
   required?: boolean;
+  prefixIcon?: keyof typeof MaterialIcons.glyphMap;
 };
 
 export function AppPasswordInput({
   label,
   error,
   required,
+  prefixIcon,
   style,
   textAlign,
   onFocus,
@@ -40,6 +42,11 @@ export function AppPasswordInput({
         </View>
       ) : null}
       <View style={{ position: 'relative' }}>
+        {prefixIcon ? (
+          <View style={{ position: 'absolute', start: spacing.md, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
+            <MaterialIcons name={prefixIcon} size={18} color={focused ? c.accent : c.textCaption} />
+          </View>
+        ) : null}
         <AppTextInput
           placeholderTextColor={c.textCaption}
           textAlign={textAlign ?? inputTextAlign}
@@ -60,6 +67,7 @@ export function AppPasswordInput({
               borderRadius: radius.input,
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
+              paddingStart: prefixIcon ? spacing.xxxl : spacing.md,
               paddingEnd: spacing.xxxl + spacing.sm,
               color: c.text,
               backgroundColor: c.surface,

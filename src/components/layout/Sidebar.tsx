@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Modal,
@@ -13,10 +13,13 @@ import { drawerShellLtr, sidebarAreaRtl } from '@/constants/layout';
 import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
 import { slideInX } from '@/utils/animations';
 import { useColors } from '@/hooks/useColors';
-import { SIDEBAR_WIDTH } from '@/constants/sidebarLayout';
+import { radius } from '@/constants/spacing';
+import { elevation } from '@/constants/elevation';
+import { drawerWidthForScreen } from '@/constants/sidebarLayout';
 import { SidebarPanel } from './SidebarPanel';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { drawerClosedTranslateX } from '@/utils/rtl';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   visible: boolean;
@@ -34,11 +37,14 @@ export function Sidebar({
   onOpenCommandPalette,
 }: Props) {
   const c = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const closedX = drawerClosedTranslateX(SIDEBAR_WIDTH);
+  const drawerWidth = drawerWidthForScreen(screenWidth);
+  const closedX = drawerClosedTranslateX(drawerWidth);
   const slideX = useRef(new Animated.Value(closedX)).current;
-  const drawerLeft = screenWidth - SIDEBAR_WIDTH;
+  const drawerLeft = screenWidth - drawerWidth;
+  const panelElevation = useMemo(() => elevation(c, 'lg'), [c]);
 
   useEffect(() => {
     if (visible) {
@@ -71,16 +77,26 @@ export function Sidebar({
             top: 0,
             left: drawerLeft,
             bottom: 0,
-            width: SIDEBAR_WIDTH,
-            overflow: 'hidden',
-            borderLeftWidth: StyleSheet.hairlineWidth,
-            borderLeftColor: c.borderSubtle,
+            width: drawerWidth,
             paddingTop: insets.top,
             paddingBottom: insets.bottom,
             transform: [{ translateX: slideX }],
+            backgroundColor: c.surface,
+            borderTopLeftRadius: radius.xxl,
+            borderBottomLeftRadius: radius.xxl,
+            ...panelElevation,
           }}
         >
-          <View style={{ flex: 1, ...sidebarAreaRtl, backgroundColor: c.surface }}>
+          <View
+            style={{
+              flex: 1,
+              overflow: 'hidden',
+              borderTopLeftRadius: radius.xxl,
+              borderBottomLeftRadius: radius.xxl,
+              ...sidebarAreaRtl,
+              backgroundColor: c.surface,
+            }}
+          >
             <SidebarPanel
               activeRoute={activeRoute}
               onNavigate={handleNavigate}
@@ -89,6 +105,8 @@ export function Sidebar({
               headerRight={
                 <Pressable
                   onPress={onClose}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Close')}
                   style={[styles.closeBtn, { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle }]}
                   hitSlop={8}
                 >

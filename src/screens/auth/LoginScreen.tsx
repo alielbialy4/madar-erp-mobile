@@ -1,4 +1,3 @@
-import { designColors } from '@/constants/colors';
 import React, { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,10 +16,12 @@ import { spacing } from '@/constants/spacing';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { LoginFormPanel } from '@/components/auth/LoginFormPanel';
 import { LoginHeroPanel } from '@/components/auth/LoginHeroPanel';
+import { GradientMesh } from '@/components/ui';
 import { rootRtl } from '@/constants/layout';
 import { responsive } from '@/constants/responsive';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
+import { useColors } from '@/hooks/useColors';
 import { useLocaleStore } from '@/store/localeStore';
 
 type LoginForm = {
@@ -31,6 +32,7 @@ type LoginForm = {
 
 export function LoginScreen() {
   const { t } = useTranslation();
+  const c = useColors();
   const language = useLocaleStore((s) => s.language);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -59,7 +61,7 @@ export function LoginScreen() {
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        safe: { flex: 1, backgroundColor: designColors.white },
+        safe: { flex: 1, backgroundColor: c.background },
         flex: { flex: 1 },
         row: { flexDirection: 'row', flex: 1 },
         column: { flex: 1 },
@@ -68,7 +70,7 @@ export function LoginScreen() {
         scroll: { flexGrow: 1 },
         formSection: { flexGrow: keyboardOpen ? 0 : 1 },
       }),
-    [isTablet, keyboardOpen],
+    [c.background, isTablet, keyboardOpen],
   );
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -119,6 +121,7 @@ export function LoginScreen() {
 
   return (
     <View style={[styles.safe, rootRtl]}>
+      {!isTablet ? <GradientMesh variant="subtle" /> : null}
       <SafeAreaView style={styles.flex} edges={['top', 'bottom', 'left', 'right']}>
         {isTablet ? (
           <View style={styles.row}>

@@ -13,7 +13,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useThemeStore } from '@/store/themeStore';
 import { hasFeature, hasPermission } from '@/utils/permissions';
 import { buildMobileSidebarMenu, type MobileSidebarMenuItem } from '@/navigation/buildSidebarMenu';
-import { hasActiveDescendant, getMenuKey, SidebarNavItem, SidebarTree } from './sidebarParts';
+import { hasActiveDescendant, getMenuKey, SidebarTree } from './sidebarParts';
 import type { SidebarNavAction } from '@/navigation/sidebarNavMap';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { useAppDialog } from '@/components/feedback';
@@ -99,7 +99,7 @@ export function SidebarPanel({
   const toggleGroup = useCallback((key: string) => setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] })), []);
 
   return (
-    <View style={[styles.root, { backgroundColor: c.surface }]}> 
+    <View style={[styles.root, { backgroundColor: c.surface }]}>
       <View style={styles.brandRow}>
         <View style={styles.brandMark}>
           <BrandLogo height={32} />
@@ -115,23 +115,34 @@ export function SidebarPanel({
         {headerRight}
       </View>
 
-      <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm }}>
-        <AppInput value={search} onChangeText={setSearch} placeholder="ابحث في الوحدات..." returnKeyType="search" />
-        {onOpenCommandPalette ? (
-          <SidebarNavItem
-            icon="travel-explore"
-            label="بحث سريع"
-            active={false}
-            onPress={onOpenCommandPalette}
-            fg={fg}
-            muted={muted}
-            border={border}
-            accent={accent}
+      <View style={styles.searchRow}>
+        <View style={{ flex: 1 }}>
+          <AppInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="ابحث في الوحدات..."
+            prefixIcon="search"
+            returnKeyType="search"
           />
+        </View>
+        {onOpenCommandPalette ? (
+          <Pressable
+            onPress={onOpenCommandPalette}
+            accessibilityRole="button"
+            accessibilityLabel={t('header.search')}
+            style={[styles.paletteBtn, { backgroundColor: c.surfaceMuted, borderColor: border }]}
+          >
+            <MaterialIcons name="travel-explore" size={18} color={fg} />
+          </Pressable>
         ) : null}
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xl }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: spacing.lg, paddingTop: spacing.xs }}
+      >
         {filteredMenu.map((entry, index) => (
           <SidebarTree
             key={`${entry.id ?? entry.label}-${index}`}
@@ -154,15 +165,37 @@ export function SidebarPanel({
         <Text style={{ ...textStart, fontSize: typography.caption, fontFamily: fonts.bold, color: fg }} numberOfLines={1}>
           {user?.name ?? 'المستخدم'}
         </Text>
-        <View style={[flexRow, { gap: spacing.xs, marginTop: spacing.sm }]}>
-          <FooterIcon icon="person-outline" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Profile' })} />
-          <FooterIcon icon="settings" fg={fg} bg={c.surfaceMuted} border={border} onPress={() => handleNavigate({ kind: 'more', screen: 'Settings' })} />
-          <FooterIcon icon={theme === 'dark' ? 'light-mode' : 'dark-mode'} fg={fg} bg={c.surfaceMuted} border={border} onPress={toggleTheme} />
+        <View style={[flexRow, styles.footerActions]}>
+          <FooterIcon
+            icon="person-outline"
+            fg={fg}
+            bg={c.surfaceMuted}
+            border={border}
+            accessibilityLabel={t('header.profile')}
+            onPress={() => handleNavigate({ kind: 'more', screen: 'Profile' })}
+          />
+          <FooterIcon
+            icon="settings"
+            fg={fg}
+            bg={c.surfaceMuted}
+            border={border}
+            accessibilityLabel={t('header.settings')}
+            onPress={() => handleNavigate({ kind: 'more', screen: 'Settings' })}
+          />
+          <FooterIcon
+            icon={theme === 'dark' ? 'light-mode' : 'dark-mode'}
+            fg={fg}
+            bg={c.surfaceMuted}
+            border={border}
+            accessibilityLabel={t('header.theme')}
+            onPress={toggleTheme}
+          />
           <FooterIcon
             icon="logout"
             fg={c.danger}
-            bg={c.surfaceMuted}
-            border={border}
+            bg={c.softDanger}
+            border={c.softDangerBorder}
+            accessibilityLabel={t('header.logout')}
             onPress={() => {
               void dialog
                 .confirm({
@@ -190,15 +223,22 @@ function FooterIcon({
   bg,
   border,
   onPress,
+  accessibilityLabel,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   fg: string;
   bg: string;
   border: string;
   onPress: () => void;
+  accessibilityLabel: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.footerBtn, { backgroundColor: bg, borderColor: border }]}> 
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.footerBtn, { backgroundColor: bg, borderColor: border }]}
+    >
       <MaterialIcons name={icon} size={18} color={fg} />
     </Pressable>
   );
@@ -206,12 +246,35 @@ function FooterIcon({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  brandRow: { ...flexRow, alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg },
+  brandRow: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
   brandMark: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  footer: { borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  searchRow: {
+    ...flexRow,
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  paletteBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  footer: { borderTopWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  footerActions: { gap: spacing.xs, marginTop: spacing.sm },
   footerBtn: {
-    width: 38,
-    height: 38,
+    flex: 1,
+    height: 40,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',

@@ -5,6 +5,8 @@ import { AppButton, AppInput, AppSelect, AppText } from '@/components/ui';
 import { shiftsAPI } from '@/api/shifts';
 import { vaultsAPI } from '@/api/vaults';
 import { useAuthStore } from '@/store/authStore';
+import { usePosStore } from '@/store/posStore';
+import { parsePrintSequenceMode } from '@/utils/printSequencePolicy';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { hasPermission, hasRole } from '@/utils/permissions';
@@ -42,6 +44,12 @@ export function OpenShiftSheet({
   const [vaults, setVaults] = useState<Record<string, unknown>[]>([]);
   const [vaultId, setVaultId] = useState<string | null>(null);
   const [startingCash, setStartingCash] = useState('');
+  const [printSequenceStart, setPrintSequenceStart] = useState('1');
+  const catalogSettings = usePosStore((s) => s.catalogSettings);
+  const printSeqMode = parsePrintSequenceMode(catalogSettings?.print_sequence_mode);
+  const printSeqMax = catalogSettings?.print_sequence_max != null ? String(catalogSettings.print_sequence_max) : '';
+  const showManualPrintStart = !isMultiRegister && printSeqMode === 'manual_start';
+  const showWrapPrintHint = !isMultiRegister && printSeqMode === 'wrap_from_one' && printSeqMax !== '';
   const [assignableUsers, setAssignableUsers] = useState<ShiftFilterUser[]>([]);
   const [shiftOwnerId, setShiftOwnerId] = useState<string | null>(null);
   const [loadingVaults, setLoadingVaults] = useState(false);
@@ -59,6 +67,7 @@ export function OpenShiftSheet({
     if (!visible) return;
     if (user?.id) setShiftOwnerId(String(user.id));
     setStartingCash('');
+    setPrintSequenceStart('1');
     setErrorMsg(null);
   }, [visible, user?.id]);
 
@@ -125,6 +134,9 @@ export function OpenShiftSheet({
         vault_id: vaultId,
         starting_cash: amount,
         ...(forUserId != null ? { for_user_id: forUserId } : {}),
+        ...(showManualPrintStart && printSequenceStart.trim() !== ''
+          ? { print_sequence_start: Number(printSequenceStart) }
+          : {}),
       });
       if (!isRequired) {
         toast.success('تم فتح الوردية بنجاح');
@@ -186,6 +198,18 @@ export function OpenShiftSheet({
           onChangeText={setStartingCash}
           placeholder="0.00"
         />
+
+        {showWrapPrintHint ? (
+          <AppText style={textStart}>تذاكر المطبخ من 1 إلى {printSeqMax} ثم تعود إلى 1.</AppText>
+        ) : null}
+        {showManualPrintStart ? (
+          <AppInput
+            label="أول رقم لتذكرة المطبخ"
+            keyboardType="number-pad"
+            value={printSequenceStart}
+            onChangeText={(t) => setPrintSequenceStart(t.replace(/\D/g, ''))}
+          />
+        ) : null}
 
         {errorMsg ? <AppText style={{ ...textStart, color: c.danger, fontWeight: '700' }}>{errorMsg}</AppText> : null}
 

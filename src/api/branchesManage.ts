@@ -21,6 +21,7 @@ export type BranchSettingsPatch = {
    * server-side audit) and this ID (for resolving the local TCP/BT transport). */
   customer_printer_profile_id?: string | null;
   print_sequence_max?: number | null;
+  print_sequence_mode?: 'branch_continuous' | 'wrap_from_one' | 'manual_start';
   receipt_footer?: string | null;
   customer_receipt_footer_message?: string | null;
   customer_receipt_developer_footer?: string | null;

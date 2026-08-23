@@ -4,8 +4,9 @@ export const DEFAULT_LOGO_SCALE = 100;
 
 export type ReceiptPaperWidth = '58mm' | '80mm';
 
-const BASE_LOGO_80MM = { maxWidth: 100, maxHeight: 48 };
-const BASE_LOGO_58MM = { maxWidth: 90, maxHeight: 40 };
+/** ~75% of typical 72mm thermal content width at 96dpi; height ~26mm. */
+const BASE_LOGO_80MM = { maxWidth: 220, maxHeight: 100 };
+const BASE_LOGO_58MM = { maxWidth: 160, maxHeight: 72 };
 
 /** Clamp branch receipt logo scale to a safe integer percent (50–200). */
 export function clampLogoScale(value: unknown): number {

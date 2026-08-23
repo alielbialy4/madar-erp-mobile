@@ -4,7 +4,7 @@ import {
   DEFAULT_KITCHEN_TICKET_FONT_SIZE,
   isPrintFontSizeInRange,
 } from '@/utils/branchSettings';
-import { clampLogoScale } from '@/utils/printLogoSize';
+import { parsePrintSequenceMode, type PrintSequenceMode } from '@/utils/printSequencePolicy';
 import {
   DEFAULT_RECEIPT_PRINT_MODE,
   normalizeReceiptPrintMode,
@@ -25,6 +25,7 @@ export type BranchPrintSettingsNormalized = {
   receipt_show_branch_name: boolean;
   customer_printer_name: string;
   print_sequence_max: string;
+  print_sequence_mode: PrintSequenceMode;
   receipt_footer: string;
   customer_receipt_footer_message: string;
   customer_receipt_developer_footer: string;
@@ -88,6 +89,7 @@ export function normalizeBranchPrintSettings(
     customer_printer_name: typeof r.customer_printer_name === 'string' ? r.customer_printer_name : '',
     print_sequence_max:
       r.print_sequence_max != null && r.print_sequence_max !== '' ? String(r.print_sequence_max) : '',
+    print_sequence_mode: parsePrintSequenceMode(r.print_sequence_mode),
     receipt_footer: legacyReceiptFooter,
     customer_receipt_footer_message: stringSetting(
       'customer_receipt_footer_message',

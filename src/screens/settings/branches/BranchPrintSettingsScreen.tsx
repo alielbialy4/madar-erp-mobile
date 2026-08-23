@@ -57,6 +57,7 @@ const PRINT_SETTING_KEYS = [
   'use_server_kitchen_print_queue',
   'receipt_show_print_sequence',
   'print_sequence_max',
+  'print_sequence_mode',
   'print_shift_close_report',
   'receipt_show_invoice_number',
   'receipt_show_invoice_barcode',
@@ -179,6 +180,10 @@ export function BranchPrintSettingsScreen({ navigation, route }: Props) {
     const logoScale = parseInt(settings.customer_receipt_logo_scale, 10);
     if (!isLogoScaleInRange(logoScale)) {
       toast.error(`حجم اللوجو يجب أن يكون بين ${LOGO_SCALE_MIN} و ${LOGO_SCALE_MAX}٪`);
+      return;
+    }
+    if (settings.print_sequence_mode === 'wrap_from_one' && settings.print_sequence_max.trim() === '') {
+      toast.error('وضع اللف من 1 يتطلب حداً أقصى لرقم تذكرة المطبخ.');
       return;
     }
     setBusy(true);
@@ -491,12 +496,29 @@ export function BranchPrintSettingsScreen({ navigation, route }: Props) {
           onValueChange={(v) => setSettings((s) => ({ ...s, receipt_show_print_sequence: v }))}
         />
         {settings.receipt_show_print_sequence ? (
-          <AppInput
-            label="أقصى تسلسل (فارغ = بدون)"
-            value={settings.print_sequence_max}
-            onChangeText={(t) => setSettings((s) => ({ ...s, print_sequence_max: t.replace(/\D/g, '') }))}
-            keyboardType="number-pad"
-          />
+          <>
+            <AppSelect
+              label="تسلسل رقم تذكرة المطبخ"
+              value={settings.print_sequence_mode}
+              options={[
+                { label: 'تسلسل الفرع (الحالي)', value: 'branch_continuous' },
+                { label: 'ابدأ من 1 عند كل فتح', value: 'wrap_from_one' },
+                { label: 'الكاشير يختار البداية', value: 'manual_start' },
+              ]}
+              onChange={(v) =>
+                setSettings((s) => ({
+                  ...s,
+                  print_sequence_mode: (v as BranchSettingsForm['print_sequence_mode']) || 'branch_continuous',
+                }))
+              }
+            />
+            <AppInput
+              label="أقصى تسلسل تذكرة مطبخ (فارغ = بدون لف)"
+              value={settings.print_sequence_max}
+              onChangeText={(t) => setSettings((s) => ({ ...s, print_sequence_max: t.replace(/\D/g, '') }))}
+              keyboardType="number-pad"
+            />
+          </>
         ) : null}
       </FormSection>
 

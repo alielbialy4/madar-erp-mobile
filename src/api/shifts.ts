@@ -20,6 +20,7 @@ export const shiftsAPI = {
     starting_cash: number | string;
     opening_cash_source?: 'vault' | 'manual';
     for_user_id?: number;
+    print_sequence_start?: number;
   }) => post<ActiveShift>('/shifts/open', payload),
   previewClose: (shiftId: string) => get<ClosePreview>(`/shifts/${shiftId}/preview-close`),
   close: (

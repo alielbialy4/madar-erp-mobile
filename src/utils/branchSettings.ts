@@ -26,6 +26,7 @@ export type BranchSettingsForm = {
   customer_printer_name: string;
   customer_printer_profile_id: string;
   print_sequence_max: string;
+  print_sequence_mode: 'branch_continuous' | 'wrap_from_one' | 'manual_start';
   receipt_footer: string;
   customer_receipt_footer_message: string;
   customer_receipt_developer_footer: string;
@@ -67,6 +68,7 @@ export function defaultBranchSettingsForm(): BranchSettingsForm {
     customer_printer_name: '',
     customer_printer_profile_id: '',
     print_sequence_max: '',
+    print_sequence_mode: 'branch_continuous',
     receipt_footer: '',
     customer_receipt_footer_message: DEFAULT_CUSTOMER_RECEIPT_FOOTER_MESSAGE,
     customer_receipt_developer_footer: DEFAULT_CUSTOMER_RECEIPT_DEVELOPER_FOOTER,
@@ -134,6 +136,10 @@ export function parseBranchSettingsObject(obj?: Record<string, unknown>): Branch
     customer_printer_name: String(obj.customer_printer_name ?? ''),
     customer_printer_profile_id: String(obj.customer_printer_profile_id ?? ''),
     print_sequence_max: obj.print_sequence_max != null ? String(obj.print_sequence_max) : '',
+    print_sequence_mode:
+      obj.print_sequence_mode === 'wrap_from_one' || obj.print_sequence_mode === 'manual_start'
+        ? obj.print_sequence_mode
+        : 'branch_continuous',
     receipt_footer: legacyFooter,
     customer_receipt_footer_message: customerFooter,
     customer_receipt_developer_footer: String(
@@ -213,6 +219,7 @@ export function buildBranchSettingsPayload(form: BranchSettingsForm, keys?: (key
     shift_close_font_size: parseInt(form.shift_close_font_size, 10),
     customer_receipt_logo_scale: parseInt(form.customer_receipt_logo_scale, 10),
     print_sequence_max: printSequenceMax,
+    print_sequence_mode: form.print_sequence_mode || 'branch_continuous',
   };
 
   if (!keys) return full;

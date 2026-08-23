@@ -1,5 +1,5 @@
 import type { PaperWidth } from '@/types/printing';
-import { clampLogoScale } from '@/utils/printLogoSize';
+import { resolveLogoMaxDimensions } from '@/utils/printLogoSize';
 import { dotsForPaper } from '@/services/printing/escposRaster';
 
 export const THERMAL_HORIZONTAL_PADDING_MM = 2.5;
@@ -25,16 +25,14 @@ export function receiptColumnWidths(contentWidth: number, padding: number): numb
 }
 
 /** @deprecated Use logoMaxWidth(paperWidth) */
-export const LOGO_MAX_WIDTH = 100;
+export const LOGO_MAX_WIDTH = 220;
 /** @deprecated Use logoMaxHeight(paperWidth) */
-export const LOGO_MAX_HEIGHT = 48;
+export const LOGO_MAX_HEIGHT = 100;
 
 export function logoMaxWidth(paperWidth: PaperWidth, scalePercent?: number): number {
-  const base = paperWidth === '58mm' ? 90 : 100;
-  return Math.round((base * clampLogoScale(scalePercent)) / 100);
+  return resolveLogoMaxDimensions(paperWidth, scalePercent).maxWidth;
 }
 
 export function logoMaxHeight(paperWidth: PaperWidth, scalePercent?: number): number {
-  const base = paperWidth === '58mm' ? 40 : 48;
-  return Math.round((base * clampLogoScale(scalePercent)) / 100);
+  return resolveLogoMaxDimensions(paperWidth, scalePercent).maxHeight;
 }

@@ -19,6 +19,8 @@ export type MobilePosRegister = {
     status: string
     expected_cash?: string
     cashier?: { id?: number; name?: string | null }
+    print_sequence_start?: number | null
+    print_sequence_last?: number | null
   } | null
 }
 
@@ -52,7 +54,7 @@ export const posRegistersAPI = {
     )).data.data,
   pair: async (id: string, payload: { device_uuid: string; device_label?: string }) =>
     (await apiClient.post<One<MobilePosRegister>>(`/pos-registers/${id}/pair`, payload)).data.data,
-  openSession: async (id: string, payload: { opening_cash: string; idempotency_key?: string }) =>
+  openSession: async (id: string, payload: { opening_cash: string; idempotency_key?: string; print_sequence_start?: number }) =>
     (await apiClient.post<One<MobileRegisterSession>>(`/pos-registers/${id}/sessions`, payload)).data.data,
   closeSession: async (
     sessionId: string,

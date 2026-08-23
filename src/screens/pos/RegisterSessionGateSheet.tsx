@@ -6,6 +6,8 @@ import { AppButton, AppInput, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { PosSheetHeader, usePosSheetStyles } from '@/components/pos/posSheetUi';
 import { posRegistersAPI, type MobilePosRegister } from '@/api/posRegisters';
+import { usePosStore } from '@/store/posStore';
+import { parsePrintSequenceMode } from '@/utils/printSequencePolicy';
 import {
   getOrCreateMobilePosDeviceId,
   resolveSessionDrawerFinancialAccountId,
@@ -53,6 +55,10 @@ export function RegisterSessionGateSheet({ visible, branchId, onReady }: Props) 
   const [registers, setRegisters] = useState<MobilePosRegister[]>([]);
   const [registerId, setRegisterId] = useState<string | null>(null);
   const [openingCash, setOpeningCash] = useState('');
+  const [printSequenceStart, setPrintSequenceStart] = useState('1');
+  const catalogSettings = usePosStore((s) => s.catalogSettings);
+  const printSeqMode = parsePrintSequenceMode(catalogSettings?.print_sequence_mode);
+  const printSeqMax = catalogSettings?.print_sequence_max != null ? String(catalogSettings.print_sequence_max) : '';
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -116,7 +122,12 @@ export function RegisterSessionGateSheet({ visible, branchId, onReady }: Props) 
         onReady();
         return;
       }
-      const session = await posRegistersAPI.openSession(registerId, { opening_cash: openingCash || '0' });
+      const session = await posRegistersAPI.openSession(registerId, {
+        opening_cash: openingCash || '0',
+        ...(printSeqMode === 'manual_start' && printSequenceStart.trim() !== ''
+          ? { print_sequence_start: Number(printSequenceStart) }
+          : {}),
+      });
       const sessionId = session.uuid || session.id;
       if (!sessionId) throw new Error(t('pos.registerGate.openMissingId'));
       await setSelectedPosRegisterId(registerId);
@@ -159,6 +170,24 @@ export function RegisterSessionGateSheet({ visible, branchId, onReady }: Props) 
               keyboardType="decimal-pad"
               placeholder={t('pos.registerGate.openingCashHint')}
             />
+            {printSeqMode === 'wrap_from_one' && printSeqMax ? (
+              <Text style={s.sheetSubtitle}>تذاكر المطبخ: 1–{printSeqMax}</Text>
+            ) : null}
+            {printSeqMode === 'manual_start' ? (
+              <AppInput
+                label="أول رقم لتذكرة المطبخ"
+                value={printSequenceStart}
+                onChangeText={(v) => setPrintSequenceStart(v.replace(/\D/g, ''))}
+                keyboardType="number-pad"
+              />
+            ) : null}
+            {registers
+              .filter((r) => r.current_session?.print_sequence_start != null)
+              .map((r) => (
+                <Text key={r.uuid} style={s.sheetSubtitle}>
+                  {r.name} بدأ من {r.current_session?.print_sequence_start}، آخر طلب {r.current_session?.print_sequence_last ?? r.current_session?.print_sequence_start}
+                </Text>
+              ))}
             <Text style={s.sheetSubtitle}>{t('pos.registerGate.openingCashIndependent')}</Text>
           </>
         ) : null}

@@ -65,6 +65,11 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
   const isCashier = hasRole(user, ['cashier', 'Cashier']);
   const canOpen = can(['open_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
   const canViewShiftSummary = !isCashier;
+  const canRegisterManager = can([
+    'view_register_session_reconciliation',
+    'access_admin_routes',
+    'manage_shifts',
+  ]);
 
   const effectiveBranchForCurrent = useMemo(() => {
     if (!isGlobalView && activeBranch?.id) return activeBranch.id;
@@ -315,6 +320,20 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
                 <AppButton title="إغلاق الوردية" variant="danger" onPress={() => setCloseSheet(true)} />
               ) : null}
             </View>
+            {canRegisterManager ? (
+              <View style={styles.actions}>
+                <AppButton
+                  title="لوحة إدارة الأدراج"
+                  variant="secondary"
+                  onPress={() => navigation.navigate('RegisterManagerDashboard')}
+                />
+                <AppButton
+                  title="مراجعة التسويات"
+                  variant="outline"
+                  onPress={() => navigation.navigate('RegisterReconciliation')}
+                />
+              </View>
+            ) : null}
           </>
         ) : (
           <>

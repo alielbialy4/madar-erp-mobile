@@ -53,7 +53,8 @@ export function ExpenseCreateScreen({ navigation }: Props) {
   const { can } = usePermissions();
   const activeBranch = useBranchStore((state) => state.activeBranch);
   const branches = useBranchStore((state) => state.branches);
-  const viewMode = useBranchStore((state) => state.viewMode);
+   const viewMode = useBranchStore((state) => state.viewMode);
+  const globalView = viewMode !== 'branch';
   const isOnline = useNetworkStore((state) => state.isOnline);
   const canCreate = can(['pay_expense', 'process_sales', 'manage_expenses', 'access_admin_routes']);
   const [branchId, setBranchId] = useState(viewMode === 'branch' ? activeBranch?.id ?? '' : '');

@@ -90,6 +90,11 @@ import { GiftCardDetailScreen } from '@/screens/settings/GiftCardDetailScreen';
 import { UsersScreen } from '@/screens/settings/UsersScreen';
 import { UserFormScreen } from '@/screens/settings/UserFormScreen';
 import { RolesScreen } from '@/screens/settings/RolesScreen';
+import { AttendanceTodayScreen } from '@/screens/employees/AttendanceTodayScreen';
+import { AttendanceRecordsScreen } from '@/screens/employees/AttendanceRecordsScreen';
+import { PayrollAdjustmentsScreen } from '@/screens/employees/PayrollAdjustmentsScreen';
+import { PayrollRunsScreen } from '@/screens/employees/PayrollRunsScreen';
+import { PayrollRunDetailScreen } from '@/screens/employees/PayrollRunDetailScreen';
 import { PaymentsLedgerScreen } from '@/screens/settings/PaymentsLedgerScreen';
 import { FinancialAccountsScreen } from '@/screens/settings/FinancialAccountsScreen';
 import { FinancialAccountDetailScreen } from '@/screens/settings/FinancialAccountDetailScreen';
@@ -205,6 +210,11 @@ export function MoreStack() {
       <Stack.Screen name="Users" component={UsersScreen} />
       <Stack.Screen name="UserForm" component={UserFormScreen} />
       <Stack.Screen name="Roles" component={RolesScreen} />
+      <Stack.Screen name="AttendanceToday" component={AttendanceTodayScreen} />
+      <Stack.Screen name="AttendanceRecords" component={AttendanceRecordsScreen} />
+      <Stack.Screen name="PayrollAdjustments" component={PayrollAdjustmentsScreen} />
+      <Stack.Screen name="PayrollRuns" component={PayrollRunsScreen} />
+      <Stack.Screen name="PayrollRunDetail" component={PayrollRunDetailScreen} />
       <Stack.Screen name="PaymentsLedger" component={PaymentsLedgerScreen} />
       <Stack.Screen name="FinancialAccounts" component={FinancialAccountsScreen} />
       <Stack.Screen name="FinancialAccountDetail" component={FinancialAccountDetailScreen} />

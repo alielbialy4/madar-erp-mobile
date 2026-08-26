@@ -26,6 +26,7 @@ export interface TableOrderDraftPayload {
   promotion_discount?: number;
   coupon_id?: string | null;
   coupon_discount?: number;
+  service_charge?: number;
   total?: number;
   customer_id?: number | null;
   notes?: string | null;

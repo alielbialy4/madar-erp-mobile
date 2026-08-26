@@ -2,7 +2,7 @@
  * Run: npx tsx src/utils/posDining.spec.ts
  */
 import assert from 'node:assert/strict';
-import { cartContextFromSale, saleMetaFromServer } from './posDining';
+import { buildTableOrderDraftPayload, cartContextFromSale, saleMetaFromServer } from './posDining';
 
 const sale = {
   id: 42,
@@ -24,5 +24,19 @@ const ctx = cartContextFromSale(sale);
 assert.equal(ctx.lines.length, 1);
 assert.equal(ctx.cartDiscount, 5);
 assert.ok(ctx.appliedCoupon);
+
+const draft = buildTableOrderDraftPayload({
+  cart: ctx.lines,
+  table: { id: 'table-1' },
+  subtotal: 10,
+  tax: 0,
+  invoiceDiscount: 0,
+  promotionDiscount: 0,
+  couponDiscount: 0,
+  serviceCharge: 1,
+  total: 11,
+});
+assert.equal(draft.service_charge, 1);
+assert.equal(draft.total, 11);
 
 console.log('posDining.spec.ts: OK');

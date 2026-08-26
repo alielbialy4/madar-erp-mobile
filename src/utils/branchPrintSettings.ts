@@ -4,6 +4,7 @@ import {
   DEFAULT_KITCHEN_TICKET_FONT_SIZE,
   isPrintFontSizeInRange,
 } from '@/utils/branchSettings';
+import { clampLogoScale } from '@/utils/printLogoSize';
 import { parsePrintSequenceMode, type PrintSequenceMode } from '@/utils/printSequencePolicy';
 import {
   DEFAULT_RECEIPT_PRINT_MODE,

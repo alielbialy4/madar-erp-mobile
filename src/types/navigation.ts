@@ -103,7 +103,10 @@ export type MoreStackParamList = {
   Vaults: undefined;
   VaultTransactions: undefined;
   VaultTransactionDetail: { id: string };
-  ShiftManagement: undefined;
+   ShiftManagement: undefined;
+   RegisterManagerDashboard: undefined;
+   RegisterReconciliation: undefined;
+   RegisterSessionDetail: { id: string };
   Expenses: undefined;
   ExpenseCreate: undefined;
   ExpenseDetail: { id: number; embedded?: boolean };
@@ -130,6 +133,11 @@ export type MoreStackParamList = {
   GiftCards: undefined;
   GiftCardDetail: { id: string };
   Users: undefined;
+  AttendanceToday: undefined;
+  AttendanceRecords: undefined;
+  PayrollAdjustments: undefined;
+  PayrollRuns: undefined;
+  PayrollRunDetail: { id: string };
   PaymentsLedger: undefined;
   FinancialAccounts: undefined;
   FinancialAccountDetail: { id: string; name?: string; embedded?: boolean };

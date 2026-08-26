@@ -19,6 +19,7 @@ type CheckoutTotalsSlice = {
   invoiceDiscount: number;
   promotionDiscount: number;
   couponDiscount: number;
+  serviceCharge: number;
   total: number;
 };
 
@@ -60,6 +61,7 @@ export async function syncPosTableDraftBeforeCheckout(
     promotionDiscount: params.checkoutTotals.promotionDiscount,
     couponId: params.allowCoupons ? params.appliedCoupon?.coupon?.id ?? null : null,
     couponDiscount: params.checkoutTotals.couponDiscount,
+    serviceCharge: params.checkoutTotals.serviceCharge,
     total: params.effectiveTotal,
     customerId: params.selectedCustomerId ?? null,
     notes: params.notes.trim() || null,

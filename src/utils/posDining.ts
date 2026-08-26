@@ -23,6 +23,7 @@ export type BuildTableDraftInput = {
   promotionDiscount: number;
   couponId?: string | null;
   couponDiscount: number;
+  serviceCharge: number;
   total: number;
   customerId?: number | null;
   notes?: string | null;
@@ -125,6 +126,7 @@ export function buildTableOrderDraftPayload(input: BuildTableDraftInput): TableO
     promotion_discount: input.promotionDiscount,
     coupon_id: input.couponId ?? null,
     coupon_discount: input.couponDiscount,
+    service_charge: input.serviceCharge,
     total: input.total,
     customer_id: input.customerId ?? null,
     notes: input.notes ?? null,

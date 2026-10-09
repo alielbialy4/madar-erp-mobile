@@ -562,7 +562,7 @@ function createStyles(c: AppColors) {
     emptyWrap: { paddingVertical: spacing.lg },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
     gridItem: { minWidth: 96 },
-    dragOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
+    dragOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
     dragGhost: {
       position: 'absolute',
       ...flexRow,

@@ -129,8 +129,8 @@ export function PosCustomerPickerTrigger({ customers, selectedCustomer, onSelect
         )}
       </Pressable>
 
-      <AppBottomSheet visible={open} onClose={closeSheet} title="اختيار عميل">
-        <View style={{ gap: spacing.md }}>
+      <AppBottomSheet visible={open} onClose={closeSheet} title="اختيار عميل" size="form" scrollable={false}>
+        <View style={{ flex: 1, minHeight: 0, gap: spacing.md }}>
           <AppSearchField value={query} onChangeText={setQuery} compact placeholder="بحث بالاسم أو الهاتف..." />
           {onQuickAdd ? (
             <AppButton title="إضافة عميل سريع" variant="secondary" fullWidth onPress={() => { closeSheet(); onQuickAdd(); }} />
@@ -139,7 +139,7 @@ export function PosCustomerPickerTrigger({ customers, selectedCustomer, onSelect
             data={filtered}
             keyExtractor={(item) => String(item.id)}
             keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: 400 }}
+            style={{ flex: 1, minHeight: 0, maxHeight: 400 }}
             ListEmptyComponent={<AppEmptyState title="لا يوجد عملاء مطابقون" />}
             ListFooterComponent={
               <AppButton title="بيع بدون عميل" variant="outline" fullWidth onPress={handleClear} style={{ marginTop: spacing.sm }} />

@@ -70,33 +70,41 @@ export function AppPicker({ label, value, options, onChange, placeholder = 'اخ
       </Pressable>
       {error ? <AppText style={{ color: c.danger, fontSize: typography.tiny }}>{error}</AppText> : null}
 
-      <AppBottomSheet visible={open} onClose={() => { setOpen(false); setQuery(''); }} title={label ?? placeholder}>
-        {searchable ? <AppSearchField value={query} onChangeText={setQuery} compact placeholder="بحث..." /> : null}
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.value}
-          keyboardShouldPersistTaps="handled"
-          style={{ maxHeight: 360 }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => {
-                onChange(item.value);
-                setOpen(false);
-                setQuery('');
-              }}
-              style={{
-                paddingVertical: spacing.md,
-                paddingHorizontal: spacing.sm,
-                borderRadius: 0,
-                borderBottomWidth: 1,
-                borderBottomColor: c.border,
-                backgroundColor: item.value === value ? c.accentSoft : 'transparent',
-              }}
-            >
-              <AppText style={{ ...textStart, color: c.text, fontWeight: item.value === value ? '700' : '500' }}>{item.label}</AppText>
-            </Pressable>
-          )}
-        />
+      <AppBottomSheet
+        visible={open}
+        onClose={() => { setOpen(false); setQuery(''); }}
+        title={label ?? placeholder}
+        size="form"
+        scrollable={false}
+      >
+        <View style={{ flex: 1, minHeight: 0, gap: spacing.md }}>
+          {searchable ? <AppSearchField value={query} onChangeText={setQuery} compact placeholder="بحث..." /> : null}
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.value}
+            keyboardShouldPersistTaps="handled"
+            style={{ flex: 1, minHeight: 0, maxHeight: 360 }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  onChange(item.value);
+                  setOpen(false);
+                  setQuery('');
+                }}
+                style={{
+                  paddingVertical: spacing.md,
+                  paddingHorizontal: spacing.sm,
+                  borderRadius: 0,
+                  borderBottomWidth: 1,
+                  borderBottomColor: c.border,
+                  backgroundColor: item.value === value ? c.accentSoft : 'transparent',
+                }}
+              >
+                <AppText style={{ ...textStart, color: c.text, fontWeight: item.value === value ? '700' : '500' }}>{item.label}</AppText>
+              </Pressable>
+            )}
+          />
+        </View>
       </AppBottomSheet>
     </View>
   );

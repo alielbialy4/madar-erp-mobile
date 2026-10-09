@@ -27,6 +27,8 @@ import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { MoreStackParamList } from '@/types/navigation';
 
 const defaultFilters = (): ShiftListFilters => ({
   from_date: dateDaysAgoLocal(30),
@@ -36,7 +38,9 @@ const defaultFilters = (): ShiftListFilters => ({
   user_id: '',
 });
 
-export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBack: () => void } }) {
+type ShiftScreenProps = NativeStackScreenProps<MoreStackParamList, 'ShiftManagement'>;
+
+export function ShiftScreen({ navigation }: ShiftScreenProps) {
   const c = useColors();
   const { can, user } = usePermissions();
   const activeBranch = useBranchStore((s) => s.activeBranch);

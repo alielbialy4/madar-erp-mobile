@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { hrAPI, type PayrollRun } from '@/api/hr';
-import { ListScreenLayout } from '@/components/layout';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
 import { AppBanner, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { AppBadge } from '@/components/ui/AppBadge';
@@ -168,20 +168,12 @@ export function PayrollRunsScreen({ navigation }: { navigation: any }) {
         )}
       />
 
-      <Modal visible={generateOpen} animationType="slide" onRequestClose={() => setGenerateOpen(false)}>
-        <View style={styles.modalRoot}>
-          <AppBanner tone="info" message="سيتم تجميع الحضور والتسويات وعمولات الشهر في مسير رواتب للفرع المحدد." />
-          {!isBranchView ? (
-            <AppSelect
-              label="الفرع"
-              value={generateBranchId}
-              options={branchOptions}
-              onChange={setGenerateBranchId}
-              required
-            />
-          ) : null}
-          <AppInput label="السنة" value={year} onChangeText={setYear} keyboardType="number-pad" required />
-          <AppInput label="الشهر (1-12)" value={month} onChangeText={setMonth} keyboardType="number-pad" required />
+      <AppBottomSheet
+        visible={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        title="إنشاء مسير رواتب"
+        size="form"
+        footer={(
           <View style={styles.modalFooter}>
             <AppButton title="إغلاق" variant="outline" onPress={() => setGenerateOpen(false)} disabled={busy} />
             <AppButton
@@ -191,13 +183,25 @@ export function PayrollRunsScreen({ navigation }: { navigation: any }) {
               loading={busy}
             />
           </View>
-        </View>
-      </Modal>
+        )}
+      >
+        <AppBanner tone="info" message="سيتم تجميع الحضور والتسويات وعمولات الشهر في مسير رواتب للفرع المحدد." />
+        {!isBranchView ? (
+          <AppSelect
+            label="الفرع"
+            value={generateBranchId}
+            options={branchOptions}
+            onChange={setGenerateBranchId}
+            required
+          />
+        ) : null}
+        <AppInput label="السنة" value={year} onChangeText={setYear} keyboardType="number-pad" required />
+        <AppInput label="الشهر (1-12)" value={month} onChangeText={setMonth} keyboardType="number-pad" required />
+      </AppBottomSheet>
     </ListScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  modalRoot: { flex: 1, gap: 12, padding: 16 },
-  modalFooter: { flexDirection: 'row-reverse', gap: 12, paddingTop: 8 },
+  modalFooter: { flexDirection: 'row-reverse', gap: 12, paddingTop: 12 },
 });

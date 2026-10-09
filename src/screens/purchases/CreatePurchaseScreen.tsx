@@ -104,8 +104,8 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
     totalLabel: { color: c.textMuted, fontSize: typography.body, ...textStart },
     totalValue: { color: c.text, fontSize: typography.h3, fontWeight: '900', ...textStart },
     errorText: { color: c.danger, ...textStart, fontWeight: '800' },
-    sheetContent: { gap: spacing.md },
-    sheetList: { maxHeight: 350 },
+    sheetContent: { flex: 1, minHeight: 0, gap: spacing.md },
+    sheetList: { flex: 1, minHeight: 0, maxHeight: 350 },
     hintText: { color: c.textMuted, fontSize: typography.small, ...textStart },
     stickyBar: {
       ...moduleStyles.stickyFooter,
@@ -375,9 +375,14 @@ export function CreatePurchaseScreen({ navigation }: { route: any; navigation: a
         }
       />
 
-      <AppBottomSheet visible={productSearchOpen} onClose={() => { setProductSearchOpen(false); setProductQuery(''); setProductResults([]); }}>
+      <AppBottomSheet
+        visible={productSearchOpen}
+        onClose={() => { setProductSearchOpen(false); setProductQuery(''); setProductResults([]); }}
+        title="بحث منتج أو خامة"
+        size="form"
+        scrollable={false}
+      >
         <View style={styles.sheetContent}>
-          <Text style={{ fontWeight: '700', fontSize: typography.sectionTitle }}>بحث منتج أو خامة</Text>
           <AppInput value={productQuery} onChangeText={setProductQuery} placeholder="اسم أو باركود..." />
           {productSearching ? <Text style={styles.hintText}>جاري البحث...</Text> : null}
           <FlatList

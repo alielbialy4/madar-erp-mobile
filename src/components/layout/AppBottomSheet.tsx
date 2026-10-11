@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
@@ -15,6 +15,18 @@ type Props = {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  /** Optional custom header content, rendered below the grab handle. */
+  headerContent?: React.ReactNode;
+  /** Optional sticky content rendered after the scrollable body. */
+  footer?: React.ReactNode;
+  /** Turn off the outer scroll view when the content owns its scrolling (e.g. a FlatList). */
+  scrollable?: boolean;
+  /** Let the sheet occupy its full size limit so internal scroll regions can fill the body. */
+  fillHeight?: boolean;
+  /** Override the shell's horizontal padding for custom layouts. */
+  horizontalPadding?: number;
+  /** Override the shell's bottom padding, for footers that handle safe-area insets themselves. */
+  bottomPadding?: number;
   /** When false, backdrop tap and hardware back won't dismiss (e.g. required POS shift). */
   dismissable?: boolean;
   /** Wider sheet for dense layouts; fullscreen for shift summary / close flows. */
@@ -28,7 +40,21 @@ const FULLSCREEN_INSET_SIDE = spacing.lg;
 const FULLSCREEN_INSET_TOP = spacing.xl;
 const FULLSCREEN_INSET_BOTTOM = spacing.md;
 
-export function AppBottomSheet({ visible, onClose, children, title, subtitle, dismissable = true, size = 'default' }: Props) {
+export function AppBottomSheet({
+  visible,
+  onClose,
+  children,
+  title,
+  subtitle,
+  headerContent,
+  footer,
+  dismissable = true,
+  scrollable = true,
+  fillHeight = false,
+  horizontalPadding,
+  bottomPadding,
+  size = 'default',
+}: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -45,8 +71,8 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
       : isTabletSheet
         ? Math.min(width - spacing.xxl * 2, 760)
         : width;
-  const backdrop = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(48)).current;
+  const [backdrop] = useState(() => new Animated.Value(0));
+  const [translateY] = useState(() => new Animated.Value(48));
 
   useEffect(() => {
     if (visible) {
@@ -73,7 +99,7 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
   };
 
   const sheetMaxHeight = isFullscreen ? '100%' : isWideSheet || isFormSheet ? '92%' : '86%';
-  const sheetMinHeight = isFormSheet ? Math.min(height * 0.62, 560) : undefined;
+  const sheetMinHeight = isFormSheet ? Math.min(height * 0.46, 420) : undefined;
   const safeBottom = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 0);
 
   return (
@@ -111,7 +137,9 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
                   marginBottom: FULLSCREEN_INSET_BOTTOM + insets.bottom,
                   marginHorizontal: fullscreenInsetSide,
                 }
-              : { maxHeight: sheetMaxHeight }
+              : fillHeight
+                ? { height: sheetMaxHeight }
+                : { maxHeight: sheetMaxHeight }
           }
           behavior={Platform.select({ ios: 'padding', android: undefined })}
           keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + SHEET_KEYBOARD_OFFSET : 0}
@@ -122,19 +150,20 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
               transform: [{ translateY }],
               width: isFullscreen ? '100%' : isWideSheet || isTabletSheet ? sheetMaxWidth : '100%',
               alignSelf: 'center',
-              flex: isFullscreen ? 1 : undefined,
+              flex: isFullscreen || fillHeight ? 1 : undefined,
               minHeight: sheetMinHeight,
               maxHeight: sheetMaxHeight,
               backgroundColor: c.surface,
               ...(isFullscreen
                 ? { borderRadius: radius.xl }
                 : { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }),
-              paddingHorizontal: isFullscreen ? spacing.lg : spacing.xl,
+              paddingHorizontal: horizontalPadding ?? (isFullscreen ? spacing.lg : spacing.xl),
               paddingTop: spacing.md,
-              paddingBottom: Math.max(spacing.xl, safeBottom + spacing.sm),
+              paddingBottom: bottomPadding ?? Math.max(spacing.xl, safeBottom + spacing.sm),
               borderWidth: isFullscreen ? StyleSheet.hairlineWidth : 0,
               borderTopWidth: StyleSheet.hairlineWidth,
               borderColor: c.borderSubtle,
+              overflow: 'hidden',
             }}
           >
             {dismissable && !isFullscreen ? (
@@ -143,7 +172,8 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
                 backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg,
               }} />
             ) : null}
-            {title || subtitle ? (
+            {headerContent}
+            {!headerContent && (title || subtitle) ? (
               <View style={{ marginBottom: spacing.md, gap: spacing.xs }}>
                 {title ? (
                   <AppText
@@ -173,21 +203,30 @@ export function AppBottomSheet({ visible, onClose, children, title, subtitle, di
                 ) : null}
               </View>
             ) : null}
-            <ScrollView
-              style={{ flexGrow: isFullscreen ? 1 : 0, flexShrink: 1 }}
-              contentContainerStyle={{
-                paddingBottom: spacing.xl,
-                gap: spacing.md,
-                flexGrow: isFullscreen ? 1 : undefined,
-              }}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              showsVerticalScrollIndicator={isFullscreen}
-              bounces={isFullscreen}
-              nestedScrollEnabled
-            >
-              {children}
-            </ScrollView>
+            {scrollable ? (
+              <ScrollView
+                style={{
+                  flex: fillHeight || isFullscreen ? 1 : undefined,
+                  flexGrow: isFullscreen || Boolean(footer) ? 1 : 0,
+                  flexShrink: 1,
+                }}
+                contentContainerStyle={{
+                  paddingBottom: spacing.md,
+                  gap: spacing.md,
+                  flexGrow: isFullscreen ? 1 : undefined,
+                }}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={isFullscreen}
+                bounces={isFullscreen}
+                nestedScrollEnabled
+              >
+                {children}
+              </ScrollView>
+            ) : (
+              <View style={{ flex: 1, minHeight: 0 }}>{children}</View>
+            )}
+            {footer}
           </Animated.View>
         </KeyboardAvoidingView>
       </RtlModalRoot>

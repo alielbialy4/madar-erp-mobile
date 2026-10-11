@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     padding: ALERT_DIALOG.screenInset,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   card: {
     zIndex: 1,

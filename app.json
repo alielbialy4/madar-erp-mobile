@@ -7,16 +7,12 @@
     "scheme": "madarpos",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "deploymentTarget": "16.4",
       "bundleIdentifier": "com.madar.erp.mobile",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "يحتاج التطبيق للوصول إلى الطابعات الحرارية على الشبكة المحلية (Ethernet/TCP منفذ 9100).",

@@ -1,17 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
-  type LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RtlModalRoot } from '@/components/layout/RtlModalRoot';
+import { AppBottomSheet } from '@/components/layout/AppBottomSheet';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppButton, AppDatePicker, AppInput, AppSelect } from '@/components/ui';
 import type { Customer, FinancialAccount, PosCheckoutPaymentType } from '@/types/api';
@@ -218,7 +216,6 @@ export function PosPaymentModal({
   const s = usePosSheetStyles();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const [shellHeight, setShellHeight] = useState(height);
   const edgeInset = width >= 600 ? spacing.md : 0;
   const modalWidth = width - edgeInset * 2;
   const isLandscape = width > height;
@@ -226,8 +223,6 @@ export function PosPaymentModal({
   const useStackFooter = !isWideLayout || isLandscape;
   const androidNavFallback = Platform.OS === 'android' ? 20 : 0;
   const footerSafeBottom = Math.max(insets.bottom, androidNavFallback) + spacing.md;
-  const modalHeightRatio = isLandscape ? 0.88 : 0.92;
-  const modalMaxHeight = Math.floor(shellHeight * modalHeightRatio);
   const cashTarget = useMemo<PosCashTargetContext>(() => resolvePosCashTarget({
     registerMode,
     shiftVaultId,
@@ -412,30 +407,6 @@ export function PosPaymentModal({
   const modalStyles = useMemo(
     () =>
       StyleSheet.create({
-        shell: {
-          flex: 1,
-          justifyContent: 'flex-end',
-          paddingHorizontal: edgeInset,
-          paddingTop: insets.top + spacing.sm,
-        },
-        backdropPress: {
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: 'rgba(0,0,0,0.52)',
-        },
-        dialog: {
-          width: modalWidth,
-          alignSelf: 'center',
-          height: modalMaxHeight,
-          maxHeight: modalMaxHeight,
-          flexDirection: 'column',
-          borderTopLeftRadius: radius.xl,
-          borderTopRightRadius: radius.xl,
-          borderBottomLeftRadius: isWideLayout ? radius.xl : 0,
-          borderBottomRightRadius: isWideLayout ? radius.xl : 0,
-          backgroundColor: c.surface,
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-        },
         headerBar: {
           flexShrink: 0,
           ...flexRow,
@@ -514,7 +485,7 @@ export function PosPaymentModal({
         confirmBtn: { flex: 2, minWidth: 0, minHeight: 56 },
         closeFooterBtn: { flex: 1, minWidth: 0, minHeight: 48 },
       }),
-    [c, modalWidth, modalMaxHeight, edgeInset, isWideLayout, insets.top, footerSafeBottom],
+    [c, modalWidth, isWideLayout, footerSafeBottom],
   );
 
   const paymentAside = (
@@ -984,117 +955,112 @@ export function PosPaymentModal({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <RtlModalRoot style={modalStyles.shell}>
-        <View
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-          onLayout={(event: LayoutChangeEvent) => setShellHeight(event.nativeEvent.layout.height)}
-        >
-        <Pressable
-          style={modalStyles.backdropPress}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="إغلاق"
-        />
-        <View style={modalStyles.dialog}>
-          <View style={modalStyles.headerBar}>
-            <View style={modalStyles.headerIcon}>
-              <MaterialIcons name="payments" size={22} color={c.primary} />
-            </View>
-            <View style={modalStyles.headerText}>
-              <Text style={modalStyles.headerTitle} numberOfLines={1}>
-                إتمام البيع
-              </Text>
-              <Text style={modalStyles.headerSubtitle} numberOfLines={2}>
-                اختر طريقة الدفع ثم أكّد العملية
-              </Text>
-            </View>
-            <Pressable onPress={onClose} style={modalStyles.closeBtn} accessibilityLabel="إغلاق">
-              <MaterialIcons name="close" size={22} color={c.text} />
-            </Pressable>
+    <AppBottomSheet
+      visible={visible}
+      onClose={onClose}
+      size={width >= 600 ? 'wide' : 'form'}
+      horizontalPadding={0}
+      bottomPadding={0}
+      scrollable={false}
+      fillHeight
+      headerContent={(
+        <View style={modalStyles.headerBar}>
+          <View style={modalStyles.headerIcon}>
+            <MaterialIcons name="payments" size={22} color={c.primary} />
           </View>
-
-          <View style={modalStyles.body}>
-            {isWideLayout ? (
-              <View style={modalStyles.bodyRow}>
-                <ScrollView
-                  ref={orderScrollRef}
-                  style={[modalStyles.scroll, modalStyles.mainCol]}
-                  contentContainerStyle={modalStyles.scrollContent}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled
-                  bounces={false}
-                >
-                  {formMain}
-                </ScrollView>
-                <ScrollView
-                  style={[modalStyles.scroll, modalStyles.asideCol]}
-                  contentContainerStyle={modalStyles.scrollContent}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled
-                  bounces={false}
-                >
-                  {paymentAside}
-                </ScrollView>
-              </View>
-            ) : (
-              <ScrollView
-                ref={combinedScrollRef}
-                style={modalStyles.scroll}
-                contentContainerStyle={modalStyles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled
-                bounces={false}
-              >
-                {paymentAside}
-                {formMain}
-              </ScrollView>
-            )}
+          <View style={modalStyles.headerText}>
+            <Text style={modalStyles.headerTitle} numberOfLines={1}>
+              إتمام البيع
+            </Text>
+            <Text style={modalStyles.headerSubtitle} numberOfLines={2}>
+              اختر طريقة الدفع ثم أكّد العملية
+            </Text>
           </View>
-
-          <View style={modalStyles.footer}>
-            {checkoutMessage ? (
-              <View style={[s.warningBanner, modalStyles.footerErrorBanner]}>
-                <Text style={s.warningText}>{checkoutMessage}</Text>
-              </View>
-            ) : null}
-            {useStackFooter ? (
-              <View style={modalStyles.footerStack}>
-                <AppButton
-                  title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
-                  onPress={onConfirm}
-                  loading={loading}
-                  disabled={confirmDisabled || !!loyaltyError}
-                  size="xl"
-                  fullWidth
-                />
-              </View>
-            ) : (
-              <View style={modalStyles.footerRow}>
-                <AppButton
-                  title="إغلاق"
-                  variant="outline"
-                  onPress={onClose}
-                  style={modalStyles.closeFooterBtn}
-                  size="lg"
-                />
-                <AppButton
-                  title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
-                  onPress={onConfirm}
-                  loading={loading}
-                  disabled={confirmDisabled || !!loyaltyError}
-                  style={modalStyles.confirmBtn}
-                  size="xl"
-                />
-              </View>
-            )}
-          </View>
+          <Pressable onPress={onClose} style={modalStyles.closeBtn} accessibilityLabel="إغلاق">
+            <MaterialIcons name="close" size={22} color={c.text} />
+          </Pressable>
         </View>
+      )}
+      footer={(
+        <View style={modalStyles.footer}>
+          {checkoutMessage ? (
+            <View style={[s.warningBanner, modalStyles.footerErrorBanner]}>
+              <Text style={s.warningText}>{checkoutMessage}</Text>
+            </View>
+          ) : null}
+          {useStackFooter ? (
+            <View style={modalStyles.footerStack}>
+              <AppButton
+                title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
+                onPress={onConfirm}
+                loading={loading}
+                disabled={confirmDisabled || !!loyaltyError}
+                size="xl"
+                fullWidth
+              />
+            </View>
+          ) : (
+            <View style={modalStyles.footerRow}>
+              <AppButton
+                title="إغلاق"
+                variant="outline"
+                onPress={onClose}
+                style={modalStyles.closeFooterBtn}
+                size="lg"
+              />
+              <AppButton
+                title={`تحصيل ${money(amountDue)} · ${paymentTypeLabel}`}
+                onPress={onConfirm}
+                loading={loading}
+                disabled={confirmDisabled || !!loyaltyError}
+                style={modalStyles.confirmBtn}
+                size="xl"
+              />
+            </View>
+          )}
         </View>
-      </RtlModalRoot>
-    </Modal>
+      )}
+    >
+      <View style={modalStyles.body}>
+        {isWideLayout ? (
+          <View style={modalStyles.bodyRow}>
+            <ScrollView
+              ref={orderScrollRef}
+              style={[modalStyles.scroll, modalStyles.mainCol]}
+              contentContainerStyle={modalStyles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              bounces={false}
+            >
+              {formMain}
+            </ScrollView>
+            <ScrollView
+              style={[modalStyles.scroll, modalStyles.asideCol]}
+              contentContainerStyle={modalStyles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              bounces={false}
+            >
+              {paymentAside}
+            </ScrollView>
+          </View>
+        ) : (
+          <ScrollView
+            ref={combinedScrollRef}
+            style={modalStyles.scroll}
+            contentContainerStyle={modalStyles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            bounces={false}
+          >
+            {paymentAside}
+            {formMain}
+          </ScrollView>
+        )}
+      </View>
+    </AppBottomSheet>
   );
 }

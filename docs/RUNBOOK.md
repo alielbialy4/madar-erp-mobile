@@ -81,11 +81,11 @@ npm start -- --clear
 `madar-erp-mobile/eas.json` is present for internal handoff. Typical commands:
 
 ```bash
-npx eas login
-npx eas init   # first time only — links projectId in app.json (requires eas-cli in devDependencies)
+npx eas-cli login
+npx eas-cli init   # first time only — links projectId in app.json
 npm run build:dev-client   # dev APK + Metro (printing works, live reload)
 npm run build:apk          # standalone preview APK (no Metro needed)
-npx eas build --profile preview --platform ios
+npx eas-cli build --profile preview --platform ios
 ```
 
 Do not run remote builds until Apple/Google credentials and production API env are confirmed.

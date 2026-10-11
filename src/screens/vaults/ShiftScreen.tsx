@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { shiftsAPI } from '@/api/shifts';
@@ -28,6 +27,7 @@ import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MoreStackParamList } from '@/types/navigation';
 
 const defaultFilters = (): ShiftListFilters => ({
@@ -38,9 +38,9 @@ const defaultFilters = (): ShiftListFilters => ({
   user_id: '',
 });
 
-type Nav = NativeStackNavigationProp<MoreStackParamList, 'ShiftManagement'>;
+type ShiftScreenProps = NativeStackScreenProps<MoreStackParamList, 'ShiftManagement'>;
 
-export function ShiftScreen({ navigation }: { route: unknown; navigation: Nav }) {
+export function ShiftScreen({ navigation }: ShiftScreenProps) {
   const c = useColors();
   const { can, user } = usePermissions();
   const activeBranch = useBranchStore((s) => s.activeBranch);

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { hrAPI, type AdjustmentType, type HrEmployee, type PayrollAdjustment } from '@/api/hr';
-import { ListScreenLayout } from '@/components/layout';
+import { AppBottomSheet, ListScreenLayout } from '@/components/layout';
 import { AppBanner, ConfirmDialog, useToast } from '@/components/feedback';
 import { ResourceList } from '@/components/lists';
 import { AppBadge } from '@/components/ui/AppBadge';
-import { AppButton, AppDatePicker, AppInput, AppSelect, AppText as Text } from '@/components/ui';
+import { AppButton, AppDatePicker, AppInput, AppSelect } from '@/components/ui';
 import type { SelectOption } from '@/components/ui/AppSelect';
 import { FinancialRow } from '@/components/madar';
 import { AppSwipeRow } from '@/components/ui/AppSwipeRow';
@@ -208,30 +208,12 @@ export function PayrollAdjustmentsScreen() {
         )}
       />
 
-      <Modal visible={createOpen} animationType="slide" onRequestClose={() => setCreateOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Text style={styles.modalTitle}>تسوية جديدة</Text>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalBody}>
-            <AppSelect
-              label="العامل"
-              value={userId}
-              options={employeeOptions}
-              onChange={setUserId}
-              required
-            />
-            <AppSelect label="النوع" value={type} options={typeOptions} onChange={(v) => setType((v as AdjustmentType) || 'incentive')} />
-            <AppInput
-              label="المبلغ"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              required
-              placeholder="0.00"
-            />
-            <AppDatePicker label="تاريخ السريان" value={effectiveDate} onChange={setEffectiveDate} required />
-            <AppInput label="السبب" value={reason} onChangeText={setReason} placeholder="سبب الحافز أو الخصم" multiline />
-            {error ? <AppBanner tone="danger" message={error} /> : null}
-          </ScrollView>
+      <AppBottomSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="تسوية جديدة"
+        size="form"
+        footer={(
           <View style={styles.modalFooter}>
             <AppButton title="إغلاق" variant="outline" onPress={() => setCreateOpen(false)} disabled={saving} />
             <AppButton
@@ -241,8 +223,28 @@ export function PayrollAdjustmentsScreen() {
               loading={saving}
             />
           </View>
-        </View>
-      </Modal>
+        )}
+      >
+        <AppSelect
+          label="العامل"
+          value={userId}
+          options={employeeOptions}
+          onChange={setUserId}
+          required
+        />
+        <AppSelect label="النوع" value={type} options={typeOptions} onChange={(v) => setType((v as AdjustmentType) || 'incentive')} />
+        <AppInput
+          label="المبلغ"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          required
+          placeholder="0.00"
+        />
+        <AppDatePicker label="تاريخ السريان" value={effectiveDate} onChange={setEffectiveDate} required />
+        <AppInput label="السبب" value={reason} onChangeText={setReason} placeholder="سبب الحافز أو الخصم" multiline />
+        {error ? <AppBanner tone="danger" message={error} /> : null}
+      </AppBottomSheet>
 
       <ConfirmDialog
         visible={Boolean(pendingCancel)}
@@ -259,8 +261,5 @@ export function PayrollAdjustmentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  modalRoot: { flex: 1, gap: 12, padding: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', paddingVertical: 8 },
-  modalBody: { gap: 12, flexGrow: 1 },
-  modalFooter: { flexDirection: 'row-reverse', gap: 12, paddingTop: 8 },
+  modalFooter: { flexDirection: 'row-reverse', gap: 12, paddingTop: 12 },
 });

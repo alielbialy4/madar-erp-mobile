@@ -282,7 +282,7 @@ export function BranchSwitcher({ density = 'pill' }: BranchSwitcherProps) {
         </View>
       )}
 
-      <AppBottomSheet visible={open} onClose={handleClose} title={t('Switch branch')} dismissable={!switching}>
+      <AppBottomSheet visible={open} onClose={handleClose} title={t('Switch branch')} size="form" dismissable={!switching}>
         {branches.length > 5 ? (
           <View style={[styles.searchBox, { borderColor: c.borderSubtle, backgroundColor: c.surfaceMuted }]}>
             <MaterialIcons name="search" size={18} color={c.textMuted} />

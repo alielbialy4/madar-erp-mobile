@@ -309,7 +309,7 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
         </>
       ) : null}
 
-      <AppBottomSheet visible={actionMode !== null} onClose={closeTablePicker}>
+      <AppBottomSheet visible={actionMode !== null} onClose={closeTablePicker} size="form" scrollable={false}>
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>
             {actionMode === 'merge' ? 'اختر طاولة مزدحمة للدمج' : 'اختر طاولة فارغة للنقل'}
@@ -334,6 +334,7 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
           <FlatList
             data={tables}
             keyExtractor={(item) => String(item.id)}
+            style={{ flex: 1, minHeight: 0 }}
             renderItem={({ item }) => (
               <AppListItem
                 title={item.name || `طاولة ${item.number ?? item.id}`}

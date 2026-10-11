@@ -1,4 +1,5 @@
-import { requireNativeModule, Platform } from 'expo-modules-core';
+import { requireNativeModule } from 'expo';
+import { Platform } from 'react-native';
 
 export type PaperWidth = '58mm' | '80mm';
 
@@ -70,7 +71,7 @@ function getNativeModule(): ThermalPrinterNative | null {
     nativeModuleLoadError =
       err instanceof Error ? err.message : 'فشل تحميل الوحدة الأصلية ThermalPrinter';
   }
-  return nativeModule;
+  return nativeModule ?? null;
 }
 
 /** Why requireNativeModule failed — usually APK built before the module was added. */

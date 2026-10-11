@@ -14,7 +14,7 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import type { Product } from '@/types/api';
 import { money, numberText } from '@/utils/format';
-import { unitSellingPrice } from '@/utils/posUnitPrice';
+import { priceDefiningRange, unitSellingPrice } from '@/utils/posUnitPrice';
 import { resolveMediaUrl } from '@/utils/media';
 import { buildCategoryThumbnailMap } from '@/utils/posCatalogMedia';
 import { chevronForwardIcon } from '@/utils/rtl';
@@ -49,6 +49,12 @@ const ProductTile = React.memo(function ProductTile({
   const qty = availableQty(product);
   const low = qty !== null && qty <= Number(product.min_stock_alert ?? 0);
   const hasOptions = Boolean(product.option_groups?.some((group) => group.options?.length));
+  const priceRange = priceDefiningRange(product);
+  const displayPrice = priceRange
+    ? priceRange.min === priceRange.max
+      ? money(priceRange.min)
+      : `من ${money(priceRange.min)}`
+    : money(unitSellingPrice(product));
   const recipe = mode === 'recipe_product';
   const thumb = resolveMediaUrl(product.image);
 
@@ -57,7 +63,7 @@ const ProductTile = React.memo(function ProductTile({
       onPress={() => onPress(product)}
       style={({ pressed }) => [styles.productTile, inCart > 0 && styles.productTileSelected, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${product.name}، ${money(unitSellingPrice(product))}${inCart ? `، ${numberText(inCart)} في السلة` : ''}`}
+      accessibilityLabel={`${product.name}، ${displayPrice}${inCart ? `، ${numberText(inCart)} في السلة` : ''}`}
     >
       <View style={styles.productTop}>
         {thumb ? (
@@ -80,7 +86,7 @@ const ProductTile = React.memo(function ProductTile({
       <View style={styles.productFooter}>
         <View style={styles.productValue}>
           <Text style={styles.productPrice} numberOfLines={1} translate={false}>
-            {money(unitSellingPrice(product))}
+            {displayPrice}
           </Text>
           <Text style={styles.productQty} numberOfLines={1}>
             {qty == null ? 'غير مخزني' : `${numberText(qty)} متاح`}

@@ -317,6 +317,8 @@ export function WaiterOrderPickerSheet({
       <ModifierPickerSheet
         visible={modifierOpen}
         product={modifierProduct}
+        variant={modifierVariant}
+        unitId={pendingUnitId}
         onClose={() => {
           setModifierOpen(false);
           setModifierProduct(null);

@@ -177,6 +177,7 @@ export type ProductOptionGroup = {
   name?: string;
   selection_type: 'single' | 'multiple';
   pricing_type: 'free' | 'per_option' | 'group_price';
+  price_behavior?: 'additive' | 'defines_base_price';
   group_price?: number | string | null;
   is_required?: boolean;
   min_selections?: number | null;
@@ -199,6 +200,7 @@ export type ProductOptionGroupInput = {
   title: string;
   selection_type: 'single' | 'multiple';
   pricing_type: 'free' | 'per_option' | 'group_price';
+  price_behavior?: 'additive' | 'defines_base_price';
   group_price?: number | null;
   is_required?: boolean;
   min_selections?: number | null;
@@ -316,6 +318,7 @@ export type SaleItemPayload = {
 export type SalePayload = {
   /** Idempotency key for online create / offline sync. */
   client_uuid?: string;
+  price_defining_options_version?: number;
   shift_id?: string | null;
   pos_register_id?: string | null;
   register_session_id?: string | null;
@@ -385,6 +388,7 @@ export type Sale = {
 export type PosCatalog = {
   generated_at?: string;
   version?: number;
+  price_defining_options_version?: number;
   branch_id?: string;
   branch?: Branch | null;
   pagination?: {
@@ -584,6 +588,7 @@ export type CartLineSelectedOption = {
   product_option_group_id: number;
   group_title: string;
   pricing_type: 'free' | 'per_option' | 'group_price';
+  price_behavior?: 'additive' | 'defines_base_price';
   group_price?: number;
   options: {
     product_option_id: number;

@@ -1693,6 +1693,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
       <ModifierPickerSheet
         visible={modifierOpen}
         product={modifierProduct}
+        variant={modifierVariant}
         onClose={() => {
           setModifierOpen(false);
           setModifierProduct(null);

@@ -18,6 +18,7 @@ export interface TableOrderDraftItem {
 }
 
 export interface TableOrderDraftPayload {
+  price_defining_options_version?: number;
   expected_sale_updated_at?: string | null;
   items: TableOrderDraftItem[];
   subtotal?: number;

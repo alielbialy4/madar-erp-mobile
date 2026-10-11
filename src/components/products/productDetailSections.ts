@@ -2,6 +2,7 @@ import type { Product } from '@/types/api';
 import type { MetricKind } from './ProductInsightsMetric';
 import { money, numberText, dateText, asText } from '@/utils/format';
 import { parseApiMoneyFirst } from '@/utils/parseMoney';
+import { priceDefiningRange } from '@/utils/posUnitPrice';
 import { getProductQuantity } from './productUtils';
 
 export type DetailField = {
@@ -55,9 +56,19 @@ export function buildPricingFields(product: Product, isRawMaterial: boolean): De
   }
   const selling = Number(parseApiMoneyFirst(product.selling_price) ?? 0);
   const cost = Number(parseApiMoneyFirst(product.cost_price) ?? 0);
-  const margin = Math.max(0, selling - cost);
+  const priceRange = priceDefiningRange(product);
+  const margin = Math.max(0, (priceRange?.min ?? selling) - cost);
   const fields: DetailField[] = [
-    { label: 'سعر البيع', value: moneyValue(product.selling_price), kind: 'money', tone: 'success' },
+    {
+      label: priceRange ? 'سعر البيع حسب الاختيار' : 'سعر البيع',
+      value: priceRange
+        ? priceRange.min === priceRange.max
+          ? money(priceRange.min).replace(' ج.م', '')
+          : `${money(priceRange.min).replace(' ج.م', '')} – ${money(priceRange.max).replace(' ج.م', '')}`
+        : moneyValue(product.selling_price),
+      kind: 'money',
+      tone: 'success',
+    },
   ];
   fields.push(
     { label: 'التكلفة', value: moneyValue(product.cost_price), kind: 'money' },

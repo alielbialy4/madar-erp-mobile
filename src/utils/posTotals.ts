@@ -52,6 +52,13 @@ export function branchTaxMode(settings: Record<string, unknown>): 'enabled' | 'd
   return 'disabled';
 }
 
+/** Tax rates in branch settings and sale snapshots use percentage points (14 means 14%). */
+function taxAmountFromPercentagePoints(taxableAmount: number, ratePercentagePoints: number): number {
+  const base = Math.max(0, Number(taxableAmount) || 0);
+  const rate = Math.max(0, Number(ratePercentagePoints) || 0);
+  return Math.round(base * rate) / 100;
+}
+
 function computeCheckoutTax(params: {
   lines: CartLine[];
   products: Product[];
@@ -64,7 +71,7 @@ function computeCheckoutTax(params: {
   if (mode === 'enabled') {
     const taxRate = Math.max(0, Number(params.settings.tax_rate ?? 0) || 0);
     if (taxRate <= 0) return 0;
-    return Math.round(params.afterDiscount * taxRate) / 100;
+    return taxAmountFromPercentagePoints(params.afterDiscount, taxRate);
   }
 
   const byId = new Map(params.products.map((p) => [p.id, p]));
@@ -75,7 +82,7 @@ function computeCheckoutTax(params: {
       0,
       Number((product as Product & { tax_rate?: number | string | null })?.tax_rate ?? 0) || 0,
     );
-    return sum + (lineSub * lineRate) / 100;
+    return sum + taxAmountFromPercentagePoints(lineSub, lineRate);
   }, 0);
   return Math.round(tax * 100) / 100;
 }
@@ -108,11 +115,12 @@ export function computeServiceCharge(
   return Math.round((base * value) / 100 * 100) / 100;
 }
 
-function lineGross(lines: CartLine[]): number {
+function lineNetSubtotal(lines: CartLine[]): number {
   return lines.reduce((sum, line) => sum + cartLineGross(line), 0);
 }
 
 export type PosCheckoutTotals = {
+  lineGross: number;
   gross: number;
   lineDiscount: number;
   promotionDiscount: number;
@@ -142,7 +150,11 @@ export function computePosCheckoutTotals(params: {
   orderType: PosOrderType;
   deliveryFee?: number;
 }): PosCheckoutTotals {
-  const gross = lineGross(params.lines);
+  const lineGross = params.lines.reduce(
+    (sum, line) => sum + Math.max(0, (Number(line.unit_price) || 0) * (Number(line.quantity) || 0)),
+    0,
+  );
+  const gross = lineNetSubtotal(params.lines);
   const lineDiscount = params.lines.reduce((s, l) => s + (l.discount || 0), 0);
   const promoEval = evaluateLocalCartPromotions(
     params.promotions,
@@ -178,6 +190,7 @@ export function computePosCheckoutTotals(params: {
   const invoiceDiscount = Math.round((lineDiscount + manualDiscount + promotionDiscount + couponDiscount) * 100) / 100;
 
   return {
+    lineGross,
     gross,
     lineDiscount,
     promotionDiscount,

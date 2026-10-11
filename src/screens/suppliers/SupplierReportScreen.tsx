@@ -6,7 +6,7 @@ import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccount
 import { AppBottomSheet, AppScreen } from '@/components/layout';
 import { AppBadge, AppButton, AppInput, AppListItem, AppSectionHeader, AppSelect } from '@/components/ui';
 import { MadarSection, MadarSurface, MetricBlock, QuickActionBar } from '@/components/madar';
-import { AppErrorState, AppLoadingState, ConfirmDialog, useToast } from '@/components/feedback';
+import { AppErrorState, AppLoadingState, AppBanner, ConfirmDialog, useToast } from '@/components/feedback';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { money, dateText, asText } from '@/utils/format';
@@ -337,7 +337,13 @@ function SupplierReport({ id, name, navigation }: { id: number; name?: string; n
             <AppInput label="الرصيد الدائن المتاح" value={money(availableCredit)} editable={false} />
           ) : null}
           {sheetMode === 'balance' ? (
-            <AppInput label="الرصيد القابل للتسوية" value={money(settleableBalance)} editable={false} />
+            <>
+              <AppInput label="الرصيد القابل للتسوية" value={money(settleableBalance)} editable={false} />
+              <AppBanner
+                tone="warning"
+                message="تسوية بدون دفع نقدي: تُخفّض المستحق على الفاتورة دون خروج مال من الحساب. ليست دفعة نقدية."
+              />
+            </>
           ) : null}
           <AppInput label="المبلغ" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" required />
           {(sheetMode === 'vault' || sheetMode === 'purchase_pay') ? (

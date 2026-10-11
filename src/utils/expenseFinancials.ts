@@ -12,12 +12,17 @@ export function activeExpensePaymentLines(expense: Pick<Expense, 'payment_lines'
   return rows.filter((line) => line.status !== 'reversed');
 }
 
-export function expensePaymentTotals(expense: Pick<Expense, 'amount' | 'payment_lines' | 'paymentLines'>): {
+export function expensePaymentTotals(expense: Pick<Expense, 'amount' | 'paid_amount' | 'remaining_amount' | 'payment_lines' | 'paymentLines'>): {
   total: number;
   paid: number;
   remaining: number;
 } {
   const total = Math.max(0, Number(expense.amount) || 0);
+  if (expense.paid_amount != null && expense.paid_amount !== '' && expense.remaining_amount != null && expense.remaining_amount !== '') {
+    const paid = Math.max(0, Number(expense.paid_amount) || 0);
+    const remaining = Math.max(0, Number(expense.remaining_amount) || 0);
+    return { total, paid, remaining };
+  }
   const paid = activeExpensePaymentLines(expense).reduce((sum, line) => sum + Math.max(0, Number(line.amount) || 0), 0);
   return {
     total,

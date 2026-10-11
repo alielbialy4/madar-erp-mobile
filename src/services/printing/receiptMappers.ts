@@ -4,6 +4,7 @@ import { mapCartOptionsToReceipt } from '@/services/printing/buildReceiptViewMod
 import { getPaymentPrintLabel } from '@/constants/printLabels';
 import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
 import { posAllowsCoupon, posAllowsDiscount } from '@/utils/posTotals';
+import { lineUnitPriceWithOptions } from '@/utils/cartPricing';
 
 type CategoryRef = { id: number; name: string };
 type ProductRef = { id: number; name: string; category_id?: number | null };
@@ -69,16 +70,19 @@ export function mapCheckoutToReceiptPayload(input: CheckoutReceiptInput): Receip
     is_offline_unsynced: input.isOffline,
     is_reprint: input.isReprint,
     show_subtotal: showSubtotal,
-    items: input.cartLines.map((line) => ({
-      name: line.variant_name ? `${line.product_name} - ${line.variant_name}` : line.product_name,
-      quantity: line.quantity,
-      unit_price: line.unit_price,
-      discount: line.discount ?? 0,
-      line_total: Math.max(0, line.quantity * line.unit_price - (line.discount ?? 0)),
-      notes: line.notes,
-      category_name: categoryNameFor(line.product_id, input.products, input.categories),
-      options: mapCartOptionsToReceipt(line.selected_options),
-    })),
+    items: input.cartLines.map((line) => {
+      const unitPrice = lineUnitPriceWithOptions(line);
+      return {
+        name: line.variant_name ? `${line.product_name} - ${line.variant_name}` : line.product_name,
+        quantity: line.quantity,
+        unit_price: unitPrice,
+        discount: line.discount ?? 0,
+        line_total: Math.max(0, line.quantity * unitPrice - (line.discount ?? 0)),
+        notes: line.notes,
+        category_name: categoryNameFor(line.product_id, input.products, input.categories),
+        options: mapCartOptionsToReceipt(line.selected_options),
+      };
+    }),
     subtotal: input.subtotal,
     discount: input.discount,
     tax: input.tax,

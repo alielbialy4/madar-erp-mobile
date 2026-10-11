@@ -7,6 +7,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { normalizeApiError } from '@/utils/errors';
 import { extractArray, extractData } from '@/utils/data';
+import { lineUnitPriceWithOptions } from '@/utils/cartPricing';
 import {
   deleteLocalHeldCart,
   getLocalHeldCarts,
@@ -40,12 +41,7 @@ function buildCartItemsPayload(cart: CartLine[]) {
     const optionsExtra = line.selected_options?.length
       ? { selected_options: line.selected_options, notes: line.notes ?? null }
       : { notes: line.notes ?? null };
-    const lineSub =
-      line.quantity * line.unit_price +
-      (line.selected_options?.reduce((s, g) => {
-        if (g.pricing_type === 'group_price') return s + Number(g.group_price ?? 0);
-        return s + g.options.reduce((o, opt) => o + Number(opt.option_price ?? 0), 0);
-      }, 0) ?? 0);
+    const lineSub = line.quantity * lineUnitPriceWithOptions(line);
     return {
       product_id: line.product_id,
       quantity: line.quantity,

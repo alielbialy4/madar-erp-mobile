@@ -23,6 +23,7 @@ import { useBranchStore } from './branchStore';
 import { useNetworkStore } from './networkStore';
 import { buildCanonicalPaymentLine, buildCanonicalSplitPaymentLines, type PosCashTargetContext } from '@/utils/paymentAccounts';
 import { createBranchScopeRequestGuard } from '@/utils/branchScopeRequest';
+import { priceDefiningOptionsCapabilityError } from '@/utils/priceDefiningOptionsCompatibility';
 
 function triggerBackgroundSync() {
   void import('@/services/sync/syncEngine').then(({ syncAll }) => {
@@ -55,6 +56,7 @@ type PosState = {
   loading: boolean;
   error: string | null;
   lastSyncedAt: string | null;
+  priceDefiningOptionsVersion: number | null;
   pendingOrders: OfflinePosOrderRecord[];
   walletBalance: number | null;
   pointsBalance: number | null;
@@ -225,6 +227,7 @@ function applyCatalogToState(catalog: import('@/types/api').PosCatalog, lastSync
     openShiftId: catalog.open_shift?.id ? String(catalog.open_shift.id) : null,
     defaultWarehouseId: resolveDefaultWarehouseId(catalog),
     lastSyncedAt,
+    priceDefiningOptionsVersion: Number(catalog.price_defining_options_version ?? 0) || null,
     loading: false,
     error: null,
   };
@@ -249,6 +252,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   loading: false,
   error: null,
   lastSyncedAt: null,
+  priceDefiningOptionsVersion: null,
   pendingOrders: [],
   walletBalance: null,
   pointsBalance: null,
@@ -367,6 +371,14 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   submitSale: async (paymentType, paid, notes, splitLines, couponData, manualDiscount = 0, extras) => {
     const cart = get().cart;
+    const priceDefiningOptionsVersion = get().priceDefiningOptionsVersion;
+    const compatibilityError = priceDefiningOptionsCapabilityError(cart, priceDefiningOptionsVersion);
+    if (compatibilityError) {
+      return {
+        ok: false,
+        message: compatibilityError,
+      };
+    }
     const branchId = useBranchStore.getState().activeBranch?.id;
     if (!branchId) return { ok: false, message: 'يجب اختيار فرع قبل إتمام البيع' };
     if (cart.length === 0) return { ok: false, message: 'السلة فارغة' };
@@ -447,6 +459,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
     const payload: SalePayload = {
       client_uuid: clientUuid,
+      price_defining_options_version: 1,
       shift_id: shiftId,
       pos_register_id: posRegisterId,
       register_session_id: registerSessionId,
@@ -503,6 +516,12 @@ export const usePosStore = create<PosState>((set, get) => ({
       layaway_terms: paymentType === 'layaway' ? (extras?.layawayTerms ?? null) : null,
     };
     if (!useNetworkStore.getState().isOnline) {
+      if (loyaltyPoints > 0) {
+        return {
+          ok: false,
+          message: 'استبدال نقاط الولاء يحتاج اتصالاً مباشراً للتحقق من الرصيد وسعر التحويل. أعد الاتصال قبل إتمام البيع.',
+        };
+      }
       try {
         const user = useAuthStore.getState().user;
         const branch = useBranchStore.getState().activeBranch;
@@ -518,6 +537,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           branchName: branch?.name,
           cashierName: user?.name,
           catalogSettings: get().catalogSettings,
+          priceDefiningOptionsVersion,
         });
         await get().refreshPendingOrders();
         get().clearCart();
@@ -543,6 +563,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         }
         const settleRes = await diningAPI.settleOrder(settleTable.tableId, {
           client_op_id: clientUuid,
+          price_defining_options_version: 1,
           payment_type: payload.payment_type,
           paid: salePaid,
           payment_lines: payload.payment_lines,

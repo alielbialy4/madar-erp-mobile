@@ -11,6 +11,7 @@ import { printEngine } from '@/services/printing/printEngine';
 import { isServerKitchenPrintQueueEnabled } from '@/services/pos/posKitchenPrint';
 import { normalizeBranchPrintSettings } from '@/utils/branchPrintSettings';
 import type { CartLine } from '@/store/posStore';
+import { priceDefiningOptionsCapabilityError } from '@/utils/priceDefiningOptionsCompatibility';
 
 export const OFFLINE_SAVE_MESSAGE =
   'تم حفظ الطلب محلياً وسيتم مزامنته عند عودة الاتصال';
@@ -106,7 +107,13 @@ export async function saveOfflinePosOrder(input: {
   branchName?: string;
   cashierName?: string;
   catalogSettings?: Record<string, unknown> | null;
+  priceDefiningOptionsVersion?: number | null;
 }): Promise<{ order: OfflinePosOrderRecord; message: string }> {
+  const compatibilityError = priceDefiningOptionsCapabilityError(
+    input.cartLines,
+    input.priceDefiningOptionsVersion,
+  );
+  if (compatibilityError) throw new Error(compatibilityError);
   const check = await canCheckoutOffline(input.branchId);
   if (!check.ok) throw new Error(check.message);
 

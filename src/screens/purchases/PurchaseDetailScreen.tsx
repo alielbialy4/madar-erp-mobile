@@ -14,6 +14,7 @@ import { extractArray } from '@/utils/data';
 import { dateText, money, numberText } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { spacing } from '@/constants/spacing';
+import { purchaseRemainingAmount } from '@/utils/supplierPurchaseFinancials';
 export function PurchaseDetailScreen({ route, navigation }: { route: any; navigation: any }) {
   const rawId = route.params?.id;
   if (!rawId) {
@@ -121,7 +122,7 @@ export function PurchaseDetail({
       {(purchase, { refresh }) => {
         const total = Number(purchase.total ?? purchase.subtotal ?? 0);
         const paid = Number(purchase.paid ?? 0);
-        const remaining = Math.max(0, total - paid);
+        const remaining = purchaseRemainingAmount(purchase as Parameters<typeof purchaseRemainingAmount>[0]);
         const items = Array.isArray(purchase.items) ? purchase.items : [];
 
         return (

@@ -444,7 +444,7 @@ export const SIDEBAR_MENU_TEMPLATE: SidebarMenuItem[] = [
  label: 'nav.shifts',
  icon: 'ri-time-line',
  link: '/shifts',
- perm: ['open_shift', 'close_shift', 'manage_shifts', 'access_admin_routes', 'process_sales'],
+ perm: ['manage_shifts', 'access_admin_routes'],
  },
  {
  id: 'nav-vaults',

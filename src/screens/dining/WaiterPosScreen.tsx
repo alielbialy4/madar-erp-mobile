@@ -130,6 +130,7 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
     try {
       const res = await waiterAPI.createOrder({
         table_id: selected.id,
+        price_defining_options_version: 1,
         order_type: 'dine_in',
         items: waiterLinesToApiItems(cart, catalogProducts),
       });
@@ -195,6 +196,7 @@ export function WaiterPosScreen({ navigation }: { navigation: any }) {
     setBusy(true);
     try {
       await waiterAPI.settleOrder(orderId, {
+        price_defining_options_version: 1,
         payment_type: settlePaymentType,
         paid: Number(settlePaid || 0),
       });

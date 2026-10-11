@@ -33,7 +33,7 @@ export function SupplierStatementScreen({ navigation, route }: { navigation: Nav
     setLoading(true);
     setError(null);
     try {
-      const res = await suppliersAPI.statement(id);
+      const res = await suppliersAPI.statement(id, { page: 1, per_page: 100 });
       setData(extractData(res) ?? (res as Record<string, unknown>));
     } catch (err) {
       setError(normalizeApiError(err).message);

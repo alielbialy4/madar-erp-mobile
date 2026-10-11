@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { flexRow, textStart } from '@/constants/layout';
 import { AppText as Text } from '@/components/ui/AppText';
 import { shiftsAPI } from '@/api/shifts';
@@ -9,7 +10,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { AppScreen, ModuleHeader } from '@/components/layout';
 import { AppBadge, AppButton, AppListItem, AppSectionHeader } from '@/components/ui';
 import { MetricBlock, FinancialValue } from '@/components/madar';
-import { AppEmptyState, AppErrorState, AppLoadingState } from '@/components/feedback';
+import { AppEmptyState, AppErrorState, AppLoadingState, AppBanner } from '@/components/feedback';
 import { CloseShiftSheet } from '@/components/shifts/CloseShiftSheet';
 import { OpenShiftSheet } from '@/components/shifts/OpenShiftSheet';
 import { ShiftFilterSheet, type ShiftListFilters } from '@/components/shifts/ShiftFilterSheet';
@@ -27,6 +28,7 @@ import { cashierMayCloseBranchShift } from '@/utils/branchShiftCloseVisibility';
 import { radius, spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
 import type { ActiveShiftExtended, CurrentMeta, ShiftFilterUser, ShiftListRow } from '@/types/shifts';
+import type { MoreStackParamList } from '@/types/navigation';
 
 const defaultFilters = (): ShiftListFilters => ({
   from_date: dateDaysAgoLocal(30),
@@ -36,7 +38,9 @@ const defaultFilters = (): ShiftListFilters => ({
   user_id: '',
 });
 
-export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBack: () => void } }) {
+type Nav = NativeStackNavigationProp<MoreStackParamList, 'ShiftManagement'>;
+
+export function ShiftScreen({ navigation }: { route: unknown; navigation: Nav }) {
   const c = useColors();
   const { can, user } = usePermissions();
   const activeBranch = useBranchStore((s) => s.activeBranch);
@@ -63,6 +67,7 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
 
   const isAdmin = Boolean(user?.is_super_admin || can('access_admin_routes') || hasRole(user, ['admin']));
   const isCashier = hasRole(user, ['cashier', 'Cashier']);
+  const canViewShiftsPage = can(['manage_shifts', 'access_admin_routes']);
   const canOpen = can(['open_shift', 'manage_shifts', 'access_admin_routes', 'process_sales']);
   const canViewShiftSummary = !isCashier;
   const canRegisterManager = can([
@@ -235,6 +240,14 @@ export function ShiftScreen({ navigation }: { route: unknown; navigation: { goBa
       <MaterialIcons name="filter-list" size={24} color={c.text} />
     </Pressable>
   );
+
+  if (!canViewShiftsPage) {
+    return (
+      <AppScreen title="الورديات" onBack={navigation.goBack}>
+        <AppBanner tone="warning" message="تتطلب هذه الشاشة صلاحية إدارة الورديات." />
+      </AppScreen>
+    );
+  }
 
   return (
     <AppScreen

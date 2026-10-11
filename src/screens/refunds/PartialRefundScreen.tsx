@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { salesAPI } from '@/api/sales';
+import type { RefundPreview } from '@/api/pos';
 import { financialAccountsAPI, type PaymentSource } from '@/api/financialAccounts';
 import { AppScreen, FormScreenLayout } from '@/components/layout';
 import { FormSection } from '@/components/forms/FormSection';
@@ -59,6 +60,10 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   const [payoutSessionId, setPayoutSessionId] = useState('');
   const [payoutSession, setPayoutSession] = useState<EligibleRegisterMoneySession | null>(null);
   const [drawerBlocked, setDrawerBlocked] = useState(false);
+  const [refundPreview, setRefundPreview] = useState<RefundPreview | null>(null);
+  const [refundPreviewSignature, setRefundPreviewSignature] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawerElectronicConfirmOpen, setDrawerElectronicConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +94,53 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
   useEffect(() => {
     if (isElectronicSale) setCashRefundSource('vault');
   }, [isElectronicSale]);
+
+  const previewItems = useMemo(
+    () => (sale?.items ?? []).flatMap((item) => {
+      const selected = lines[Number(item.id)];
+      return selected?.quantity > 0
+        ? [{ sale_item_id: Number(item.id), quantity: selected.quantity }]
+        : [];
+    }),
+    [sale?.items, lines],
+  );
+  const previewSignature = previewItems.map((item) => `${item.sale_item_id}:${item.quantity}`).join('|');
+  const currentRefundPreview = refundPreviewSignature === previewSignature ? refundPreview : null;
+
+  useEffect(() => {
+    let active = true;
+    setRefundPreview(null);
+    setRefundPreviewSignature('');
+    setPreviewError('');
+    if (!previewItems.length) {
+      setPreviewLoading(false);
+      return () => { active = false; };
+    }
+
+    setPreviewLoading(true);
+    const timer = setTimeout(() => {
+      void salesAPI.previewPartialRefund(saleId, previewItems)
+        .then((response) => {
+          if (!active) return;
+          if (response.status !== 'success' || !response.data) {
+            throw new Error(response.message || 'تعذر احتساب معاينة الاسترداد');
+          }
+          setRefundPreview(response.data);
+          setRefundPreviewSignature(previewSignature);
+        })
+        .catch((error) => {
+          if (active) setPreviewError(normalizeApiError(error).message);
+        })
+        .finally(() => {
+          if (active) setPreviewLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [saleId, previewItems, previewSignature]);
 
   const styles = useMemo(() => StyleSheet.create({
     emptyText: { ...textStart, color: c.textMuted, fontSize: typography.body },
@@ -160,11 +212,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     setLines((prev) => ({ ...prev, [itemId]: { ...getLine(itemId), restock: !getLine(itemId).restock } }));
   };
 
-  const totalRefund = items.reduce((sum, item) => {
-    const line = getLine(Number(item.id));
-    const unitPrice = Number(item.unit_price ?? 0);
-    return sum + line.quantity * unitPrice;
-  }, 0);
+  const totalRefund = Number(currentRefundPreview?.total ?? 0);
 
   const hasItems = items.some((item) => getLine(Number(item.id)).quantity > 0);
 
@@ -299,7 +347,7 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
           title={hasItems ? `مراجعة رد ${money(totalRefund)}` : 'اختر أصنافًا للاسترداد'}
           variant="danger"
           onPress={openSubmitConfirm}
-          disabled={!hasItems || submitting || (refundMethod === 'cash' && cashRefundSource === 'drawer' && drawerBlocked)}
+          disabled={!hasItems || submitting || previewLoading || !currentRefundPreview || Boolean(previewError) || (refundMethod === 'cash' && cashRefundSource === 'drawer' && drawerBlocked)}
           loading={submitting}
           fullWidth
         />
@@ -307,12 +355,21 @@ function PartialRefund({ saleId, navigation }: { saleId: number; navigation: any
     >
       <MadarSection title="الأثر المالي المتوقع">
         <MetricBlock
-          label="مبلغ الاسترداد التقديري"
+          label="مبلغ الاسترداد من معاينة الخادم"
           value={money(totalRefund)}
-          hint={hasItems ? 'الخادم يثبت المبلغ النهائي عند التنفيذ' : 'اختر أصنافًا وكمية ليظهر الأثر'}
+          hint={previewLoading ? 'جارٍ احتساب المبلغ من بيانات الفاتورة المحفوظة…' : hasItems ? 'يعاد الاحتساب عند تنفيذ الاسترداد' : 'اختر أصنافًا وكمية ليظهر الأثر'}
           level="A"
           tone={hasItems ? 'negative' : 'neutral'}
         />
+        {previewError ? <Text style={[styles.sourceHint, { color: c.danger }]}>{previewError}</Text> : null}
+        {currentRefundPreview ? (
+          <View style={styles.itemDetails}>
+            <View style={styles.itemHeader}><Text style={styles.sourceHint}>ضريبة مرتجعة</Text><Text style={styles.sourceHint}>{money(currentRefundPreview.tax)}</Text></View>
+            <View style={styles.itemHeader}><Text style={styles.sourceHint}>رسوم توصيل مرتجعة</Text><Text style={styles.sourceHint}>{money(currentRefundPreview.delivery_fee)}</Text></View>
+            <View style={styles.itemHeader}><Text style={styles.sourceHint}>قيمة ولاء مستعادة ({currentRefundPreview.loyalty_points_restored} نقطة)</Text><Text style={styles.sourceHint}>{money(currentRefundPreview.loyalty_value_restored)}</Text></View>
+            <View style={styles.itemHeader}><Text style={styles.sourceHint}>رسوم خدمة محتفظ بها</Text><Text style={styles.sourceHint}>{money(currentRefundPreview.service_charge_retained)}</Text></View>
+          </View>
+        ) : null}
       </MadarSection>
 
       <AppBanner

@@ -16,6 +16,9 @@ export function appendOptionGroupsToFormData(formData: FormData, groups?: Produc
     formData.append(`option_groups[${gi}][title]`, g.title);
     formData.append(`option_groups[${gi}][selection_type]`, g.selection_type);
     formData.append(`option_groups[${gi}][pricing_type]`, g.pricing_type);
+    if (g.price_behavior != null) {
+      formData.append(`option_groups[${gi}][price_behavior]`, g.price_behavior);
+    }
     if (g.pricing_type === 'group_price' && g.group_price != null) {
       formData.append(`option_groups[${gi}][group_price]`, String(g.group_price));
     }

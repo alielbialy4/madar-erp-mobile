@@ -40,17 +40,30 @@ export function saleToCartLines(sale: Record<string, unknown> | null | undefined
     const item = rawItem as Record<string, unknown>;
     const product = item.product as Record<string, unknown> | undefined;
     const variant = item.variant as Record<string, unknown> | undefined;
+    const selectedOptions = mapSaleOptions(item.options);
+    const optionExtras = (selectedOptions ?? []).reduce((sum, group) => {
+      if (group.price_behavior === 'defines_base_price') return sum;
+      return sum + group.options.reduce((groupSum, option) => {
+        const applied = option.applied_price == null ? Number(option.option_price ?? 0) : Number(option.applied_price);
+        return groupSum + (Number.isFinite(applied) ? applied : 0);
+      }, 0);
+    }, 0);
+    const normalizedOptions = selectedOptions?.map((group) => group.price_behavior === 'defines_base_price'
+      ? { ...group, options: group.options.map((option) => ({ ...option, option_price: 0 })) }
+      : group);
 
     const line: CartLine = {
       product_id: Number(item.product_id),
       product_name: String(product?.name ?? ''),
       quantity: Number(item.quantity ?? 0),
-      unit_price: Number(item.unit_price ?? 0),
+      // Saved sale unit_price already includes selected options. Put the
+      // add-on snapshot back into CartLine's separate option-price component.
+      unit_price: Math.max(0, Number(item.unit_price ?? 0) - optionExtras),
       discount: Number(item.discount ?? 0),
       unit_id: item.unit_id != null ? Number(item.unit_id) : null,
       variant_id: item.variant_id != null ? String(item.variant_id) : null,
       variant_name: variant?.name != null ? String(variant.name) : null,
-      selected_options: mapSaleOptions(item.options),
+      selected_options: normalizedOptions,
     };
 
     return line;
@@ -62,12 +75,16 @@ function mapSaleOptions(raw: unknown): CartLineSelectedOption[] | undefined {
   return raw.map((groupRaw) => {
     const group = groupRaw as Record<string, unknown>;
     if (Array.isArray(group.options)) {
-      return group as unknown as CartLineSelectedOption;
+      return {
+        ...group,
+        price_behavior: (group.price_behavior as CartLineSelectedOption['price_behavior']) ?? 'additive',
+      } as unknown as CartLineSelectedOption;
     }
     return {
       product_option_group_id: Number(group.product_option_group_id),
       group_title: String(group.product_option_group_title ?? ''),
       pricing_type: (group.pricing_type as CartLineSelectedOption['pricing_type']) ?? 'per_option',
+      price_behavior: (group.price_behavior as CartLineSelectedOption['price_behavior']) ?? 'additive',
       options: [
         {
           product_option_id: Number(group.product_option_id),
@@ -106,6 +123,7 @@ export function saleItemsFromCart(cart: CartLine[]): SalePayload['items'] {
 export function buildTableOrderDraftPayload(input: BuildTableDraftInput): TableOrderDraftPayload {
   const allowDiscount = input.allowDiscount !== false;
   return {
+    price_defining_options_version: 1,
     expected_sale_updated_at: input.table.activeOrderId ? input.table.saleUpdatedAt ?? null : null,
     items: input.cart.map((line) => ({
       product_id: line.product_id,

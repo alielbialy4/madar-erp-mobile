@@ -20,6 +20,7 @@ const newGroup = (): ProductOptionGroupInput => ({
   title: '',
   selection_type: 'single',
   pricing_type: 'free',
+  price_behavior: 'additive',
   is_required: false,
   is_active: true,
   options: [newOption()],
@@ -39,7 +40,22 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const updateGroup = (idx: number, patch: Partial<ProductOptionGroupInput>) => {
-    onChange(groups.map((g, i) => (i === idx ? { ...g, ...patch } : g)));
+    onChange(groups.map((g, i) => {
+      if (i !== idx) return g;
+      const updated = { ...g, ...patch };
+      return updated.price_behavior === 'defines_base_price'
+        ? {
+            ...updated,
+            selection_type: 'single',
+            pricing_type: 'per_option',
+            group_price: null,
+            is_required: true,
+            min_selections: 1,
+            max_selections: 1,
+            is_active: true,
+          }
+        : updated;
+    }));
   };
 
   const addGroup = () => {
@@ -86,6 +102,25 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
           </View>
           <AppInput label="عنوان المجموعة" value={group.title} onChangeText={(title) => updateGroup(gi, { title })} />
           <AppSelect
+            label="طريقة احتساب السعر"
+            value={group.price_behavior ?? 'additive'}
+            options={[
+              { label: 'تضاف إلى سعر المنتج', value: 'additive' },
+              { label: 'الاختيار يحدد سعر المنتج', value: 'defines_base_price' },
+            ]}
+            onChange={(price_behavior) => updateGroup(gi, { price_behavior: price_behavior as ProductOptionGroupInput['price_behavior'] })}
+          />
+          {group.price_behavior === 'defines_base_price' ? (
+            <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>
+              هذا الاختيار الإجباري الواحد يحدد سعر الصنف. الإضافات الأخرى تظل مبالغ تضاف إليه.
+            </Text>
+          ) : null}
+          {group.price_behavior === 'defines_base_price' ? (
+            <Text style={{ color: c.text, fontSize: typography.tiny, fontFamily: 'Tajawal-Bold', textAlign: appTextAlignStart }}>
+              إجباري · اختيار واحد
+            </Text>
+          ) : (
+          <AppSelect
             label="نوع الاختيار"
             value={group.selection_type}
             options={[
@@ -94,6 +129,8 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
             ]}
             onChange={(selection_type) => updateGroup(gi, { selection_type: selection_type as 'single' | 'multiple' })}
           />
+          )}
+          {group.price_behavior !== 'defines_base_price' ? (
           <AppSelect
             label="التسعير"
             value={group.pricing_type}
@@ -104,7 +141,8 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
             ]}
             onChange={(pricing_type) => updateGroup(gi, { pricing_type: pricing_type as ProductOptionGroupInput['pricing_type'] })}
           />
-          {group.pricing_type === 'group_price' ? (
+          ) : null}
+          {group.price_behavior !== 'defines_base_price' && group.pricing_type === 'group_price' ? (
             <AppInput
               label="سعر المجموعة"
               value={String(group.group_price ?? '')}
@@ -112,7 +150,7 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
               keyboardType="decimal-pad"
             />
           ) : null}
-          {group.selection_type === 'multiple' ? (
+          {group.price_behavior !== 'defines_base_price' && group.selection_type === 'multiple' ? (
             <View style={{ ...flexRow, gap: spacing.sm }}>
               <View style={{ flex: 1 }}>
                 <AppInput
@@ -134,11 +172,11 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
           ) : null}
           <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: c.text }}>إلزامي</Text>
-            <Switch value={Boolean(group.is_required)} onValueChange={(is_required) => updateGroup(gi, { is_required })} />
+            <Switch disabled={group.price_behavior === 'defines_base_price'} value={Boolean(group.is_required)} onValueChange={(is_required) => updateGroup(gi, { is_required })} />
           </View>
           <View style={{ ...flexRow, alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: c.text }}>نشط</Text>
-            <Switch value={group.is_active !== false} onValueChange={(is_active) => updateGroup(gi, { is_active })} />
+            <Switch disabled={group.price_behavior === 'defines_base_price'} value={group.is_active !== false} onValueChange={(is_active) => updateGroup(gi, { is_active })} />
           </View>
           {(group.options ?? []).map((opt, oi) => (
             <View key={oi} style={{ gap: spacing.xs, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: c.borderSubtle }}>
@@ -176,7 +214,7 @@ export function ProductOptionGroupsEditor({ value, onChange }: Props) {
               />
               {group.pricing_type === 'per_option' ? (
                 <AppInput
-                  label="السعر"
+                label={group.price_behavior === 'defines_base_price' ? 'سعر البيع لهذا الاختيار' : 'السعر الإضافي'}
                   value={String(opt.price ?? 0)}
                   onChangeText={(t) => {
                     const options = [...(group.options ?? [])];

@@ -23,13 +23,14 @@ export const waiterAPI = {
   createOrder: (data: {
     table_id: string;
     items: WaiterOrderItem[];
+    price_defining_options_version?: number;
     customer_id?: number;
     order_type: 'dine_in' | 'takeaway' | 'delivery';
   }) => post('/waiter/orders', data),
-  addToOrder: (orderId: number, items: WaiterOrderItem[]) => post(`/waiter/orders/${orderId}/items`, { items }),
+  addToOrder: (orderId: number, items: WaiterOrderItem[], priceDefiningOptionsVersion = 1) => post(`/waiter/orders/${orderId}/items`, { items, price_defining_options_version: priceDefiningOptionsVersion }),
   updateOrderStatus: (orderId: number, status: string) => patch(`/waiter/orders/${orderId}/status`, { status }),
   settleOrder: (
     orderId: number,
-    data: { payment_type: WaiterPaymentType; paid: number; notes?: string },
+    data: { payment_type: WaiterPaymentType; paid: number; notes?: string; price_defining_options_version?: number },
   ) => post(`/waiter/orders/${orderId}/settle`, data),
 };

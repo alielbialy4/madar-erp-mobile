@@ -12,6 +12,7 @@ import { fonts } from '@/constants/fonts';
 import { cartLineKey, cartTotals, type CartLine } from '@/store/posStore';
 import type { Product } from '@/types/api';
 import { money, numberText } from '@/utils/format';
+import { lineUnitPriceWithOptions } from '@/utils/cartPricing';
 
 type Props = {
   lines: CartLine[];
@@ -65,13 +66,7 @@ export function WaiterCartPanel({ lines, products, onUpdateQty, onRemoveLine, on
                   .find((p) => Number(p.id) === Number(line.product_id))
                   ?.units?.find((u) => Number(u.id) === Number(line.unit_id))?.name
               : null;
-          const lineTotal =
-            line.quantity *
-            (line.unit_price +
-              (line.selected_options ?? []).reduce((sum, group) => {
-                if (group.pricing_type === 'group_price') return sum + (Number(group.group_price) || 0);
-                return sum + group.options.reduce((s, o) => s + (Number(o.option_price) || 0), 0);
-              }, 0));
+          const lineTotal = line.quantity * lineUnitPriceWithOptions(line);
 
           return (
             <View style={[styles.lineCard, { borderColor: c.borderSubtle, backgroundColor: c.surface }]}>

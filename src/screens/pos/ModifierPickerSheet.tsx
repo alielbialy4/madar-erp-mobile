@@ -13,15 +13,19 @@ import { typography } from '@/constants/typography';
 import { fonts } from '@/constants/fonts';
 import { money, numberText } from '@/utils/format';
 import { resolveMediaUrl } from '@/utils/media';
+import { priceDefiningOptionUnitPrice, unitSellingPrice } from '@/utils/posUnitPrice';
+import { unitPriceWithOptions } from '@/utils/cartPricing';
 
 type Props = {
   visible: boolean;
   product: Product | null;
+  variant?: { id: string; name?: string | null } | null;
+  unitId?: number | null;
   onClose: () => void;
   onConfirm: (options: CartLineSelectedOption[]) => void;
 };
 
-export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Props) {
+export function ModifierPickerSheet({ visible, product, variant, unitId, onClose, onConfirm }: Props) {
   const c = useColors();
   const s = usePosSheetStyles();
   const [selected, setSelected] = useState<Record<number, number[]>>({});
@@ -33,6 +37,44 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
   }, [product]);
 
   const thumb = product?.image ? resolveMediaUrl(product.image) : null;
+
+  const optionPriceForSelection = (price: number, definesBasePrice: boolean) => {
+    if (!product || !definesBasePrice) return price;
+    return priceDefiningOptionUnitPrice(product, price, unitId);
+  };
+
+  const selectedOptionGroups = useMemo<CartLineSelectedOption[]>(() => {
+    if (!product) return [];
+    return activeGroups
+      .filter((group) => selected[group.id]?.length)
+      .map((group) => ({
+        product_option_group_id: group.id,
+        group_title: group.title,
+        pricing_type: group.pricing_type,
+        price_behavior: group.price_behavior ?? 'additive',
+        group_price: group.group_price ? Number(group.group_price) : undefined,
+        options: (selected[group.id] ?? []).map((optionId) => {
+          const option = group.options!.find((candidate) => candidate.id === optionId)!;
+          const rawPrice = Number(option.price ?? 0);
+          const optionPrice = group.price_behavior === 'defines_base_price'
+            ? priceDefiningOptionUnitPrice(product, rawPrice, unitId)
+            : rawPrice;
+          return {
+            product_option_id: option.id,
+            name: option.name,
+            option_price: optionPrice,
+            applied_price: group.price_behavior === 'defines_base_price' || group.pricing_type === 'group_price' ? 0 : optionPrice,
+          };
+        }),
+      }));
+  }, [activeGroups, product, selected, unitId]);
+
+  const hasRequiredPriceSelection = !activeGroups.some(
+    (group) => group.price_behavior === 'defines_base_price' && group.is_required && !selected[group.id]?.length,
+  );
+  const previewUnitPrice = product
+    ? unitPriceWithOptions(unitSellingPrice(product, variant?.id, unitId), selectedOptionGroups)
+    : 0;
 
   useEffect(() => {
     if (!visible) return;
@@ -78,24 +120,7 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
       setErrors(validationErrors);
       return;
     }
-    const result: CartLineSelectedOption[] = activeGroups
-      .filter((g) => selected[g.id] && selected[g.id].length > 0)
-      .map((g) => ({
-        product_option_group_id: g.id,
-        group_title: g.title,
-        pricing_type: g.pricing_type,
-        group_price: g.group_price ? Number(g.group_price) : undefined,
-        options: selected[g.id].map((oid) => {
-          const opt = g.options!.find((o) => o.id === oid)!;
-          return {
-            product_option_id: opt.id,
-            name: opt.name,
-            option_price: Number(opt.price ?? 0),
-            applied_price: g.pricing_type === 'group_price' ? 0 : Number(opt.price ?? 0),
-          };
-        }),
-      }));
-    onConfirm(result);
+    onConfirm(selectedOptionGroups);
     setSelected({});
     setErrors([]);
   };
@@ -145,7 +170,9 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
                 {product.name}
               </Text>
               <Text style={{ ...textStart, fontSize: typography.small, fontFamily: fonts.medium, color: c.textMuted }}>
-                {money(product.selling_price)} · اختر الخيارات
+                {product.option_groups?.some((group) => group.price_behavior === 'defines_base_price')
+                  ? `السعر حسب الاختيار${variant?.name ? ` · ${variant.name}` : ''} · اختر الخيارات`
+                  : `${money(unitSellingPrice(product, variant?.id, unitId))} · اختر الخيارات`}
               </Text>
             </View>
           </View>
@@ -197,7 +224,19 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
                   <View style={[flexRow, { flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }]}>
                     {group.options!.map((opt) => {
                       const isSelected = groupSelection.includes(opt.id);
-                      const priceDelta = Number(opt.price ?? 0);
+                      const priceDelta = optionPriceForSelection(
+                        Number(opt.price ?? 0),
+                        group.price_behavior === 'defines_base_price',
+                      );
+                      const choiceUnitPrice = group.price_behavior === 'defines_base_price' && product
+                        ? unitPriceWithOptions(unitSellingPrice(product, variant?.id, unitId), [{
+                            product_option_group_id: group.id,
+                            group_title: group.title,
+                            pricing_type: group.pricing_type,
+                            price_behavior: 'defines_base_price',
+                            options: [{ product_option_id: opt.id, name: opt.name, option_price: priceDelta, applied_price: 0 }],
+                          }])
+                        : priceDelta;
                       return (
                         <Pressable
                           key={opt.id}
@@ -235,9 +274,9 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
                             >
                               {opt.name}
                             </Text>
-                            {priceDelta > 0 && group.pricing_type !== 'group_price' ? (
+                            {(priceDelta > 0 || group.price_behavior === 'defines_base_price') && group.pricing_type !== 'group_price' ? (
                               <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.tiny, fontFamily: fonts.medium }}>
-                                +{money(priceDelta)}
+                                {group.price_behavior === 'defines_base_price' ? `سعر ${money(choiceUnitPrice)}` : `+${money(priceDelta)}`}
                               </Text>
                             ) : null}
                           </View>
@@ -259,6 +298,14 @@ export function ModifierPickerSheet({ visible, product, onClose, onConfirm }: Pr
         </View>
 
         <View style={s.stickyFooter}>
+          <View style={{ ...flexRow, justifyContent: 'space-between', paddingVertical: spacing.xs }}>
+            <Text style={{ ...textStart, color: c.textMuted, fontSize: typography.small, fontFamily: fonts.medium }}>
+              {hasRequiredPriceSelection ? 'سعر الوحدة قبل الخصم والضريبة' : 'اختر السعر أولاً'}
+            </Text>
+            {hasRequiredPriceSelection ? (
+              <Text style={{ color: c.text, fontSize: typography.body, fontFamily: fonts.bold }}>{money(previewUnitPrice)}</Text>
+            ) : null}
+          </View>
           <AppButton title="إضافة إلى السلة" onPress={handleConfirm} size="lg" fullWidth />
           <AppButton title="إلغاء" variant="outline" onPress={handleClose} fullWidth />
         </View>

@@ -89,6 +89,111 @@ assert.equal(fallbackTaxTotals.gross, 300);
 assert.equal(fallbackTaxTotals.tax, 20);
 assert.equal(fallbackTaxTotals.total, 320);
 
+const branchVatLine: CartLine = {
+  product_id: 3,
+  product_name: 'Tax Test Product',
+  quantity: 1,
+  unit_price: 200,
+  discount: 0,
+};
+const branchVatOnce = computePosCheckoutTotals({
+  lines: [branchVatLine],
+  products: [{ id: 3, name: 'Tax Test Product', tax_rate: 0 } as Product],
+  settings: { tax_enabled: true, tax_rate: 14 },
+  branchId: '1',
+  orderType: 'takeaway',
+});
+assert.equal(branchVatOnce.tax, 28);
+assert.equal(branchVatOnce.total, 228);
+
+const branchVatMultiple = computePosCheckoutTotals({
+  lines: [{ ...branchVatLine, quantity: 2 }],
+  products: [{ id: 3, name: 'Tax Test Product', tax_rate: 0 } as Product],
+  settings: { tax_enabled: true, tax_rate: 14 },
+  branchId: '1',
+  orderType: 'takeaway',
+});
+assert.equal(branchVatMultiple.tax, 56);
+assert.equal(branchVatMultiple.total, 456);
+
+const goldenCheckout = computePosCheckoutTotals({
+  lines: [
+    { product_id: 1, product_name: 'Large burger with cheese', quantity: 2, unit_price: 175, discount: 70 },
+    { product_id: 2, product_name: 'Side', quantity: 3, unit_price: 100, discount: 0 },
+  ],
+  products: [{ id: 1, name: 'Large burger with cheese' } as Product, { id: 2, name: 'Side' } as Product],
+  settings: {
+    tax_enabled: true,
+    tax_rate: 14,
+    service_charge_enabled: true,
+    service_charge_type: 'percentage',
+    service_charge_value: 10,
+    service_charge_apply_to: 'dine_in',
+  },
+  branchId: '1',
+  orderType: 'dine_in',
+  manualDiscount: 40,
+  couponDiscount: 54,
+});
+assert.deepEqual({
+  lineGross: goldenCheckout.lineGross,
+  gross: goldenCheckout.gross,
+  lineDiscount: goldenCheckout.lineDiscount,
+  manualDiscount: goldenCheckout.manualDiscount,
+  couponDiscount: goldenCheckout.couponDiscount,
+  afterDiscount: goldenCheckout.afterDiscount,
+  tax: goldenCheckout.tax,
+  serviceCharge: goldenCheckout.serviceCharge,
+  total: goldenCheckout.total,
+}, {
+  lineGross: 650,
+  gross: 580,
+  lineDiscount: 70,
+  manualDiscount: 40,
+  couponDiscount: 54,
+  afterDiscount: 486,
+  tax: 68.04,
+  serviceCharge: 48.6,
+  total: 602.64,
+});
+
+const goldenLoyaltyDeliveryCheckout = computePosCheckoutTotals({
+  lines: [
+    { product_id: 1, product_name: 'Large burger with cheese', quantity: 2, unit_price: 175, discount: 70 },
+    { product_id: 2, product_name: 'Side', quantity: 3, unit_price: 100, discount: 0 },
+  ],
+  products: [{ id: 1, name: 'Large burger with cheese' } as Product, { id: 2, name: 'Side' } as Product],
+  settings: {
+    tax_enabled: true,
+    tax_rate: 14,
+    service_charge_enabled: true,
+    service_charge_type: 'percentage',
+    service_charge_value: 10,
+    service_charge_apply_to: 'dine_in',
+  },
+  branchId: '1',
+  orderType: 'dine_in',
+  manualDiscount: 40,
+  couponDiscount: 54,
+  deliveryFee: 30,
+  loyaltyDiscount: 10,
+});
+assert.deepEqual({
+  tax: goldenLoyaltyDeliveryCheckout.tax,
+  serviceCharge: goldenLoyaltyDeliveryCheckout.serviceCharge,
+  deliveryFee: goldenLoyaltyDeliveryCheckout.deliveryFee,
+  loyaltyDiscount: goldenLoyaltyDeliveryCheckout.loyaltyDiscount,
+  totalBeforeLoyalty: goldenLoyaltyDeliveryCheckout.totalBeforeLoyalty,
+  total: goldenLoyaltyDeliveryCheckout.total,
+}, {
+  tax: 68.04,
+  serviceCharge: 48.6,
+  deliveryFee: 30,
+  loyaltyDiscount: 10,
+  totalBeforeLoyalty: 632.64,
+  total: 622.64,
+});
+
 const scopedPromotion = {
   id: 'promo-1',
   name: 'Selected only',

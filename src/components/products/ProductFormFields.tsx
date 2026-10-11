@@ -72,6 +72,7 @@ export function ProductFormFields({
   const recipeCount = f.recipes.filter((r) => r.ingredient_product_id).length;
   const recipeCost = f.recipeCostPreview ?? estimateTotalRecipeCost(f.recipes);
   const modifierCount = f.optionGroups.filter((g) => g.title.trim()).length;
+  const priceIsDefinedByOption = f.optionGroups.some((group) => group.price_behavior === 'defines_base_price');
 
   const recipeSubtitle = useMemo(() => {
     if (recipeCount === 0) return 'أضف مكونات الخصم عند البيع';
@@ -146,12 +147,25 @@ export function ProductFormFields({
       >
         <AppInput label="سعر التكلفة" value={f.costPrice} onChangeText={f.setCostPrice} keyboardType="decimal-pad" />
         {!f.rawMaterialMode ? (
-          <AppInput label="سعر البيع" value={f.sellingPrice} onChangeText={f.setSellingPrice} keyboardType="decimal-pad" />
+          <>
+            <AppInput
+              label={priceIsDefinedByOption ? 'السعر حسب الاختيار الإجباري' : 'سعر البيع'}
+              value={priceIsDefinedByOption ? '0' : f.sellingPrice}
+              editable={!priceIsDefinedByOption}
+              onChangeText={f.setSellingPrice}
+              keyboardType="decimal-pad"
+            />
+            {priceIsDefinedByOption ? (
+              <Text style={{ color: c.textMuted, fontSize: typography.tiny, textAlign: appTextAlignStart }}>
+                الاختيار الإجباري يحدد سعر البيع؛ لا حاجة لإدخال سعر أساسي منفصل.
+              </Text>
+            ) : null}
+          </>
         ) : null}
-        {!f.rawMaterialMode ? (
+        {!f.rawMaterialMode && !priceIsDefinedByOption ? (
           <SwitchRow label="عرض ترويجي" value={f.isPromotional} onValueChange={f.setIsPromotional} />
         ) : null}
-        {!f.rawMaterialMode && f.isPromotional ? (
+        {!f.rawMaterialMode && !priceIsDefinedByOption && f.isPromotional ? (
           <>
             <AppInput
               label="سعر الترويج"

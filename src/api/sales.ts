@@ -7,6 +7,7 @@ export const salesAPI = {
   create: posAPI.createSale,
   refund: posAPI.refundSale,
   partialRefund: posAPI.partialRefund,
+  previewPartialRefund: posAPI.previewPartialRefund,
   print: posAPI.printSale,
   holdCart: posAPI.holdCart,
   getHoldCarts: posAPI.getHoldCarts,

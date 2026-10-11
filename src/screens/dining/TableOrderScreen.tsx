@@ -196,7 +196,7 @@ function TableOrder({ tableId, tableName, navigation }: { tableId: string; table
     setActionLoading(true);
     try {
       const total = Number(order?.total ?? order?.grand_total ?? 0);
-      const response = await diningAPI.settleOrder(tableId, { payment_type: 'cash', paid: total });
+      const response = await diningAPI.settleOrder(tableId, { price_defining_options_version: 1, payment_type: 'cash', paid: total });
       setMessage(response.message || 'تمت تسوية الطاولة');
       await load();
     } catch (err) {

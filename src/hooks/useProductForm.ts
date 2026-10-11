@@ -84,7 +84,17 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
   const [remoteImage, setRemoteImage] = useState<string | null>(null);
   const [units, setUnits] = useState<ProductUnitInput[]>(() => (initialRawMaterial ? rawMaterialUnits() : defaultUnits()));
   const [openingStock, setOpeningStock] = useState<OpeningStockInput[]>([]);
-  const [optionGroups, setOptionGroups] = useState<ProductOptionGroupInput[]>([]);
+  const [optionGroups, setOptionGroupsState] = useState<ProductOptionGroupInput[]>([]);
+  const setOptionGroups = useCallback((next: ProductOptionGroupInput[]) => {
+    setOptionGroupsState(next);
+    if (next.some((group) => group.price_behavior === 'defines_base_price')) {
+      setSellingPrice('0');
+      setIsPromotional(false);
+      setPromotionalPrice('');
+      setPromoStart('');
+      setPromoEnd('');
+    }
+  }, []);
   const [recipes, setRecipes] = useState<ProductRecipeInput[]>([]);
   const [productVariants, setProductVariants] = useState<Product['variants']>([]);
   const [recipeCostPreview, setRecipeCostPreview] = useState<number | null>(null);
@@ -302,6 +312,7 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
             title: g.title ?? g.name ?? '',
             selection_type: g.selection_type,
             pricing_type: g.pricing_type,
+            price_behavior: g.price_behavior,
             group_price: g.group_price != null ? Number(g.group_price) : null,
             is_required: Boolean(g.is_required),
             is_active: g.is_active !== false,
@@ -318,7 +329,7 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
       })
       .catch((err) => setFormError(normalizeApiError(err).message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, setOptionGroups]);
 
   const buildPayload = useCallback(
     (normalizedRecipes: ProductRecipeInput[]): ProductPayload => {
@@ -340,6 +351,7 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
         : undefined;
 
       const normalizedGroups = rawMaterialMode ? [] : optionGroups.filter((g) => g.title.trim());
+      const priceIsDefinedByOption = normalizedGroups.some((group) => group.price_behavior === 'defines_base_price');
 
       return {
         name: name.trim(),
@@ -348,7 +360,7 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
         barcodes: cleanBarcodes,
         barcode: cleanBarcodes[0],
         cost_price: Number(costPrice) || 0,
-        selling_price: rawMaterialMode ? 0 : Number(sellingPrice) || 0,
+        selling_price: rawMaterialMode || priceIsDefinedByOption ? 0 : Number(sellingPrice) || 0,
         min_stock_alert: isStockMode ? Number(minStockAlert) || 0 : 0,
         inventory_mode: effectiveInventoryMode,
         product_role: rawMaterialMode
@@ -371,10 +383,10 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
         specs: rawSpecs,
         active,
         featured: rawMaterialMode ? false : featured,
-        is_promotional: rawMaterialMode ? false : isPromotional,
-        promotional_price: !rawMaterialMode && isPromotional ? Number(promotionalPrice) || 0 : undefined,
-        promotional_start_date: !rawMaterialMode && isPromotional && promoStart ? promoStart : undefined,
-        promotional_end_date: !rawMaterialMode && isPromotional && promoEnd ? promoEnd : undefined,
+        is_promotional: rawMaterialMode || priceIsDefinedByOption ? false : isPromotional,
+        promotional_price: !rawMaterialMode && !priceIsDefinedByOption && isPromotional ? Number(promotionalPrice) || 0 : undefined,
+        promotional_start_date: !rawMaterialMode && !priceIsDefinedByOption && isPromotional && promoStart ? promoStart : undefined,
+        promotional_end_date: !rawMaterialMode && !priceIsDefinedByOption && isPromotional && promoEnd ? promoEnd : undefined,
         image,
         units: baseUnits,
         opening_stock: !isEdit && isStockMode ? openingStock.filter((r) => r.warehouse_id) : undefined,
@@ -426,8 +438,9 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
       return { message: rawMaterialMode ? 'اسم الخامة مطلوب' : 'اسم المنتج مطلوب', sectionKey: 'basics' };
     }
     if (!rawMaterialMode && !categoryId) return { message: 'اختر التصنيف', sectionKey: 'basics' };
-    if (!rawMaterialMode && Number(sellingPrice) <= 0) return { message: 'سعر البيع مطلوب', sectionKey: 'pricing' };
-    if (!rawMaterialMode && isPromotional && Number(promotionalPrice) <= 0) {
+    const priceIsDefinedByOption = optionGroups.some((group) => group.price_behavior === 'defines_base_price');
+    if (!rawMaterialMode && !priceIsDefinedByOption && Number(sellingPrice) <= 0) return { message: 'سعر البيع مطلوب', sectionKey: 'pricing' };
+    if (!rawMaterialMode && !priceIsDefinedByOption && isPromotional && Number(promotionalPrice) <= 0) {
       return { message: 'سعر الترويج مطلوب', sectionKey: 'pricing' };
     }
     if (!rawMaterialMode && isPromotional && promoStart && promoEnd) {
@@ -440,6 +453,9 @@ export function useProductForm({ id, initialRawMaterial }: Options) {
     const recipeValidation = normalizeRecipesForSave(recipes, inventoryMode, rawMaterialMode, active);
     if (recipeValidation.error) return { message: recipeValidation.error, sectionKey: 'recipe' };
     if (!rawMaterialMode) {
+      if (optionGroups.filter((group) => group.price_behavior === 'defines_base_price').length > 1) {
+        return { message: 'يمكن لمجموعة واحدة فقط تحديد سعر المنتج', sectionKey: 'modifiers' };
+      }
       const groupErr = validateOptionGroups(optionGroups.filter((g) => g.title.trim()));
       if (groupErr) return { message: groupErr, sectionKey: 'modifiers' };
     }

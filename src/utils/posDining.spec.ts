@@ -3,6 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import { buildTableOrderDraftPayload, cartContextFromSale, saleMetaFromServer } from './posDining';
+import { cartLineGross } from './cartPricing';
 
 const sale = {
   id: 42,
@@ -38,5 +39,34 @@ const draft = buildTableOrderDraftPayload({
 });
 assert.equal(draft.service_charge, 1);
 assert.equal(draft.total, 11);
+
+const optionSale = {
+  items: [{
+    product_id: 3,
+    quantity: 1,
+    unit_price: 170,
+    product: { name: 'Burger' },
+    options: [
+      {
+        product_option_group_id: 3,
+        group_title: 'Size',
+        pricing_type: 'per_option',
+        price_behavior: 'defines_base_price',
+        options: [{ product_option_id: 31, name: 'Large', option_price: 150, applied_price: 0 }],
+      },
+      {
+        product_option_group_id: 4,
+        group_title: 'Extras',
+        pricing_type: 'per_option',
+        price_behavior: 'additive',
+        options: [{ product_option_id: 41, name: 'Cheese', option_price: 20, applied_price: 20 }],
+      },
+    ],
+  }],
+};
+const restoredLine = cartContextFromSale(optionSale).lines[0];
+assert.equal(restoredLine.unit_price, 150);
+assert.equal(cartLineGross(restoredLine), 170);
+assert.equal(restoredLine.selected_options?.[0].options[0].option_price, 0);
 
 console.log('posDining.spec.ts: OK');

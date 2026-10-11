@@ -45,6 +45,8 @@ export type Expense = {
   status?: ExpenseStatus;
   cash_source?: 'drawer' | 'vault' | string | null;
   amount: number | string;
+  paid_amount?: number | string | null;
+  remaining_amount?: number | string | null;
   description?: string | null;
   expense_date?: string | null;
   reference_number?: string | null;
@@ -57,7 +59,13 @@ export type Expense = {
 
 export type ExpenseListPayload = {
   expenses: Expense[];
-  summary?: { total?: number | string; count?: number };
+  summary?: {
+    total?: number | string;
+    registered_total?: number | string;
+    paid_total?: number | string;
+    remaining_total?: number | string;
+    count?: number;
+  };
   pagination?: {
     total?: number;
     per_page?: number;

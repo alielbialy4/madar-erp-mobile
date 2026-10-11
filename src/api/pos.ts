@@ -2,9 +2,22 @@ import type { PosCatalog, Sale, SalePayload } from '@/types/api';
 import type { LegacyPendingOfflineOrder } from '@/types/offline';
 import { del, get, post } from './client';
 
+export type RefundPreview = {
+  total: number;
+  subtotal: number;
+  tax: number;
+  delivery_fee: number;
+  refund_base_total: number;
+  loyalty_value_restored: number;
+  loyalty_points_restored: number;
+  service_charge_refunded: number;
+  service_charge_retained: number;
+  non_reserving_preview: boolean;
+};
+
 export const posAPI = {
-  pullCatalog: (branchId?: string | null, params?: { products_page?: number; products_per_page?: number; customers_limit?: number }) => (
-    get<PosCatalog>('/sync/pos-data', { ...(branchId ? { branch_id: branchId } : {}), products_per_page: 300, customers_limit: 500, ...params })
+  pullCatalog: (branchId?: string | null, params?: { products_page?: number; products_per_page?: number; customers_limit?: number; price_defining_options_version?: number }) => (
+    get<PosCatalog>('/sync/pos-data', { ...(branchId ? { branch_id: branchId } : {}), products_per_page: 300, customers_limit: 500, ...params, price_defining_options_version: 1 })
   ),
   pushOfflineOrders: (orders: (LegacyPendingOfflineOrder & { sale_date: string })[], branchId?: string | null) => (
     post<
@@ -35,6 +48,8 @@ export const posAPI = {
     refund_channel?: 'cash' | 'card' | 'instapay' | 'electronic_wallet' | 'vodafone_cash' | 'bank_transfer' | 'payment_gateway';
     alternative_refund_reason?: string;
   }) => post(`/pos/sales/${saleId}/partial-refund`, data),
+  previewPartialRefund: (saleId: number, items: { sale_item_id: number; quantity: number }[]) =>
+    post<RefundPreview>(`/pos/sales/${saleId}/partial-refund/preview`, { items }),
   printSale: (id: number) => post(`/pos/sales/${id}/print`),
   printSaleRaw: (path: string) => post(path),
   holdCart: (data: unknown) => post('/pos/hold-cart', data),

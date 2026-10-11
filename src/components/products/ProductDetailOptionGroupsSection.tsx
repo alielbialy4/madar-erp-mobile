@@ -50,14 +50,20 @@ export function ProductDetailOptionGroupsSection({ product, flat }: Props) {
               <AppBadge label={selectionLabel(g.selection_type)} tone="info" />
             </View>
           </View>
-          <Text style={styles.meta}>{pricingLabel(g.pricing_type)}</Text>
+          <Text style={styles.meta}>
+            {g.price_behavior === 'defines_base_price' ? 'سعر المنتج يتحدد من هذا الاختيار الإجباري' : pricingLabel(g.pricing_type)}
+          </Text>
           {g.group_price != null && g.pricing_type === 'group_price' ? (
             <Text style={styles.groupPrice}>سعر المجموعة: {money(parseApiMoneyFirst(g.group_price) ?? 0)}</Text>
           ) : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionsRow}>
             {(g.options ?? []).map((opt) => {
               const price = parseApiMoneyFirst(opt.price);
-              const label = price != null && price > 0 ? `${opt.name} (+${money(price)})` : opt.name;
+              const label = price != null && (price > 0 || g.price_behavior === 'defines_base_price')
+                ? g.price_behavior === 'defines_base_price'
+                  ? `${opt.name} · ${money(price)}`
+                  : `${opt.name} (+${money(price)})`
+                : opt.name;
               return (
                 <View key={opt.id} style={styles.optionChip}>
                   <Text style={styles.optionText}>{label}</Text>

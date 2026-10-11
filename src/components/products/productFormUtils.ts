@@ -174,6 +174,8 @@ export function normalizeRecipesForSave(
 }
 
 export function validateOptionGroups(groups: ProductOptionGroupInput[]): string | null {
+  const priceDefiningGroups = groups.filter((group) => group.price_behavior === 'defines_base_price');
+  if (priceDefiningGroups.length > 1) return 'يمكن لمجموعة واحدة فقط تحديد سعر المنتج';
   for (const g of groups) {
     if (!g.title?.trim()) return 'عنوان مجموعة الخيارات مطلوب';
     if (!Array.isArray(g.options) || g.options.length === 0) return 'كل مجموعة يجب أن تحتوي خياراً واحداً على الأقل';
@@ -182,6 +184,16 @@ export function validateOptionGroups(groups: ProductOptionGroupInput[]): string 
     }
     if (g.is_required && g.selection_type === 'multiple' && (g.min_selections ?? 1) < 1) {
       return 'المجموعات الإلزامية المتعددة تحتاج حداً أدنى 1';
+    }
+    if (g.price_behavior === 'defines_base_price') {
+      if (g.is_active === false || !g.is_required || g.selection_type !== 'single' || g.pricing_type !== 'per_option') {
+        return 'مجموعة تحديد السعر يجب أن تكون نشطة وإجبارية وتقبل اختياراً واحداً';
+      }
+      const activeOptions = g.options.filter((option) => option.is_active !== false);
+      if (activeOptions.length === 0) return 'أضف اختياراً نشطاً بسعر بيع';
+      if (activeOptions.some((option) => option.price == null || !Number.isFinite(Number(option.price)) || Number(option.price) < 0)) {
+        return 'حدد سعر بيع صالحاً لكل اختيار نشط';
+      }
     }
   }
   return null;

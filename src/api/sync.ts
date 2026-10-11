@@ -4,6 +4,7 @@ import { get } from './client';
 import { posAPI } from './pos';
 
 export type PullPosDataParams = {
+  price_defining_options_version?: number;
   products_page?: number;
   products_per_page?: number;
   customers_limit?: number;
@@ -28,6 +29,7 @@ export async function pullFullPosCatalog(
     products_page: 1,
     products_per_page: productsPerPage,
     customers_limit: customersLimit,
+    price_defining_options_version: 1,
   });
 
   if (first.status !== 'success' || !first.data) {
@@ -48,6 +50,7 @@ export async function pullFullPosCatalog(
       products_page: page,
       products_per_page: productsPerPage,
       customers_limit: customersLimit,
+      price_defining_options_version: 1,
     });
     (next.data?.products ?? []).forEach((product) => {
       productsById.set(Number(product.id), product);
@@ -72,6 +75,7 @@ export const syncAPI = {
       products_per_page: params?.products_per_page ?? 300,
       customers_limit: params?.customers_limit ?? 500,
       products_page: params?.products_page ?? 1,
+      price_defining_options_version: 1,
     }),
 };
 

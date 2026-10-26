@@ -152,7 +152,7 @@ export function POSScreen({ navigation }: { navigation: any }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [paid, setPaid] = useState('');
-  const [paymentType, setPaymentType] = useState<PosCheckoutPaymentType>('cash');
+  const [paymentType, setPaymentType] = useState<PosCheckoutPaymentType | ''>('cash');
   const [loyaltyPointsInput, setLoyaltyPointsInput] = useState('');
   const [giftCardCode, setGiftCardCode] = useState('');
   const [giftCardMessage, setGiftCardMessage] = useState<string | null>(null);
@@ -1638,6 +1638,8 @@ export function POSScreen({ navigation }: { navigation: any }) {
         selectedTableName={selectedTableName}
         customerName={selectedCustomer?.name ?? null}
         financialAccounts={financialAccounts}
+        hasOpenShift={Boolean(shift)}
+        branchSettings={activeBranch?.settings ?? null}
         shiftVaultId={shift?.vault_id ?? null}
         registerMode={registerMode}
         sessionDrawerAccountId={sessionDrawerAccountId}

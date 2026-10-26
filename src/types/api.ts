@@ -329,7 +329,7 @@ export type SalePayload = {
   discount?: number;
   total: number;
   paid: number;
-  payment_type: 'cash' | 'card' | 'credit' | 'layaway' | 'split' | 'wallet' | 'electronic_wallet' | 'instapay';
+  payment_type: 'cash' | 'card' | 'credit' | 'layaway' | 'split' | 'wallet' | 'electronic_wallet' | 'instapay' | 'bank_transfer' | 'payment_gateway';
   notes?: string;
   warehouse_id?: string | null;
   order_type?: 'dine_in' | 'takeaway' | 'delivery';

@@ -34,10 +34,19 @@ import {
   resolvePosCashTarget,
   type PosCashTargetContext,
 } from '@/utils/paymentAccounts';
+import { selectMobilePaymentMethods, type MobilePaymentMethod } from '@/utils/paymentAvailability';
 
 type CouponState = { coupon: { code: string }; discount: number } | null;
 
 type GiftCardState = { id: number; code: string; balance: number; amount: number } | null;
+
+const SPLIT_LINE_METHODS = new Set<SplitLine['payment_method']>([
+  'cash', 'card', 'wallet', 'electronic_wallet', 'instapay', 'bank_transfer', 'payment_gateway',
+]);
+
+function isSplitLineMethod(method: MobilePaymentMethod): method is SplitLine['payment_method'] {
+  return SPLIT_LINE_METHODS.has(method as SplitLine['payment_method']);
+}
 
 function InputRow({ children }: { children: ReactNode }) {
   return <View style={{ ...flexRow, gap: spacing.sm, alignItems: 'flex-start' }}>{children}</View>;
@@ -61,8 +70,8 @@ type Props = {
   loyaltyBlockedOffline?: boolean;
   hasCustomer: boolean;
   isOnline: boolean;
-  paymentType: PosCheckoutPaymentType;
-  onPaymentTypeChange: (v: PosCheckoutPaymentType) => void;
+  paymentType: PosCheckoutPaymentType | '';
+  onPaymentTypeChange: (v: PosCheckoutPaymentType | '') => void;
   paid: string;
   onPaidChange: (v: string) => void;
   allowManualDiscount: boolean;
@@ -96,6 +105,8 @@ type Props = {
   registerMode?: string | null;
   sessionDrawerAccountId?: string | null;
   hasActiveRegisterSession?: boolean;
+  hasOpenShift: boolean;
+  branchSettings?: Record<string, unknown> | null;
   onCustomerCreated: (customer: Customer) => void;
   financialAccounts: FinancialAccount[];
   paymentAccountId: string;
@@ -179,6 +190,8 @@ export function PosPaymentModal({
   registerMode = 'legacy_shared_drawer',
   sessionDrawerAccountId = null,
   hasActiveRegisterSession = false,
+  hasOpenShift,
+  branchSettings,
   onCustomerCreated,
   financialAccounts,
   paymentAccountId,
@@ -238,9 +251,29 @@ export function PosPaymentModal({
     [financialAccounts, cashTarget],
   );
   const accountsEmpty = financialAccounts.length === 0;
+  const paymentAvailability = useMemo(() => selectMobilePaymentMethods({
+    branchId,
+    branchSettings,
+    financialAccounts,
+    cashTarget,
+    hasOpenShift,
+    hasActiveRegisterSession,
+    selectedCustomer,
+    walletBalance,
+    amountDue,
+    online: isOnline,
+  }), [branchId, branchSettings, financialAccounts, cashTarget, hasOpenShift, hasActiveRegisterSession, selectedCustomer, walletBalance, amountDue, isOnline]);
   const orderScrollRef = useRef<ScrollView>(null);
   const combinedScrollRef = useRef<ScrollView>(null);
   const deliveryScrollY = useRef(0);
+
+  useEffect(() => {
+    if (!visible || !paymentType || paymentAvailability.availableMethods.includes(paymentType)) return;
+    onPaymentTypeChange('');
+    onPaidChange('0');
+    onPaymentAccountIdChange('');
+    onSplitLinesChange([]);
+  }, [visible, paymentType, paymentAvailability.availableMethods, onPaymentTypeChange, onPaidChange, onPaymentAccountIdChange, onSplitLinesChange]);
 
   useEffect(() => {
     if (!visible || !needsDelivery) return;
@@ -254,11 +287,25 @@ export function PosPaymentModal({
   useEffect(() => {
     if (!visible || paymentType !== 'split') return;
     if (splitLines.length >= 2) return;
-    onSplitLinesChange([
-      { payment_method: 'cash', financial_account_id: accountForMethod('cash')?.id ?? '', amount: '' },
-      { payment_method: 'card', financial_account_id: accountForMethod('card')?.id ?? '', amount: '' },
-    ]);
-  }, [visible, paymentType, accountForMethod, splitLines.length, onSplitLinesChange]);
+    const methods = paymentAvailability.availableMethods.filter(isSplitLineMethod);
+    if (methods.length < 2) return;
+    onSplitLinesChange(methods.slice(0, 2).map((method) => ({
+      payment_method: method,
+      financial_account_id: method === 'wallet' ? '' : accountForMethod(method)?.id ?? '',
+      amount: '',
+    })));
+  }, [visible, paymentType, accountForMethod, splitLines.length, onSplitLinesChange, paymentAvailability.availableMethods]);
+
+  useEffect(() => {
+    if (!visible || paymentType !== 'split') return;
+    const methods = paymentAvailability.availableMethods.filter(isSplitLineMethod);
+    if (!splitLines.some((line) => !methods.includes(line.payment_method))) return;
+    onSplitLinesChange(methods.length >= 2 ? methods.slice(0, 2).map((method) => ({
+      payment_method: method,
+      financial_account_id: method === 'wallet' ? '' : accountForMethod(method)?.id ?? '',
+      amount: '',
+    })) : []);
+  }, [visible, paymentType, splitLines, paymentAvailability.availableMethods, onSplitLinesChange, accountForMethod]);
 
   useEffect(() => {
     if (!visible || paymentType === 'split' || paymentType === 'wallet' || paymentType === 'credit' || paymentType === 'layaway' || paymentType === 'gift_card') return;
@@ -283,9 +330,11 @@ export function PosPaymentModal({
   };
 
   const addSplitLine = () => {
+    const available = paymentAvailability.availableMethods.filter(isSplitLineMethod);
+    const method = available.find((candidate) => !splitLines.some((line) => line.payment_method === candidate)) ?? available[0] ?? 'cash';
     onSplitLinesChange([
       ...splitLines,
-      { payment_method: 'card', financial_account_id: accountForMethod('card')?.id ?? '', amount: '' },
+      { payment_method: method, financial_account_id: method === 'wallet' ? '' : accountForMethod(method)?.id ?? '', amount: '' },
     ]);
   };
 
@@ -308,8 +357,7 @@ export function PosPaymentModal({
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, [loyaltyPointsInput]);
 
-  // Match front PaymentModal buildPaymentOptions: cash, card, e-wallet, instapay, credit only.
-  const paymentOptions = useMemo(() => {
+  const allPaymentOptions = useMemo(() => {
     const base: {
       key: string;
       label: string;
@@ -329,10 +377,12 @@ export function PosPaymentModal({
         brandTile: { backgroundColor: c.paymentInstapayFg, textColor: c.onPrimary, title: 'InstaPay' },
       },
       { key: 'bank_transfer', label: 'تحويل بنكي', icon: 'account-balance' },
-      { key: 'payment_gateway', label: 'بوابة دفع', icon: 'language' },
+      { key: 'payment_gateway', label: 'بوابة دفع — تسجيل يدوي', icon: 'language' },
+      { key: 'wallet', label: 'محفظة العميل', icon: 'account-balance-wallet' },
       { key: 'credit', label: 'آجل', icon: 'schedule' },
       { key: 'layaway', label: 'تقسيط', icon: 'event' },
       { key: 'split', label: 'دفع مقسم', icon: 'call-split' },
+      { key: 'gift_card', label: 'بطاقة هدايا', icon: 'card-giftcard' },
     ];
     return base.map((opt) => ({
       key: opt.key,
@@ -341,6 +391,10 @@ export function PosPaymentModal({
       brandTile: opt.brandTile,
     }));
   }, [c.onPrimary, c.paymentInstapayFg, c.paymentVisaBg]);
+  const paymentOptions = useMemo(
+    () => allPaymentOptions.filter((option) => paymentAvailability.availableMethods.includes(option.key as MobilePaymentMethod)),
+    [allPaymentOptions, paymentAvailability.availableMethods],
+  );
 
   const cashDue = useMemo(() => {
     if (paymentType === 'gift_card' && appliedGiftCard) {
@@ -363,6 +417,7 @@ export function PosPaymentModal({
   );
   const requiresAccount = ['cash', 'card', 'electronic_wallet', 'instapay', 'bank_transfer', 'payment_gateway'].includes(paymentType);
   const confirmDisabled =
+    !paymentType || !paymentAvailability.availableMethods.includes(paymentType) ||
     (paymentType === 'split' && (activeSplitLines.length < 2 || splitMismatch || accountsEmpty || splitHasInvalidAccount)) ||
     (requiresAccount && !paymentAccountId) ||
     (paymentType === 'wallet' && (walletBalance == null || walletBalance < cashDue)) ||
@@ -496,6 +551,9 @@ export function PosPaymentModal({
         options={paymentOptions}
         onChange={(k) => onPaymentTypeChange(k as PosCheckoutPaymentType)}
       />
+      {paymentOptions.length === 0 ? (
+        <Text style={s.errorText}>لا توجد طريقة دفع متاحة لهذا الفرع والعملية. تحقق من سياسة الفرع والوردية والحسابات.</Text>
+      ) : null}
       {requiresAccount ? (
         <PosSheetSection label="حساب التحصيل">
           {accountsForMethod(paymentType).length === 0 ? (
@@ -834,15 +892,9 @@ export function PosPaymentModal({
                         label="طريقة الدفع"
                         value={item.payment_method}
                         onChange={(v) => updateSplitLine(index, 'payment_method', v)}
-                        options={[
-                          { label: 'نقدي', value: 'cash' },
-                          { label: 'بطاقة', value: 'card' },
-                          { label: 'محافظ إلكترونية', value: 'electronic_wallet' },
-                          { label: 'إنستا باي', value: 'instapay' },
-                          { label: 'تحويل بنكي', value: 'bank_transfer' },
-                          { label: 'بوابة دفع', value: 'payment_gateway' },
-                          ...(hasCustomer ? [{ label: 'محفظة', value: 'wallet' }] : []),
-                        ]}
+                        options={paymentOptions
+                          .filter((option) => ['cash', 'card', 'electronic_wallet', 'instapay', 'bank_transfer', 'payment_gateway', 'wallet'].includes(option.key))
+                          .map((option) => ({ label: option.label, value: option.key }))}
                       />
                       <AppInput
                         label="المبلغ"

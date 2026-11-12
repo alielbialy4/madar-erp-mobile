@@ -1,0 +1,62 @@
+name: Mobile Financial PR Gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/api/driverSettlements.ts'
+      - 'src/screens/delivery/**'
+      - 'src/screens/suppliers/**'
+      - 'src/utils/*Settlement*'
+      - 'src/utils/*Payment*'
+      - 'src/utils/submitLock*'
+      - 'src/utils/driverSettlementPermissions*'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-financial-pr-gate.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  financial-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Focused settlement behavior and contracts
+        run: |
+          for spec in \
+            src/utils/driverSettlementPayload.spec.ts \
+            src/utils/buildDriverSettlementMoneyContext.spec.ts \
+            src/screens/delivery/driverSettlementCreateContract.spec.ts \
+            src/utils/submitLock.spec.ts \
+            src/utils/driverSettlementPermissions.spec.ts; do
+            npx --yes tsx@4.23.15 "$spec"
+          done
+          if test -f src/utils/supplierPaymentPermissions.spec.ts; then
+            npx --yes tsx@4.23.15 src/utils/supplierPaymentPermissions.spec.ts
+          fi
+          if test -f src/utils/supplierPaymentPayload.spec.ts; then
+            npx --yes tsx@4.23.15 src/utils/supplierPaymentPayload.spec.ts
+          fi
+      - name: Changed financial source lint
+        run: |
+          npx --no-install eslint \
+            src/api/driverSettlements.ts \
+            src/screens/delivery/DriverSettlementsScreen.tsx \
+            src/utils/driverSettlementPayload.ts \
+            src/utils/buildDriverSettlementMoneyContext.ts \
+            src/utils/driverSettlementPermissions.ts \
+            src/utils/submitLock.ts
+          if test -f src/screens/suppliers/SupplierPaymentsScreen.tsx; then
+            npx --no-install eslint src/screens/suppliers/SupplierPaymentsScreen.tsx
+          fi

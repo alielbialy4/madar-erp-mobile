@@ -21,7 +21,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { extractData } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
 import { asText, dateText, money } from '@/utils/format';
-import { hasPermission } from '@/utils/permissions';
+import { canCreateDriverSettlement } from '@/utils/driverSettlementPermissions';
 import {
   completeIdempotencyAttempt,
   idempotencyKeyForAttempt,
@@ -32,6 +32,7 @@ import {
   driverSettlementRegisterSessionRequired,
 } from '@/utils/buildDriverSettlementMoneyContext';
 import { buildDriverSettlementPayload } from '@/utils/driverSettlementPayload';
+import { tryAcquireSubmitLock } from '@/utils/submitLock';
 import type { ApiEnvelope, ListParams } from '@/types/api';
 import { spacing } from '@/constants/spacing';
 import { flexRow, textStart } from '@/constants/layout';
@@ -43,7 +44,7 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
   const shiftMode = String(
     useBranchStore((s) => s.activeBranch?.settings?.register_mode) ?? 'legacy_shared_drawer',
   );
-  const canManage = hasPermission(user, ['manage_driver_settlements', 'manage_delivery', 'manage_drivers']);
+  const canManage = canCreateDriverSettlement(user);
 
   const loader = useCallback(
     (p: ListParams) => driverSettlementsAPI.list(p) as Promise<ApiEnvelope<Record<string, unknown>[]>>,
@@ -68,6 +69,7 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
   const [drawerSessionId, setDrawerSessionId] = useState('');
   const [drawerSession, setDrawerSession] = useState<EligibleRegisterMoneySession | null>(null);
   const [drawerBlocked, setDrawerBlocked] = useState(false);
+  const submitLockRef = useRef(false);
   const idempotencyRef = useRef<{ current: string | null }>({ current: null });
   const needsRegisterSession = shiftMode === 'multi_register' && depositTarget === 'current_drawer';
 
@@ -91,6 +93,7 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
     setDrawerSessionId('');
     setDrawerSession(null);
     setDrawerBlocked(false);
+    setLoadingUnsettled(false);
     idempotencyRef.current.current = null;
     try {
       const res = await driverSettlementsAPI.queue(branchId ? { branch_id: branchId } : undefined);
@@ -104,17 +107,20 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
       setDepositContext(ctx);
       setDepositTarget(ctx?.default_deposit_target ?? 'current_drawer');
       setVaultId(ctx?.available_vaults?.[0]?.id ? String(ctx.available_vaults[0].id) : '');
-      if (drivers[0]?.driver_id) setDriverId(String(drivers[0].driver_id));
+      if (drivers[0]?.driver_id) {
+        setLoadingUnsettled(true);
+        setDriverId(String(drivers[0].driver_id));
+      }
     } catch (err) {
       setFormError(normalizeApiError(err).message);
       setQueueDrivers([]);
+      setLoadingUnsettled(false);
     }
   };
 
   useEffect(() => {
     if (!createOpen || !driverId) return;
     let cancelled = false;
-    setLoadingUnsettled(true);
     driverSettlementsAPI
       .unsettled({
         driver_id: driverId,
@@ -199,6 +205,7 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
       setFormError(messages[built.error]);
       return;
     }
+    if (!tryAcquireSubmitLock(submitLockRef)) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -213,6 +220,7 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
       setFormError(normalized.message);
       toast.error(normalized.message);
     } finally {
+      submitLockRef.current = false;
       setBusy(false);
     }
   };
@@ -270,7 +278,10 @@ export function DriverSettlementsScreen({ navigation }: { navigation: any }) {
               label: `${d.driver_name} · مستحق ${money(d.total_due_from_driver)}`,
               value: String(d.driver_id),
             }))}
-            onChange={setDriverId}
+            onChange={(value) => {
+              setLoadingUnsettled(Boolean(value));
+              setDriverId(value);
+            }}
           />
 
           <Text style={textStart}>الطلبات غير المسوّاة {loadingUnsettled ? '(جاري التحميل…)' : ''}</Text>

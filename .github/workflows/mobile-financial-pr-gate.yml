@@ -40,13 +40,13 @@ jobs:
             src/screens/delivery/driverSettlementCreateContract.spec.ts \
             src/utils/submitLock.spec.ts \
             src/utils/driverSettlementPermissions.spec.ts; do
-            npx --no-install tsx "$spec"
+            npx --yes tsx@4.23.15 "$spec"
           done
           if test -f src/utils/supplierPaymentPermissions.spec.ts; then
-            npx --no-install tsx src/utils/supplierPaymentPermissions.spec.ts
+            npx --yes tsx@4.23.15 src/utils/supplierPaymentPermissions.spec.ts
           fi
           if test -f src/utils/supplierPaymentPayload.spec.ts; then
-            npx --no-install tsx src/utils/supplierPaymentPayload.spec.ts
+            npx --yes tsx@4.23.15 src/utils/supplierPaymentPayload.spec.ts
           fi
       - name: Changed financial source lint
         run: |

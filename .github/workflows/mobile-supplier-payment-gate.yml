@@ -1,0 +1,39 @@
+name: Mobile Supplier Payment Gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/api/supplierPayments.ts'
+      - 'src/screens/suppliers/**'
+      - 'src/utils/supplierPayment*'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-supplier-payment-gate.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  supplier-payment-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Focused supplier create and reversal contracts
+        run: npm run test:supplier-payment-contract
+      - name: Changed source lint
+        run: |
+          npx --no-install eslint \
+            src/api/supplierPayments.ts \
+            src/screens/suppliers/SupplierPaymentsScreen.tsx \
+            src/utils/supplierPaymentPayload.ts \
+            src/utils/supplierPaymentPermissions.ts

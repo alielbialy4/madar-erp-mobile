@@ -67,4 +67,7 @@ export const supplierPaymentsAPI = {
     post('/supplier-payments/settle-balance', data),
   applyPurchaseBalanceSettlement: (purchaseId: number, data: MixedSupplierBalanceSettlementPayload) =>
     post(`/purchases/${purchaseId}/settle-supplier-balance`, data),
+  /** Web ReverseSupplierPaymentModal — reason + client_uuid for idempotent reverse. */
+  reverse: (id: string, payload: { reason: string; client_uuid?: string }) =>
+    post(`/supplier-payments/${id}/reverse`, payload),
 };

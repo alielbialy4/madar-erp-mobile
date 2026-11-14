@@ -48,6 +48,7 @@ const base = { ...EMPTY_EXPENSE_FILTERS };
   });
   assert.equal(params.branch_id, 'branch-a');
   assert.equal(params.vault_id, undefined);
+  assert.equal(params.branch_id, 'branch-a');
 }
 
 console.log('expenseListFilters.spec.ts: OK');

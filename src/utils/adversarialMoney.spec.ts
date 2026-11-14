@@ -19,7 +19,7 @@ const product = {
   name: 'A',
   selling_price: 100,
   sales_channel_pricing: {
-    talabat: { markup_percent: 15, rounding_increment: 1, rounding_mode: 'up', token: 'tok' },
+    talabat: { price: 115, contract: 'sales_channel_price_v1', markup_percent: 15, rounding_increment: 1, rounding_mode: 'up', token: 'tok' },
   },
 } as Product;
 assert.equal(channelUnitPriceFromProduct(product, 'talabat'), 115);

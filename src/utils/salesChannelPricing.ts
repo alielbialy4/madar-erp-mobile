@@ -78,7 +78,7 @@ export function channelUnitPriceFromProduct(
   // V1 server prices the attested channel product base first, then adds the variant.
   // Never re-markup the variant or infer a missing signed quote from catalog settings.
   if (salesChannelId && (!channel
-    || channel.contract === 'sales_channel_price_v2'
+    || channel.contract !== 'sales_channel_price_v1'
     || !channel.token
     || typeof channel.price !== 'number'
     || !Number.isFinite(channel.price)
@@ -95,6 +95,10 @@ export function channelPriceToken(
   salesChannelId: string | null | undefined,
 ): string | undefined {
   if (!product || !salesChannelId) return undefined;
-  const token = product.sales_channel_pricing?.[salesChannelId]?.token;
-  return token ? String(token) : undefined;
+  const quote = product.sales_channel_pricing?.[salesChannelId];
+  if (!quote || quote.contract !== 'sales_channel_price_v1'
+    || typeof quote.price !== 'number' || !Number.isFinite(quote.price) || quote.price < 0) {
+    return undefined;
+  }
+  return quote.token ? String(quote.token) : undefined;
 }

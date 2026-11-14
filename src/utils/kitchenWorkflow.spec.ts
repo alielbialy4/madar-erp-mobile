@@ -5,5 +5,6 @@ assert.equal(kitchenWorkflowStatus({ kitchen_status: 'preparing' }), 'preparing'
 assert.equal(kitchenWorkflowStatus({ status: 'completed' }), 'served');
 assert.equal(kitchenWorkflowStatus({}), 'pending');
 assert.equal(kitchenWorkflowStatus({ kitchen_status: 'READY' }), 'ready');
+assert.equal(kitchenWorkflowStatus({ kitchen_status: 'UNKNOWN' }), 'pending');
 
 console.log('kitchenWorkflow.spec.ts: OK');

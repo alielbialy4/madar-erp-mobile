@@ -12,6 +12,7 @@ assert.equal(findProductByScan(products, '12345678')?.id, 1);
 assert.equal(findProductByScan(products, '999988887777')?.id, 2);
 assert.equal(findProductByScan(products, '3')?.id, 3);
 assert.equal(findProductByScan(products, 'nope'), undefined);
+assert.equal(findProductByScan([], '12345678'), undefined);
 assert.equal(looksLikeBarcodeScan('12345678'), true);
 assert.equal(looksLikeBarcodeScan('123'), false);
 assert.equal(looksLikeBarcodeScan('abcdefgh'), false);

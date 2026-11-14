@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { applySalesChannelBasePrice, channelUnitPriceFromProduct } from './salesChannelPricing';
+import { applySalesChannelBasePrice, channelUnitPriceFromProduct, channelPriceToken } from './salesChannelPricing';
 import type { Product } from '@/types/api';
 
 assert.equal(applySalesChannelBasePrice(100, { markup_percent: 10, rounding_increment: 0 }, false), 110);
@@ -18,6 +18,7 @@ const product: Product = {
   },
 };
 assert.equal(channelUnitPriceFromProduct(product, 'ch1'), 12);
+assert.equal(channelPriceToken(product, 'ch1'), 't1');
 assert.equal(channelUnitPriceFromProduct(product, null), 10);
 
 // V1 backend: channel product base is attested first; variant is added afterward.
@@ -40,6 +41,12 @@ assert.throws(() => channelUnitPriceFromProduct({
 }, 'ch1'), /signed channel price quote/);
 assert.throws(() => channelUnitPriceFromProduct({
   ...product, sales_channel_pricing: { ch1: { price: 12, token: 't1', contract: 'sales_channel_price_v2' } },
+}, 'ch1'), /signed channel price quote/);
+assert.equal(channelPriceToken({
+  ...product, sales_channel_pricing: { ch1: { price: 12, token: 't1', contract: 'sales_channel_price_v2' } },
+}, 'ch1'), undefined);
+assert.throws(() => channelUnitPriceFromProduct({
+  ...product, sales_channel_pricing: { ch1: { price: 12, token: 't1' } },
 }, 'ch1'), /signed channel price quote/);
 
 console.log('salesChannelPricing.spec.ts: OK');

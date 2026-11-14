@@ -10,6 +10,19 @@ assert.equal(isLikelyDriverNetMistake(100, 100, 15), false);
 assert.equal(isLikelyDriverNetMistake(100, 50, 15), false);
 
 assert.equal(handoverPreview(100, 15), 85);
+for (const invalidExpected of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+  assert.equal(
+    validateDeliveryCodCollect({
+      expectedAmount: invalidExpected,
+      collectedAmount: 50,
+      driverEarning: 0,
+      canPartialWaiver: true,
+      partialConfirmed: true,
+      collectionNote: 'customer short cash ok',
+    }).ok,
+    false,
+  );
+}
 
 assert.equal(
   validateDeliveryCodCollect({

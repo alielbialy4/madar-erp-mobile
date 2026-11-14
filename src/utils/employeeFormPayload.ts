@@ -20,6 +20,9 @@ export type EmployeeFormFields = {
 
 export function buildEmployeeCreatePayload(fields: EmployeeFormFields): Record<string, unknown> {
   const canLogin = fields.canLogin;
+  if (canLogin && !fields.password.trim()) {
+    throw new Error('A password is required for a login-enabled employee.');
+  }
   return {
     name: fields.name.trim(),
     email: fields.email.trim() || null,
@@ -27,7 +30,7 @@ export function buildEmployeeCreatePayload(fields: EmployeeFormFields): Record<s
     can_login: canLogin,
     ...(canLogin
       ? {
-          password: fields.password || 'changeme123',
+          password: fields.password,
           user_type: 'cashier',
         }
       : {}),

@@ -31,14 +31,23 @@ const PATTERNS: string[] = [
 const START_B = 104;
 const STOP = 106;
 
+export const MAX_BARCODE_LABELS_PER_JOB = 500;
+export const MAX_CODE128B_LENGTH = 128;
+
+/** A printed barcode must encode the exact displayed value; never substitute characters. */
+export function validateCode128Value(value: string): void {
+  if (!value || value.length > MAX_CODE128B_LENGTH || !/^[\x20-\x7E]+$/.test(value)) {
+    throw new Error('Barcode must be 1-128 printable ASCII characters for Code128B.');
+  }
+}
+
 function codeForChar(ch: string): number {
-  const code = ch.charCodeAt(0);
-  if (code < 32 || code > 126) return 0; // space fallback
-  return code - 32;
+  return ch.charCodeAt(0) - 32;
 }
 
 export function buildCode128Svg(value: string, opts?: { height?: number; moduleWidth?: number }): string {
-  const text = String(value || '').trim() || '0';
+  const text = String(value ?? '');
+  validateCode128Value(text);
   const height = opts?.height ?? 48;
   const moduleWidth = opts?.moduleWidth ?? 1.4;
 
@@ -69,9 +78,20 @@ export function buildCode128Svg(value: string, opts?: { height?: number; moduleW
 }
 
 export function buildBarcodeLabelHtml(labels: Array<{ name: string; barcode: string; price?: string | null; copies: number }>): string {
+  let totalLabels = 0;
+  for (const label of labels) {
+    validateCode128Value(label.barcode);
+    if (!Number.isSafeInteger(label.copies) || label.copies < 1) {
+      throw new Error('Label copies must be a positive whole number.');
+    }
+    totalLabels += label.copies;
+    if (totalLabels > MAX_BARCODE_LABELS_PER_JOB) {
+      throw new Error('Print job exceeds the maximum of 500 labels.');
+    }
+  }
   const cards = labels
     .flatMap((label) =>
-      Array.from({ length: Math.max(1, label.copies) }, () => {
+      Array.from({ length: label.copies }, () => {
         const svg = buildCode128Svg(label.barcode);
         const price = label.price ? `<div class="price">${escapeHtml(label.price)}</div>` : '';
         return `<div class="label"><div class="name">${escapeHtml(label.name)}</div>${svg}<div class="code">${escapeHtml(label.barcode)}</div>${price}</div>`;

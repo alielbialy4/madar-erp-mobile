@@ -28,8 +28,11 @@ export function isLikelyDriverNetMistake(
 }
 
 export function validateDeliveryCodCollect(input: DeliveryCodCollectInput): DeliveryCodCollectGate {
-  const expected = Math.max(0, Number(input.expectedAmount) || 0);
+  const expected = Number(input.expectedAmount);
   const collected = Number(input.collectedAmount);
+  if (!Number.isFinite(expected) || expected <= 0) {
+    return { ok: false, reason: 'قيمة التحصيل المطلوبة غير صالحة؛ حدّث بيانات الطلب قبل التحصيل.' };
+  }
   if (!Number.isFinite(collected) || collected < 0) {
     return { ok: false, reason: 'أدخل مبلغًا محصّلًا صالحًا (لا يكون سالبًا).' };
   }

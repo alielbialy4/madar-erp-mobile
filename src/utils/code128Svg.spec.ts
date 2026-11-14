@@ -8,7 +8,7 @@ assert.doesNotMatch(svg, /undefined/);
 assert.doesNotThrow(() => validateCode128Value(' ABC-123 '));
 assert.throws(() => buildCode128Svg(''), /1-128 printable ASCII/);
 assert.throws(() => buildCode128Svg('منتج-1'), /1-128 printable ASCII/);
-assert.throws(() => buildCode128Svg('A\\nB'), /1-128 printable ASCII/);
+assert.throws(() => buildCode128Svg('A\nB'), /1-128 printable ASCII/);
 assert.throws(() => buildCode128Svg('A'.repeat(129)), /1-128 printable ASCII/);
 
 const html = buildBarcodeLabelHtml([

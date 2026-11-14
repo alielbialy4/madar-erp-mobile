@@ -1,0 +1,72 @@
+name: Mobile Parity Unit Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/utils/**'
+      - 'src/screens/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-parity-unit-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/utils/**'
+      - 'src/screens/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-parity-unit-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parity-helpers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Run available focused mobile parity specs
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          for spec in \
+            src/utils/cashTender.spec.ts \
+            src/utils/walletWithdrawal.spec.ts \
+            src/utils/posBarcodeScan.spec.ts \
+            src/utils/kitchenWorkflow.spec.ts \
+            src/utils/couponFormPayload.spec.ts \
+            src/utils/employeeFormPayload.spec.ts \
+            src/utils/expenseListFilters.spec.ts \
+            src/utils/salesListFilters.spec.ts \
+            src/utils/code128Svg.spec.ts \
+            src/utils/deliveryCodCollect.spec.ts \
+            src/utils/adversarialMoney.spec.ts \
+            src/utils/holdCartChannelGuard.spec.ts \
+            src/utils/posDeliveryFee.spec.ts \
+            src/utils/registerSessionIdentity.spec.ts \
+            src/utils/salesChannelDraftRecovery.spec.ts \
+            src/utils/salesChannelPricing.spec.ts \
+            src/utils/shiftOpenPayload.spec.ts; do
+            if test -f "$spec"; then
+              echo "::group::$spec"
+              npx --yes tsx@4.23.15 "$spec"
+              echo "::endgroup::"
+              count=$((count+1))
+            fi
+          done
+          if (( count == 0 )); then
+            echo "::error::No parity spec exists in checked-out commit"
+            exit 1
+          fi
+          echo "Completed $count focused parity specs."

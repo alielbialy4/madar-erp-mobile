@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { deliveriesAPI } from '@/api/deliveries';
 import { driversAPI } from '@/api/drivers';
 import { AppBottomSheet, DetailScreenLayout } from '@/components/layout';
@@ -8,13 +9,17 @@ import { AppBanner, ConfirmDialog } from '@/components/feedback';
 import { AppBadge, AppButton, AppInput, AppListItem, AppSelect } from '@/components/ui';
 import { AppText as Text } from '@/components/ui/AppText';
 import { DELIVERY_NEXT_STATUS, deliveryStatusLabel, deliveryStatusTone } from '@/utils/deliveryStatus';
+import {
+  handoverPreview,
+  validateDeliveryCodCollect,
+} from '@/utils/deliveryCodCollect';
 import { extractArray } from '@/utils/data';
 import { asText, dateText, money } from '@/utils/format';
 import { normalizeApiError } from '@/utils/errors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useColors } from '@/hooks/useColors';
 import { radius, spacing } from '@/constants/spacing';
-import { textStart } from '@/constants/layout';
+import { flexRow, textStart } from '@/constants/layout';
 import { typography } from '@/constants/typography';
 
 type DeliveryDocument = Record<string, unknown>;
@@ -58,6 +63,7 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
   const [codSheetOpen, setCodSheetOpen] = useState(false);
   const [collectedAmount, setCollectedAmount] = useState('');
   const [collectionNote, setCollectionNote] = useState('');
+  const [partialConfirmed, setPartialConfirmed] = useState(false);
 
   const styles = useMemo(() => StyleSheet.create({
     actionGroup: { gap: spacing.sm },
@@ -100,6 +106,7 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
     setPendingStatus(null);
     setCollectedAmount('');
     setCollectionNote('');
+    setPartialConfirmed(false);
   };
 
   const applyStatus = async (
@@ -130,35 +137,35 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
       setPendingStatus(nextStatus);
       setCollectedAmount(String(Number(doc.amount_to_collect ?? 0)));
       setCollectionNote('');
+      setPartialConfirmed(false);
       setCodSheetOpen(true);
       return;
     }
     setPendingStatus(nextStatus);
   };
 
-  const confirmCodCollection = async (refresh: () => void, expected: number) => {
+  const confirmCodCollection = async (
+    refresh: () => void,
+    expected: number,
+    driverEarning: number,
+  ) => {
     const parsed = Number(collectedAmount);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setNotice('أدخل مبلغًا محصّلًا أكبر من صفر.');
-      return;
-    }
-    if (parsed > expected + 0.0001) {
-      setNotice('المبلغ المحصّل لا يمكن أن يتجاوز المبلغ المطلوب.');
-      return;
-    }
-    const isPartial = parsed + 0.0001 < expected;
-    if (isPartial && !canWaivePartial) {
-      setNotice('التحصيل الجزئي يحتاج صلاحية اعتماد فرق التحصيل.');
-      return;
-    }
-    if (isPartial && collectionNote.trim().length < 10) {
-      setNotice('اكتب سببًا واضحًا للتحصيل الجزئي لا يقل عن 10 أحرف.');
+    const gate = validateDeliveryCodCollect({
+      expectedAmount: expected,
+      collectedAmount: parsed,
+      driverEarning,
+      canPartialWaiver: canWaivePartial,
+      partialConfirmed,
+      collectionNote,
+    });
+    if (!gate.ok) {
+      setNotice(gate.reason);
       return;
     }
     await applyStatus(refresh, {
       collected_amount: parsed,
       ...(collectionNote.trim() ? { collection_note: collectionNote.trim() } : {}),
-      ...(isPartial ? { partial_collection_waiver: true } : {}),
+      ...(gate.isPartial ? { partial_collection_waiver: true } : {}),
     });
   };
 
@@ -218,10 +225,19 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
         const status = String(doc.status ?? '');
         const nextStatuses = (DELIVERY_NEXT_STATUS[status] ?? []).filter((item) => item.value !== 'assigned');
         const expectedCollect = Number(doc.amount_to_collect ?? 0);
+        const driverEarning = Number(doc.driver_earning ?? 0);
         const parsedCollection = Number(collectedAmount);
         const isPartialCollection = Number.isFinite(parsedCollection)
           && parsedCollection > 0
           && parsedCollection + 0.0001 < expectedCollect;
+        const codGate = validateDeliveryCodCollect({
+          expectedAmount: expectedCollect,
+          collectedAmount: Number.isFinite(parsedCollection) ? parsedCollection : NaN,
+          driverEarning,
+          canPartialWaiver: canWaivePartial,
+          partialConfirmed,
+          collectionNote,
+        });
 
         return (
           <>
@@ -321,11 +337,19 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
             >
               <AppListItem title="المبلغ المطلوب" meta={money(expectedCollect)} />
               <AppInput
-                label="المبلغ المحصّل"
+                label="المبلغ المحصّل (إجمالي العميل)"
                 value={collectedAmount}
                 onChangeText={setCollectedAmount}
                 keyboardType="decimal-pad"
               />
+              {driverEarning > 0 && Number.isFinite(parsedCollection) ? (
+                <Text style={styles.hint}>
+                  معاينة التسليم للصندوق بعد عمولة السائق {money(driverEarning)}: {money(handoverPreview(parsedCollection, driverEarning))}
+                </Text>
+              ) : null}
+              {!codGate.ok && Number.isFinite(parsedCollection) ? (
+                <AppBanner tone="danger" message={codGate.reason} />
+              ) : null}
               {isPartialCollection ? (
                 <>
                   <AppBanner
@@ -341,6 +365,19 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
                     multiline
                     placeholder="سبب لا يقل عن 10 أحرف"
                   />
+                  <Pressable
+                    onPress={() => setPartialConfirmed((v) => !v)}
+                    style={{ ...flexRow, alignItems: 'center', gap: spacing.sm }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: partialConfirmed }}
+                  >
+                    <MaterialIcons
+                      name={partialConfirmed ? 'check-box' : 'check-box-outline-blank'}
+                      size={22}
+                      color={partialConfirmed ? c.primary : c.textMuted}
+                    />
+                    <Text style={styles.hint}>أؤكد اعتماد فرق التحصيل الجزئي عن علم ومسؤولية.</Text>
+                  </Pressable>
                 </>
               ) : (
                 <AppInput
@@ -359,9 +396,9 @@ export function DeliveryDetailScreen({ route, navigation }: { route: any; naviga
               <View style={styles.actionGroup}>
                 <AppButton
                   title="تأكيد التسليم والتحصيل"
-                  onPress={() => void confirmCodCollection(refresh, expectedCollect)}
+                  onPress={() => void confirmCodCollection(refresh, expectedCollect, driverEarning)}
                   loading={busy}
-                  disabled={busy || (isPartialCollection && (!canWaivePartial || collectionNote.trim().length < 10))}
+                  disabled={busy || !codGate.ok}
                 />
                 <AppButton title="رجوع" variant="secondary" onPress={resetCodSheet} disabled={busy} />
               </View>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import * as Print from 'expo-print';
 import Barcode from 'react-native-barcode-svg';
@@ -9,7 +9,7 @@ import { MadarSurface } from '@/components/madar';
 import { productsAPI } from '@/api/products';
 import { extractArray } from '@/utils/data';
 import { normalizeApiError } from '@/utils/errors';
-import { buildBarcodeLabelHtml } from '@/utils/code128Svg';
+import { buildBarcodeLabelHtml, validateCode128Value } from '@/utils/code128Svg';
 import { money } from '@/utils/format';
 import type { Product } from '@/types/api';
 import { spacing } from '@/constants/spacing';
@@ -19,9 +19,9 @@ import { useColors } from '@/hooks/useColors';
 type Selected = { product: Product; barcode: string; quantity: number };
 
 function productBarcode(product: Product): string | null {
-  const list = (product.barcodes ?? []).map((b) => String(b).trim()).filter(Boolean);
+  const list = (product.barcodes ?? []).map((b) => String(b)).filter((b) => b.trim().length > 0);
   if (list[0]) return list[0];
-  const single = product.barcode != null ? String(product.barcode).trim() : '';
+  const single = product.barcode != null ? String(product.barcode) : '';
   return single || null;
 }
 
@@ -68,6 +68,12 @@ export function BarcodePrintInfoScreen({ navigation }: { navigation: any }) {
       toast.error('لا يوجد باركود لهذا المنتج');
       return;
     }
+    try {
+      validateCode128Value(barcode);
+    } catch {
+      toast.error('صيغة الباركود غير مدعومة للطباعة بـ Code128B؛ راجع قيمة المنتج.');
+      return;
+    }
     setSelected((prev) => {
       const existing = prev.find((row) => row.product.id === product.id);
       if (existing) {
@@ -79,19 +85,6 @@ export function BarcodePrintInfoScreen({ navigation }: { navigation: any }) {
     });
   };
 
-  const labelsHtml = useMemo(
-    () =>
-      buildBarcodeLabelHtml(
-        selected.map((row) => ({
-          name: row.product.name,
-          barcode: row.barcode,
-          price: money(Number(row.product.selling_price ?? 0)),
-          copies: row.quantity,
-        })),
-      ),
-    [selected],
-  );
-
   const handlePrint = async () => {
     if (selected.length === 0) {
       setError('أضف منتجاً واحداً على الأقل');
@@ -100,6 +93,14 @@ export function BarcodePrintInfoScreen({ navigation }: { navigation: any }) {
     setPrinting(true);
     setError(null);
     try {
+      const labelsHtml = buildBarcodeLabelHtml(
+        selected.map((row) => ({
+          name: row.product.name,
+          barcode: row.barcode,
+          price: money(Number(row.product.selling_price ?? 0)),
+          copies: row.quantity,
+        })),
+      );
       await Print.printAsync({ html: labelsHtml });
       toast.success('تم فتح ورقة الطباعة');
     } catch (err) {

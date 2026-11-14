@@ -28,6 +28,26 @@ function run() {
   assert.equal(created.base_salary, 5000);
   assert.equal(created.employee_type, 'salary');
 
+  assert.throws(() => buildEmployeeCreatePayload({
+    name: 'Login user',
+    email: 'login@example.test',
+    phone: '',
+    password: ' ',
+    canLogin: true,
+    branchId: 'b1',
+    employeeType: 'salary',
+    baseSalary: '0',
+    commission: '0',
+    bankTransfer: '0',
+    employmentStatus: 'active',
+    jobTitle: '',
+    shiftStart: '',
+    shiftEnd: '',
+    lateGraceMinutes: '',
+    lateDeductionPerMinute: '',
+    absenceDeductionAmount: '',
+  }), /password is required/i);
+
   const noLogin = buildEmployeeCreatePayload({
     name: 'Worker',
     email: '',

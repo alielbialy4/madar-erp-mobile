@@ -8,5 +8,7 @@ assert.equal(canWithdrawWalletAmount('5', 10), true);
 assert.equal(canWithdrawWalletAmount('10', 10), true);
 assert.equal(canWithdrawWalletAmount('10.01', 10), false);
 assert.equal(canWithdrawWalletAmount('abc', 10), false);
+assert.equal(parsePositiveAmount('Infinity'), null);
+assert.equal(canWithdrawWalletAmount('5', Number.NaN), false);
 
 console.log('walletWithdrawal.spec.ts: OK');
